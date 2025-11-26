@@ -1,0 +1,373 @@
+/* 工具页面样式 */
+.tool-container {
+  padding: 0;
+  height: auto;
+  overflow-y: visible;
+}
+
+/* 页面头部 */
+.tool-header {
+  margin-bottom: 20px;
+}
+
+.tool-header h1 {
+  font-size: 28px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 8px;
+}
+
+.tool-header p {
+  font-size: 14px;
+  color: #7f8c8d;
+  margin: 0;
+}
+
+/* 主要内容区域 */
+.tool-content {
+  display: flex;
+  gap: 20px;
+  height: calc(100% - 60px);
+}
+
+/* 侧边栏 */
+.tool-sidebar {
+  width: 260px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+/* 侧边栏头部 */
+.sidebar-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e1e8ed;
+}
+
+.sidebar-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0;
+}
+
+/* 分类列表 */
+.category-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.category-item {
+  width: 100%;
+  text-align: left;
+  padding: 12px 20px;
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: #34495e;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.category-item:hover {
+  background-color: #f8f9fa;
+}
+
+.category-item.active {
+  background-color: #3498db;
+  color: white;
+  font-weight: 500;
+}
+
+/* 侧边栏底部 */
+.sidebar-footer {
+  padding: 16px 20px;
+  border-top: 1px solid #e1e8ed;
+}
+
+.add-tool-btn {
+  width: 100%;
+  padding: 10px 16px;
+  background-color: #f8f9fa;
+  border: 1px dashed #3498db;
+  color: #3498db;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.add-tool-btn:hover {
+  background-color: #3498db;
+  color: white;
+  border-style: solid;
+}
+
+/* 工具主区域 */
+.tool-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* 工具控制区域 */
+.tool-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #ffffff;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+/* 搜索栏 */
+.search-bar {
+  flex: 1;
+  max-width: 400px;
+  display: flex;
+  position: relative;
+}
+
+.tool-search {
+  width: 100%;
+  padding: 10px 16px;
+  border: 1px solid #e1e8ed;
+  border-radius: 6px 0 0 6px;
+  font-size: 14px;
+  outline: none;
+}
+
+.tool-search:focus {
+  border-color: #3498db;
+}
+
+.search-icon {
+  padding: 10px 16px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 0 6px 6px 0;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.3s;
+}
+
+.search-icon:hover {
+  background-color: #2980b9;
+}
+
+/* 排序选项 */
+.sort-options {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sort-options label {
+  font-size: 14px;
+  color: #7f8c8d;
+}
+
+.sort-select {
+  padding: 8px 12px;
+  border: 1px solid #e1e8ed;
+  border-radius: 6px;
+  font-size: 14px;
+  background-color: #ffffff;
+  outline: none;
+  cursor: pointer;
+}
+
+.sort-select:focus {
+  border-color: #3498db;
+}
+
+/* 工具网格 */
+.tool-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+/* 工具卡片 */
+.tool-card {
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s;
+}
+
+.tool-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* 工具卡片头部 */
+.tool-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background-color: #f8f9fa;
+}
+
+.tool-icon {
+  font-size: 28px;
+}
+
+.tool-card-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.star-btn,
+.more-btn {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+  color: #95a5a6;
+}
+
+.star-btn:hover,
+.more-btn:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.star-btn.active {
+  color: #f39c12;
+}
+
+/* 工具卡片内容 */
+.tool-card-content {
+  padding: 16px;
+  flex: 1;
+}
+
+.tool-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0 0 8px 0;
+}
+
+.tool-description {
+  font-size: 14px;
+  color: #7f8c8d;
+  margin: 0 0 12px 0;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tool-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #95a5a6;
+}
+
+.tool-category {
+  background-color: #ecf0f1;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* 工具卡片底部 */
+.tool-card-footer {
+  padding: 16px;
+  border-top: 1px solid #e1e8ed;
+}
+
+.use-tool-btn {
+  width: 100%;
+  padding: 10px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.use-tool-btn:hover {
+  background-color: #2980b9;
+}
+
+/* 滚动条样式 */
+.category-list::-webkit-scrollbar,
+.tool-grid::-webkit-scrollbar {
+  width: 6px;
+}
+
+.category-list::-webkit-scrollbar-track,
+.tool-grid::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.category-list::-webkit-scrollbar-thumb,
+.tool-grid::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.category-list::-webkit-scrollbar-thumb:hover,
+.tool-grid::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .tool-content {
+    flex-direction: column;
+  }
+  
+  .tool-sidebar {
+    width: 100%;
+    max-height: 200px;
+  }
+  
+  .tool-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .search-bar {
+    max-width: none;
+  }
+  
+  .sort-options {
+    justify-content: center;
+  }
+  
+  .tool-grid {
+    grid-template-columns: 1fr;
+  }
+}

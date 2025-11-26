@@ -1,0 +1,379 @@
+/* 语音页面样式 */
+.voice-container {
+  padding: 20px;
+  height: calc(100vh - 80px);
+  overflow-y: auto;
+}
+
+/* 页面头部 */
+.voice-header {
+  margin-bottom: 20px;
+}
+
+.voice-header h1 {
+  font-size: 28px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 8px;
+}
+
+.voice-header p {
+  font-size: 14px;
+  color: #7f8c8d;
+  margin: 0;
+}
+
+/* 主要内容区域 */
+.voice-content {
+  display: flex;
+  gap: 20px;
+  height: calc(100% - 60px);
+}
+
+/* 工具栏区域 */
+.voice-toolbar {
+  width: 360px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 文本到语音转换区域 */
+.text-to-speech label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 8px;
+}
+
+.text-input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #e1e8ed;
+  border-radius: 6px;
+  font-size: 14px;
+  resize: vertical;
+  outline: none;
+  margin-bottom: 16px;
+}
+
+.text-input:focus {
+  border-color: #3498db;
+}
+
+/* 语音选项 */
+.voice-options {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.option-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.option-group label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #34495e;
+  margin-bottom: 6px;
+}
+
+.voice-select {
+  padding: 8px 12px;
+  border: 1px solid #e1e8ed;
+  border-radius: 6px;
+  font-size: 14px;
+  background-color: #ffffff;
+  outline: none;
+}
+
+.voice-select:focus {
+  border-color: #3498db;
+}
+
+/* 滑块样式 */
+.speed-slider, .pitch-slider {
+  width: 100%;
+  margin-bottom: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  background: #e1e8ed;
+  border-radius: 3px;
+  outline: none;
+}
+
+.speed-slider::-webkit-slider-thumb, .pitch-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #3498db;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.speed-slider::-moz-range-thumb, .pitch-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: #3498db;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+
+.speed-value, .pitch-value {
+  font-size: 12px;
+  color: #7f8c8d;
+  align-self: flex-end;
+}
+
+/* 语音操作按钮 */
+.voice-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.generate-btn, .preview-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.generate-btn {
+  background-color: #3498db;
+  color: white;
+}
+
+.generate-btn:hover {
+  background-color: #2980b9;
+}
+
+.preview-btn {
+  background-color: #f8f9fa;
+  color: #34495e;
+  border: 1px solid #e1e8ed;
+}
+
+.preview-btn:hover {
+  background-color: #e9ecef;
+}
+
+.generate-btn:disabled, .preview-btn:disabled {
+  background-color: #bdc3c7;
+  color: white;
+  cursor: not-allowed;
+}
+
+/* 语音结果区域 */
+.voice-results {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* 结果头部 */
+.results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 16px 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+}
+
+.results-header h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  padding: 0 12px;
+  width: 300px;
+}
+
+.search-input {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  background: none;
+  outline: none;
+  font-size: 14px;
+}
+
+.search-btn {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 5px;
+  color: #7f8c8d;
+}
+
+/* 语音文件列表 */
+.voice-list {
+  flex: 1;
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 语音文件项 */
+.voice-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+.voice-item:hover {
+  background-color: #e9ecef;
+}
+
+.voice-icon {
+  font-size: 32px;
+  flex-shrink: 0;
+}
+
+.voice-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.voice-info h4 {
+  font-size: 16px;
+  font-weight: 500;
+  color: #2c3e50;
+  margin: 0 0 4px 0;
+}
+
+.voice-info p {
+  font-size: 13px;
+  color: #7f8c8d;
+  margin: 0 0 4px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.voice-duration {
+  font-size: 12px;
+  color: #95a5a6;
+}
+
+/* 语音控制按钮 */
+.voice-controls {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.play-btn, .download-btn, .delete-btn {
+  background: none;
+  border: 1px solid #e1e8ed;
+  border-radius: 4px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.2s;
+}
+
+.play-btn:hover {
+  background-color: #ebf5fb;
+  border-color: #3498db;
+  color: #3498db;
+}
+
+.download-btn:hover {
+  background-color: #e8f5e9;
+  border-color: #27ae60;
+  color: #27ae60;
+}
+
+.delete-btn:hover {
+  background-color: #ffebee;
+  border-color: #e74c3c;
+  color: #e74c3c;
+}
+
+/* 滚动条样式 */
+.voice-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.voice-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.voice-list::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.voice-list::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .voice-content {
+    flex-direction: column;
+  }
+  
+  .voice-toolbar {
+    width: 100%;
+  }
+  
+  .results-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  
+  .search-bar {
+    width: 100%;
+  }
+  
+  .voice-item {
+    flex-wrap: wrap;
+  }
+  
+  .voice-controls {
+    margin-left: auto;
+  }
+}

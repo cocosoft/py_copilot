@@ -1,0 +1,46 @@
+# 虚拟环境
+.venv/
+venv/
+env/
+
+# 环境变量
+.env
+
+# 数据库
+*.db
+*.sqlite3
+
+# 缓存
+__pycache__/
+*.py[cod]
+
+# 构建产物
+frontend/dist/
+node_modules/
+
+# 备份和临时文件
+backend/backup_unused_files/
+localStorage.json
+test_api_responses.py
+update_api_key.js
+frontend/test_*.js
+frontend/verify_*.js
+
+# 编辑器文件
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 日志文件
+*.log
+logs/
+
+# OS生成的文件
+.DS_Store
+Thumbs.db
+
+# 临时文件
+tmp/
+temp/

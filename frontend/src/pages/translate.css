@@ -1,0 +1,306 @@
+/* 翻译页面样式 */
+.translate-container {
+  padding: 20px;
+  height: calc(100vh - 80px);
+  overflow-y: auto;
+}
+
+/* 页面头部 */
+.translate-header {
+  margin-bottom: 20px;
+}
+
+.translate-header h1 {
+  font-size: 28px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 8px;
+}
+
+.translate-header p {
+  font-size: 14px;
+  color: #7f8c8d;
+  margin: 0;
+}
+
+/* 主要内容区域 */
+.translate-content {
+  display: flex;
+  gap: 20px;
+  height: calc(100% - 60px);
+}
+
+/* 翻译主区域 */
+.translate-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* 翻译面板 */
+.translate-panel {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  flex: 1;
+}
+
+/* 语言面板 */
+.language-panel {
+  flex: 1;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+}
+
+/* 面板头部 */
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e1e8ed;
+}
+
+.language-select {
+  padding: 6px 12px;
+  border: 1px solid #e1e8ed;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: #ffffff;
+  outline: none;
+}
+
+.language-select:focus {
+  border-color: #3498db;
+}
+
+/* 面板操作按钮 */
+.panel-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.action-btn {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.action-btn:hover {
+  background-color: #f8f9fa;
+}
+
+/* 文本输入区域 */
+.translate-textarea {
+  flex: 1;
+  width: 100%;
+  padding: 16px;
+  border: none;
+  outline: none;
+  font-size: 16px;
+  resize: none;
+  background-color: transparent;
+  font-family: inherit;
+}
+
+.source-textarea {
+  color: #2c3e50;
+}
+
+/* 翻译结果区域 */
+.translate-result {
+  flex: 1;
+  padding: 16px;
+  background-color: #f8f9fa;
+  font-size: 16px;
+}
+
+.result-text {
+  margin: 0;
+  line-height: 1.6;
+  color: #2c3e50;
+}
+
+/* 交换语言按钮 */
+.swap-btn {
+  background-color: #ffffff;
+  border: 1px solid #e1e8ed;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  color: #3498db;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  margin-top: 40px;
+}
+
+.swap-btn:hover {
+  background-color: #3498db;
+  color: white;
+  border-color: #3498db;
+  transform: rotate(180deg);
+}
+
+/* 翻译按钮 */
+.translate-btn {
+  padding: 12px 24px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  align-self: center;
+}
+
+.translate-btn:hover {
+  background-color: #2980b9;
+}
+
+.translate-btn:disabled {
+  background-color: #bdc3c7;
+  cursor: not-allowed;
+}
+
+/* 侧边栏 */
+.translate-sidebar {
+  width: 320px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+/* 历史记录头部 */
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid #e1e8ed;
+}
+
+.history-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0;
+}
+
+.clear-history-btn {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.clear-history-btn:hover {
+  background-color: #f8f9fa;
+}
+
+/* 历史记录列表 */
+.history-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+/* 历史记录项 */
+.history-item {
+  padding: 12px;
+  margin-bottom: 8px;
+  border-radius: 6px;
+  background-color: #f8f9fa;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.history-item:hover {
+  background-color: #e9ecef;
+}
+
+.history-source {
+  font-size: 14px;
+  color: #2c3e50;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.history-target {
+  font-size: 14px;
+  color: #34495e;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.history-language {
+  font-size: 12px;
+  color: #7f8c8d;
+  font-style: italic;
+}
+
+/* 滚动条样式 */
+.history-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.history-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.history-list::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.history-list::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .translate-content {
+    flex-direction: column;
+  }
+  
+  .translate-sidebar {
+    width: 100%;
+    max-height: 300px;
+  }
+  
+  .translate-panel {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .swap-btn {
+    margin: 0 auto;
+    transform: rotate(90deg);
+  }
+  
+  .swap-btn:hover {
+    transform: rotate(270deg);
+  }
+}

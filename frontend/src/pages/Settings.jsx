@@ -1,0 +1,339 @@
+import React, { useState } from 'react';
+import './settings.css';
+import IntegratedModelManagement from '../components/IntegratedModelManagement';
+import Agent from './Agent';
+import Knowledge from './Knowledge';
+import Workflow from './Workflow';
+import Tool from './Tool';
+import About from './About';
+
+const Settings = () => {
+  // 状态管理当前选中的二级菜单
+  const [activeSection, setActiveSection] = useState('model');
+  
+  // 搜索设置的状态
+  const [searchEngine, setSearchEngine] = useState('google');
+  const [safeSearch, setSafeSearch] = useState(true);
+  const [strictFilter, setStrictFilter] = useState(false);
+  const [includeAdult, setIncludeAdult] = useState(false);
+  const [saveHistory, setSaveHistory] = useState(true);
+  const [historyDuration, setHistoryDuration] = useState('90');
+
+  // 根据选中的二级菜单渲染对应内容
+  const renderContent = () => {
+    switch (activeSection) {
+      case 'model':
+        return (
+          <div className="settings-content">
+            <div className="content-header">
+              <h2>模型管理</h2>
+              <p>管理AI供应商和模型配置，含模型分类与模型能力管理。</p>
+            </div>
+            
+            <div className="model-management-container">
+              <IntegratedModelManagement />
+            </div>
+          </div>
+        );
+        
+      case 'agents':
+        return (
+          <div className="settings-content">
+            <Agent />
+          </div>
+        );
+        
+      case 'knowledge':
+        return (
+          <div className="settings-content">
+            <Knowledge />
+          </div>
+        );
+        
+      case 'workflow':
+        return (
+          <div className="settings-content">
+            <Workflow />
+          </div>
+        );
+        
+      case 'tool':
+        return (
+          <div className="settings-content">
+            <Tool />
+          </div>
+        );
+      
+      case 'search':
+        return (
+          <div className="settings-content">
+            <div className="content-header">
+              <h2>搜索管理</h2>
+              <p>配置搜索偏好和搜索引擎</p>
+            </div>
+            
+            <div className="search-section">
+              <div className="setting-card">
+                <div className="setting-header">
+                  <h3>默认搜索引擎</h3>
+                  <p>选择默认使用的搜索引擎</p>
+                </div>
+                <div className="setting-control">
+                  <select 
+                    className="search-select"
+                    value={searchEngine}
+                    onChange={(e) => setSearchEngine(e.target.value)}
+                  >
+                    <option value="google">Google</option>
+                    <option value="bing">Bing</option>
+                    <option value="duckduckgo">DuckDuckGo</option>
+                    <option value="baidu">百度</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="setting-card">
+                <div className="setting-header">
+                  <h3>搜索过滤设置</h3>
+                  <p>配置搜索结果的过滤选项</p>
+                </div>
+                <div className="filter-options">
+                  <div className="filter-item">
+                    <input 
+                      type="checkbox" 
+                      id="safe-search" 
+                      checked={safeSearch}
+                      onChange={(e) => setSafeSearch(e.target.checked)}
+                    />
+                    <label htmlFor="safe-search">启用安全搜索</label>
+                  </div>
+                  <div className="filter-item">
+                    <input 
+                      type="checkbox" 
+                      id="strict-filter" 
+                      checked={strictFilter}
+                      onChange={(e) => setStrictFilter(e.target.checked)}
+                    />
+                    <label htmlFor="strict-filter">严格内容过滤</label>
+                  </div>
+                  <div className="filter-item">
+                    <input 
+                      type="checkbox" 
+                      id="include-adult" 
+                      checked={includeAdult}
+                      onChange={(e) => setIncludeAdult(e.target.checked)}
+                    />
+                    <label htmlFor="include-adult">包含成人内容（需确认）</label>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="setting-card">
+                <div className="setting-header">
+                  <h3>搜索历史</h3>
+                  <p>管理您的搜索历史记录</p>
+                </div>
+                <div className="history-settings">
+                  <div className="history-option">
+                    <input 
+                      type="checkbox" 
+                      id="save-history" 
+                      checked={saveHistory}
+                      onChange={(e) => setSaveHistory(e.target.checked)}
+                    />
+                    <label htmlFor="save-history">保存搜索历史</label>
+                  </div>
+                  <div className="history-option">
+                    <select 
+                      className="history-duration"
+                      value={historyDuration}
+                      onChange={(e) => setHistoryDuration(e.target.value)}
+                    >
+                      <option value="30">保留30天</option>
+                      <option value="90">保留90天</option>
+                      <option value="180">保留180天</option>
+                      <option value="365">保留1年</option>
+                      <option value="forever">永久保留</option>
+                    </select>
+                  </div>
+                  <button className="clear-history-btn">清空搜索历史</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      
+      case 'account':
+        return (
+          <div className="settings-content">
+            <div className="content-header">
+              <h2>账户设置</h2>
+              <p>管理您的个人信息和账户安全</p>
+            </div>
+            <p className="placeholder-text">账户设置内容将在这里显示...</p>
+          </div>
+        );
+      
+      case 'notifications':
+        return (
+          <div className="settings-content">
+            <div className="content-header">
+              <h2>通知设置</h2>
+              <p>配置应用通知的偏好</p>
+            </div>
+            <p className="placeholder-text">通知设置内容将在这里显示...</p>
+          </div>
+        );
+      
+      case 'privacy':
+        return (
+          <div className="settings-content">
+            <div className="content-header">
+              <h2>隐私设置</h2>
+              <p>管理您的数据隐私和使用条款</p>
+            </div>
+            <p className="placeholder-text">隐私设置内容将在这里显示...</p>
+          </div>
+        );
+      
+      case 'billing':
+        return (
+          <div className="settings-content">
+            <div className="content-header">
+              <h2>账单管理</h2>
+              <p>查看和管理您的订阅和支付方式</p>
+            </div>
+            <p className="placeholder-text">账单管理内容将在这里显示...</p>
+          </div>
+        );
+        
+      case 'about':
+        return (
+          <About />
+        );
+        
+      default:
+        return (
+          <div className="settings-content">
+            <div className="content-header">
+              <h2>设置</h2>
+              <p>选择左侧菜单查看相应设置选项</p>
+            </div>
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div className="settings-container">
+      <div className="settings-header">
+        <h1>Py Copilot 设置</h1>
+        <p>管理 Py Copilot 应用的各种配置选项</p>
+      </div>
+      
+      <div className="settings-content-wrapper">
+        {/* 左侧二级菜单 */}
+        <div className="settings-sidebar">
+        <nav className="settings-nav">
+          <button 
+            className={`nav-item ${activeSection === 'model' ? 'active' : ''}`}
+            onClick={() => setActiveSection('model')}
+          >
+            <span className="nav-icon">🧠</span>
+            <span className="nav-text">模型管理</span>
+          </button>
+          
+          <button 
+            className={`nav-item ${activeSection === 'agents' ? 'active' : ''}`}
+            onClick={() => setActiveSection('agents')}
+          >
+            <span className="nav-icon">🤖</span>
+            <span className="nav-text">智能体管理</span>
+          </button>
+          
+          <button 
+            className={`nav-item ${activeSection === 'knowledge' ? 'active' : ''}`}
+            onClick={() => setActiveSection('knowledge')}
+          >
+            <span className="nav-icon">📚</span>
+            <span className="nav-text">知识库管理</span>
+          </button>
+          
+          <button 
+            className={`nav-item ${activeSection === 'workflow' ? 'active' : ''}`}
+            onClick={() => setActiveSection('workflow')}
+          >
+            <span className="nav-icon">🔄</span>
+            <span className="nav-text">工作流管理</span>
+          </button>
+          
+          <button 
+            className={`nav-item ${activeSection === 'tool' ? 'active' : ''}`}
+            onClick={() => setActiveSection('tool')}
+          >
+            <span className="nav-icon">🔧</span>
+            <span className="nav-text">工具管理</span>
+          </button>
+          
+          <button 
+            className={`nav-item ${activeSection === 'search' ? 'active' : ''}`}
+            onClick={() => setActiveSection('search')}
+          >
+            <span className="nav-icon">🔍</span>
+            <span className="nav-text">搜索管理</span>
+          </button>
+          
+          <button 
+            className={`nav-item ${activeSection === 'account' ? 'active' : ''}`}
+            onClick={() => setActiveSection('account')}
+          >
+            <span className="nav-icon">👤</span>
+            <span className="nav-text">账户设置</span>
+          </button>
+          
+          <button 
+            className={`nav-item ${activeSection === 'notifications' ? 'active' : ''}`}
+            onClick={() => setActiveSection('notifications')}
+          >
+            <span className="nav-icon">🔔</span>
+            <span className="nav-text">通知设置</span>
+          </button>
+          
+          <button 
+            className={`nav-item ${activeSection === 'privacy' ? 'active' : ''}`}
+            onClick={() => setActiveSection('privacy')}
+          >
+            <span className="nav-icon">🔒</span>
+            <span className="nav-text">隐私设置</span>
+          </button>
+          
+          <button 
+            className={`nav-item ${activeSection === 'billing' ? 'active' : ''}`}
+            onClick={() => setActiveSection('billing')}
+          >
+            <span className="nav-icon">💳</span>
+            <span className="nav-text">账单管理</span>
+          </button>
+          
+          <button 
+            className={`nav-item ${activeSection === 'about' ? 'active' : ''}`}
+            onClick={() => setActiveSection('about')}
+          >
+            <span className="nav-icon">ℹ️</span>
+            <span className="nav-text">关于我们</span>
+          </button>
+            
+
+        </nav>
+      </div>
+        
+        {/* 右侧内容区域 */}
+        <div className="settings-main">
+          {renderContent()}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Settings;
