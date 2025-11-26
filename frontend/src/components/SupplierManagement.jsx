@@ -219,9 +219,9 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
                   {supplier.category && <span style={{ marginLeft: '8px', fontSize: '12px', color: '#666' }}>({supplier.category})</span>}
                 </div>
                 {supplier.is_active === false ? (
-                  <div className="supplier-tag" title="未启用">🔴 未启用</div>
+                  <div className="supplier-tag" title="OFF"></div>
                 ) : (
-                  <div className="supplier-tag active" title="已启用">🟢 已启用</div>
+                  <div className="supplier-tag active" title="已启用">🟢 ON</div>
                 )}
               </div>
             </div>
