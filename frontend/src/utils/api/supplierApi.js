@@ -19,13 +19,16 @@ export const supplierApi = {
       suppliersData = response;
     }
     
-    // 转换后端数据格式为前端所需格式，包含website和is_active字段
+    // 转换后端数据格式为前端所需格式，包含website、is_active和logo字段
     const formattedSuppliers = suppliersData.map(supplier => ({
       id: supplier.id,
       key: String(supplier.id),
       name: supplier.name || supplier.display_name || '',
       description: supplier.description || '',
+      logo: supplier.logo || '',  // 添加logo字段
+      category: supplier.category || '',  // 添加category字段
       apiUrl: supplier.api_endpoint || supplier.api_url || supplier.base_url || '',
+      api_docs: supplier.api_docs || '',  // 添加api_docs字段
       website: supplier.website || '',  // 添加官网字段
       apiKeyRequired: supplier.api_key_required || (supplier.api_key ? true : false),
       is_active: supplier.is_active !== undefined ? supplier.is_active : false // 添加is_active字段
@@ -50,9 +53,12 @@ export const supplierApi = {
         id: supplier.id,
         key: String(supplier.id),
         name: supplier.name || supplier.display_name || '',
+        logo: supplier.logo || '',  // 添加logo字段
+        category: supplier.category || '',  // 添加category字段
         website: supplier.website || '',  // 添加官网字段
         description: supplier.description || '',
         apiUrl: supplier.api_endpoint || supplier.api_url || supplier.base_url || '',
+        api_docs: supplier.api_docs || '',  // 添加api_docs字段
         apiKeyRequired: supplier.api_key_required || (supplier.api_key ? true : false),
         is_active: supplier.is_active !== undefined ? supplier.is_active : false // 添加is_active字段
       };

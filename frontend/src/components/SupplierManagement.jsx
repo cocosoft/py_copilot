@@ -202,26 +202,44 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
             key={supplier.id} 
             className={`supplier-item ${selectedSupplier && selectedSupplier.id === supplier.id ? 'selected' : ''}`}
             onClick={() => handleSupplierSelect(supplier)}
+            style={{ display: 'flex', alignItems: 'center' }}
           >
-            <div className="supplier-info" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div className="supplier-logo">
-                {supplier.logo ? (
-                    <img src={supplier.logo} alt={`${supplier.name} logo`} style={{ width: '30px', height: '30px', borderRadius: '4px' }} />
-                  ) : (
-                  <div style={{ width: '30px', height: '30px', backgroundColor: '#e0e0e0', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {supplier.name?.[0] || '?'}
-                  </div>
-                )}
+            <div className="supplier-info" style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
+              <div className="supplier-logo" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {(() => {
+                  // 优先使用数据库中的logo字段，如果为空则使用名称生成
+                  // 注意：在Vite项目中，public目录下的资源直接从根路径开始引用
+                  console.log('DEBUG: 获取供应商logo:', supplier.logo);
+                  const logoPath = supplier.logo 
+                    ? `/logos/providers/${supplier.logo}`
+                    : `/logos/providers/${(supplier.name || '').toLowerCase().replace(/\s+/g, '_')}.png`;
+                  
+                  return (
+                    <img 
+                      src={logoPath} 
+                      alt={`${supplier.name} logo`} 
+                      style={{ width: '30px', height: '30px', borderRadius: '4px' }} 
+                      onError={(e) => {
+                        // 图片加载失败时，显示供应商名称首字母
+                        e.target.style.display = 'none';
+                        const fallbackElement = document.createElement('div');
+                        fallbackElement.style.cssText = 'width: 30px; height: 30px; backgroundColor: #e0e0e0; borderRadius: 4px; display: flex; alignItems: center; justifyContent: center;';
+                        fallbackElement.textContent = '';
+                        fallbackElement.textContent = supplier.name?.[0] || '?';
+                        e.target.parentNode.appendChild(fallbackElement);
+                      }}
+                    />
+                  );
+                })()}
               </div>
-              <div className="supplier-details">
-                <div className="supplier-name">
-                  {supplier.name}
-                  {supplier.category && <span style={{ marginLeft: '8px', fontSize: '12px', color: '#666' }}>({supplier.category})</span>}
-                </div>
+              <div className="supplier-name" style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+                {supplier.name}
+              </div>
+              <div className="supplier-tag" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {supplier.is_active === false ? (
-                  <div className="supplier-tag" title="OFF"></div>
+                  <div></div>
                 ) : (
-                  <div className="supplier-tag active" title="已启用">🟢 ON</div>
+                  <div className="supplier-tag active" title="已启用" style={{  padding: '2px 8px', borderRadius: '12px', fontSize: '12px', minWidth: '60px', textAlign: 'center' }}>🟢 ON</div>
                 )}
               </div>
             </div>

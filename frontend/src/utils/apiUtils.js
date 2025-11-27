@@ -1,5 +1,5 @@
-// API基础配置 - 修改为指向后端服务器的正确端口
-export const API_BASE_URL = 'http://localhost:8001/api';
+// API基础配置 - 使用相对路径，让Vite代理处理请求
+export const API_BASE_URL = '/api';
 
 // 本地存储前缀
 export const STORAGE_PREFIX = 'llm_admin_';

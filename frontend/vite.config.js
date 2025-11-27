@@ -8,7 +8,7 @@ export default defineConfig({
     proxy: {
       // 将所有以/api开头的请求转发到后端服务器
       '/api': {
-        target: 'http://localhost:8001', // 后端实际运行在8001端口
+        target: 'http://localhost:8000', // 后端实际运行在8000端口
         changeOrigin: true,
         secure: false,
       }

@@ -160,17 +160,6 @@ const SupplierModal = ({ isOpen, onClose, onSave, supplier = null, mode = 'add' 
                 disabled={saving}
               />
             </div>
-            <div className="form-group">
-              <label htmlFor="isDomestic">是否国内供应商</label>
-              <input 
-                type="checkbox" 
-                id="isDomestic" 
-                name="isDomestic" 
-                checked={formData.isDomestic} 
-                onChange={handleChange}
-                disabled={saving}
-              />
-            </div>
           </div>
           
           <div className="form-group">
