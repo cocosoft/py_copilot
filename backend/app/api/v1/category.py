@@ -112,6 +112,56 @@ def get_category_tree(
     # 直接调用获取所有分类的方法
     return get_all_model_categories(db, current_user)
 
+@router.put("/model/categories/{category_id}", response_model=ModelCategoryResponse)
+def update_model_category(
+    category_id: int,
+    category_data: ModelCategoryCreate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    """更新模型分类"""
+    # 查找分类
+    category = db.query(ModelCategoryDB).filter(ModelCategoryDB.id == category_id).first()
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+    
+    # 检查名称是否与其他分类冲突（如果名称有更改）
+    if category.name != category_data.name:
+        existing = db.query(ModelCategoryDB).filter(ModelCategoryDB.name == category_data.name).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Category with this name already exists")
+    
+    # 检查父分类是否存在（如果提供了父分类ID）
+    if category_data.parent_id is not None and category_data.parent_id != category.parent_id:
+        # 确保不能将分类设置为自己的子分类
+        if category_data.parent_id == category_id:
+            raise HTTPException(status_code=400, detail="Category cannot be its own parent")
+        
+        # 检查父分类是否存在
+        parent = db.query(ModelCategoryDB).filter(ModelCategoryDB.id == category_data.parent_id).first()
+        if not parent:
+            raise HTTPException(status_code=400, detail="Parent category not found")
+    
+    # 更新分类数据
+    for key, value in category_data.dict().items():
+        setattr(category, key, value)
+    
+    # 提交更改
+    db.commit()
+    db.refresh(category)
+    
+    # 构建响应
+    return {
+        "id": category.id,
+        "name": category.name,
+        "display_name": category.display_name,
+        "description": category.description,
+        "category_type": category.category_type,
+        "parent_id": category.parent_id,
+        "is_active": category.is_active,
+        "children": []
+    }
+
 @router.delete("/model/categories/{category_id}")
 def delete_model_category(
     category_id: int,
