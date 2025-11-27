@@ -1,6 +1,41 @@
 import React, { useState, useEffect } from 'react';
-import api from '../utils/api';
+import { categoryApi } from '../utils/api/categoryApi';
 import '../styles/ModelCategoryManagement.css';
+
+// 将树形结构的分类数据扁平化为数组
+const flattenCategoryTree = (categories) => {
+  const result = [];
+  
+  console.log('🔄 开始扁平化分类树，输入数据类型:', Array.isArray(categories) ? '数组' : typeof categories);
+  console.log('🔄 输入数据长度:', Array.isArray(categories) ? categories.length : 'N/A');
+  
+  const traverse = (category) => {
+    if (!category) return;
+    
+    // 添加当前分类
+    const flatCategory = {
+      ...category,
+      // 移除children数组，避免重复处理
+      children: undefined
+    };
+    result.push(flatCategory);
+    console.log('➕ 添加分类:', flatCategory.name, '类型:', flatCategory.category_type);
+    
+    // 递归处理子分类
+    if (Array.isArray(category.children) && category.children.length > 0) {
+      console.log(`  🔄 处理${category.name}的子分类，数量:`, category.children.length);
+      category.children.forEach(child => traverse(child));
+    }
+  };
+  
+  // 处理顶层分类
+  if (Array.isArray(categories)) {
+    categories.forEach(category => traverse(category));
+  }
+  
+  console.log('✅ 扁平化完成，总分类数:', result.length);
+  return result;
+};
 
 const ModelCategoryManagement = () => {
   const [categories, setCategories] = useState([]);
@@ -24,17 +59,38 @@ const ModelCategoryManagement = () => {
     try {
       console.log('🔄 开始加载分类数据...');
       setLoading(true);
-      const response = await api.categoryApi.getAll();
+      
+      // 直接调用API获取原始数据，避免在API层进行树形转换
+      const rawResponse = await fetch('/api/model/categories', {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!rawResponse.ok) {
+        throw new Error(`HTTP error! Status: ${rawResponse.status}`);
+      }
+      
+      const response = await rawResponse.json();
+      console.log('📊 原始API响应数据:', JSON.stringify(response));
       
       // 统一响应格式处理
       let categoriesData = [];
       if (Array.isArray(response)) {
+        console.log('📝 响应是数组格式');
         categoriesData = response;
       } else if (response?.categories) {
+        console.log('📝 响应包含categories字段');
         categoriesData = response.categories;
       } else if (response?.data) {
+        console.log('📝 响应包含data字段');
         categoriesData = response.data;
       }
+      
+      console.log('📋 处理后的分类数据数量:', categoriesData.length);
+      console.log('📋 处理后的分类数据详情:', JSON.stringify(categoriesData));
       
       // 标准化分类数据，确保每个分类都有必要的属性
       const normalizedCategories = categoriesData.map(category => ({
@@ -48,11 +104,23 @@ const ModelCategoryManagement = () => {
         ...category
       }));
       
-      console.log('✅ 分类数据加载成功，共加载', normalizedCategories.length, '个分类');
-      setCategories(normalizedCategories);
+      console.log('📋 标准化后的分类数据数量:', normalizedCategories.length);
+      
+      // 使用扁平化处理确保所有分类（包括嵌套的次要分类）都能正确显示
+      const flattenedCategories = flattenCategoryTree(normalizedCategories);
+      
+      console.log('📈 分类数据检查:');
+      flattenedCategories.forEach((cat) => {
+        console.log(`  - ID: ${cat.id}, 名称: ${cat.name}, 类型: ${cat.category_type}, 父ID: ${cat.parent_id}`);
+      });
+      
+      console.log('✅ 分类数据加载成功，共加载', flattenedCategories.length, '个分类（含次要分类）');
+      
+      setCategories(flattenedCategories);
       setError(null);
     } catch (err) {
       console.error('❌ 获取分类失败:', err);
+      console.error('❌ 错误详情:', err.message, err.stack);
       setError('获取分类列表失败，请稍后重试');
       
       // 错误降级处理：使用本地模拟数据
@@ -127,7 +195,7 @@ const ModelCategoryManagement = () => {
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
     try {
-      await api.categoryApi.create(formData);
+      await categoryApi.create(formData);
       setShowCreateModal(false);
       loadCategories(); // 重新加载列表
     } catch (err) {
@@ -142,7 +210,7 @@ const ModelCategoryManagement = () => {
     if (!currentCategory) return;
     
     try {
-      await api.categoryApi.update(currentCategory.id, formData);
+      await categoryApi.update(currentCategory.id, formData);
       setShowEditModal(false);
       loadCategories(); // 重新加载列表
     } catch (err) {
@@ -153,12 +221,16 @@ const ModelCategoryManagement = () => {
   
   // 处理删除
   const handleDelete = async (categoryId) => {
+    console.log('🗑️  开始删除分类，ID:', categoryId);
     if (window.confirm('确定要删除这个分类吗？删除前请确保该分类没有子分类和关联的模型。')) {
       try {
-        await api.categoryApi.delete(categoryId);
+        console.log('🔄 调用删除API...');
+        const result = await categoryApi.delete(categoryId);
+        console.log('✅ 删除成功，结果:', result);
         loadCategories(); // 重新加载列表
       } catch (err) {
-        console.error('删除分类失败:', err);
+        console.error('❌ 删除分类失败:', err);
+        console.error('❌ 错误详情:', err.message, err.stack);
         setError('删除分类失败，可能是因为该分类下有子分类或关联的模型');
       }
     }

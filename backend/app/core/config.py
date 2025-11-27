@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     
     # 数据库配置
     database_url: str = Field(
-        default="postgresql://admin:password@localhost:5432/example_db", 
+        default="sqlite:///./py_copilot.db", 
         env="DATABASE_URL"
     )
     

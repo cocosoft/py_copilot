@@ -11,10 +11,12 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 # 导入模型和配置
 from app.core.config import settings
-from app.core.database import Base
+from app.models.base import Base
 
-# 导入所有模型，确保它们被注册
-from app.models import User, Conversation, Message, LLMRequestHistory, ModelConfiguration
+# 导入所有需要的模型，确保它们被注册
+from app.models.category_db import ModelCategoryDB
+from app.models.supplier_db import SupplierDB, ModelDB
+from app.models.capability_db import CapabilityDB
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

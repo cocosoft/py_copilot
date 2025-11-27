@@ -6,8 +6,14 @@ from sqlalchemy.orm import sessionmaker
 from app.core.config import settings
 
 # 创建数据库引擎
+# SQLite需要特殊的连接参数
+connect_args = {}
+if "sqlite" in settings.database_url:
+    connect_args = {"check_same_thread": False}
+
 engine = create_engine(
     settings.database_url,
+    connect_args=connect_args,
     pool_pre_ping=True,
     pool_size=10,
     max_overflow=20

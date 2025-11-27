@@ -35,7 +35,7 @@
 ### 后端
 - **编程语言**: Python 3.10+
 - **Web框架**: FastAPI
-- **数据库**: PostgreSQL, Redis
+- **数据库**: SQLite, Redis
 - **AI组件**: LangChain, OpenAI API, Hugging Face
 
 ### 前端
@@ -50,7 +50,8 @@
 ### 前提条件
 - Python 3.10 或更高版本
 - Node.js 16 或更高版本
-- PostgreSQL 数据库
+- Poetry 依赖管理工具
+- SQLite 数据库
 - Redis 服务
 
 ### 后端设置

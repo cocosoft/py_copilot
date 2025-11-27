@@ -111,3 +111,31 @@ def get_category_tree(
     """获取分类树形结构，与get_all_model_categories相同"""
     # 直接调用获取所有分类的方法
     return get_all_model_categories(db, current_user)
+
+@router.delete("/model/categories/{category_id}")
+def delete_model_category(
+    category_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    """删除模型分类"""
+    # 查找分类
+    category = db.query(ModelCategoryDB).filter(ModelCategoryDB.id == category_id).first()
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+    
+    # 检查是否有子分类
+    has_children = db.query(ModelCategoryDB).filter(
+        ModelCategoryDB.parent_id == category_id
+    ).first()
+    if has_children:
+        raise HTTPException(
+            status_code=400, 
+            detail="Cannot delete category with subcategories. Please delete subcategories first."
+        )
+    
+    # 删除分类
+    db.delete(category)
+    db.commit()
+    
+    return {"message": "Category deleted successfully"}
