@@ -102,19 +102,23 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
     setCurrentSupplier(null);
   };
 
-  // 处理保存供应商（添加或更新） - 简化版本
+  // 处理保存供应商（添加或更新） - 支持FormData文件上传
   const handleSaveSupplier = async (apiData, frontendData) => {
     try {
       setSaving(true);
       
+      // 检查是否是FormData对象（用于文件上传）
+      const isFormData = apiData instanceof FormData;
+      console.log('SupplierManagement: 检查数据类型 - 是否为FormData:', isFormData);
+      
       if (modalMode === 'edit' && currentSupplier) {
         console.log('SupplierManagement: 编辑模式，准备更新供应商', currentSupplier.id);
-        // 直接使用已经格式化好的apiData进行API调用
+        // 直接使用已经格式化好的apiData进行API调用（支持FormData和普通对象）
         await api.supplierApi.update(currentSupplier.id, apiData);
         console.log('SupplierManagement: 更新供应商成功');
       } else if (modalMode === 'add') {
         console.log('SupplierManagement: 添加模式，准备创建新供应商');
-        // 添加新供应商 - 直接使用已经格式化好的apiData
+        // 添加新供应商 - 直接使用已经格式化好的apiData（支持FormData和普通对象）
         await api.supplierApi.create(apiData);
         console.log('SupplierManagement: 创建供应商成功');
       }

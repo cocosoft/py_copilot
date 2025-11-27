@@ -15,6 +15,8 @@ const SupplierModal = ({ isOpen, onClose, onSave, supplier = null, mode = 'add' 
     isDomestic: false
   });
   const [saving, setSaving] = useState(false);
+  const [file, setFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState('');
 
   // 当传入的supplier变化时，更新表单数据
   useEffect(() => {
@@ -31,6 +33,9 @@ const SupplierModal = ({ isOpen, onClose, onSave, supplier = null, mode = 'add' 
         isActive: supplier.is_active !== undefined ? supplier.is_active : true,
         isDomestic: supplier.is_domestic !== undefined ? supplier.is_domestic : false
       });
+      // 重置文件和预览
+      setFile(null);
+      setPreviewUrl(supplier.logo || '');
     } else if (mode === 'add') {
       // 重置表单数据
       setFormData({
@@ -45,6 +50,8 @@ const SupplierModal = ({ isOpen, onClose, onSave, supplier = null, mode = 'add' 
         isActive: true,
         isDomestic: false
       });
+      setFile(null);
+      setPreviewUrl('');
     }
   }, [supplier, mode]);
 
@@ -56,6 +63,26 @@ const SupplierModal = ({ isOpen, onClose, onSave, supplier = null, mode = 'add' 
       [name]: type === 'checkbox' ? checked : value
     }));
   };
+
+  // 处理文件上传变化
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    if (selectedFile) {
+      setFile(selectedFile);
+      // 创建预览URL
+      const objectUrl = URL.createObjectURL(selectedFile);
+      setPreviewUrl(objectUrl);
+    }
+  };
+
+  // 清理预览URL
+  useEffect(() => {
+    return () => {
+      if (previewUrl && previewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
 
 
@@ -71,33 +98,37 @@ const SupplierModal = ({ isOpen, onClose, onSave, supplier = null, mode = 'add' 
     try {
       setSaving(true);
       
-      // 转换表单数据为后端API所需格式 - 匹配后端新字段
-      const apiData = {
-        name: formData.name,
-        description: formData.description,
-        logo: formData.logo,
-        category: formData.category,
-        website: formData.website,
-        api_endpoint: formData.apiUrl,
-        api_docs: formData.apiDocs,
-        api_key: formData.apiKey,
-        api_key_required: formData.apiKey ? true : false,
-        is_active: formData.isActive
-      };
+      // 创建FormData对象用于文件上传
+      const formDataToSubmit = new FormData();
       
-      // 为了前端UI显示，我们需要保留isDomestic信息，但不发送给后端
-      // 创建一个包含所有前端数据的对象，用于传递给父组件
+      // 添加所有表单字段
+      formDataToSubmit.append('name', formData.name);
+      formDataToSubmit.append('description', formData.description);
+      formDataToSubmit.append('category', formData.category);
+      formDataToSubmit.append('website', formData.website);
+      formDataToSubmit.append('api_endpoint', formData.apiUrl);
+      formDataToSubmit.append('api_docs', formData.apiDocs);
+      formDataToSubmit.append('api_key', formData.apiKey);
+      formDataToSubmit.append('api_key_required', formData.apiKey ? 'true' : 'false');
+      formDataToSubmit.append('is_active', formData.isActive ? 'true' : 'false');
+      
+      // 如果有文件上传，添加文件
+      if (file) {
+        formDataToSubmit.append('logo', file);
+      }
+      
+      // 为了前端UI显示，创建一个包含所有前端数据的对象
       const frontendData = {
         ...formData,
-        // 保留UI所需的所有字段
+        // 如果有新上传的文件，使用预览URL作为临时logo显示
+        logo: file ? previewUrl : formData.logo
       };
       
-      console.log('SupplierModal: 准备调用onSave，提交的后端数据:', apiData);
+      console.log('SupplierModal: 准备调用onSave，提交的数据:', formDataToSubmit);
       console.log('SupplierModal: 提交的前端数据:', frontendData);
       
-      // 调用父组件的保存函数，传递API数据和前端数据
-      // 这样父组件既可以使用正确格式的API数据进行保存，又能保留前端UI所需的数据
-      await onSave(apiData, frontendData);
+      // 调用父组件的保存函数，传递FormData和前端数据
+      await onSave(formDataToSubmit, frontendData);
       console.log('SupplierModal: onSave调用成功，准备关闭模态窗口');
       onClose();
     } catch (error) {
@@ -176,16 +207,38 @@ const SupplierModal = ({ isOpen, onClose, onSave, supplier = null, mode = 'add' 
           </div>
           
           <div className="form-group">
-            <label htmlFor="logo">Logo URL</label>
+            <label htmlFor="logo">Logo 图片</label>
+            {previewUrl && (
+              <div className="logo-preview" style={{
+                marginBottom: '10px',
+                display: 'flex',
+                justifyContent: 'center'
+              }}>
+                <img 
+                  src={previewUrl} 
+                  alt="Logo预览" 
+                  style={{
+                    maxWidth: '150px',
+                    maxHeight: '150px',
+                    objectFit: 'contain',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    padding: '5px'
+                  }}
+                />
+              </div>
+            )}
             <input 
-              type="url" 
+              type="file" 
               id="logo"
-              name="logo"
-              value={formData.logo}
-              onChange={handleChange}
-              placeholder="https://"
+              accept="image/*"
+              onChange={handleFileChange}
               disabled={saving}
+              style={{ marginTop: '5px' }}
             />
+            <small style={{ display: 'block', marginTop: '5px', color: '#666' }}>
+              支持JPG、PNG、GIF等图片格式，建议尺寸不超过500KB
+            </small>
           </div>
           
           <div className="form-row">

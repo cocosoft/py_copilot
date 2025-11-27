@@ -70,30 +70,45 @@ export const supplierApi = {
   create: async (supplier) => {
     console.log('🔄 supplierApi.create - 原始数据:', supplier);
     
-    // 修正字段映射，确保与数据库字段一致，使用新的字段名
-    const backendSupplierData = {
-        name: supplier.name,
-        description: supplier.description || '',
-        logo: supplier.logo || '',
-        category: supplier.category || '',
-        website: supplier.website || '', // 确保正确处理website字段
-        api_endpoint: supplier.api_endpoint || '',
-        api_docs: supplier.api_docs || '',
-        api_key: supplier.api_key || '',
-        api_key_required: supplier.api_key_required !== undefined ? supplier.api_key_required : !!supplier.api_key,
-        is_active: supplier.is_active !== undefined ? supplier.is_active : true
-    };
+    // 检查是否是FormData对象（用于文件上传）
+    const isFormData = supplier instanceof FormData;
+    let requestData = supplier;
     
-    console.log('🔄 supplierApi.create - 发送到后端的供应商数据:', backendSupplierData);
+    if (!isFormData) {
+      // 修正字段映射，确保与数据库字段一致，使用新的字段名
+      const backendSupplierData = {
+          name: supplier.name,
+          description: supplier.description || '',
+          logo: supplier.logo || '',
+          category: supplier.category || '',
+          website: supplier.website || '', // 确保正确处理website字段
+          api_endpoint: supplier.api_endpoint || '',
+          api_docs: supplier.api_docs || '',
+          api_key: supplier.api_key || '',
+          api_key_required: supplier.api_key_required !== undefined ? supplier.api_key_required : !!supplier.api_key,
+          is_active: supplier.is_active !== undefined ? supplier.is_active : true
+      };
+      
+      console.log('🔄 supplierApi.create - 发送到后端的供应商数据:', backendSupplierData);
+      requestData = JSON.stringify(backendSupplierData);
+    } else {
+      console.log('🔄 supplierApi.create - 接收到FormData对象，用于文件上传');
+    }
     
     // 使用正确的API路径
-    const response = await request('/model-management/suppliers', {
+    const requestOptions = {
       method: 'POST',
-      body: JSON.stringify(backendSupplierData),
-      headers: {
+      body: requestData
+    };
+    
+    // 只有非FormData时才设置Content-Type
+    if (!isFormData) {
+      requestOptions.headers = {
         'Content-Type': 'application/json'
-      }
-    });
+      };
+    }
+    
+    const response = await request('/model-management/suppliers', requestOptions);
     
     // 格式化响应以匹配前端需求
     return {
@@ -185,22 +200,31 @@ export const supplierApi = {
     
     console.log('🟢 supplierApi.update - 原始数据:', updatedSupplier);
     
-    // 发送完整的供应商数据，确保包含所有必需字段
-    // 先复制所有字段
-    const backendUpdateData = { ...updatedSupplier };
-    // 然后确保所有必需字段都有正确的值
-    backendUpdateData.name = updatedSupplier.name || '';
-    backendUpdateData.description = updatedSupplier.description || '';
-    backendUpdateData.logo = updatedSupplier.logo || '';
-    backendUpdateData.category = updatedSupplier.category || '';
-    backendUpdateData.website = updatedSupplier.website || '';
-    backendUpdateData.api_endpoint = updatedSupplier.api_endpoint || '';
-    backendUpdateData.api_docs = updatedSupplier.api_docs || '';
-    backendUpdateData.api_key = updatedSupplier.api_key || '';
-    backendUpdateData.api_key_required = updatedSupplier.api_key_required !== undefined ? updatedSupplier.api_key_required : !!updatedSupplier.api_key;
-    backendUpdateData.is_active = updatedSupplier.is_active !== undefined ? updatedSupplier.is_active : true;
+    // 检查是否是FormData对象（用于文件上传）
+    const isFormData = updatedSupplier instanceof FormData;
+    let requestData = updatedSupplier;
     
-    console.log('🟢 supplierApi.update - 发送到后端的更新数据:', JSON.stringify(backendUpdateData, null, 2));
+    if (!isFormData) {
+      // 发送完整的供应商数据，确保包含所有必需字段
+      // 先复制所有字段
+      const backendUpdateData = { ...updatedSupplier };
+      // 然后确保所有必需字段都有正确的值
+      backendUpdateData.name = updatedSupplier.name || '';
+      backendUpdateData.description = updatedSupplier.description || '';
+      backendUpdateData.logo = updatedSupplier.logo || '';
+      backendUpdateData.category = updatedSupplier.category || '';
+      backendUpdateData.website = updatedSupplier.website || '';
+      backendUpdateData.api_endpoint = updatedSupplier.api_endpoint || '';
+      backendUpdateData.api_docs = updatedSupplier.api_docs || '';
+      backendUpdateData.api_key = updatedSupplier.api_key || '';
+      backendUpdateData.api_key_required = updatedSupplier.api_key_required !== undefined ? updatedSupplier.api_key_required : !!updatedSupplier.api_key;
+      backendUpdateData.is_active = updatedSupplier.is_active !== undefined ? updatedSupplier.is_active : true;
+      
+      console.log('🟢 supplierApi.update - 发送到后端的更新数据:', JSON.stringify(backendUpdateData, null, 2));
+      requestData = JSON.stringify(backendUpdateData);
+    } else {
+      console.log('🟢 supplierApi.update - 接收到FormData对象，用于文件上传');
+    }
     
     // 修正endpoint，后端路由是/model-management/suppliers/{id}
     const endpoint = `/model-management/suppliers/${numericId}`;
@@ -208,14 +232,21 @@ export const supplierApi = {
     
     console.log('🟢 supplierApi.update - 准备发送PUT请求...');
     
-    // 直接发送请求，不使用嵌套try-catch，确保错误正确抛出
-    const response = await request(endpoint, {
+    // 准备请求选项
+    const requestOptions = {
       method: 'PUT',
-      body: JSON.stringify(backendUpdateData),
-      headers: {
+      body: requestData
+    };
+    
+    // 只有非FormData时才设置Content-Type
+    if (!isFormData) {
+      requestOptions.headers = {
         'Content-Type': 'application/json'
-      }
-    });
+      };
+    }
+    
+    // 直接发送请求，不使用嵌套try-catch，确保错误正确抛出
+    const response = await request(endpoint, requestOptions);
     
     console.log('✅ supplierApi.update - 请求成功完成，收到响应');
     

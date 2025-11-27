@@ -389,13 +389,21 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
       console.log('DEBUG: 当前模态窗口模式:', modalMode);
       console.log('DEBUG: 当前供应商状态:', currentSupplier);
 
-      // 直接使用apiData，因为它已经是正确的格式
-      // 只需要确保is_active字段被正确设置
-      const dataToSend = {
-        ...apiData,
-        is_active: apiData.is_active !== undefined ? apiData.is_active : true,
-        is_domestic: apiData.is_domestic !== undefined ? apiData.is_domestic : false
-      };
+      // 检查是否是FormData对象（用于文件上传）
+      const isFormData = apiData instanceof FormData;
+      console.log('DEBUG: 是否为FormData对象:', isFormData);
+      
+      let dataToSend = apiData;
+      
+      if (!isFormData) {
+        // 直接使用apiData，因为它已经是正确的格式
+        // 只需要确保is_active字段被正确设置
+        dataToSend = {
+          ...apiData,
+          is_active: apiData.is_active !== undefined ? apiData.is_active : true,
+          is_domestic: apiData.is_domestic !== undefined ? apiData.is_domestic : false
+        };
+      }
 
       // 只在提供了API密钥时设置api_key_env_name
       if (dataToSend.api_key && dataToSend.api_key.trim()) {

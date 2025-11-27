@@ -1,17 +1,61 @@
 """模型管理相关API接口"""
-from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Any, List, Optional, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+import os
+import uuid
+from datetime import datetime
 
 from app.core.database import get_db
-from app.supplier_db import SupplierDB as ModelSupplier, ModelDB as Model
+from app.models.supplier_db import SupplierDB as ModelSupplier, ModelDB as Model
 from app.schemas.model_management import (
     ModelSupplierCreate, ModelSupplierUpdate, ModelSupplierResponse,
     ModelCreate, ModelUpdate, ModelResponse,
     ModelSupplierListResponse, ModelListResponse,
     SetDefaultModelRequest
 )
+
+# 创建上传目录
+UPLOAD_DIR = "uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# 支持的图片扩展名
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
+
+# 模拟用户（保留现有逻辑）
+class MockUser:
+    pass
+
+def get_mock_user():
+    return MockUser()
+
+def allowed_file(filename):
+    """检查文件扩展名是否允许"""
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+async def save_upload_file(upload_file: UploadFile) -> Optional[str]:
+    """保存上传的文件并返回文件路径"""
+    if not allowed_file(upload_file.filename):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="不支持的文件类型，请上传图片文件 (png, jpg, jpeg, gif, webp)"
+        )
+    
+    # 生成唯一文件名
+    file_ext = upload_file.filename.rsplit('.', 1)[1].lower()
+    unique_filename = f"{uuid.uuid4()}.{file_ext}"
+    file_path = os.path.join(UPLOAD_DIR, unique_filename)
+    
+    # 保存文件
+    with open(file_path, "wb") as buffer:
+        content = await upload_file.read()
+        buffer.write(content)
+    
+    # 返回相对路径
+    return f"/uploads/{unique_filename}"
 # 临时注释掉认证依赖以方便测试
 # from app.api.deps import get_current_active_superuser
 # from app.models.user import User
@@ -30,20 +74,39 @@ router = APIRouter()
 
 
 # 模型供应商管理相关路由
-@router.post("/suppliers", response_model=ModelSupplierResponse)
+@router.post("/suppliers")
 async def create_model_supplier(
-    supplier: ModelSupplierCreate,
+    name: str = Form(...),
+    display_name: str = Form(...),
+    description: Optional[str] = Form(None),
+    api_endpoint: Optional[str] = Form(None),
+    api_key_required: Optional[bool] = Form(False),
+    is_active: bool = Form(True),
+    logo: Optional[UploadFile] = File(None),
+    category: Optional[str] = Form(None),
+    website: Optional[str] = Form(None),
+    api_docs: Optional[str] = Form(None),
+    api_key: Optional[str] = Form(None),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_active_superuser)
     current_user: MockUser = Depends(get_mock_user)
 ) -> Any:
     """
-    创建新的模型供应商
+    创建新的模型供应商（支持图片上传）
     
     Args:
-        supplier: 模型供应商创建数据
+        name: 供应商名称
+        display_name: 供应商显示名称
+        description: 供应商描述
+        api_endpoint: API端点
+        api_key_required: 是否需要API密钥
+        is_active: 是否激活
+        logo: 供应商logo图片
+        category: 供应商类别
+        website: 供应商网站
+        api_docs: API文档链接
+        api_key: API密钥
         db: 数据库会话
-        current_user: 当前活跃的超级用户
+        current_user: 当前用户
     
     Returns:
         创建的模型供应商信息
@@ -51,7 +114,7 @@ async def create_model_supplier(
     try:
         # 检查供应商名称是否已存在
         existing_supplier = db.query(ModelSupplier).filter(
-            ModelSupplier.name == supplier.name
+            ModelSupplier.name == name
         ).first()
         if existing_supplier:
             raise HTTPException(
@@ -59,12 +122,50 @@ async def create_model_supplier(
                 detail="供应商名称已存在"
             )
         
+        # 处理logo上传
+        logo_url = None
+        if logo:
+            logo_url = await save_upload_file(logo)
+        
         # 创建新供应商
-        db_supplier = ModelSupplier(**supplier.model_dump())
+        now = datetime.utcnow().isoformat()
+        db_supplier = ModelSupplier(
+            name=name,
+            display_name=display_name,
+            description=description,
+            api_endpoint=api_endpoint,
+            api_key_required=api_key_required,
+            is_active=is_active,
+            logo=logo_url,
+            category=category,
+            website=website,
+            api_docs=api_docs,
+            api_key=api_key,
+            created_at=now,
+            updated_at=now
+        )
+        
         db.add(db_supplier)
         db.commit()
         db.refresh(db_supplier)
-        return db_supplier
+        
+        # 返回响应
+        return {
+            "id": db_supplier.id,
+            "name": db_supplier.name,
+            "display_name": db_supplier.display_name,
+            "description": db_supplier.description,
+            "api_endpoint": db_supplier.api_endpoint,
+            "api_key_required": db_supplier.api_key_required,
+            "is_active": db_supplier.is_active,
+            "logo": db_supplier.logo,
+            "category": db_supplier.category,
+            "website": db_supplier.website,
+            "api_docs": db_supplier.api_docs,
+            "api_key": db_supplier.api_key,
+            "created_at": db_supplier.created_at,
+            "updated_at": db_supplier.updated_at
+        }
     except IntegrityError:
         db.rollback()
         raise HTTPException(
@@ -126,21 +227,41 @@ async def get_model_supplier(
     return supplier
 
 
-@router.put("/suppliers/{supplier_id}", response_model=ModelSupplierResponse)
+@router.put("/suppliers/{supplier_id}")
 async def update_model_supplier(
     supplier_id: int,
-    supplier_update: ModelSupplierUpdate,
+    name: Optional[str] = Form(None),
+    display_name: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    api_endpoint: Optional[str] = Form(None),
+    api_key_required: Optional[bool] = Form(None),
+    is_active: Optional[bool] = Form(None),
+    logo: Optional[UploadFile] = File(None),
+    category: Optional[str] = Form(None),
+    website: Optional[str] = Form(None),
+    api_docs: Optional[str] = Form(None),
+    api_key: Optional[str] = Form(None),
     db: Session = Depends(get_db),
     current_user: MockUser = Depends(get_mock_user)
 ) -> Any:
     """
-    更新模型供应商信息
+    更新模型供应商信息（支持图片上传）
     
     Args:
         supplier_id: 供应商ID
-        supplier_update: 更新数据
+        name: 供应商名称（可选）
+        display_name: 供应商显示名称（可选）
+        description: 供应商描述（可选）
+        api_endpoint: API端点（可选）
+        api_key_required: 是否需要API密钥（可选）
+        is_active: 是否激活（可选）
+        logo: 供应商logo图片（可选）
+        category: 供应商类别（可选）
+        website: 供应商网站（可选）
+        api_docs: API文档链接（可选）
+        api_key: API密钥（可选）
         db: 数据库会话
-        current_user: 当前活跃的超级用户
+        current_user: 当前用户
     
     Returns:
         更新后的模型供应商信息
@@ -152,15 +273,67 @@ async def update_model_supplier(
             detail="供应商不存在"
         )
     
-    # 更新供应商信息
-    update_data = supplier_update.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(supplier, field, value)
+    # 检查名称是否重复
+    if name and name != supplier.name:
+        existing_supplier = db.query(ModelSupplier).filter(
+            ModelSupplier.name == name
+        ).first()
+        if existing_supplier:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="供应商名称已存在"
+            )
+    
+    # 更新字段
+    if name is not None:
+        supplier.name = name
+    if display_name is not None:
+        supplier.display_name = display_name
+    if description is not None:
+        supplier.description = description
+    if api_endpoint is not None:
+        supplier.api_endpoint = api_endpoint
+    if api_key_required is not None:
+        supplier.api_key_required = api_key_required
+    if is_active is not None:
+        supplier.is_active = is_active
+    if category is not None:
+        supplier.category = category
+    if website is not None:
+        supplier.website = website
+    if api_docs is not None:
+        supplier.api_docs = api_docs
+    if api_key is not None:
+        supplier.api_key = api_key
+    
+    # 处理logo上传
+    if logo:
+        supplier.logo = await save_upload_file(logo)
+    
+    # 更新时间戳
+    supplier.updated_at = datetime.utcnow().isoformat()
     
     try:
         db.commit()
         db.refresh(supplier)
-        return supplier
+        
+        # 返回响应
+        return {
+            "id": supplier.id,
+            "name": supplier.name,
+            "display_name": supplier.display_name,
+            "description": supplier.description,
+            "api_endpoint": supplier.api_endpoint,
+            "api_key_required": supplier.api_key_required,
+            "is_active": supplier.is_active,
+            "logo": supplier.logo,
+            "category": supplier.category,
+            "website": supplier.website,
+            "api_docs": supplier.api_docs,
+            "api_key": supplier.api_key,
+            "created_at": supplier.created_at,
+            "updated_at": supplier.updated_at
+        }
     except IntegrityError:
         db.rollback()
         raise HTTPException(

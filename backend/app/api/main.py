@@ -2,12 +2,13 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import os
 
 # 使用硬编码配置避免复杂导入
 API_TITLE = "Py Copilot API"
 API_VERSION = "1.0.0"
-CORS_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
+CORS_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000", "http://127.0.0.1:3000"]
 CORS_CREDENTIALS = True
 CORS_METHODS = ["*"]
 CORS_HEADERS = ["*"]
@@ -21,6 +22,11 @@ app = FastAPI(
     version=API_VERSION,
     docs_url="/docs",
 )
+
+# 添加静态文件服务，提供上传的图片访问
+UPLOAD_DIR = "uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 # 配置CORS
 app.add_middleware(
