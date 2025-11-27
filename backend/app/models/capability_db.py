@@ -10,4 +10,5 @@ class CapabilityDB(Base):
     name = Column(String(100), unique=True, index=True)
     display_name = Column(String(200))
     description = Column(Text, nullable=True)
+    capability_type = Column(String(50), nullable=True)  # 添加能力类型字段
     is_active = Column(Boolean, default=True)

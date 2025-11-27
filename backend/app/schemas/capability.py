@@ -7,11 +7,20 @@ class CapabilityBase(BaseModel):
     name: str
     display_name: str
     description: Optional[str] = None
+    capability_type: Optional[str] = None  # 添加能力类型字段
     is_active: bool = True
 
 class CapabilityCreate(CapabilityBase):
     """创建能力请求模型"""
     pass
+
+class CapabilityUpdate(BaseModel):
+    """更新能力请求模型"""
+    name: Optional[str] = None
+    display_name: Optional[str] = None
+    description: Optional[str] = None
+    capability_type: Optional[str] = None  # 添加能力类型字段
+    is_active: Optional[bool] = None
 
 class CapabilityResponse(CapabilityBase):
     """能力响应模型"""
