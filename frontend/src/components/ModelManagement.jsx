@@ -382,7 +382,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
     try {
       setSaving(true);
       // 使用selectedSupplier.id的原始值（字符串）
-      await modelApi.delete(selectedSupplier.id, modelId);
+      await api.modelApi.delete(selectedSupplier.id, modelId);
       await loadModels();
     } catch (err) {
       setError('删除模型失败');
