@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import SupplierModal from './SupplierModal';
+import ModelModal from './ModelModal';
 import '../styles/ModelManagement.css';
 import api from '../utils/api';
 
@@ -7,13 +8,15 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
   const [currentModels, setCurrentModels] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [isEditing, setIsEditing] = useState(false);
   const [currentModel, setCurrentModel] = useState(null);
-  const [showAddForm, setShowAddForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [currentSupplier, setCurrentSupplier] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState('edit'); // 这里只有编辑模式
+  const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
+  const [supplierModalMode, setSupplierModalMode] = useState('edit');
+  // 模型模态框相关状态
+  const [isModelModalOpen, setIsModelModalOpen] = useState(false);
+  const [modelModalMode, setModelModalMode] = useState('add');
+  const [editingModel, setEditingModel] = useState(null);
   const [newModel, setNewModel] = useState({
     id: '',
     name: '',
@@ -31,9 +34,6 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
       setCurrentModels([]);
       setError(null);
     }
-    // 重置编辑状态
-    setIsEditing(false);
-    setShowAddForm(false);
   }, [selectedSupplier]);
 
   // 确保deepseek供应商有默认的deepseek-chat模型
@@ -219,6 +219,83 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
     }
   };
 
+  // 保存模型数据（用于模态框）
+  const handleSaveModelData = async (modelData) => {
+    if (!selectedSupplier || saving) return;
+
+    try {
+      setSaving(true);
+      
+      if (modelModalMode === 'add') {
+        // 构建符合后端要求的模型数据结构
+        const modelToAdd = {
+          name: modelData.name,
+          display_name: modelData.name, // 使用name作为display_name
+          description: modelData.description || '',
+          context_window: modelData.contextWindow || 8000,
+          max_tokens: 1000,
+          is_active: true,
+          is_default: modelData.isDefault || currentModels.length === 0
+          // 不需要手动设置supplier_id，后端路由会处理
+        };
+        
+        await api.modelApi.create(selectedSupplier.id, modelToAdd);
+      } else {
+        // 更新模型
+        const modelToUpdate = {
+          ...modelData,
+          context_window: modelData.contextWindow || 8000,
+          model_type: modelData.modelType || 'chat', // 添加model_type字段
+          max_tokens: modelData.maxTokens || 1000, // 添加max_tokens字段
+          is_default: modelData.isDefault
+        };
+        
+        await api.modelApi.update(selectedSupplier.id, modelData.id, modelToUpdate);
+      }
+      
+      // 重新加载模型列表
+      await loadModels();
+      // 成功提示
+      alert(modelModalMode === 'add' ? '模型添加成功' : '模型更新成功');
+    } catch (err) {
+      setError(modelModalMode === 'add' ? '添加模型失败' : '更新模型失败');
+      console.error(`${modelModalMode === 'add' ? 'Failed to add' : 'Failed to update'} model:`, err);
+      
+      // 降级处理：本地更新
+      if (modelModalMode === 'add') {
+        const localModel = {
+          id: modelData.id || String(Date.now()),
+          model_id: modelData.id,
+          name: modelData.name || '未命名模型',
+          description: modelData.description || '暂无描述',
+          contextWindow: modelData.contextWindow || 8000,
+          context_window: modelData.contextWindow || 8000,
+          isDefault: modelData.isDefault || currentModels.length === 0,
+          is_default: modelData.isDefault || currentModels.length === 0,
+          supplier_id: selectedSupplier.id,
+          model_type: 'chat', // 修改为model_type，与后端API匹配
+          max_tokens: 1000, // 添加max_tokens字段
+          is_active: true
+        };
+        setCurrentModels([...currentModels, localModel]);
+      } else {
+        const updatedModels = currentModels.map(model =>
+          model.id === modelData.id ? {
+            ...model,
+            ...modelData,
+            context_window: modelData.contextWindow || 8000,
+            model_type: modelData.modelType || model.model_type || 'chat', // 添加model_type字段
+            max_tokens: modelData.maxTokens || model.max_tokens || 1000, // 添加max_tokens字段
+            is_default: modelData.isDefault
+          } : model
+        );
+        setCurrentModels(updatedModels);
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // 添加新模型
   const handleAddModel = async () => {
     if (!newModel.id || !newModel.name || !selectedSupplier || saving) return;
@@ -258,7 +335,6 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
         contextWindow: 8000,
         isDefault: false
       });
-      setShowAddForm(false);
     } catch (err) {
       console.error('❌ 添加模型失败:', err);
       setError('添加模型失败，但已保存到本地');
@@ -290,7 +366,6 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
         contextWindow: 8000,
         isDefault: false
       });
-      setShowAddForm(false);
     } finally {
       setSaving(false);
     }
@@ -341,7 +416,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
           {selectedSupplier && (
             <button
               className="btn btn-primary"
-              onClick={() => setShowAddForm(true)}
+              onClick={handleAddModelClick}
               disabled={saving}
             >
               添加模型
@@ -369,14 +444,34 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
   // 处理编辑供应商
   const handleEditSupplier = (supplier) => {
     setCurrentSupplier({ ...supplier });
-    setModalMode('edit');
-    setIsModalOpen(true);
+    setSupplierModalMode('edit');
+    setIsSupplierModalOpen(true);
   };
 
-  // 处理关闭模态窗口
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
+  // 处理关闭供应商模态窗口
+  const handleCloseSupplierModal = () => {
+    setIsSupplierModalOpen(false);
     setCurrentSupplier(null);
+  };
+  
+  // 处理打开添加模型模态窗口
+  const handleAddModelClick = () => {
+    setModelModalMode('add');
+    setEditingModel(null);
+    setIsModelModalOpen(true);
+  };
+  
+  // 处理编辑模型
+  const handleEditModelClick = (model) => {
+    setEditingModel({ ...model });
+    setModelModalMode('edit');
+    setIsModelModalOpen(true);
+  };
+  
+  // 处理关闭模型模态窗口
+  const handleCloseModelModal = () => {
+    setIsModelModalOpen(false);
+    setEditingModel(null);
   };
 
   // 处理保存供应商（更新）
@@ -693,87 +788,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
         </div>
       </div>
 
-      {/* 添加模型表单 */}
-      {showAddForm && (
-        <div className="model-form panel">
-          <div className="form-row">
-            <div className="form-group">
-              <label>模型ID: <span className="required">*</span></label>
-              <input
-                type="text"
-                value={newModel.id}
-                onChange={(e) => setNewModel({ ...newModel, id: e.target.value })}
-                placeholder="如: deepseek-chat"
-                className="form-input"
-                required
-              />
-              <small>模型在供应商中的唯一标识符</small>
-            </div>
-            <div className="form-group">
-              <label>模型名称: <span className="required">*</span></label>
-              <input
-                type="text"
-                value={newModel.name}
-                onChange={(e) => setNewModel({ ...newModel, name: e.target.value })}
-                placeholder="模型名称"
-                className="form-input"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label>描述</label>
-            <textarea
-              value={newModel.description}
-              onChange={(e) => setNewModel({ ...newModel, description: e.target.value })}
-              placeholder="模型描述"
-              rows="3"
-              className="form-input"
-            />
-          </div>
-
-          <div className="form-group">
-            <label>上下文窗口</label>
-            <input
-              type="number"
-              value={newModel.contextWindow}
-              onChange={(e) => setNewModel({ ...newModel, contextWindow: parseInt(e.target.value) || 8000 })}
-              min="1000"
-              step="1000"
-              className="form-input"
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={newModel.isDefault}
-                onChange={(e) => setNewModel({ ...newModel, isDefault: e.target.checked })}
-              />
-              设置为默认模型
-            </label>
-          </div>
-
-          <div className="form-actions">
-            <button
-              className="btn btn-primary"
-              onClick={handleAddModel}
-              disabled={saving || !newModel.id || !newModel.name}
-            >
-              {saving ? '添加中...' : '添加'}
-            </button>
-            <button
-              className="btn btn-secondary"
-              onClick={() => setShowAddForm(false)}
-              disabled={saving}
-            >
-              取消
-            </button>
-          </div>
-        </div>
-      )}
+      {/* 新增模型功能已移至模态对话框 */}
 
       {/* 模型列表 */}
       {loading ? (
@@ -784,7 +799,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
         <div className="model-list panel">
           <h4>模型列表</h4>        <button
             className="btn btn-primary"
-            onClick={() => setShowAddForm(true)}
+            onClick={handleAddModelClick}
             disabled={saving}
           >
             添加模型
@@ -818,7 +833,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
                     )}
                     <button
                       className="btn btn-secondary btn-small"
-                      onClick={() => handleEditModel(model)}
+                      onClick={() => handleEditModelClick(model)}
                       disabled={saving}
                     >
                       编辑
@@ -838,92 +853,24 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
         </div>
       )}
 
-      {/* 模型详情编辑 */}
-      {isEditing && currentModel && (
-        <div className="model-detail-edit panel">
-          <h4>编辑模型信息</h4>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label>模型ID: <span className="required">*</span></label>
-              <input
-                type="text"
-                value={currentModel.id}
-                onChange={(e) => setCurrentModel({ ...currentModel, id: e.target.value })}
-                disabled
-                className="form-input"
-              />
-            </div>
-            <div className="form-group">
-              <label>模型名称: <span className="required">*</span></label>
-              <input
-                type="text"
-                value={currentModel.name}
-                onChange={(e) => setCurrentModel({ ...currentModel, name: e.target.value })}
-                className="form-input"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label>描述</label>
-            <textarea
-              value={currentModel.description}
-              onChange={(e) => setCurrentModel({ ...currentModel, description: e.target.value })}
-              rows="3"
-              className="form-input"
-            />
-          </div>
-
-          <div className="form-group">
-            <label>上下文窗口</label>
-            <input
-              type="number"
-              value={currentModel.contextWindow}
-              onChange={(e) => setCurrentModel({ ...currentModel, contextWindow: parseInt(e.target.value) || 8000 })}
-              min="1000"
-              step="1000"
-              className="form-input"
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={currentModel.isDefault}
-                onChange={(e) => setCurrentModel({ ...currentModel, isDefault: e.target.checked })}
-              />
-              设置为默认模型
-            </label>
-          </div>
-
-          <div className="form-actions">
-            <button
-              className="btn btn-primary"
-              onClick={handleSaveModel}
-              disabled={saving || !currentModel.name}
-            >
-              {saving ? '保存中...' : '保存'}
-            </button>
-            <button
-              className="btn btn-secondary"
-              onClick={() => setIsEditing(false)}
-              disabled={saving}
-            >
-              取消
-            </button>
-          </div>
-        </div>
-      )}
+      {/* 编辑模型功能已移至模态对话框 */}
       {/* 供应商模态窗口 */}
       <SupplierModal
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
+        isOpen={isSupplierModalOpen}
+        onClose={handleCloseSupplierModal}
         onSave={handleSaveSupplier}
         supplier={currentSupplier}
-        mode={modalMode}
+        mode={supplierModalMode}
+      />
+      
+      {/* 模型模态窗口 */}
+      <ModelModal
+        isOpen={isModelModalOpen}
+        onClose={handleCloseModelModal}
+        onSave={handleSaveModelData}
+        model={editingModel}
+        mode={modelModalMode}
+        isFirstModel={currentModels.length === 0}
       />
     </div>
   );

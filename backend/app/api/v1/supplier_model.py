@@ -135,3 +135,107 @@ def get_model(supplier_id: int, model_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="模型不存在")
     
     return model
+
+@router.post("/suppliers/{supplier_id}/models", response_model=ModelResponse, status_code=201)
+def create_model(supplier_id: int, model: ModelCreate, db: Session = Depends(get_db)):
+    """创建新模型"""
+    # 验证供应商是否存在
+    supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
+    if not supplier:
+        raise HTTPException(status_code=404, detail="供应商不存在")
+    
+    # 检查模型名称是否已存在
+    existing_model = db.query(ModelDB).filter(
+        ModelDB.name == model.name,
+        ModelDB.supplier_id == supplier_id
+    ).first()
+    if existing_model:
+        raise HTTPException(status_code=400, detail="模型名称已存在")
+    
+    # 如果设置为默认模型，先将其他模型设为非默认
+    if model.is_default:
+        db.query(ModelDB).filter(ModelDB.supplier_id == supplier_id).update({"is_default": False})
+    
+    # 创建新模型
+    # 只使用ModelDB中定义的字段
+    db_model_data = {
+        "name": model.name,
+        "display_name": getattr(model, 'display_name', None),
+        "description": getattr(model, 'description', None),
+        "supplier_id": supplier_id,
+        "context_window": getattr(model, 'context_window', None),
+        "max_tokens": getattr(model, 'max_tokens', None),
+        "is_default": model.is_default,
+        "is_active": getattr(model, 'is_active', True)
+    }
+    db_model = ModelDB(**db_model_data)
+    db.add(db_model)
+    db.commit()
+    db.refresh(db_model)
+    
+    return db_model
+
+@router.put("/suppliers/{supplier_id}/models/{model_id}", response_model=ModelResponse)
+def update_model(supplier_id: int, model_id: int, model_update: ModelCreate, db: Session = Depends(get_db)):
+    """更新模型信息"""
+    # 验证供应商是否存在
+    supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
+    if not supplier:
+        raise HTTPException(status_code=404, detail="供应商不存在")
+    
+    # 获取模型
+    model = db.query(ModelDB).filter(
+        ModelDB.id == model_id,
+        ModelDB.supplier_id == supplier_id
+    ).first()
+    
+    if not model:
+        raise HTTPException(status_code=404, detail="模型不存在")
+    
+    # 检查模型名称是否被其他模型使用
+    if model_update.name != model.name:
+        existing_model = db.query(ModelDB).filter(
+            ModelDB.name == model_update.name,
+            ModelDB.supplier_id == supplier_id,
+            ModelDB.id != model_id
+        ).first()
+        if existing_model:
+            raise HTTPException(status_code=400, detail="模型名称已存在")
+    
+    # 如果设置为默认模型，先将其他模型设为非默认
+    if model_update.is_default:
+        db.query(ModelDB).filter(ModelDB.supplier_id == supplier_id).update({"is_default": False})
+    
+    # 更新模型数据
+    update_data = model_update.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(model, key, value)
+    
+    # 移除时间戳更新，因为ModelDB不包含此字段
+    
+    db.commit()
+    db.refresh(model)
+    
+    return model
+
+@router.delete("/suppliers/{supplier_id}/models/{model_id}")
+def delete_model(supplier_id: int, model_id: int, db: Session = Depends(get_db)):
+    """删除模型"""
+    # 验证供应商是否存在
+    supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
+    if not supplier:
+        raise HTTPException(status_code=404, detail="供应商不存在")
+    
+    # 获取模型
+    model = db.query(ModelDB).filter(
+        ModelDB.id == model_id,
+        ModelDB.supplier_id == supplier_id
+    ).first()
+    
+    if not model:
+        raise HTTPException(status_code=404, detail="模型不存在")
+    
+    db.delete(model)
+    db.commit()
+    
+    return {"message": "模型删除成功"}
