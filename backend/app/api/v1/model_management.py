@@ -1,5 +1,5 @@
 """模型管理相关API接口"""
-from typing import Any, List, Optional, UploadFile, File, Form
+from typing import Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
@@ -8,8 +8,19 @@ import os
 import uuid
 from datetime import datetime
 
-from app.core.database import get_db
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 from app.models.supplier_db import SupplierDB as ModelSupplier, ModelDB as Model
+
+# 创建直接连接到py_copilot.db的数据库会话
+def get_db():
+    engine = create_engine('sqlite:///./py_copilot.db')
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 from app.schemas.model_management import (
     ModelSupplierCreate, ModelSupplierUpdate, ModelSupplierResponse,
     ModelCreate, ModelUpdate, ModelResponse,
@@ -18,8 +29,12 @@ from app.schemas.model_management import (
 )
 
 # 创建上传目录
-UPLOAD_DIR = "uploads"
+# 使用绝对路径确保文件能正确保存
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+UPLOAD_DIR = os.path.join(BASE_DIR, "../frontend/public/logos/providers")
+UPLOAD_DIR = os.path.normpath(UPLOAD_DIR)  # 规范化路径
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+print(f"文件上传目录: {UPLOAD_DIR}")  # 添加日志以便调试
 
 # 支持的图片扩展名
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
@@ -37,7 +52,7 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 async def save_upload_file(upload_file: UploadFile) -> Optional[str]:
-    """保存上传的文件并返回文件路径"""
+    """保存上传的文件并返回文件名"""
     if not allowed_file(upload_file.filename):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -46,16 +61,24 @@ async def save_upload_file(upload_file: UploadFile) -> Optional[str]:
     
     # 生成唯一文件名
     file_ext = upload_file.filename.rsplit('.', 1)[1].lower()
-    unique_filename = f"{uuid.uuid4()}.{file_ext}"
+    unique_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.{file_ext}"
     file_path = os.path.join(UPLOAD_DIR, unique_filename)
     
-    # 保存文件
-    with open(file_path, "wb") as buffer:
-        content = await upload_file.read()
-        buffer.write(content)
-    
-    # 返回相对路径
-    return f"/uploads/{unique_filename}"
+    try:
+        print(f"尝试保存文件到: {file_path}")  # 添加日志
+        # 保存文件
+        with open(file_path, "wb") as buffer:
+            content = await upload_file.read()
+            buffer.write(content)
+        print(f"文件保存成功: {unique_filename}")  # 添加成功日志
+        # 返回文件名
+        return unique_filename
+    except Exception as e:
+        print(f"文件保存失败: {str(e)}")  # 添加错误日志
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"文件保存失败: {str(e)}"
+        )
 # 临时注释掉认证依赖以方便测试
 # from app.api.deps import get_current_active_superuser
 # from app.models.user import User
@@ -77,7 +100,6 @@ router = APIRouter()
 @router.post("/suppliers")
 async def create_model_supplier(
     name: str = Form(...),
-    display_name: str = Form(...),
     description: Optional[str] = Form(None),
     api_endpoint: Optional[str] = Form(None),
     api_key_required: Optional[bool] = Form(False),
@@ -95,7 +117,6 @@ async def create_model_supplier(
     
     Args:
         name: 供应商名称
-        display_name: 供应商显示名称
         description: 供应商描述
         api_endpoint: API端点
         api_key_required: 是否需要API密钥
@@ -131,7 +152,6 @@ async def create_model_supplier(
         now = datetime.utcnow().isoformat()
         db_supplier = ModelSupplier(
             name=name,
-            display_name=display_name,
             description=description,
             api_endpoint=api_endpoint,
             api_key_required=api_key_required,
@@ -149,11 +169,11 @@ async def create_model_supplier(
         db.commit()
         db.refresh(db_supplier)
         
-        # 返回响应
+        # 返回响应 - 使用name作为display_name
         return {
             "id": db_supplier.id,
             "name": db_supplier.name,
-            "display_name": db_supplier.display_name,
+            "display_name": db_supplier.name,  # 使用name作为display_name
             "description": db_supplier.description,
             "api_endpoint": db_supplier.api_endpoint,
             "api_key_required": db_supplier.api_key_required,
@@ -193,10 +213,34 @@ async def get_model_suppliers(
     Returns:
         模型供应商列表
     """
+    # 查询所有供应商，包括非激活的
     suppliers = db.query(ModelSupplier).offset(skip).limit(limit).all()
     total = db.query(ModelSupplier).count()
+    
+    # 为每个供应商添加display_name字段，使用name作为默认值
+    suppliers_with_display_name = []
+    for supplier in suppliers:
+        # 创建一个带有display_name属性的对象
+        supplier_dict = {
+            "id": supplier.id,
+            "name": supplier.name,
+            "display_name": supplier.name,  # 使用name作为display_name
+            "description": supplier.description,
+            "api_endpoint": supplier.api_endpoint,
+            "api_key_required": supplier.api_key_required,
+            "is_active": supplier.is_active,
+            "logo": supplier.logo,
+            "category": supplier.category,
+            "website": supplier.website,
+            "api_docs": supplier.api_docs,
+            "api_key": supplier.api_key,
+            "created_at": supplier.created_at,
+            "updated_at": supplier.updated_at
+        }
+        suppliers_with_display_name.append(supplier_dict)
+    
     return ModelSupplierListResponse(
-        suppliers=suppliers,
+        suppliers=suppliers_with_display_name,
         total=total
     )
 
@@ -231,12 +275,12 @@ async def get_model_supplier(
 async def update_model_supplier(
     supplier_id: int,
     name: Optional[str] = Form(None),
-    display_name: Optional[str] = Form(None),
     description: Optional[str] = Form(None),
     api_endpoint: Optional[str] = Form(None),
     api_key_required: Optional[bool] = Form(None),
     is_active: Optional[bool] = Form(None),
     logo: Optional[UploadFile] = File(None),
+    existing_logo: Optional[str] = Form(None),
     category: Optional[str] = Form(None),
     website: Optional[str] = Form(None),
     api_docs: Optional[str] = Form(None),
@@ -250,12 +294,12 @@ async def update_model_supplier(
     Args:
         supplier_id: 供应商ID
         name: 供应商名称（可选）
-        display_name: 供应商显示名称（可选）
         description: 供应商描述（可选）
         api_endpoint: API端点（可选）
         api_key_required: 是否需要API密钥（可选）
         is_active: 是否激活（可选）
         logo: 供应商logo图片（可选）
+        existing_logo: 现有logo路径（可选）
         category: 供应商类别（可选）
         website: 供应商网站（可选）
         api_docs: API文档链接（可选）
@@ -287,8 +331,6 @@ async def update_model_supplier(
     # 更新字段
     if name is not None:
         supplier.name = name
-    if display_name is not None:
-        supplier.display_name = display_name
     if description is not None:
         supplier.description = description
     if api_endpoint is not None:
@@ -308,7 +350,14 @@ async def update_model_supplier(
     
     # 处理logo上传
     if logo:
+        # 如果有新的logo文件上传，保存它
         supplier.logo = await save_upload_file(logo)
+        print(f"已更新logo为新上传的文件: {supplier.logo}")
+    elif existing_logo is not None:
+        # 如果提供了existing_logo，使用它
+        supplier.logo = existing_logo
+        print(f"保留现有logo: {supplier.logo}")
+    # 否则，保持原有logo不变
     
     # 更新时间戳
     supplier.updated_at = datetime.utcnow().isoformat()
@@ -317,11 +366,11 @@ async def update_model_supplier(
         db.commit()
         db.refresh(supplier)
         
-        # 返回响应
+        # 返回响应 - 使用name作为display_name
         return {
             "id": supplier.id,
             "name": supplier.name,
-            "display_name": supplier.display_name,
+            "display_name": supplier.name,  # 使用name作为display_name
             "description": supplier.description,
             "api_endpoint": supplier.api_endpoint,
             "api_key_required": supplier.api_key_required,

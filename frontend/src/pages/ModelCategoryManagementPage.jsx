@@ -1,5 +1,5 @@
 import React from 'react';
-import ModelCategoryManagement from '../components/ModelCategoryManagement';
+import ModelCategoryManagement from '../components/CapabilityManagement/ModelCategoryManagement';
 import './ModelCategoryManagementPage.css';
 
 const ModelCategoryManagementPage = () => {

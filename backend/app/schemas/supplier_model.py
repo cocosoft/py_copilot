@@ -1,46 +1,28 @@
 """供应商和模型相关的数据校验模型"""
 from typing import Optional, List
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from fastapi import UploadFile, File
 
 
 # 供应商相关Pydantic模型
 class SupplierBase(BaseModel):
-    name: str
-    description: Optional[str] = None
-    api_endpoint: Optional[str] = None
-    api_key_required: bool = False
-    # 新增字段
-    logo: Optional[str] = None
-    category: Optional[str] = None
-    website: Optional[str] = None
-    api_docs: Optional[str] = None
-    api_key: Optional[str] = None
-    is_active: bool = True
-    # 接受前端传递的isDomestic字段但不保存到数据库
-    isDomestic: Optional[bool] = None
-    
-    class Config:
-        extra = 'allow'
+    name: str = Field(..., description="供应商名称")
+    description: Optional[str] = Field(None, description="供应商描述")
+    website: Optional[str] = Field(None, description="供应商官网")
 
 class SupplierCreate(SupplierBase):
-    pass
+    logo_url: Optional[str] = None
 
 class SupplierResponse(BaseModel):
     id: int
     name: str
     description: Optional[str] = None
-    api_endpoint: Optional[str] = None
-    api_key_required: Optional[bool] = False
-    # 新增字段
     logo: Optional[str] = None
-    category: Optional[str] = None
     website: Optional[str] = None
-    api_docs: Optional[str] = None
-    api_key: Optional[str] = None
-    is_active: bool = True
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
+    is_active: bool = True
     
     class Config:
         from_attributes = True

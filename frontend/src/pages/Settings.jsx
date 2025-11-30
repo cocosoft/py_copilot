@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './settings.css';
-import IntegratedModelManagement from '../components/IntegratedModelManagement';
+import IntegratedModelManagement from '../components/ModelManagement/IntegratedModelManagement';
 import Agent from './Agent';
 import Knowledge from './Knowledge';
 import Workflow from './Workflow';

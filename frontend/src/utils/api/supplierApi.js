@@ -14,8 +14,12 @@ export const supplierApi = {
     // 处理后端返回格式
     let suppliersData = [];
     
+    // 检查是否是对象格式，并且有suppliers属性
+    if (typeof response === 'object' && response !== null && Array.isArray(response.suppliers)) {
+      suppliersData = response.suppliers;
+    } 
     // 检查是否直接返回了数组
-    if (Array.isArray(response)) {
+    else if (Array.isArray(response)) {
       suppliersData = response;
     }
     
@@ -78,6 +82,7 @@ export const supplierApi = {
       // 修正字段映射，确保与数据库字段一致，使用新的字段名
       const backendSupplierData = {
           name: supplier.name,
+          display_name: supplier.display_name || supplier.name || '', // 后端需要display_name字段
           description: supplier.description || '',
           logo: supplier.logo || '',
           category: supplier.category || '',
@@ -149,6 +154,7 @@ export const supplierApi = {
     backendUpdateData.is_active = isActive;
     // 确保包含所有必要字段并处理不同的字段名
     backendUpdateData.name = currentSupplier.name || currentSupplier.display_name || '';
+    backendUpdateData.display_name = currentSupplier.display_name || currentSupplier.name || ''; // 后端需要display_name字段
     backendUpdateData.description = currentSupplier.description || '';
     backendUpdateData.logo = currentSupplier.logo || '';
     backendUpdateData.category = currentSupplier.category || '';
@@ -210,6 +216,7 @@ export const supplierApi = {
       const backendUpdateData = { ...updatedSupplier };
       // 然后确保所有必需字段都有正确的值
       backendUpdateData.name = updatedSupplier.name || '';
+      backendUpdateData.display_name = updatedSupplier.display_name || updatedSupplier.name || ''; // 后端需要display_name字段
       backendUpdateData.description = updatedSupplier.description || '';
       backendUpdateData.logo = updatedSupplier.logo || '';
       backendUpdateData.category = updatedSupplier.category || '';

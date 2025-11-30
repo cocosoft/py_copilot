@@ -1,8 +1,11 @@
 """供应商和模型相关的API路由"""
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from datetime import datetime
+import os
+import aiofiles
 
 from app.api.dependencies import get_db
 from app.models.supplier_db import SupplierDB, ModelDB
@@ -13,19 +16,63 @@ from app.schemas.supplier_model import (
 
 router = APIRouter()
 
+# 文件上传配置
+UPLOAD_DIR = "../../frontend/public/logos/providers"
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "svg"}
+
+# 确保上传目录存在
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
 # 供应商相关路由
-@router.post("/suppliers", response_model=SupplierResponse)
-def create_supplier(supplier: SupplierCreate, db: Session = Depends(get_db)):
-    """创建新的供应商"""
+async def save_upload_file(file: UploadFile) -> str:
+    """保存上传的文件并返回相对路径"""
+    # 检查文件扩展名
+    filename = file.filename
+    if not (filename and "." in filename):
+        raise HTTPException(status_code=400, detail="无效的文件名")
+    
+    extension = filename.split(".")[-1].lower()
+    if extension not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="不支持的文件类型")
+    
+    # 生成唯一文件名
+    unique_filename = f"{datetime.utcnow().strftime('%Y%m%d_%H%M%S_%f')}.{extension}"
+    file_path = os.path.join(UPLOAD_DIR, unique_filename)
+    
+    # 保存文件
+    async with aiofiles.open(file_path, 'wb') as f:
+        content = await file.read()
+        await f.write(content)
+    
+    # 返回前端可访问的路径格式
+    return f"/logos/providers/{unique_filename}"
+
+@router.post("/suppliers")
+async def create_supplier(
+    name: str = Form(...),
+    description: str = Form(...),
+    website: str = Form(...),
+    logo: UploadFile = File(None),
+    db: Session = Depends(get_db)
+):
+    """创建新的供应商（支持文件上传）"""
     # 检查name是否已存在
-    existing_supplier = db.query(SupplierDB).filter(SupplierDB.name == supplier.name).first()
+    existing_supplier = db.query(SupplierDB).filter(SupplierDB.name == name).first()
     if existing_supplier:
         raise HTTPException(status_code=400, detail="供应商名称已存在")
     
-    # 创建新供应商，添加时间戳
+    # 保存logo文件（如果有）
+    logo_path = None
+    if logo:
+        logo_path = await save_upload_file(logo)
+    
+    # 创建新供应商
     now = datetime.utcnow().isoformat()
     db_supplier = SupplierDB(
-        **supplier.dict(),
+        name=name,
+        description=description,
+        logo=logo_path,
+        website=website,
         created_at=now,
         updated_at=now
     )
@@ -33,10 +80,20 @@ def create_supplier(supplier: SupplierCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_supplier)
     
-    return db_supplier
-
-@router.get("/suppliers", response_model=List[SupplierResponse])
-def get_suppliers(db: Session = Depends(get_db)):
+    # 返回供应商信息
+    return {
+        "id": db_supplier.id,
+        "name": db_supplier.name,
+        "description": db_supplier.description,
+        "logo": db_supplier.logo,
+        "website": db_supplier.website,
+        "created_at": db_supplier.created_at,
+        "updated_at": db_supplier.updated_at,
+        "is_active": db_supplier.is_active
+    }
+# 供应商相关路由
+@router.get("/suppliers/all", response_model=List[SupplierResponse])
+def get_all_suppliers(db: Session = Depends(get_db)):
     """获取所有供应商"""
     return db.query(SupplierDB).all()
 
@@ -48,25 +105,63 @@ def get_supplier(supplier_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="供应商不存在")
     return supplier
 
-@router.put("/suppliers/{supplier_id}", response_model=SupplierResponse)
-def update_supplier(supplier_id: int, supplier_update: SupplierCreate, db: Session = Depends(get_db)):
-    """更新供应商信息"""
+@router.put("/suppliers/{supplier_id}")
+async def update_supplier(
+    supplier_id: int,
+    name: str = Form(...),
+    description: str = Form(...),
+    website: str = Form(...),
+    logo: UploadFile = File(None),
+    db: Session = Depends(get_db)
+):
+    """更新供应商信息（支持文件上传）"""
     supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
     if not supplier:
         raise HTTPException(status_code=404, detail="供应商不存在")
     
     # 如果更新name，检查是否已存在
-    if supplier_update.name is not None and supplier_update.name != supplier.name:
-        existing_supplier = db.query(SupplierDB).filter(SupplierDB.name == supplier_update.name).first()
+    if name != supplier.name:
+        existing_supplier = db.query(SupplierDB).filter(SupplierDB.name == name).first()
         if existing_supplier:
             raise HTTPException(status_code=400, detail="供应商名称已存在")
     
-    # 更新供应商数据
-    update_data = supplier_update.dict(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(supplier, key, value)
+    # 保存新logo文件（如果有）
+    if logo:
+        logo_path = await save_upload_file(logo)
+        supplier.logo = logo_path
+    
+    # 更新基础信息字段
+    supplier.name = name
+    supplier.description = description
+    supplier.website = website
     
     # 更新时间戳
+    supplier.updated_at = datetime.utcnow().isoformat()
+    
+    db.commit()
+    db.refresh(supplier)
+    
+    # 返回供应商信息
+    return {
+        "id": supplier.id,
+        "name": supplier.name,
+        "description": supplier.description,
+        "logo": supplier.logo,
+        "website": supplier.website,
+        "created_at": supplier.created_at,
+        "updated_at": supplier.updated_at,
+        "is_active": supplier.is_active
+    }
+
+@router.patch("/suppliers/{supplier_id}/status")
+def update_supplier_status(supplier_id: int, is_active: bool, db: Session = Depends(get_db)):
+    """更新供应商状态"""
+    supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
+    if not supplier:
+        raise HTTPException(status_code=404, detail="供应商不存在")
+    
+    # 更新供应商状态
+    supplier.is_active = is_active
     supplier.updated_at = datetime.utcnow().isoformat()
     
     db.commit()

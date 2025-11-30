@@ -17,7 +17,7 @@ class SupplierDB(Base):
     created_at = Column(String)
     updated_at = Column(String)
     # 新增字段
-    logo = Column(String(255), nullable=True)
+    logo = Column(String(255), nullable=True)  # Logo存储路径或URL，现在可选
     category = Column(String(100), nullable=True)
     website = Column(String(255), nullable=True)
     api_docs = Column(String(255), nullable=True)

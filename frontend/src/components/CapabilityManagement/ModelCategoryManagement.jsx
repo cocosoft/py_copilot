@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { categoryApi } from '../utils/api/categoryApi';
-import '../styles/ModelCategoryManagement.css';
+import { categoryApi } from '../../utils/api/categoryApi';
+import '../../styles/ModelCategoryManagement.css';
 
 // 将树形结构的分类数据扁平化为数组
 const flattenCategoryTree = (categories) => {

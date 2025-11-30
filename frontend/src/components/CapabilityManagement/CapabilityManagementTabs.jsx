@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import ModelCapabilityManagement from './ModelCapabilityManagement';
 import ModelCapabilityAssociation from './ModelCapabilityAssociation';
-import '../styles/CapabilityManagementTabs.css';
+import '../../styles/CapabilityManagementTabs.css';
 
 const CapabilityManagementTabs = () => {
   const [activeSubTab, setActiveSubTab] = useState('management'); // 'management' 或 'association'

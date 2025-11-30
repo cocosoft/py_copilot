@@ -28,6 +28,11 @@ UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
+# 添加logo文件的静态文件服务
+LOGOS_DIR = "../../frontend/public/logos/providers"
+os.makedirs(LOGOS_DIR, exist_ok=True)
+app.mount("/logos/providers", StaticFiles(directory=LOGOS_DIR), name="logos")
+
 # 配置CORS
 app.add_middleware(
     CORSMiddleware,

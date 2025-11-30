@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { capabilityApi } from '../utils/api';
-import '../styles/ModelCapabilityManagement.css';
+import { capabilityApi } from '../../utils/api/capabilityApi';
+import '../../styles/ModelCapabilityManagement.css';
 
 const ModelCapabilityManagement = () => {
   const [capabilities, setCapabilities] = useState([]);

@@ -7,7 +7,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from app.core import config, security
-from app.core.dependencies import get_current_active_user, get_db
+from app.core.dependencies import get_current_user, get_db
 from app.models.user import User
 from app.schemas import auth as auth_schemas
 
@@ -160,7 +160,7 @@ async def login_json(
 
 @router.get("/me", response_model=auth_schemas.UserResponse)
 async def get_current_user_info(
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_user)
 ) -> Any:
     """
     获取当前登录用户信息
@@ -177,7 +177,7 @@ async def get_current_user_info(
 @router.post("/change-password")
 async def change_password(
     password_data: auth_schemas.ChangePassword,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> Any:
     """
@@ -208,7 +208,7 @@ async def change_password(
 @router.put("/me", response_model=auth_schemas.UserResponse)
 async def update_user_info(
     user_update: auth_schemas.UpdateUser,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> Any:
     """

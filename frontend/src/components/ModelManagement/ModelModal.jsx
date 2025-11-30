@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import '../styles/ModelModal.css';
+import '../../styles/ModelModal.css';
 
 const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFirstModel = false }) => {
   const [formData, setFormData] = useState({

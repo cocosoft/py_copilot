@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import api from '../utils/api';
+import api from '../../utils/api';
 import SupplierModal from './SupplierModal';
-import '../styles/ModelManagement.css';
+import '../../styles/ModelManagement.css';
 
 const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSuppliers, onSupplierUpdate }) => {
   const [suppliers, setSuppliers] = useState([]);
@@ -10,6 +10,7 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
 
   // 优先使用传入的初始供应商数据（来自父组件）
   useEffect(() => {
+    console.log('收到父组件传入的initialSuppliers:', JSON.stringify(initialSuppliers));
     if (initialSuppliers && Array.isArray(initialSuppliers) && initialSuppliers.length > 0) {
       console.log('使用父组件传入的供应商数据:', initialSuppliers);
       // 处理初始供应商数据，确保字段命名一致
@@ -103,7 +104,7 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
   };
 
   // 处理保存供应商（添加或更新） - 支持FormData文件上传
-  const handleSaveSupplier = async (apiData, frontendData) => {
+  const handleSaveSupplier = async (apiData) => {
     try {
       setSaving(true);
       
@@ -179,6 +180,7 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
     return (a.name || '').localeCompare(b.name || '');
   });
 
+  console.log('SupplierManagement rendering, suppliers count:', suppliers.length);
   return (
     <div className="supplier-management">
       <div className="supplier-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
@@ -211,12 +213,32 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
             <div className="supplier-info" style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
               <div className="supplier-logo" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {(() => {
-                  // 优先使用数据库中的logo字段，如果为空则使用名称生成
-                  // 注意：在Vite项目中，public目录下的资源直接从根路径开始引用
-                  console.log('DEBUG: 获取供应商logo:', supplier.logo);
-                  const logoPath = supplier.logo 
-                    ? `/logos/providers/${supplier.logo}`
-                    : `/logos/providers/${(supplier.name || '').toLowerCase().replace(/\s+/g, '_')}.png`;
+                  // 优先使用数据库中存储的logo字段值
+                  let logoPath;
+                  if (supplier.logo) {
+                    // 如果数据库中有logo字段值，直接使用
+                    // 检查logo路径是否已经包含完整路径
+                    if (supplier.logo.startsWith('/')) {
+                      logoPath = supplier.logo;
+                    } else {
+                      logoPath = `/logos/providers/${supplier.logo}`;
+                    }
+                  } else {
+                    // 否则根据供应商名称生成
+                    // 对一些特殊供应商名称进行映射，确保能找到正确的图片文件
+                    const logoNameMap = {
+                      'moonshotai': 'moonshotai_new'
+                    };
+                    
+                    // 获取供应商名称并规范化处理
+                    const supplierName = (supplier.name || '').toLowerCase().replace(/\s+/g, '_');
+                    // 查找是否有映射，否则使用规范化的名称
+                    const logoName = logoNameMap[supplierName] || supplierName;
+                    // 构建logo路径
+                    logoPath = `/logos/providers/${logoName}.png`;
+                  }
+                  
+                  console.log('DEBUG: 生成的logo路径:', logoPath);
                   
                   return (
                     <img 
@@ -228,7 +250,6 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
                         e.target.style.display = 'none';
                         const fallbackElement = document.createElement('div');
                         fallbackElement.style.cssText = 'width: 30px; height: 30px; backgroundColor: #e0e0e0; borderRadius: 4px; display: flex; alignItems: center; justifyContent: center;';
-                        fallbackElement.textContent = '';
                         fallbackElement.textContent = supplier.name?.[0] || '?';
                         e.target.parentNode.appendChild(fallbackElement);
                       }}

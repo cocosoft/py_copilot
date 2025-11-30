@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import SupplierModal from './SupplierModal';
 import ModelModal from './ModelModal';
-import '../styles/ModelManagement.css';
-import api from '../utils/api';
+import SupplierDetail from '../SupplierManagement/SupplierDetail';
+import '../../styles/ModelManagement.css';
+import api from '../../utils/api';
 
 const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }) => {
   const [currentModels, setCurrentModels] = useState([]);
@@ -10,9 +10,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
   const [error, setError] = useState(null);
   const [currentModel, setCurrentModel] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [currentSupplier, setCurrentSupplier] = useState(null);
-  const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
-  const [supplierModalMode, setSupplierModalMode] = useState('edit');
+  // 供应商相关状态已移至SupplierDetail组件中
   // 模型模态框相关状态
   const [isModelModalOpen, setIsModelModalOpen] = useState(false);
   const [modelModalMode, setModelModalMode] = useState('add');
@@ -60,58 +58,14 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
           is_default: true
         };
 
-        // 处理切换供应商启用状态
-        const handleToggleSupplierStatus = async (supplier) => {
-          try {
-            setSaving(true);
-
-            // 切换启用状态
-            const newStatus = !supplier.is_active;
-            const confirmation = newStatus
-              ? `确定要启用供应商 "${supplier.name}" 吗？`
-              : `确定要停用供应商 "${supplier.name}" 吗？`;
-
-            if (!window.confirm(confirmation)) {
-              return;
-            }
-
-            // 调用API更新状态
-            const apiUrl = `http://localhost:8000/api/model-management/suppliers/${supplier.id}`;
-            const response = await fetch(apiUrl, {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ is_active: newStatus })
-            });
-
-            if (!response.ok) {
-              const errorText = await response.text();
-              throw new Error(`状态更新失败: ${errorText}`);
-            }
-
-            // 通知父组件更新供应商列表
-            if (onSupplierUpdate) {
-              setTimeout(() => onSupplierUpdate(), 0);
-            }
-
-            console.log(`供应商状态已${newStatus ? '启用' : '停用'}: ${supplier.name}`);
-          } catch (err) {
-            setError('更新供应商状态失败');
-            console.error('Failed to toggle supplier status:', err);
-          } finally {
-            setSaving(false);
-          }
-        };
-
         try {
           setSaving(true);
           console.log('创建默认模型:', defaultModel);
           // 确保使用整数ID
           await api.modelApi.create(selectedSupplier.id, defaultModel);
           await loadModels();
-
-          console.error('Failed to add default model:', err);
+        } catch (error) {
+          console.error('Failed to add default model:', error);
           // 降级处理：直接添加到本地状态
           setCurrentModels([defaultModel]);
         } finally {
@@ -430,29 +384,29 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
     );
   }
 
-  // 安全显示API密钥的函数
-  const formatApiKey = (apiKey) => {
-    if (!apiKey) return '未设置';
-    if (apiKey.length <= 8) return apiKey;
-    const prefix = apiKey.slice(0, 4);
-    const suffix = apiKey.slice(-4);
-    const maskedLength = apiKey.length - 8;
-    const masked = '*'.repeat(maskedLength);
-    return `${prefix}${masked}${suffix}`;
+  // 供应商相关函数已移至SupplierDetail组件中
+  // 为显示供应商logo保留必要的辅助函数
+  const getSupplierLogo = (supplier) => {
+    if (!supplier) return null;
+    
+    // 根据供应商key返回简单的logo或图标
+    const logoStyles = {
+      width: '24px',
+      height: '24px',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#f0f0f0',
+      borderRadius: '4px',
+      fontSize: '14px',
+      fontWeight: 'bold'
+    };
+    
+    // 返回供应商名称的首字母作为简单logo
+    return <span style={logoStyles}>{supplier.name.charAt(0)}</span>;
   };
 
-  // 处理编辑供应商
-  const handleEditSupplier = (supplier) => {
-    setCurrentSupplier({ ...supplier });
-    setSupplierModalMode('edit');
-    setIsSupplierModalOpen(true);
-  };
-
-  // 处理关闭供应商模态窗口
-  const handleCloseSupplierModal = () => {
-    setIsSupplierModalOpen(false);
-    setCurrentSupplier(null);
-  };
+  // 供应商相关处理函数已移至SupplierDetail组件中
   
   // 处理打开添加模型模态窗口
   const handleAddModelClick = () => {
@@ -474,319 +428,16 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
     setEditingModel(null);
   };
 
-  // 处理保存供应商（更新）
-  const handleSaveSupplier = async (apiData, frontendData) => {
-    try {
-      setSaving(true);
-
-      console.log('DEBUG: 提交的API数据(已格式化):', apiData);
-      console.log('DEBUG: 提交的前端数据:', frontendData);
-      console.log('DEBUG: 当前模态窗口模式:', modalMode);
-      console.log('DEBUG: 当前供应商状态:', currentSupplier);
-
-      // 检查是否是FormData对象（用于文件上传）
-      const isFormData = apiData instanceof FormData;
-      console.log('DEBUG: 是否为FormData对象:', isFormData);
-      
-      let dataToSend = apiData;
-      
-      if (!isFormData) {
-        // 直接使用apiData，因为它已经是正确的格式
-        // 只需要确保is_active字段被正确设置
-        dataToSend = {
-          ...apiData,
-          is_active: apiData.is_active !== undefined ? apiData.is_active : true,
-          is_domestic: apiData.is_domestic !== undefined ? apiData.is_domestic : false
-        };
-      }
-
-      // 只在提供了API密钥时设置api_key_env_name
-      if (dataToSend.api_key && dataToSend.api_key.trim()) {
-        // 使用currentSupplier的key或name作为环境变量名的一部分
-        const supplierKey = currentSupplier ?
-          (currentSupplier.key || currentSupplier.name).toUpperCase() :
-          (apiData.id || '').toUpperCase();
-        dataToSend.api_key_env_name = `API_KEY_${supplierKey}`;
-      }
-
-      console.log('发送到API的数据:', dataToSend);
-
-      let updatedSupplierData;
-
-      if (modalMode === 'edit' && currentSupplier) {
-        // 编辑模式 - 确保ID是数字类型
-        const supplierId = Number(currentSupplier.id);
-        console.log('更新供应商ID:', currentSupplier.id, '转换后的数字ID:', supplierId);
-
-        // 使用api.js中的supplierApi.update方法，确保数据格式一致
-        updatedSupplierData = await api.supplierApi.update(supplierId, dataToSend);
-        console.log('DEBUG: API返回的更新后数据:', updatedSupplierData);
-
-        // 将后端返回的数据映射回前端格式，使用frontendData保留用户的原始输入
-        const frontendFormat = {
-          ...frontendData,
-          id: updatedSupplierData.id,
-          key: String(updatedSupplierData.id),
-          name: updatedSupplierData.name,
-          description: updatedSupplierData.description,
-          isDomestic: frontendData.isDomestic !== undefined ? frontendData.isDomestic : updatedSupplierData.is_domestic || false
-        };
-
-        console.log('DEBUG: 更新后的前端格式数据:', frontendFormat);
-        console.log('DEBUG: 保留原始用户输入的URL - website:', frontendData.website, 'apiUrl:', frontendData.apiUrl);
-
-        // 立即更新本地currentSupplier状态
-        setCurrentSupplier(frontendFormat);
-
-        // 同时更新当前选中的供应商
-        if (selectedSupplier?.id === updatedSupplierData.id) {
-          if (onSupplierSelect) {
-            console.log('调用onSupplierSelect更新选中的供应商');
-            onSupplierSelect(frontendFormat);
-          }
-        }
-
-        // 强制刷新页面数据
-        if (onSupplierUpdate) {
-          console.log('调用onSupplierUpdate刷新数据');
-          // 使用setTimeout确保状态更新完成后再调用刷新
-          setTimeout(() => onSupplierUpdate(), 0);
-        }
-
-        console.log('保存成功，准备关闭模态窗口');
-
-        // 返回成功信息，确保模态窗口可以正确关闭
-        return { success: true, data: frontendFormat };
-      }
-    } catch (err) {
-      setError(modalMode === 'add' ? '添加供应商失败' : '更新供应商失败');
-      console.error(`${modalMode === 'add' ? '添加' : '更新'}供应商失败:`, err);
-      console.error('错误详情:', err.stack);
-      throw err; // 抛出错误让模态窗口处理
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // 处理删除供应商
-  // 根据供应商返回对应的LOGO图标
-  const getSupplierLogo = (supplier) => {
-    if (!supplier) return '';
-
-    // 优先使用数据库中的logo字段，如果为空则使用名称生成
-    // 注意：在Vite项目中，public目录下的资源直接从根路径开始引用
-    console.log('DEBUG: 获取供应商logo:', supplier.logo);
-    const logoPath = supplier.logo
-      ? `/logos/providers/${supplier.logo}`
-      : `/logos/providers/${(supplier.name || '').toLowerCase().replace(/\s+/g, '_')}.png`;
-
-    return (
-      <img
-        src={logoPath}
-        alt={`${supplier.name} logo`}
-        style={{ width: '30px', height: '30px', borderRadius: '4px' }}
-        onError={(e) => {
-          // 图片加载失败时，显示供应商名称首字母
-          e.target.style.display = 'none';
-          const fallbackElement = document.createElement('div');
-          fallbackElement.style.cssText = 'width: 30px; height: 30px; backgroundColor: #e0e0e0; borderRadius: 4px; display: flex; alignItems: center; justifyContent: center;';
-          fallbackElement.textContent = '';
-          fallbackElement.textContent = supplier.name?.[0] || '?';
-          e.target.parentNode.appendChild(fallbackElement);
-        }}
-      />
-    )
-  };
-
-  const handleDeleteSupplier = async (supplier) => {
-    if (!window.confirm(`确定要删除供应商 "${supplier.name}" 吗？删除后将无法恢复。`)) {
-      return;
-    }
-
-    try {
-      setSaving(true);
-      // 使用api.supplierApi.delete方法删除供应商，确保使用正确的API端口
-      await api.supplierApi.delete(supplier.id);
-      // api.supplierApi.delete方法内部已经处理了错误情况，如果成功则继续执行
-
-      // 清空当前模型列表
-      setCurrentModels([]);
-
-      // 通知父组件更新供应商列表
-      if (onSupplierUpdate) {
-        onSupplierUpdate();
-      }
-
-      // 通知父组件清除选中的供应商
-      if (onSupplierSelect) {
-        onSupplierSelect(null);
-      }
-    } catch (err) {
-      setError('删除供应商失败');
-      console.error('Failed to delete supplier:', err);
-    } finally {
-      setSaving(false);
-    }
-  };
+  // 供应商相关函数和处理逻辑已移至SupplierDetail组件中
 
   return (
     <div className="model-management">
-      <div className="model-header">
-        <div className="model-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span className="supplier-logo">{getSupplierLogo(selectedSupplier)}</span>
-            {selectedSupplier.name}
-          </h3>
-
-          <button
-            className="btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleEditSupplier(selectedSupplier);
-            }}
-            title="编辑供应商"
-            style={{
-              padding: '3px 6px',
-              backgroundColor: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '14px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            ✏️
-          </button>
-          <button
-            className="btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDeleteSupplier(selectedSupplier);
-            }}
-            title="删除供应商"
-            style={{
-              padding: '3px 6px',
-              backgroundColor: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '14px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            🗑️
-          </button>
-        </div>
-      </div>
-
-      {/* 供应商详情面板 */}
-      <div className="supplier-info-panel panel">
-        <h4></h4>
-        <div className="supplier-info-grid">
-          <div className="info-item">
-            <label>描述:</label>
-            <span className="info-value">{selectedSupplier.description || '未提供描述'}</span>
-          </div>
-          <div className="info-item">
-            <label>官网:</label>
-            <span className="info-value">
-              {selectedSupplier.website ? (
-                <a href={selectedSupplier.website} target="_blank" rel="noopener noreferrer" className="external-link">
-                  访问官网
-                </a>
-              ) : '未设置'}
-            </span>
-          </div>
-          <div className="info-item">
-            <label>API地址:</label>
-            <span className="info-value">{selectedSupplier.apiUrl ? (
-                <a href={selectedSupplier.apiUrl} target="_blank" rel="noopener noreferrer" className="external-link">
-                  {selectedSupplier.apiUrl}
-                </a>
-              ) : '未设置'}</span>
-          </div>
-          <div className="info-item">
-            <label>API密钥:</label>
-            <span className="info-value api-key">{formatApiKey(selectedSupplier.api_key)}</span>
-          </div>
-          <div className="info-item">
-            <label>API文档:</label>
-            <span className="info-value">
-              {selectedSupplier.api_docs ? (
-                <a href={selectedSupplier.api_docs} target="_blank" rel="noopener noreferrer" className="external-link">
-                  {selectedSupplier.api_docs}
-                </a>
-              ) : '未设置'}
-            </span>
-          </div>
-          <div className="info-item">
-            <label>供应商类型:</label>
-            <span className="info-value">{selectedSupplier.is_domestic ? '国内供应商' : '国际供应商'}</span>
-          </div>
-          <div className="info-item">
-            <label>启用状态:</label>
-            <span className="info-value">
-              {selectedSupplier.is_active === false ? (
-                <span style={{ color: '#e74c3c', fontWeight: '500' }}>未启用</span>
-              ) : (
-                <span style={{ color: '#27ae60', fontWeight: '500' }}>已启用</span>
-              )}
-              <label className="toggle-switch" title={selectedSupplier.is_active ? '点击停用' : '点击启用'}>
-                <input
-                  type="checkbox"
-                  checked={selectedSupplier.is_active}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    // 直接在组件内部定义切换逻辑，避免函数作用域问题
-                    const toggleStatus = async () => {
-                      try {
-                        setSaving(true);
-                        const newStatus = !selectedSupplier.is_active;
-                        const confirmation = newStatus
-                          ? `确定要启用供应商 "${selectedSupplier.name}" 吗？`
-                          : `确定要停用供应商 "${selectedSupplier.name}" 吗？`;
-
-                        if (!window.confirm(confirmation)) {
-                          return;
-                        }
-
-                        // 调用专门的状态更新方法，只更新is_active字段
-                        await api.supplierApi.updateSupplierStatus(selectedSupplier.id, newStatus);
-
-                        if (onSupplierUpdate) {
-                          setTimeout(() => onSupplierUpdate(), 0);
-                        }
-
-                        console.log(`供应商状态已${newStatus ? '启用' : '停用'}: ${selectedSupplier.name}`);
-                      } catch (err) {
-                        // 提供更详细的错误信息
-                        const errorMessage = err.message || '网络连接错误，请检查后端服务是否运行';
-                        setError(`更新供应商状态失败: ${errorMessage}`);
-                        console.error('Failed to toggle supplier status:', err);
-                        // 可以考虑在这里添加一个toast通知或其他用户反馈机制
-                      } finally {
-                        setSaving(false);
-                      }
-                    };
-                    toggleStatus();
-                  }}
-                  onChange={(e) => e.stopPropagation()} // 防止意外触发
-                  disabled={saving}
-                />
-                <span className="toggle-slider"></span>
-              </label>
-            </span>
-          </div>
-          {selectedSupplier.created_at && (
-            <div className="info-item">
-              <label>创建时间:</label>
-              <span className="info-value">{new Date(selectedSupplier.created_at).toLocaleString()}</span>
-            </div>
-          )}
-        </div>
-      </div>
+      {/* 使用SupplierDetail组件显示供应商详情 */}
+      <SupplierDetail 
+        selectedSupplier={selectedSupplier} 
+        onSupplierUpdate={onSupplierUpdate} 
+        onSupplierSelect={onSupplierSelect}
+      />
 
       {/* 新增模型功能已移至模态对话框 */}
 
@@ -854,14 +505,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
       )}
 
       {/* 编辑模型功能已移至模态对话框 */}
-      {/* 供应商模态窗口 */}
-      <SupplierModal
-        isOpen={isSupplierModalOpen}
-        onClose={handleCloseSupplierModal}
-        onSave={handleSaveSupplier}
-        supplier={currentSupplier}
-        mode={supplierModalMode}
-      />
+      {/* 供应商相关的模态窗口已移至SupplierDetail组件中 */}
       
       {/* 模型模态窗口 */}
       <ModelModal

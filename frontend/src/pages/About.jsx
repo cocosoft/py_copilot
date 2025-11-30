@@ -13,7 +13,7 @@ const About = () => {
         <section className="about-intro">
           <div className="about-logo">
             <div className="logo-container">
-              <span className="logo-text">Py Copilot</span>
+              <img src="/app-logo.png" alt="Py Copilot Logo" />
             </div>
           </div>
           <p className="about-description">

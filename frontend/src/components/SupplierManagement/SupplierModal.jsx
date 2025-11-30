@@ -1,18 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import '../styles/SupplierModal.css';
+import '../../styles/SupplierModal.css';
 
 const SupplierModal = ({ isOpen, onClose, onSave, supplier = null, mode = 'add' }) => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     logo: '',
-    category: '',
-    website: '',
-    apiUrl: '',
-    apiDocs: '',
-    apiKey: '',
-    isActive: true,
-    isDomestic: false
+    website: ''
   });
   const [saving, setSaving] = useState(false);
   const [file, setFile] = useState(null);
@@ -25,30 +19,32 @@ const SupplierModal = ({ isOpen, onClose, onSave, supplier = null, mode = 'add' 
         name: supplier.name || '',
         description: supplier.description || '',
         logo: supplier.logo || '',
-        category: supplier.category || '',
-        website: supplier.website || '',
-        apiUrl: supplier.api_endpoint || supplier.apiUrl || '',
-        apiDocs: supplier.api_docs || supplier.apiDocs || '',
-        apiKey: supplier.api_key || supplier.apiKey || '',
-        isActive: supplier.is_active !== undefined ? supplier.is_active : true,
-        isDomestic: supplier.is_domestic !== undefined ? supplier.is_domestic : false
+        website: supplier.website || ''
       });
       // 重置文件和预览
       setFile(null);
-      setPreviewUrl(supplier.logo || '');
+      // 处理logo预览URL，现在后端直接返回前端可访问的路径格式
+        const logoUrl = supplier.logo || '';
+        // 对于/logo/providers/开头的路径或其他相对路径，前端可以直接访问
+        // 对于只有文件名的logo值，添加完整路径前缀
+        let finalPreviewUrl = '';
+        if (logoUrl && logoUrl.trim()) {
+          if (logoUrl.startsWith('/')) {
+            // 已经是完整路径，直接使用
+            finalPreviewUrl = logoUrl;
+          } else {
+            // 只有文件名，添加完整路径前缀
+            finalPreviewUrl = `/logos/providers/${logoUrl}`;
+          }
+        }
+        setPreviewUrl(finalPreviewUrl);
     } else if (mode === 'add') {
       // 重置表单数据
       setFormData({
         name: '',
         description: '',
         logo: '',
-        category: '',
-        website: '',
-        apiUrl: '',
-        apiDocs: '',
-        apiKey: '',
-        isActive: true,
-        isDomestic: false
+        website: ''
       });
       setFile(null);
       setPreviewUrl('');
@@ -103,32 +99,24 @@ const SupplierModal = ({ isOpen, onClose, onSave, supplier = null, mode = 'add' 
       
       // 添加所有表单字段
       formDataToSubmit.append('name', formData.name);
+      // 后端需要display_name字段，使用name作为display_name
+      formDataToSubmit.append('display_name', formData.name);
       formDataToSubmit.append('description', formData.description);
-      formDataToSubmit.append('category', formData.category);
       formDataToSubmit.append('website', formData.website);
-      formDataToSubmit.append('api_endpoint', formData.apiUrl);
-      formDataToSubmit.append('api_docs', formData.apiDocs);
-      formDataToSubmit.append('api_key', formData.apiKey);
-      formDataToSubmit.append('api_key_required', formData.apiKey ? 'true' : 'false');
-      formDataToSubmit.append('is_active', formData.isActive ? 'true' : 'false');
       
       // 如果有文件上传，添加文件
       if (file) {
         formDataToSubmit.append('logo', file);
+      } else if (mode === 'edit') {
+        // 编辑模式下，添加其他字段，logo由后端处理
+        // 不要将字符串logo添加到FormData中，这会导致后端无法识别文件
+        formDataToSubmit.append('existing_logo', formData.logo);
       }
       
-      // 为了前端UI显示，创建一个包含所有前端数据的对象
-      const frontendData = {
-        ...formData,
-        // 如果有新上传的文件，使用预览URL作为临时logo显示
-        logo: file ? previewUrl : formData.logo
-      };
+      console.log('SupplierModal: 准备调用onSave，提交的FormData:', formDataToSubmit);
       
-      console.log('SupplierModal: 准备调用onSave，提交的数据:', formDataToSubmit);
-      console.log('SupplierModal: 提交的前端数据:', frontendData);
-      
-      // 调用父组件的保存函数，传递FormData和前端数据
-      await onSave(formDataToSubmit, frontendData);
+      // 调用父组件的保存函数，传递FormData
+      await onSave(formDataToSubmit);
       console.log('SupplierModal: onSave调用成功，准备关闭模态窗口');
       onClose();
     } catch (error) {
@@ -242,18 +230,7 @@ const SupplierModal = ({ isOpen, onClose, onSave, supplier = null, mode = 'add' 
           </div>
           
           <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="category">供应商类别</label>
-              <input 
-                type="text" 
-                id="category"
-                name="category"
-                value={formData.category}
-                onChange={handleChange}
-                placeholder="如：AI模型、云服务等"
-                disabled={saving}
-              />
-            </div>
+
             <div className="form-group">
               <label htmlFor="website">官网</label>
               <input 
@@ -268,59 +245,7 @@ const SupplierModal = ({ isOpen, onClose, onSave, supplier = null, mode = 'add' 
             </div>
           </div>
           
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="apiUrl">API地址</label>
-              <input 
-                type="url" 
-                id="apiUrl"
-                name="apiUrl"
-                value={formData.apiUrl}
-                onChange={handleChange}
-                placeholder="https://"
-                disabled={saving}
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="apiDocs">API文档</label>
-              <input 
-                type="url" 
-                id="apiDocs"
-                name="apiDocs"
-                value={formData.apiDocs}
-                onChange={handleChange}
-                placeholder="https://"
-                disabled={saving}
-              />
-            </div>
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="apiKey">API密钥</label>
-            <input 
-              type="password" 
-              id="apiKey"
-              name="apiKey"
-              value={formData.apiKey}
-              onChange={handleChange}
-              placeholder="API Key"
-              disabled={saving}
-            />
-          </div>
-          
-          <div className="form-group">
-            <label>
-              <input 
-                type="checkbox" 
-                name="isActive"
-                checked={formData.isActive}
-                onChange={handleChange}
-                disabled={saving}
-              />
-              启用此供应商
-            </label>
-          </div>
-          
+
           <div className="form-actions">
             <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? (mode === 'add' ? '添加中...' : '保存中...') : (mode === 'add' ? '添加' : '保存')}

@@ -8,21 +8,37 @@ export const STORAGE_PREFIX = 'llm_admin_';
 export const request = async (endpoint, options = {}) => {
   console.log('🚀 API请求:', `${API_BASE_URL}${endpoint}`, options);
   
+  // 对于FormData，不设置默认的Content-Type，让浏览器自动处理
+  const isFormData = options.body instanceof FormData;
+  
+  // 准备默认选项
+  let defaultHeaders = {};
+  if (!isFormData) {
+    defaultHeaders['Content-Type'] = 'application/json';
+  }
+  
   const defaultOptions = {
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: defaultHeaders,
   };
   
+  // 合并选项
   const mergedOptions = {
     ...defaultOptions,
     ...options,
-    headers: {
-      ...defaultOptions.headers,
-      ...options.headers,
-    },
     credentials: 'include', // 包含cookies
   };
+  
+  // 特别处理headers：如果是FormData，确保不设置任何Content-Type
+  if (isFormData) {
+    mergedOptions.headers = { ...mergedOptions.headers };
+    delete mergedOptions.headers['Content-Type'];
+  } else {
+    // 非FormData时正常合并headers
+    mergedOptions.headers = {
+      ...defaultOptions.headers,
+      ...options.headers,
+    };
+  }
   
   try {
     // 构建完整URL

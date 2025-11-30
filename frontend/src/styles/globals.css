@@ -15,7 +15,35 @@ body {
 
 .app-container {
   display: flex;
+  flex-direction: column;
   min-height: 100vh;
+}
+
+/* 顶部标题栏样式 */
+.app-header {
+  background-color: #ffffff;
+  border-bottom: 1px solid #e1e8ed;
+  padding: 16px 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+}
+
+.app-header h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0;
+}
+
+/* 应用主体内容，包含导航栏和主内容区域 */
+.app-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
 }
 
 /* 导航栏样式 */
@@ -26,10 +54,54 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   margin: 16px;
   position: fixed;
-  height: calc(100vh - 32px);
+  top: 80px; /* 调整为顶部标题栏下方 */
+  height: calc(100vh - 112px); /* 调整高度，减去顶部标题栏和边距 */
   display: flex;
   flex-direction: column;
   padding: 16px 0;
+  transition: all 0.3s ease; /* 过渡所有属性 */
+  overflow: visible !important; /* 确保内容不被裁剪 */
+}
+
+/* 导航栏收缩状态 - 显著增加宽度确保图标完全显示 */
+.navbar.collapsed {
+  width: 100px; /* 显著增加宽度确保图标完全可见 */
+  overflow: visible !important; /* 确保内容不被裁剪 */
+  padding: 8px 0; /* 减少上下内边距 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* 导航栏头部，包含标题和切换按钮 */
+.navbar-header {
+  display: flex;
+  justify-content: center; /* 始终居中显示切换按钮 */
+  align-items: center;
+  padding: 0 12px 16px;
+  border-bottom: 1px solid #e1e8ed;
+  margin-bottom: 8px;
+}
+
+/* 收缩按钮样式 */
+.collapse-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 1px;
+  border-radius: 1px;
+  color: #657786;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  width: 32px;
+  height: 32px;
+}
+
+.collapse-toggle:hover {
+  background-color: #f8f9fa;
+  color: #3498db;
 }
 
 /* 导航栏容器，使用flex布局将主要导航和底部设置分开 */
@@ -42,7 +114,7 @@ body {
 
 /* 主要导航菜单 */
 .nav-menu.main-nav {
-  padding-bottom: 16px;
+  padding-bottom: 10px;
 }
 
 /* 底部导航项，固定在底部 */
@@ -50,15 +122,6 @@ body {
   margin-top: auto;
   border-top: 1px solid #e1e8ed;
   padding-top: 8px;
-}
-
-.navbar h2 {
-  padding: 0 20px 16px;
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: #2c3e50;
-  border-bottom: 1px solid #e1e8ed;
-  margin-bottom: 8px;
 }
 
 .nav-menu {
@@ -74,8 +137,8 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 20px;
-  color: #34495e;
+  padding: 14px 20px;
+  color: #3498db;
   text-decoration: none;
   transition: all 0.2s ease;
   font-size: 14px;
@@ -85,9 +148,35 @@ body {
   border-left: 3px solid transparent;
 }
 
+/* 收缩状态下的导航链接 - 调整内边距和间距 */
+.navbar.collapsed .nav-link {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important; /* 内边距设置为0 */
+  gap: 0 !important; /* 间距设置为0px */
+  border-left: none !important;
+  position: relative;
+  min-height: 44px; /* 保持最小高度 */
+  width: 100%;
+  margin: 0;
+}
+
+/* 收缩状态下隐藏文字 */
+.navbar.collapsed .nav-link span {
+  display: none !important;
+}
+
+/* 收缩状态下的激活样式 */
+.navbar.collapsed .nav-link.active {
+  border-left: none;
+  background-color: #3498db;
+  color: white;
+}
+
 .nav-link:hover {
   background-color: #f8f9fa;
-  color: #3498db;
+  color: #2980b9;
 }
 
 .nav-link.active {
@@ -97,10 +186,36 @@ body {
   font-weight: 500;
 }
 
+/* 导航图标样式 - 确保图标在所有状态下都正确显示 */
 .nav-icon {
-  font-size: 18px;
-  width: 24px;
+  display: inline-block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
   text-align: center;
+  position: relative;
+  z-index: 10;
+  flex-shrink: 0;
+  min-width: 36px;
+  font-size: 24px;
+  height: 36px;
+  line-height: 36px;
+  margin-right: 10px;
+}
+
+/* 收缩状态下的导航图标 - 增强显示效果 */
+.navbar.collapsed .nav-icon {
+  display: inline-block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  min-width: 36px;
+  height: 36px;
+  font-size: 24px;
+  line-height: 36px;
+  text-align: center;
+  z-index: 10;
+  flex-shrink: 0;
+  margin: 0 auto;
+  position: relative;
 }
 
 /* 主内容区域样式 */
@@ -109,7 +224,13 @@ body {
   flex: 1;
   padding: 20px;
   background-color: #f5f5f5;
-  min-height: 100vh;
+  min-height: calc(100vh - 80px); /* 减去顶部标题栏高度 */
+  transition: margin-left 0.3s ease;
+}
+
+/* 导航栏收缩时的主内容区域 - 调整边距适应新的导航栏宽度 */
+.app-body .navbar.collapsed ~ .main-content {
+  margin-left: 130px; /* 调整主内容区域左边距，适应新的导航栏宽度 */
 }
 
 /* 页面标题样式 */
