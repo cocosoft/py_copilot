@@ -13,10 +13,14 @@ class ModelSupplierBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     display_name: str = Field(..., min_length=1, max_length=100)
     description: Optional[str] = None
-    base_url: Optional[str] = None
-    api_key_env_name: Optional[str] = None
+    api_endpoint: Optional[str] = None  # 改为与数据库字段匹配
+    api_key_required: bool = False
     is_active: bool = True
     logo: Optional[str] = None
+    category: Optional[str] = None
+    website: Optional[str] = None
+    api_docs: Optional[str] = None
+    api_key: Optional[str] = None
 
 
 class ModelSupplierCreate(ModelSupplierBase):
@@ -28,9 +32,14 @@ class ModelSupplierUpdate(BaseModel):
     """更新模型供应商请求模型"""
     display_name: Optional[str] = Field(None, min_length=1, max_length=100)
     description: Optional[str] = None
-    base_url: Optional[str] = None
-    api_key_env_name: Optional[str] = None
+    api_endpoint: Optional[str] = None
+    api_key_required: Optional[bool] = None
     is_active: Optional[bool] = None
+    logo: Optional[str] = None
+    category: Optional[str] = None
+    website: Optional[str] = None
+    api_docs: Optional[str] = None
+    api_key: Optional[str] = None
 
 
 class ModelSupplierResponse(ModelSupplierBase):
@@ -38,7 +47,6 @@ class ModelSupplierResponse(ModelSupplierBase):
     id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
-    logo: Optional[str] = None
     
     model_config = ConfigDict(from_attributes=True)
 
