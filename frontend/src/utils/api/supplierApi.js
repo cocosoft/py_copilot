@@ -147,36 +147,30 @@ export const supplierApi = {
     const currentSupplier = await request(getEndpoint, { method: 'GET' });
     console.log('🔄 supplierApi.updateSupplierStatus - 当前供应商数据:', currentSupplier);
     
-    // 创建一个包含所有现有字段但只更新is_active的对象，保持与后端期望的字段名一致
-    // 先复制所有字段
-    const backendUpdateData = { ...currentSupplier };
-    // 然后明确设置is_active为新值，确保覆盖原始值
-    backendUpdateData.is_active = isActive;
-    // 确保包含所有必要字段并处理不同的字段名
-    backendUpdateData.name = currentSupplier.name || currentSupplier.display_name || '';
-    backendUpdateData.display_name = currentSupplier.display_name || currentSupplier.name || ''; // 后端需要display_name字段
-    backendUpdateData.description = currentSupplier.description || '';
-    backendUpdateData.logo = currentSupplier.logo || '';
-    backendUpdateData.category = currentSupplier.category || '';
-    backendUpdateData.website = currentSupplier.website || '';
-    backendUpdateData.api_endpoint = currentSupplier.api_endpoint || currentSupplier.apiUrl || '';
-    backendUpdateData.api_docs = currentSupplier.api_docs || currentSupplier.api_documentation || '';
-    backendUpdateData.api_key = currentSupplier.api_key || '';
-    backendUpdateData.api_key_required = currentSupplier.api_key_required !== undefined ? currentSupplier.api_key_required : !!currentSupplier.api_key;
+    // 重要：使用FormData而不是JSON，因为后端API使用Form参数接收数据
+    const formData = new FormData();
     
-    console.log('🔄 supplierApi.updateSupplierStatus - 发送到后端的更新数据:', JSON.stringify(backendUpdateData));
+    // 只需要更新is_active字段，后端会保留其他字段的当前值
+    formData.append('is_active', isActive.toString());
+    
+    // 如果当前供应商有logo，设置existing_logo以防止logo丢失
+    if (currentSupplier.logo) {
+      formData.append('existing_logo', currentSupplier.logo);
+    }
+    
+    console.log('🔄 supplierApi.updateSupplierStatus - 发送到后端的FormData数据:');
+    console.log('  is_active:', isActive);
+    console.log('  existing_logo:', currentSupplier.logo || '无');
     
     // 使用正确的端点
     const endpoint = `/model-management/suppliers/${numericId}`;
     console.log('🔄 supplierApi.updateSupplierStatus - endpoint:', endpoint);
     
-    // 发送PUT请求
+    // 发送PUT请求，不设置Content-Type，让浏览器自动设置
     const response = await request(endpoint, {
       method: 'PUT',
-      body: JSON.stringify(backendUpdateData),
-      headers: {
-        'Content-Type': 'application/json'
-      }
+      body: formData
+      // 不设置Content-Type，FormData会自动处理
     });
     
     console.log('✅ supplierApi.updateSupplierStatus - 状态更新成功');

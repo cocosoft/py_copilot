@@ -16,6 +16,7 @@ class ModelSupplierBase(BaseModel):
     base_url: Optional[str] = None
     api_key_env_name: Optional[str] = None
     is_active: bool = True
+    logo: Optional[str] = None
 
 
 class ModelSupplierCreate(ModelSupplierBase):
@@ -37,6 +38,7 @@ class ModelSupplierResponse(ModelSupplierBase):
     id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
+    logo: Optional[str] = None
     
     model_config = ConfigDict(from_attributes=True)
 

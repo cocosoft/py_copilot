@@ -158,11 +158,14 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
 
     try {
       console.log('DEBUG: 获取供应商logo:', supplier.logo);
-      // 如果有logo且是完整URL或/logo/providers/开头的相对路径，直接使用
+      // 如果有logo
       if (supplier.logo) {
+        // 检测是否为外部URL
         if (supplier.logo.startsWith('http')) {
-          // 如果已经是完整URL，直接返回
-          return supplier.logo;
+          // 使用后端代理端点处理外部URL，避免ORB安全限制
+          const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(supplier.logo)}`;
+          console.log('使用代理URL:', proxyUrl);
+          return proxyUrl;
         } else if (supplier.logo.startsWith('/logos/providers/')) {
           // 如果是/logo/providers/开头的相对路径，直接使用
           return supplier.logo;
@@ -172,10 +175,10 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
         }
       }
       // 没有logo时的默认路径
-      return `/logos/providers/${(supplier.name || '').toLowerCase().replace(/\s+/g, '_')}.png`;
+      return '/logos/providers/default.png';
     } catch (error) {
       console.error('获取供应商logo失败:', error);
-      return '';
+      return '/logos/providers/default.png';
     }
   };
 

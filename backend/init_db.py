@@ -1,6 +1,7 @@
 """数据库初始化脚本"""
 from app.core.database import SessionLocal, engine
-from app.models.supplier_db import Base, SupplierDB, ModelDB
+from app.core.database import Base
+from app.models.model_management import ModelSupplier as SupplierDB
 
 # 创建数据库表
 print("开始创建数据库表...")
@@ -16,32 +17,28 @@ try:
         # 添加一些示例供应商
         suppliers_data = [
             {
-                "name": "OpenAI",
+                "name": "openai",
+                "display_name": "OpenAI",
                 "description": "提供GPT系列模型的AI公司",
-                "category": "国外",
                 "website": "https://openai.com",
-                "api_endpoint": "https://api.openai.com/v1",
-                "api_key_required": True,
-                "is_active": True,
-                "isDomestic": False
+                "base_url": "https://api.openai.com/v1",
+                "is_domestic": False,
+                "is_active": True
             },
             {
-                "name": "百度文心一言",
+                "name": "baidu",
+                "display_name": "百度文心一言",
                 "description": "百度AI开发的大语言模型",
-                "category": "国内",
                 "website": "https://wenxin.baidu.com",
-                "api_endpoint": "https://aip.baidubce.com",
-                "api_key_required": True,
-                "is_active": True,
-                "isDomestic": True
+                "base_url": "https://aip.baidubce.com",
+                "is_domestic": True,
+                "is_active": True
             }
         ]
         
         for supplier_data in suppliers_data:
             supplier = SupplierDB(
-                **{k: v for k, v in supplier_data.items() if k != 'isDomestic'},
-                created_at="2024-01-01T00:00:00",
-                updated_at="2024-01-01T00:00:00"
+                **supplier_data
             )
             db.add(supplier)
         

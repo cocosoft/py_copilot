@@ -1,5 +1,5 @@
 """模型分类相关的数据校验模型"""
-from typing import Optional, List, Dict, Any
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 from pydantic import BaseModel, Field, ConfigDict
 
@@ -76,7 +76,15 @@ class ModelWithCategoriesResponse(BaseModel):
     """包含分类信息的模型响应模型"""
     id: int
     name: str
-    model_id: str
+    display_name: str
+    description: Optional[str] = None
+    context_window: Optional[int] = None
+    max_tokens: Optional[int] = None
+    is_default: bool = False
+    is_active: bool = True
+    supplier_id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
     categories: List[ModelCategoryResponse]
     
     model_config = ConfigDict(from_attributes=True)

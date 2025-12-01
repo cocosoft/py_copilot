@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useSupplier } from '../contexts/SupplierContext';
+import { supplierApi } from '../../utils/api/supplierApi';
 
 const SupplierList = () => {
   const { suppliers, selectedSupplier, selectSupplier } = useSupplier();
@@ -45,6 +46,36 @@ const SupplierList = () => {
     setImageErrors(prev => ({ ...prev, [supplierId]: true }));
   };
 
+  // 切换供应商状态
+  const toggleSupplierStatus = async (supplierId, isActive) => {
+    try {
+      console.log(`切换供应商 ${supplierId} 状态为: ${isActive ? '启用' : '停用'}`);
+      
+      // 创建FormData对象，因为后端期望Form参数
+      const formData = new FormData();
+      formData.append('is_active', isActive);
+      
+      // 发送PUT请求更新状态
+      const response = await fetch(`/model-management/suppliers/${supplierId}`, {
+        method: 'PUT',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error(`状态更新失败: ${response.status}`);
+      }
+      
+      const updatedSupplier = await response.json();
+      console.log('供应商状态更新成功:', updatedSupplier);
+      
+      // 重新加载供应商数据以更新UI
+      loadSuppliers();
+    } catch (error) {
+      console.error('切换供应商状态失败:', error);
+      alert(`切换供应商状态失败: ${error.message}`);
+    }
+  };
+
   return (
     <div className="supplier-list">
       {sortedSuppliers.length === 0 ? (
@@ -78,10 +109,42 @@ const SupplierList = () => {
                 {supplier.name}
               </div>
               <div className="supplier-tag" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {supplier.is_active === false ? (
-                  <div className="supplier-tag inactive" title="已禁用" style={{  padding: '2px 8px', borderRadius: '12px', fontSize: '12px', minWidth: '60px', textAlign: 'center' }}>🔴 OFF</div>
+                {supplier.is_active ? (
+                  <button 
+                    className="supplier-status-btn active" 
+                    title="点击停用" 
+                    style={{ 
+                      padding: '2px 8px', 
+                      borderRadius: '12px', 
+                      fontSize: '12px', 
+                      minWidth: '60px', 
+                      textAlign: 'center',
+                      backgroundColor: '#d4edda',
+                      border: '1px solid #c3e6cb',
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => toggleSupplierStatus(supplier.id, false)}
+                  >
+                    🟢 ON
+                  </button>
                 ) : (
-                  <div className="supplier-tag active" title="已启用" style={{  padding: '2px 8px', borderRadius: '12px', fontSize: '12px', minWidth: '60px', textAlign: 'center' }}>🟢 ON</div>
+                  <button 
+                    className="supplier-status-btn inactive" 
+                    title="点击启用" 
+                    style={{ 
+                      padding: '2px 8px', 
+                      borderRadius: '12px', 
+                      fontSize: '12px', 
+                      minWidth: '60px', 
+                      textAlign: 'center',
+                      backgroundColor: '#f8d7da',
+                      border: '1px solid #f5c6cb',
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => toggleSupplierStatus(supplier.id, true)}
+                  >
+                    🔴 OFF
+                  </button>
                 )}
               </div>
             </div>

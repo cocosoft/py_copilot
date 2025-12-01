@@ -1,9 +1,11 @@
 """FastAPI应用主入口"""
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Request, HTTPException, Query
+from fastapi.responses import JSONResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
+import requests
+from urllib.parse import urlparse
 
 # 使用硬编码配置避免复杂导入
 API_TITLE = "Py Copilot API"
@@ -68,6 +70,31 @@ async def internal_server_error_handler(request: Request, exc):
         content={"detail": "Internal Server Error"},
     )
 
+# 图片代理端点，用于处理外部URL的logo请求，避免ORB安全限制
+@app.get("/proxy-image")
+async def proxy_image(url: str = Query(..., description="要代理的外部图片URL")):
+    """代理外部图片请求的端点"""
+    # 验证URL是否为有效的图片URL
+    parsed_url = urlparse(url)
+    if not parsed_url.scheme or parsed_url.scheme not in ["http", "https"]:
+        raise HTTPException(status_code=400, detail="无效的图片URL")
+    
+    try:
+        # 获取外部图片
+        response = requests.get(url, stream=True, timeout=10)
+        response.raise_for_status()
+        
+        # 获取内容类型
+        content_type = response.headers.get("content-type", "image/jpeg")
+        
+        # 返回图片数据
+        return Response(
+            content=response.content,
+            media_type=content_type
+        )
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"获取图片失败: {str(e)}")
+
 # 导入路由 - 使用动态导入避免循环导入
 from app.api import api_router
 app.include_router(api_router)
@@ -75,7 +102,8 @@ app.include_router(api_router)
 # 创建数据库表
 from app.models.base import Base
 # 在创建表之前导入所有模型类，确保它们被注册
-from app.models.supplier_db import SupplierDB, ModelDB
-from app.models.capability_db import CapabilityDB
-from app.models.category_db import ModelCategoryDB
+from app.models.model_management import ModelSupplier as SupplierDB, Model as ModelDB
+from app.modules.capability_category.models.capability_db import CapabilityDB
+from app.modules.capability_category.models.category_db import ModelCategoryDB
+# User模型暂时不导入，避免重复定义
 Base.metadata.create_all(bind=engine)

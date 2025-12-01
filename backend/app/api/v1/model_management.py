@@ -1,5 +1,6 @@
 """模型管理相关API接口"""
 from typing import Any, List, Optional
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
@@ -39,12 +40,7 @@ print(f"文件上传目录: {UPLOAD_DIR}")  # 添加日志以便调试
 # 支持的图片扩展名
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 
-# 模拟用户（保留现有逻辑）
-class MockUser:
-    pass
-
-def get_mock_user():
-    return MockUser()
+# 模拟用户相关定义已在其他地方声明
 
 def allowed_file(filename):
     """检查文件扩展名是否允许"""
@@ -60,6 +56,17 @@ async def save_upload_file(upload_file: UploadFile) -> Optional[str]:
         )
     
     # 生成唯一文件名
+    if not upload_file.filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="文件名不能为空"
+        )
+    # 检查文件名是否有扩展名
+    if '.' not in upload_file.filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="文件名必须包含扩展名"
+        )
     file_ext = upload_file.filename.rsplit('.', 1)[1].lower()
     unique_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.{file_ext}"
     file_path = os.path.join(UPLOAD_DIR, unique_filename)
@@ -149,7 +156,7 @@ async def create_model_supplier(
             logo_url = await save_upload_file(logo)
         
         # 创建新供应商
-        now = datetime.utcnow().isoformat()
+        now = datetime.utcnow()
         db_supplier = ModelSupplier(
             name=name,
             description=description,
@@ -163,7 +170,7 @@ async def create_model_supplier(
             api_key=api_key,
             created_at=now,
             updated_at=now
-        )
+          )
         
         db.add(db_supplier)
         db.commit()
@@ -330,37 +337,38 @@ async def update_model_supplier(
     
     # 更新字段
     if name is not None:
-        supplier.name = name
+        setattr(supplier, 'name', name)
     if description is not None:
-        supplier.description = description
+        setattr(supplier, 'description', description)
     if api_endpoint is not None:
-        supplier.api_endpoint = api_endpoint
+        setattr(supplier, 'api_endpoint', api_endpoint)
     if api_key_required is not None:
-        supplier.api_key_required = api_key_required
+        setattr(supplier, 'api_key_required', api_key_required)
     if is_active is not None:
-        supplier.is_active = is_active
+        setattr(supplier, 'is_active', is_active)
     if category is not None:
-        supplier.category = category
+        setattr(supplier, 'category', category)
     if website is not None:
-        supplier.website = website
+        setattr(supplier, 'website', website)
     if api_docs is not None:
-        supplier.api_docs = api_docs
+        setattr(supplier, 'api_docs', api_docs)
     if api_key is not None:
-        supplier.api_key = api_key
+        setattr(supplier, 'api_key', api_key)
     
     # 处理logo上传
     if logo:
         # 如果有新的logo文件上传，保存它
-        supplier.logo = await save_upload_file(logo)
-        print(f"已更新logo为新上传的文件: {supplier.logo}")
+        logo_path = await save_upload_file(logo)
+        setattr(supplier, 'logo', logo_path)
+        print(f"已更新logo为新上传的文件: {logo_path}")
     elif existing_logo is not None:
         # 如果提供了existing_logo，使用它
-        supplier.logo = existing_logo
+        setattr(supplier, 'logo', existing_logo)
         print(f"保留现有logo: {supplier.logo}")
     # 否则，保持原有logo不变
     
     # 更新时间戳
-    supplier.updated_at = datetime.utcnow().isoformat()
+    setattr(supplier, 'updated_at', datetime.utcnow())
     
     try:
         db.commit()
@@ -461,14 +469,14 @@ async def create_model(
         db.add(db_model)
         
         # 如果是第一个模型或者设置为默认模型，将其他模型的is_default设置为False
-        if db_model.is_default:
+        if db_model.is_default is True:
             db.query(Model).filter(
                 Model.supplier_id == supplier_id,
                 Model.id != db_model.id
             ).update({Model.is_default: False})
         elif db.query(Model).filter(Model.supplier_id == supplier_id).count() == 0:
             # 如果是第一个模型，自动设为默认
-            db_model.is_default = True
+            setattr(db_model, 'is_default', True)
         
         db.commit()
         db.refresh(db_model)
@@ -515,8 +523,34 @@ async def get_models(
     ).offset(skip).limit(limit).all()
     total = db.query(Model).filter(Model.supplier_id == supplier_id).count()
     
+    # 转换模型数据为响应格式
+    model_responses = []
+    for model in models:
+        # 创建符合ModelResponse结构的字典，为缺少的字段提供默认值
+        model_data = {
+            "id": model.id,
+            "supplier_id": model.supplier_id,
+            "model_id": getattr(model, "model_id", str(model.id)),  # 使用id作为默认model_id
+            "name": getattr(model, "name", ""),
+            "description": getattr(model, "description", None),
+            "type": getattr(model, "type", "chat"),  # 默认类型为chat
+            "context_window": getattr(model, "context_window", 8000),
+            "default_temperature": getattr(model, "default_temperature", 0.7),
+            "default_max_tokens": getattr(model, "max_tokens", 1000) or getattr(model, "default_max_tokens", 1000),
+            "default_top_p": getattr(model, "default_top_p", 1.0),
+            "default_frequency_penalty": getattr(model, "default_frequency_penalty", 0.0),
+            "default_presence_penalty": getattr(model, "default_presence_penalty", 0.0),
+            "custom_params": getattr(model, "custom_params", None),
+            "is_active": getattr(model, "is_active", True),
+            "is_default": getattr(model, "is_default", False),
+            "created_at": getattr(model, "created_at", datetime.now()),
+            "updated_at": getattr(model, "updated_at", None),
+            "categories": []
+        }
+        model_responses.append(model_data)
+    
     return ModelListResponse(
-        models=models,
+        models=model_responses,
         total=total
     )
 
@@ -644,12 +678,12 @@ async def delete_model(
     db.delete(model)
     
     # 如果删除的是默认模型，将第一个可用的模型设为默认
-    if was_default:
+    if was_default is True:
         first_model = db.query(Model).filter(
             Model.supplier_id == supplier_id
         ).first()
         if first_model:
-            first_model.is_default = True
+            setattr(first_model, 'is_default', True)
     
     db.commit()
 
@@ -689,7 +723,7 @@ async def set_default_model(
     db.query(Model).filter(Model.supplier_id == supplier_id).update({Model.is_default: False})
     
     # 将指定模型设为默认
-    model.is_default = True
+    setattr(model, 'is_default', True)
     
     db.commit()
     db.refresh(model)

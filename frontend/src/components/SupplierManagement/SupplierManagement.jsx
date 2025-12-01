@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../../utils/api';
 import SupplierModal from './SupplierModal';
 import '../../styles/ModelManagement.css';
+// Adding additional logging for debugging logo field issues
 
 const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSuppliers, onSupplierUpdate }) => {
   const [suppliers, setSuppliers] = useState([]);
@@ -75,9 +76,39 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
   const [modalMode, setModalMode] = useState('add'); // 'add' 或 'edit'
   const [saving, setSaving] = useState(false);
 
+  // 从SupplierDetail.jsx中提取的getSupplierLogo函数
+  const getSupplierLogo = (supplier) => {
+    if (!supplier) return '';
+
+    try {
+      console.log('DEBUG: 获取供应商logo:', supplier.logo);
+      // 如果有logo
+      if (supplier.logo) {
+        // 检测是否为外部URL
+        if (supplier.logo.startsWith('http')) {
+          // 使用后端代理端点处理外部URL，避免ORB安全限制
+          const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(supplier.logo)}`;
+          console.log('使用代理URL:', proxyUrl);
+          return proxyUrl;
+        } else if (supplier.logo.startsWith('/logos/providers/')) {
+          // 如果是/logo/providers/开头的相对路径，直接使用
+          return supplier.logo;
+        } else {
+          // 兼容处理：如果是单独的文件名，添加路径前缀
+          return `/logos/providers/${supplier.logo}`;
+        }
+      }
+      // 没有logo时的默认路径
+      return '/logos/providers/default.png';
+    } catch (error) {
+      console.error('获取供应商logo失败:', error);
+      return '/logos/providers/default.png';
+    }
+  };
+
   // 处理供应商选择
   const handleSupplierSelect = (supplier) => {
-    console.log('SupplierManagement: 选择供应商:', supplier.name, supplier.id, supplier.key);
+    console.log('SupplierManagement: 选择供应商', { supplier, logo: supplier.logo });
     setCurrentSupplier(supplier);
     if (onSupplierSelect) {
       onSupplierSelect(supplier);
@@ -212,50 +243,23 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
           >
             <div className="supplier-info" style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
               <div className="supplier-logo" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {(() => {
-                  // 优先使用数据库中存储的logo字段值
-                  let logoPath;
-                  if (supplier.logo) {
-                    // 如果数据库中有logo字段值，直接使用
-                    // 检查logo路径是否已经包含完整路径
-                    if (supplier.logo.startsWith('/')) {
-                      logoPath = supplier.logo;
-                    } else {
-                      logoPath = `/logos/providers/${supplier.logo}`;
-                    }
-                  } else {
-                    // 否则根据供应商名称生成
-                    // 对一些特殊供应商名称进行映射，确保能找到正确的图片文件
-                    const logoNameMap = {
-                      'moonshotai': 'moonshotai_new'
-                    };
-                    
-                    // 获取供应商名称并规范化处理
-                    const supplierName = (supplier.name || '').toLowerCase().replace(/\s+/g, '_');
-                    // 查找是否有映射，否则使用规范化的名称
-                    const logoName = logoNameMap[supplierName] || supplierName;
-                    // 构建logo路径
-                    logoPath = `/logos/providers/${logoName}.png`;
-                  }
-                  
-                  console.log('DEBUG: 生成的logo路径:', logoPath);
-                  
-                  return (
-                    <img 
-                      src={logoPath} 
-                      alt={`${supplier.name} logo`} 
-                      style={{ width: '30px', height: '30px', borderRadius: '4px' }} 
-                      onError={(e) => {
-                        // 图片加载失败时，显示供应商名称首字母
-                        e.target.style.display = 'none';
-                        const fallbackElement = document.createElement('div');
-                        fallbackElement.style.cssText = 'width: 30px; height: 30px; backgroundColor: #e0e0e0; borderRadius: 4px; display: flex; alignItems: center; justifyContent: center;';
-                        fallbackElement.textContent = supplier.name?.[0] || '?';
-                        e.target.parentNode.appendChild(fallbackElement);
-                      }}
-                    />
-                  );
-                })()}
+                <div style={{ position: 'relative', width: '30px', height: '30px' }}>
+                  <img 
+                    src={getSupplierLogo(supplier)} 
+                    alt={`${supplier.name} Logo`} 
+                    style={{ 
+                      width: '100%', 
+                      height: '100%', 
+                      borderRadius: '4px',
+                      objectFit: 'contain',
+                      backgroundColor: '#f5f5f5'
+                    }} 
+                    onError={(e) => {
+                      // 图片加载失败时显示默认占位
+                      e.target.src = '/logos/providers/default.png';
+                    }}
+                  />
+                </div>
               </div>
               <div className="supplier-name" style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
                 {supplier.name}

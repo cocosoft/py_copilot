@@ -8,7 +8,7 @@ import os
 import aiofiles
 
 from app.api.dependencies import get_db
-from app.models.supplier_db import SupplierDB, ModelDB
+from app.models.model_management import ModelSupplier as SupplierDB, Model as ModelDB
 from app.schemas.supplier_model import (
     SupplierCreate, SupplierResponse,
     ModelCreate, ModelResponse, ModelListResponse
@@ -67,7 +67,7 @@ async def create_supplier(
         logo_path = await save_upload_file(logo)
     
     # 创建新供应商
-    now = datetime.utcnow().isoformat()
+    now = datetime.utcnow()
     db_supplier = SupplierDB(
         name=name,
         description=description,
@@ -91,7 +91,8 @@ async def create_supplier(
         "updated_at": db_supplier.updated_at,
         "is_active": db_supplier.is_active
     }
-# 供应商相关路由
+
+# 供应商相关路由
 @router.get("/suppliers/all", response_model=List[SupplierResponse])
 def get_all_suppliers(db: Session = Depends(get_db)):
     """获取所有供应商"""
@@ -131,12 +132,12 @@ async def update_supplier(
         supplier.logo = logo_path
     
     # 更新基础信息字段
-    supplier.name = name
-    supplier.description = description
-    supplier.website = website
-    
-    # 更新时间戳
-    supplier.updated_at = datetime.utcnow().isoformat()
+    db.query(SupplierDB).filter(SupplierDB.id == supplier_id).update({
+        "name": name,
+        "description": description,
+        "website": website,
+        "updated_at": datetime.utcnow()
+    })
     
     db.commit()
     db.refresh(supplier)
@@ -161,8 +162,10 @@ def update_supplier_status(supplier_id: int, is_active: bool, db: Session = Depe
         raise HTTPException(status_code=404, detail="供应商不存在")
     
     # 更新供应商状态
-    supplier.is_active = is_active
-    supplier.updated_at = datetime.utcnow().isoformat()
+    db.query(SupplierDB).filter(SupplierDB.id == supplier_id).update({
+        "is_active": is_active,
+        "updated_at": datetime.utcnow()
+    })
     
     db.commit()
     db.refresh(supplier)
@@ -186,27 +189,28 @@ def delete_supplier(supplier_id: int, db: Session = Depends(get_db)):
 def get_supplier_models(supplier_id: int, db: Session = Depends(get_db)):
     """获取指定供应商的模型列表"""
     # 验证供应商是否存在
-    supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
+    from app.models.model_management import ModelSupplier, Model
+    supplier = db.query(ModelSupplier).filter(ModelSupplier.id == supplier_id).first()
     if not supplier:
         raise HTTPException(status_code=404, detail="供应商不存在")
     
     # 获取该供应商的所有模型
-    models = db.query(ModelDB).filter(ModelDB.supplier_id == supplier_id).all()
+    models = db.query(Model).filter(Model.supplier_id == supplier_id).all()
     total = len(models)
     
     # 转换为响应格式
     model_responses = [
-        {
-            "id": model.id,
-            "name": model.name,
-            "display_name": model.display_name,
-            "description": model.description,
-            "supplier_id": model.supplier_id,
-            "context_window": model.context_window,
-            "max_tokens": model.max_tokens,
-            "is_default": model.is_default,
-            "is_active": model.is_active
-        }
+        ModelResponse(
+            id=model.id,
+            name=model.name,
+            display_name=getattr(model, "display_name", model.name),
+            description=model.description,
+            supplier_id=model.supplier_id,
+            context_window=model.context_window,
+            max_tokens=getattr(model, "max_tokens", model.default_max_tokens),
+            is_default=model.is_default,
+            is_active=model.is_active
+        )
         for model in models
     ]
     
