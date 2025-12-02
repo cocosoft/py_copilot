@@ -8,7 +8,7 @@ import os
 import aiofiles
 
 from app.api.dependencies import get_db
-from app.models.model_management import ModelSupplier as SupplierDB, Model as ModelDB
+from app.models.supplier_db import SupplierDB, ModelDB
 from app.schemas.supplier_model import (
     SupplierCreate, SupplierResponse,
     ModelCreate, ModelResponse, ModelListResponse
@@ -189,8 +189,7 @@ def delete_supplier(supplier_id: int, db: Session = Depends(get_db)):
 def get_supplier_models(supplier_id: int, db: Session = Depends(get_db)):
     """获取指定供应商的模型列表"""
     # 验证供应商是否存在
-    from app.models.model_management import ModelSupplier, Model
-    supplier = db.query(ModelSupplier).filter(ModelSupplier.id == supplier_id).first()
+    supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
     if not supplier:
         raise HTTPException(status_code=404, detail="供应商不存在")
     

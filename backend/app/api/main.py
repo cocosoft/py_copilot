@@ -102,7 +102,7 @@ app.include_router(api_router)
 # 创建数据库表
 from app.models.base import Base
 # 在创建表之前导入所有模型类，确保它们被注册
-from app.models.model_management import ModelSupplier as SupplierDB, Model as ModelDB
+from app.models.supplier_db import SupplierDB, ModelDB
 from app.modules.capability_category.models.capability_db import CapabilityDB
 from app.modules.capability_category.models.category_db import ModelCategoryDB
 # User模型暂时不导入，避免重复定义

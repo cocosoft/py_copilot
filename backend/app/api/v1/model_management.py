@@ -11,7 +11,7 @@ from datetime import datetime
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.models.supplier_db import SupplierDB as ModelSupplier, ModelDB as Model
+from app.models.supplier_db import ModelDB as Model
 
 # 创建直接连接到py_copilot.db的数据库会话
 def get_db():
@@ -23,9 +23,8 @@ def get_db():
     finally:
         db.close()
 from app.schemas.model_management import (
-    ModelSupplierCreate, ModelSupplierUpdate, ModelSupplierResponse,
     ModelCreate, ModelUpdate, ModelResponse,
-    ModelSupplierListResponse, ModelListResponse,
+    ModelListResponse,
     SetDefaultModelRequest
 )
 
@@ -103,332 +102,20 @@ def get_mock_user():
 router = APIRouter()
 
 
-# 模型供应商管理相关路由
-@router.post("/suppliers")
-async def create_model_supplier(
-    name: str = Form(...),
-    description: Optional[str] = Form(None),
-    api_endpoint: Optional[str] = Form(None),
-    api_key_required: Optional[bool] = Form(False),
-    is_active: bool = Form(True),
-    logo: Optional[UploadFile] = File(None),
-    category: Optional[str] = Form(None),
-    website: Optional[str] = Form(None),
-    api_docs: Optional[str] = Form(None),
-    api_key: Optional[str] = Form(None),
-    db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
-) -> Any:
-    """
-    创建新的模型供应商（支持图片上传）
-    
-    Args:
-        name: 供应商名称
-        description: 供应商描述
-        api_endpoint: API端点
-        api_key_required: 是否需要API密钥
-        is_active: 是否激活
-        logo: 供应商logo图片
-        category: 供应商类别
-        website: 供应商网站
-        api_docs: API文档链接
-        api_key: API密钥
-        db: 数据库会话
-        current_user: 当前用户
-    
-    Returns:
-        创建的模型供应商信息
-    """
-    try:
-        # 检查供应商名称是否已存在
-        existing_supplier = db.query(ModelSupplier).filter(
-            ModelSupplier.name == name
-        ).first()
-        if existing_supplier:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="供应商名称已存在"
-            )
-        
-        # 处理logo上传
-        logo_url = None
-        if logo:
-            logo_url = await save_upload_file(logo)
-        
-        # 创建新供应商
-        now = datetime.utcnow()
-        db_supplier = ModelSupplier(
-            name=name,
-            description=description,
-            api_endpoint=api_endpoint,
-            api_key_required=api_key_required,
-            is_active=is_active,
-            logo=logo_url,
-            category=category,
-            website=website,
-            api_docs=api_docs,
-            api_key=api_key,
-            created_at=now,
-            updated_at=now
-          )
-        
-        db.add(db_supplier)
-        db.commit()
-        db.refresh(db_supplier)
-        
-        # 返回响应 - 使用name作为display_name
-        return {
-            "id": db_supplier.id,
-            "name": db_supplier.name,
-            "display_name": db_supplier.name,  # 使用name作为display_name
-            "description": db_supplier.description,
-            "api_endpoint": db_supplier.api_endpoint,
-            "api_key_required": db_supplier.api_key_required,
-            "is_active": db_supplier.is_active,
-            "logo": db_supplier.logo,
-            "category": db_supplier.category,
-            "website": db_supplier.website,
-            "api_docs": db_supplier.api_docs,
-            "api_key": db_supplier.api_key,
-            "created_at": db_supplier.created_at,
-            "updated_at": db_supplier.updated_at
-        }
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="创建供应商失败，请检查输入数据"
-        )
 
 
-@router.get("/suppliers", response_model=ModelSupplierListResponse)
-async def get_model_suppliers(
-    skip: int = 0,
-    limit: int = 100,
-    db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
-) -> Any:
-    """
-    获取模型供应商列表
-    
-    Args:
-        skip: 跳过的记录数
-        limit: 返回的最大记录数
-        db: 数据库会话
-        current_user: 当前活跃的超级用户
-    
-    Returns:
-        模型供应商列表
-    """
-    # 查询所有供应商，包括非激活的
-    suppliers = db.query(ModelSupplier).offset(skip).limit(limit).all()
-    total = db.query(ModelSupplier).count()
-    
-    # 为每个供应商添加display_name字段，使用name作为默认值
-    suppliers_with_display_name = []
-    for supplier in suppliers:
-        # 创建一个带有display_name属性的对象
-        supplier_dict = {
-            "id": supplier.id,
-            "name": supplier.name,
-            "display_name": supplier.name,  # 使用name作为display_name
-            "description": supplier.description,
-            "api_endpoint": supplier.api_endpoint,
-            "api_key_required": supplier.api_key_required,
-            "is_active": supplier.is_active,
-            "logo": supplier.logo,
-            "category": supplier.category,
-            "website": supplier.website,
-            "api_docs": supplier.api_docs,
-            "api_key": supplier.api_key,
-            "created_at": supplier.created_at,
-            "updated_at": supplier.updated_at
-        }
-        suppliers_with_display_name.append(supplier_dict)
-    
-    return ModelSupplierListResponse(
-        suppliers=suppliers_with_display_name,
-        total=total
-    )
 
 
-@router.get("/suppliers/{supplier_id}", response_model=ModelSupplierResponse)
-async def get_model_supplier(
-    supplier_id: int,
-    db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
-) -> Any:
-    """
-    获取指定的模型供应商
-    
-    Args:
-        supplier_id: 供应商ID
-        db: 数据库会话
-        current_user: 当前活跃的超级用户
-    
-    Returns:
-        模型供应商信息
-    """
-    supplier = db.query(ModelSupplier).filter(ModelSupplier.id == supplier_id).first()
-    if not supplier:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="供应商不存在"
-        )
-    return supplier
 
 
-@router.put("/suppliers/{supplier_id}")
-async def update_model_supplier(
-    supplier_id: int,
-    name: Optional[str] = Form(None),
-    description: Optional[str] = Form(None),
-    api_endpoint: Optional[str] = Form(None),
-    api_key_required: Optional[bool] = Form(None),
-    is_active: Optional[bool] = Form(None),
-    logo: Optional[UploadFile] = File(None),
-    existing_logo: Optional[str] = Form(None),
-    category: Optional[str] = Form(None),
-    website: Optional[str] = Form(None),
-    api_docs: Optional[str] = Form(None),
-    api_key: Optional[str] = Form(None),
-    db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
-) -> Any:
-    """
-    更新模型供应商信息（支持图片上传）
-    
-    Args:
-        supplier_id: 供应商ID
-        name: 供应商名称（可选）
-        description: 供应商描述（可选）
-        api_endpoint: API端点（可选）
-        api_key_required: 是否需要API密钥（可选）
-        is_active: 是否激活（可选）
-        logo: 供应商logo图片（可选）
-        existing_logo: 现有logo路径（可选）
-        category: 供应商类别（可选）
-        website: 供应商网站（可选）
-        api_docs: API文档链接（可选）
-        api_key: API密钥（可选）
-        db: 数据库会话
-        current_user: 当前用户
-    
-    Returns:
-        更新后的模型供应商信息
-    """
-    supplier = db.query(ModelSupplier).filter(ModelSupplier.id == supplier_id).first()
-    if not supplier:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="供应商不存在"
-        )
-    
-    # 检查名称是否重复
-    if name and name != supplier.name:
-        existing_supplier = db.query(ModelSupplier).filter(
-            ModelSupplier.name == name
-        ).first()
-        if existing_supplier:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="供应商名称已存在"
-            )
-    
-    # 更新字段
-    if name is not None:
-        setattr(supplier, 'name', name)
-    if description is not None:
-        setattr(supplier, 'description', description)
-    if api_endpoint is not None:
-        setattr(supplier, 'api_endpoint', api_endpoint)
-    if api_key_required is not None:
-        setattr(supplier, 'api_key_required', api_key_required)
-    if is_active is not None:
-        setattr(supplier, 'is_active', is_active)
-    if category is not None:
-        setattr(supplier, 'category', category)
-    if website is not None:
-        setattr(supplier, 'website', website)
-    if api_docs is not None:
-        setattr(supplier, 'api_docs', api_docs)
-    if api_key is not None:
-        setattr(supplier, 'api_key', api_key)
-    
-    # 处理logo上传
-    if logo:
-        # 如果有新的logo文件上传，保存它
-        logo_path = await save_upload_file(logo)
-        setattr(supplier, 'logo', logo_path)
-        print(f"已更新logo为新上传的文件: {logo_path}")
-    elif existing_logo is not None:
-        # 如果提供了existing_logo，使用它
-        setattr(supplier, 'logo', existing_logo)
-        print(f"保留现有logo: {supplier.logo}")
-    # 否则，保持原有logo不变
-    
-    # 更新时间戳
-    setattr(supplier, 'updated_at', datetime.utcnow())
-    
-    try:
-        db.commit()
-        db.refresh(supplier)
-        
-        # 返回响应 - 使用name作为display_name
-        return {
-            "id": supplier.id,
-            "name": supplier.name,
-            "display_name": supplier.name,  # 使用name作为display_name
-            "description": supplier.description,
-            "api_endpoint": supplier.api_endpoint,
-            "api_key_required": supplier.api_key_required,
-            "is_active": supplier.is_active,
-            "logo": supplier.logo,
-            "category": supplier.category,
-            "website": supplier.website,
-            "api_docs": supplier.api_docs,
-            "api_key": supplier.api_key,
-            "created_at": supplier.created_at,
-            "updated_at": supplier.updated_at
-        }
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="更新供应商失败，请检查输入数据"
-        )
 
 
-@router.delete("/suppliers/{supplier_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_model_supplier(
-    supplier_id: int,
-    db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
-) -> None:
-    """
-    删除模型供应商
-    
-    Args:
-        supplier_id: 供应商ID
-        db: 数据库会话
-        current_user: 当前活跃的超级用户
-    """
-    supplier = db.query(ModelSupplier).filter(ModelSupplier.id == supplier_id).first()
-    if not supplier:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="供应商不存在"
-        )
-    
-    # 检查是否有相关模型
-    if supplier.models:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="无法删除包含模型的供应商，请先删除相关模型"
-        )
-    
-    db.delete(supplier)
-    db.commit()
+
+
+
+
+
+
 
 
 # 模型管理相关路由
@@ -451,13 +138,7 @@ async def create_model(
     Returns:
         创建的模型信息
     """
-    # 验证供应商是否存在
-    supplier = db.query(ModelSupplier).filter(ModelSupplier.id == supplier_id).first()
-    if not supplier:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="供应商不存在"
-        )
+    # 供应商验证已移除，现在使用数据库中的suppliers表
     
     # 确保supplier_id一致
     model_data = model.model_dump()
@@ -510,13 +191,7 @@ async def get_models(
     Returns:
         模型列表
     """
-    # 验证供应商是否存在
-    supplier = db.query(ModelSupplier).filter(ModelSupplier.id == supplier_id).first()
-    if not supplier:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="供应商不存在"
-        )
+    # 供应商验证已移除，现在使用数据库中的suppliers表
     
     models = db.query(Model).filter(
         Model.supplier_id == supplier_id

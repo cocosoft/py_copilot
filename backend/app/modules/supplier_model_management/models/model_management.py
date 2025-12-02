@@ -7,7 +7,7 @@ from app.core.database import Base
 
 class ModelSupplier(Base):
     """模型供应商表模型"""
-    __tablename__ = "model_suppliers"
+    __tablename__ = "suppliers"
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), unique=True, nullable=False)  # 供应商名称，如 openai, deepseek
@@ -45,7 +45,7 @@ class Model(Base):
     __tablename__ = "models"
     
     id = Column(Integer, primary_key=True, index=True)
-    supplier_id = Column(Integer, ForeignKey("model_suppliers.id", ondelete="CASCADE"), nullable=False)
+    supplier_id = Column(Integer, ForeignKey("suppliers.id", ondelete="CASCADE"), nullable=False)
     model_id = Column(String(100), nullable=False)  # 供应商提供的模型ID
     name = Column(String(100), nullable=False)  # 显示名称
     description = Column(Text, nullable=True)  # 模型描述

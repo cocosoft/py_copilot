@@ -11,7 +11,7 @@ from datetime import datetime
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.models.model_management import ModelSupplier, Model
+from app.models.supplier_db import SupplierDB, ModelDB as Model
 
 # 从core导入数据库依赖
 from app.core.dependencies import get_db
@@ -134,8 +134,8 @@ async def create_model_supplier(
     """
     try:
         # 检查供应商名称是否已存在
-        existing_supplier = db.query(ModelSupplier).filter(
-            ModelSupplier.name == name
+        existing_supplier = db.query(SupplierDB).filter(
+        SupplierDB.name == name
         ).first()
         if existing_supplier:
             raise HTTPException(
@@ -150,7 +150,7 @@ async def create_model_supplier(
         
         # 创建新供应商
         now = datetime.utcnow()
-        db_supplier = ModelSupplier(
+        db_supplier = SupplierDB(
             name=name,
             description=description,
             api_endpoint=api_endpoint,
@@ -195,7 +195,7 @@ async def create_model_supplier(
 
 
 @router.get("/suppliers", response_model=ModelSupplierListResponse)
-async def get_model_suppliers(
+async def get_suppliers(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
@@ -214,8 +214,8 @@ async def get_model_suppliers(
         模型供应商列表
     """
     # 查询所有供应商，包括非激活的
-    suppliers = db.query(ModelSupplier).offset(skip).limit(limit).all()
-    total = db.query(ModelSupplier).count()
+    suppliers = db.query(SupplierDB).offset(skip).limit(limit).all()
+    total = db.query(SupplierDB).count()
     
     # 为每个供应商添加display_name字段，使用name作为默认值
     suppliers_with_display_name = []
@@ -262,7 +262,7 @@ async def get_model_supplier(
     Returns:
         模型供应商信息
     """
-    supplier = db.query(ModelSupplier).filter(ModelSupplier.id == supplier_id).first()
+    supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
     if not supplier:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -310,7 +310,7 @@ async def update_model_supplier(
     Returns:
         更新后的模型供应商信息
     """
-    supplier = db.query(ModelSupplier).filter(ModelSupplier.id == supplier_id).first()
+    supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
     if not supplier:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -319,8 +319,8 @@ async def update_model_supplier(
     
     # 检查名称是否重复
     if name and name != supplier.name:
-        existing_supplier = db.query(ModelSupplier).filter(
-            ModelSupplier.name == name
+        existing_supplier = db.query(SupplierDB).filter(
+            SupplierDB.name == name
         ).first()
         if existing_supplier:
             raise HTTPException(
@@ -406,7 +406,7 @@ async def delete_model_supplier(
         db: 数据库会话
         current_user: 当前活跃的超级用户
     """
-    supplier = db.query(ModelSupplier).filter(ModelSupplier.id == supplier_id).first()
+    supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
     if not supplier:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -445,7 +445,7 @@ async def create_model(
         创建的模型信息
     """
     # 验证供应商是否存在
-    supplier = db.query(ModelSupplier).filter(ModelSupplier.id == supplier_id).first()
+    supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
     if not supplier:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -504,7 +504,7 @@ async def get_models(
         模型列表
     """
     # 验证供应商是否存在
-    supplier = db.query(ModelSupplier).filter(ModelSupplier.id == supplier_id).first()
+    supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
     if not supplier:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
