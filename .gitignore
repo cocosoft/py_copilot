@@ -51,3 +51,4 @@ backend/check_models_db.py
 backend/suppliers_after_restore.json
 backend/app/frontend/public/logos/providers/20251201_113347_486231.jpg
 backend/py_copilot.zip
+模型开发计划.md

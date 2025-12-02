@@ -1,5 +1,5 @@
 """供应商和模型数据库模型"""
-from sqlalchemy import Column, Integer, String, Boolean, Text, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, Text, ForeignKey, DateTime, func
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -38,10 +38,37 @@ class ModelDB(Base):
     display_name = Column(String(200))
     description = Column(Text, nullable=True)
     supplier_id = Column(Integer, ForeignKey("suppliers.id", ondelete="CASCADE"), nullable=False)
-    context_window = Column(Integer, nullable=True)
-    max_tokens = Column(Integer, nullable=True)
+    model_type = Column(String(50), nullable=False, default="language")  # 模型类型: language, vision, multimodal, audio等
+    sub_type = Column(String(50), nullable=True)  # 子类型: chat, completion, embedding, image_generation等
     is_default = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # 添加关系定义
     supplier = relationship("SupplierDB", back_populates="models")
+    parameters = relationship("ModelParameter", back_populates="model", cascade="all, delete-orphan")
+
+
+class ModelParameter(Base):
+    """模型参数表，用于存储不同类型模型的特定参数"""
+    __tablename__ = "model_parameters"
+    __table_args__ = {'extend_existing': True}
+    
+    id = Column(Integer, primary_key=True, index=True)
+    model_id = Column(Integer, ForeignKey("models.id", ondelete="CASCADE"), nullable=False)
+    parameter_name = Column(String(100), nullable=False)  # 参数名称
+    parameter_type = Column(String(50), nullable=False)  # 参数类型: int, float, bool, string, json等
+    parameter_value = Column(Text, nullable=False)  # 参数值，以文本形式存储
+    is_default = Column(Boolean, default=False)  # 是否为默认参数
+    description = Column(Text, nullable=True)  # 参数描述
+    
+    # 时间戳
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # 添加关系定义
+    model = relationship("ModelDB", back_populates="parameters")
+    
+    # 可以添加复合唯一约束，确保同一个模型不会有同名参数
+    # __table_args__ = (UniqueConstraint('model_id', 'parameter_name', name='_model_parameter_uc'),)

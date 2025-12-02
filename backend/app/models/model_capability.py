@@ -10,12 +10,21 @@ class ModelCapability(Base):
     __tablename__ = "model_capabilities"
     
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), unique=True, nullable=False)  # 能力名称，如 text_generation, translation
-    display_name = Column(String(100), nullable=False)  # 显示名称，如 文本生成, 翻译
+    name = Column(String(100), unique=True, nullable=False)  # 能力名称，如 text_generation, image_generation, speech_recognition
+    display_name = Column(String(100), nullable=False)  # 显示名称，如 文本生成, 图像生成, 语音识别
     description = Column(Text, nullable=True)  # 能力描述
     
     # 能力类型
     capability_type = Column(String(50), default="standard", nullable=False)
+    
+    # 支持的输入类型（JSON格式），如 ["text", "image", "audio"]
+    input_types = Column(Text, nullable=True)
+    
+    # 支持的输出类型（JSON格式），如 ["text", "image", "audio"]
+    output_types = Column(Text, nullable=True)
+    
+    # 能力领域（如nlp, cv, audio, multimodal）
+    domain = Column(String(50), nullable=False, default="nlp")
     
     # 状态
     is_active = Column(Boolean, default=True)
@@ -40,8 +49,15 @@ class ModelCapabilityAssociation(Base):
     model_id = Column(Integer, ForeignKey("models.id"), nullable=False)
     capability_id = Column(Integer, ForeignKey("model_capabilities.id"), nullable=False)
     
-    # 可以添加额外的关联属性，如能力的具体配置、限制等
+    # 简单配置（兼容旧系统）
     config = Column(String(255), nullable=True)
+    
+    # 扩展的JSON配置，支持复杂的能力配置，特别是多模态能力
+    config_json = Column(Text, nullable=True)
+    
+    # 是否为默认能力配置
+    is_default = Column(Boolean, default=False)
     
     # 时间戳
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())

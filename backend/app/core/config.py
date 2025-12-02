@@ -38,6 +38,12 @@ class Settings(BaseSettings):
     deepseek_api_key: Optional[str] = Field(default=None, env="DEEPSEEK_API_KEY")
     deepseek_api_base: Optional[str] = Field(default="https://api.deepseek.com/v1", env="DEEPSEEK_API_BASE")
     
+    # 服务器配置
+    server_host: str = Field(default="0.0.0.0", env="SERVER_HOST")
+    server_port: int = Field(default=8000, env="SERVER_PORT")
+    server_reload: bool = Field(default=False, env="SERVER_RELOAD")
+    server_workers: int = Field(default=1, env="SERVER_WORKERS")
+    
     class Config:
         env_file = ".env"
         case_sensitive = False
