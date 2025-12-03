@@ -4,13 +4,10 @@ import { request } from '../apiUtils';
 export const supplierApi = {
   // 获取所有供应商
   getAll: async () => {
-    console.log('🔄 supplierApi.getAll - 开始调用后端API');
     const response = await request('/model-management/suppliers', {
       method: 'GET'
     });
-    
-    console.log('🔄 supplierApi.getAll - 收到后端响应:', response);
-    
+       
     // 处理后端返回格式
     let suppliersData = [];
     
@@ -37,20 +34,13 @@ export const supplierApi = {
       apiKeyRequired: supplier.api_key_required || (supplier.api_key ? true : false),
       is_active: supplier.is_active !== undefined ? supplier.is_active : false // 添加is_active字段
     }));
-    
-    console.log('✅ supplierApi.getAll - 格式化后的供应商数据数量:', formattedSuppliers.length);
-    
     return formattedSuppliers;
   },
   
   // 获取单个供应商
   getById: async (id) => {
     const endpoint = `/model-management/suppliers/${id}`;
-    console.log('🔄 supplierApi.getById - 请求URL:', endpoint);
-    const supplier = await request(endpoint, {
-      method: 'GET'
-    });
-    
+
     // 格式化响应数据以匹配前端需求
     if (supplier) {
       return {
@@ -72,7 +62,6 @@ export const supplierApi = {
   
   // 创建新供应商
   create: async (supplier) => {
-    console.log('🔄 supplierApi.create - 原始数据:', supplier);
     
     // 检查是否是FormData对象（用于文件上传）
     const isFormData = supplier instanceof FormData;
@@ -93,11 +82,10 @@ export const supplierApi = {
           api_key_required: supplier.api_key_required !== undefined ? supplier.api_key_required : !!supplier.api_key,
           is_active: supplier.is_active !== undefined ? supplier.is_active : true
       };
-      
-      console.log('🔄 supplierApi.create - 发送到后端的供应商数据:', backendSupplierData);
+
       requestData = JSON.stringify(backendSupplierData);
     } else {
-      console.log('🔄 supplierApi.create - 接收到FormData对象，用于文件上传');
+
     }
     
     // 使用正确的API路径
@@ -134,17 +122,14 @@ export const supplierApi = {
   
   // 只更新供应商状态(is_active)
   updateSupplierStatus: async (id, isActive) => {
-    console.log('🔄 supplierApi.updateSupplierStatus - 开始执行状态更新操作');
-    
+
     // 确保ID是数字类型
     const numericId = Number(id);
-    console.log('🔄 supplierApi.updateSupplierStatus - ID:', id, '转换为数字:', numericId);
-    console.log('🔄 supplierApi.updateSupplierStatus - 新状态:', isActive);
+
     
     // 使用专门的状态更新端点(PATCH请求)
     const endpoint = `/model-management/suppliers/${numericId}/status`;
-    console.log('🔄 supplierApi.updateSupplierStatus - endpoint:', endpoint);
-    
+
     // 发送PATCH请求，使用JSON格式
     const response = await request(endpoint, {
       method: 'PATCH',
@@ -154,8 +139,7 @@ export const supplierApi = {
       body: JSON.stringify({ is_active: isActive })
     });
     
-    console.log('✅ supplierApi.updateSupplierStatus - 状态更新成功');
-    
+
     // 返回更新后的供应商数据
     return {
       id: response.id,
@@ -174,14 +158,10 @@ export const supplierApi = {
   
   // 更新供应商（完整更新）
   update: async (id, updatedSupplier) => {
-    console.log('🟢 supplierApi.update - 开始执行完整更新操作');
-    
+
     // 确保ID是数字类型
     const numericId = Number(id);
-    console.log('🟢 supplierApi.update - ID:', id, '转换为数字:', numericId);
-    
-    console.log('🟢 supplierApi.update - 原始数据:', updatedSupplier);
-    
+
     // 检查是否是FormData对象（用于文件上传）
     const isFormData = updatedSupplier instanceof FormData;
     let requestData = updatedSupplier;
@@ -203,18 +183,13 @@ export const supplierApi = {
       backendUpdateData.api_key_required = updatedSupplier.api_key_required !== undefined ? updatedSupplier.api_key_required : !!updatedSupplier.api_key;
       backendUpdateData.is_active = updatedSupplier.is_active !== undefined ? updatedSupplier.is_active : true;
       
-      console.log('🟢 supplierApi.update - 发送到后端的更新数据:', JSON.stringify(backendUpdateData, null, 2));
       requestData = JSON.stringify(backendUpdateData);
     } else {
-      console.log('🟢 supplierApi.update - 接收到FormData对象，用于文件上传');
     }
     
     // 修正endpoint，后端路由是/model-management/suppliers/{id}
     const endpoint = `/model-management/suppliers/${numericId}`;
-    console.log('🟢 supplierApi.update - endpoint:', endpoint);
-    
-    console.log('🟢 supplierApi.update - 准备发送PUT请求...');
-    
+
     // 准备请求选项
     const requestOptions = {
       method: 'PUT',
@@ -231,8 +206,7 @@ export const supplierApi = {
     // 直接发送请求，不使用嵌套try-catch，确保错误正确抛出
     const response = await request(endpoint, requestOptions);
     
-    console.log('✅ supplierApi.update - 请求成功完成，收到响应');
-    
+
     // 格式化响应以匹配前端需求
     return {
       id: response.id,
@@ -253,7 +227,6 @@ export const supplierApi = {
   // 删除供应商
   delete: async (id) => {
     const endpoint = `/model-management/suppliers/${id}`;
-    console.log('🔄 supplierApi.delete - 请求URL:', endpoint);
     return await request(endpoint, {
       method: 'DELETE'
     });

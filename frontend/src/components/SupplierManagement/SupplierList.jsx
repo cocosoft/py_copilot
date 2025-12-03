@@ -49,7 +49,6 @@ const SupplierList = () => {
   // 切换供应商状态
   const toggleSupplierStatus = async (supplierId, isActive) => {
     try {
-      console.log(`切换供应商 ${supplierId} 状态为: ${isActive ? '启用' : '停用'}`);
       
       // 创建FormData对象，因为后端期望Form参数
       const formData = new FormData();
@@ -64,10 +63,7 @@ const SupplierList = () => {
       if (!response.ok) {
         throw new Error(`状态更新失败: ${response.status}`);
       }
-      
-      const updatedSupplier = await response.json();
-      console.log('供应商状态更新成功:', updatedSupplier);
-      
+     
       // 重新加载供应商数据以更新UI
       loadSuppliers();
     } catch (error) {

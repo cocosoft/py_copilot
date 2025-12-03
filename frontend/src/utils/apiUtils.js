@@ -6,7 +6,6 @@ export const STORAGE_PREFIX = 'llm_admin_';
 
 // 通用请求函数
 export const request = async (endpoint, options = {}) => {
-  console.log('🚀 API请求:', `${API_BASE_URL}${endpoint}`, options);
   
   // 对于FormData，不设置默认的Content-Type，让浏览器自动处理
   const isFormData = options.body instanceof FormData;
@@ -43,7 +42,6 @@ export const request = async (endpoint, options = {}) => {
   try {
     // 构建完整URL
     const url = `${API_BASE_URL}${endpoint}`;
-    console.log('🚀 请求URL:', url);
     
     // 发送请求
     const response = await fetch(url, mergedOptions);
@@ -58,7 +56,6 @@ export const request = async (endpoint, options = {}) => {
     
     // 特别处理204 No Content（DELETE请求的标准响应）
     if (response.status === 204) {
-      console.log('✅ API请求成功，返回204 No Content');
       return null; // 204响应没有内容，返回null
     }
     
@@ -66,11 +63,9 @@ export const request = async (endpoint, options = {}) => {
     const contentType = response.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
       const data = await response.json();
-      console.log('✅ API请求成功，返回数据:', data);
       return data;
     } else {
       const text = await response.text();
-      console.log('✅ API请求成功，返回文本:', text);
       return text;
     }
   } catch (error) {

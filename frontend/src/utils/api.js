@@ -29,10 +29,8 @@ const withDebugLog = (apiModule, moduleName) => {
   for (const key in apiModule) {
     if (typeof apiModule[key] === 'function') {
       wrapped[key] = async (...args) => {
-        console.log(`🔍 ${moduleName}.${key} 调用开始`, args);
         try {
           const result = await apiModule[key](...args);
-          console.log(`✅ ${moduleName}.${key} 调用成功，结果:`, result);
           return result;
         } catch (error) {
           console.error(`❌ ${moduleName}.${key} 调用失败:`, error);

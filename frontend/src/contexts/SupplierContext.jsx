@@ -13,13 +13,9 @@ export const SupplierProvider = ({ children }) => {
   const loadSuppliers = async () => {
     try {
       setLoading(true);
-      console.log('🔍 开始加载供应商数据，当前时间:', new Date().toLocaleTimeString());
-      
-      // 尝试从API获取真实数据
-      console.log('🔄 准备调用API.supplierApi.getAll()获取真实数据库数据');
+
       const data = await api.supplierApi.getAll();
-      console.log('✅ API返回的供应商数据数量:', Array.isArray(data) ? data.length : 0);
-      
+
       // 统一处理数据格式，确保字段命名一致
       const processedSuppliers = Array.isArray(data) ? 
         data.map(supplier => ({
@@ -28,12 +24,9 @@ export const SupplierProvider = ({ children }) => {
           is_active: supplier.is_active ?? true
         })) : [];
         
-      console.log('🔄 处理后的供应商数据数量:', processedSuppliers.length);
       
       // 确保只返回有效的供应商数据
       const finalSuppliers = processedSuppliers.filter(supplier => supplier.id && supplier.name);
-      
-      console.log('✅ 最终使用的供应商数据数量:', finalSuppliers.length);
       setSuppliers(finalSuppliers);
       setError(null);
       return finalSuppliers;
@@ -44,7 +37,6 @@ export const SupplierProvider = ({ children }) => {
       return [];
     } finally {
       setLoading(false);
-      console.log('🔚 供应商数据加载完成');
     }
   };
 

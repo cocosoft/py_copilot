@@ -1,15 +1,110 @@
 import React, { useState, useEffect } from 'react';
+import categoryApi from '../../utils/api/categoryApi';
 import '../../styles/ModelModal.css';
 
 const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFirstModel = false }) => {
   const [formData, setFormData] = useState({
     id: '',
     name: '',
+    display_name: '',
     description: '',
     contextWindow: 8000,
-    isDefault: false
+    max_tokens: 1000,
+    model_type: '',
+    isDefault: false,
+    is_active: true
   });
   const [saving, setSaving] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+
+  // 获取模型分类树形结构
+  useEffect(() => {
+    if (isOpen) {
+      fetchCategories();
+    }
+  }, [isOpen]);
+
+  const fetchCategories = async () => {
+    try {
+      setLoadingCategories(true);
+      
+      // 1. 首先直接调用后端API获取原始数据（使用正确的/api前缀）
+
+      const response = await fetch('/api/model/categories');
+      const rawData = await response.json();
+
+      
+      // 检查原始数据结构
+      if (rawData && (Array.isArray(rawData) || rawData.categories || rawData.data)) {
+        const categoriesArray = Array.isArray(rawData) ? rawData : 
+                               rawData.categories ? rawData.categories : rawData.data;
+
+        // 检查是否有子分类（parent_id不为null的分类）
+        const hasChildCategories = categoriesArray.some(category => category.parent_id !== null);
+
+        if (hasChildCategories) {
+          const childCategories = categoriesArray.filter(category => category.parent_id !== null);
+        }
+      }
+      
+
+      const treeData = await categoryApi.getTree();
+      
+      // 检查返回的分类树是否包含子分类
+      let hasChildren = false;
+      const checkChildren = (categories) => {
+        for (const category of categories) {
+          if (category.children && category.children.length > 0) {
+            hasChildren = true;
+            break;
+          }
+          if (category.children) {
+            checkChildren(category.children);
+          }
+        }
+      };
+      
+      if (treeData && treeData.length > 0) {
+        checkChildren(treeData);
+        setCategories(treeData);
+        return;
+      }
+      
+      // 3. 如果getTree失败或返回空，尝试使用getAll方法
+      const categoryTree = await categoryApi.getAll();
+
+      checkChildren(categoryTree);
+
+      setCategories(categoryTree);
+      
+    } catch (error) {
+      console.error('ModelModal: 获取模型分类失败:', error);
+      console.error('❌ 错误详情:', error.message);
+      console.error('❌ 错误栈:', error.stack);
+      
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
+
+  // 递归渲染分类树形结构（包含所有层级）
+  const renderCategoryTree = (categoryList, level = 0) => {
+    return categoryList.map(category => (
+      <React.Fragment key={category.id}>
+        <option value={category.id} style={{ 
+          paddingLeft: `${level * 20}px`,
+          fontWeight: level === 0 ? 'bold' : 'normal',
+          color: level === 0 ? '#333' : '#666'
+        }}>
+          {`${category.name} (${category.display_name || category.name})`}
+        </option>
+        {category.children && category.children.length > 0 && 
+          renderCategoryTree(category.children, level + 1)
+        }
+      </React.Fragment>
+    ));
+  };
 
   // 当传入的model变化时，更新表单数据
   useEffect(() => {
@@ -17,18 +112,26 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
       setFormData({
         id: model.id || model.model_id || '',
         name: model.name || '',
+        display_name: model.display_name || model.name || '',
         description: model.description || '',
         contextWindow: model.contextWindow || model.context_window || 8000,
-        isDefault: model.isDefault || model.is_default || false
+        max_tokens: model.max_tokens || 1000,
+        model_type: model.model_type?.toString() || '',
+        isDefault: model.isDefault || model.is_default || false,
+        is_active: model.is_active || true
       });
     } else if (mode === 'add') {
       // 重置表单数据
       setFormData({
         id: '',
         name: '',
+        display_name: '',
         description: '',
         contextWindow: 8000,
-        isDefault: isFirstModel // 如果是第一个模型，默认设为默认模型
+        max_tokens: 1000,
+        model_type: '',
+        isDefault: isFirstModel, // 如果是第一个模型，默认设为默认模型
+        is_active: true
       });
     }
   }, [model, mode, isFirstModel]);
@@ -61,15 +164,16 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
         // 确保包含后端需要的model_id字段
         model_id: formData.id,
         // 确保字段命名一致性和类型转换
-        contextWindow: parseInt(formData.contextWindow) || 8000,
-        isDefault: formData.isDefault || false
+        context_window: parseInt(formData.contextWindow) || 8000,
+        max_tokens: parseInt(formData.max_tokens) || 1000,
+        model_type: formData.model_type || 'chat',
+        is_default: formData.isDefault || false,
+        is_active: formData.is_active || true
       };
       
-      console.log('ModelModal: 准备调用onSave，提交的数据:', modelData);
       
       // 调用父组件的保存函数
       await onSave(modelData);
-      console.log('ModelModal: onSave调用成功，准备关闭模态窗口');
       onClose();
     } catch (error) {
       console.error('ModelModal: 保存模型失败:', error);
@@ -146,6 +250,66 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
             </div>
           </div>
           
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="display_name">显示名称</label>
+              <input 
+                type="text" 
+                id="display_name"
+                name="display_name"
+                value={formData.display_name}
+                onChange={handleChange}
+                placeholder="用户友好的显示名称"
+                disabled={saving}
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="model_type">模型类型</label>
+              <select 
+                id="model_type"
+                name="model_type"
+                value={formData.model_type}
+                onChange={handleChange}
+                disabled={loadingCategories || saving}
+              >
+                <option value="">请选择模型类型</option>
+                {renderCategoryTree(categories)}
+              </select>
+              {loadingCategories && <span className="loading">加载中...</span>}
+            </div>
+          </div>
+          
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="contextWindow">上下文窗口</label>
+              <input 
+                type="number" 
+                id="contextWindow"
+                name="contextWindow"
+                value={formData.contextWindow}
+                onChange={handleChange}
+                min="1000"
+                step="1000"
+                placeholder="上下文窗口大小"
+                disabled={saving}
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="max_tokens">最大Token数</label>
+              <input 
+                type="number" 
+                id="max_tokens"
+                name="max_tokens"
+                value={formData.max_tokens}
+                onChange={handleChange}
+                min="100"
+                step="100"
+                placeholder="最大生成Token数"
+                disabled={saving}
+              />
+            </div>
+          </div>
+          
           <div className="form-group">
             <label htmlFor="description">描述</label>
             <textarea 
@@ -159,31 +323,31 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
             />
           </div>
           
-          <div className="form-group">
-            <label htmlFor="contextWindow">上下文窗口</label>
-            <input 
-              type="number" 
-              id="contextWindow"
-              name="contextWindow"
-              value={formData.contextWindow}
-              onChange={handleChange}
-              min="1000"
-              step="1000"
-              disabled={saving}
-            />
-          </div>
-          
-          <div className="form-group">
-            <label>
-              <input 
-                type="checkbox" 
-                name="isDefault"
-                checked={formData.isDefault}
-                onChange={handleChange}
-                disabled={saving}
-              />
-              设置为默认模型
-            </label>
+          <div className="form-row">
+            <div className="form-group">
+              <label>
+                <input 
+                  type="checkbox" 
+                  name="isDefault"
+                  checked={formData.isDefault}
+                  onChange={handleChange}
+                  disabled={saving}
+                />
+                设置为默认模型
+              </label>
+            </div>
+            <div className="form-group">
+              <label>
+                <input 
+                  type="checkbox" 
+                  name="is_active"
+                  checked={formData.is_active}
+                  onChange={handleChange}
+                  disabled={saving}
+                />
+                启用模型
+              </label>
+            </div>
           </div>
           
           <div className="form-actions">

@@ -7,8 +7,6 @@ import '../../styles/ModelCategoryManagement.css';
 const flattenCategoryTree = (categories) => {
   const result = [];
   
-  console.log('🔄 开始扁平化分类树，输入数据类型:', Array.isArray(categories) ? '数组' : typeof categories);
-  console.log('🔄 输入数据长度:', Array.isArray(categories) ? categories.length : 'N/A');
   
   const traverse = (category) => {
     if (!category) return;
@@ -20,11 +18,9 @@ const flattenCategoryTree = (categories) => {
       children: undefined
     };
     result.push(flatCategory);
-    console.log('➕ 添加分类:', flatCategory.name, '类型:', flatCategory.category_type);
     
     // 递归处理子分类
     if (Array.isArray(category.children) && category.children.length > 0) {
-      console.log(`  🔄 处理${category.name}的子分类，数量:`, category.children.length);
       category.children.forEach(child => traverse(child));
     }
   };
@@ -34,7 +30,6 @@ const flattenCategoryTree = (categories) => {
     categories.forEach(category => traverse(category));
   }
   
-  console.log('✅ 扁平化完成，总分类数:', result.length);
   return result;
 };
 
@@ -59,7 +54,6 @@ const ModelCategoryManagement = () => {
   // 获取所有分类
   const loadCategories = async () => {
     try {
-      console.log('🔄 开始加载分类数据...');
       setLoading(true);
       
       // 直接调用API获取原始数据，避免在API层进行树形转换
@@ -76,24 +70,17 @@ const ModelCategoryManagement = () => {
       }
       
       const response = await rawResponse.json();
-      console.log('📊 原始API响应数据:', JSON.stringify(response));
       
       // 统一响应格式处理
       let categoriesData = [];
       if (Array.isArray(response)) {
-        console.log('📝 响应是数组格式');
         categoriesData = response;
       } else if (response?.categories) {
-        console.log('📝 响应包含categories字段');
         categoriesData = response.categories;
       } else if (response?.data) {
-        console.log('📝 响应包含data字段');
         categoriesData = response.data;
-      }
-      
-      console.log('📋 处理后的分类数据数量:', categoriesData.length);
-      console.log('📋 处理后的分类数据详情:', JSON.stringify(categoriesData));
-      
+      }      
+     
       // 标准化分类数据，确保每个分类都有必要的属性
       const normalizedCategories = categoriesData.map(category => ({
         id: category.id ?? `category_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -106,17 +93,9 @@ const ModelCategoryManagement = () => {
         ...category
       }));
       
-      console.log('📋 标准化后的分类数据数量:', normalizedCategories.length);
       
       // 使用扁平化处理确保所有分类（包括嵌套的次要分类）都能正确显示
       const flattenedCategories = flattenCategoryTree(normalizedCategories);
-      
-      console.log('📈 分类数据检查:');
-      flattenedCategories.forEach((cat) => {
-        console.log(`  - ID: ${cat.id}, 名称: ${cat.name}, 类型: ${cat.category_type}, 父ID: ${cat.parent_id}`);
-      });
-      
-      console.log('✅ 分类数据加载成功，共加载', flattenedCategories.length, '个分类（含次要分类）');
       
       setCategories(flattenedCategories);
       setError(null);
@@ -125,15 +104,6 @@ const ModelCategoryManagement = () => {
       console.error('❌ 错误详情:', err.message, err.stack);
       setError('获取分类列表失败，请稍后重试');
       
-      // 错误降级处理：使用本地模拟数据
-      const mockCategories = [
-        { id: 1, name: 'general', display_name: '通用', category_type: 'main', parent_id: null, is_active: true },
-        { id: 2, name: 'code', display_name: '代码', category_type: 'main', parent_id: null, is_active: true },
-        { id: 3, name: 'chat', display_name: '聊天', category_type: 'main', parent_id: null, is_active: true },
-        { id: 4, name: 'image', display_name: '图像', category_type: 'main', parent_id: null, is_active: true }
-      ];
-      console.log('⚠️ 使用模拟分类数据作为降级方案');
-      setCategories(mockCategories);
     } finally {
       setLoading(false);
     }
@@ -229,12 +199,9 @@ const ModelCategoryManagement = () => {
   
   // 处理删除
   const handleDelete = async (categoryId) => {
-    console.log('🗑️  开始删除分类，ID:', categoryId);
     if (window.confirm('确定要删除这个分类吗？删除前请确保该分类没有子分类和关联的模型。')) {
       try {
-        console.log('🔄 调用删除API...');
         const result = await categoryApi.delete(categoryId);
-        console.log('✅ 删除成功，结果:', result);
         loadCategories(); // 重新加载列表
         setSuccess('分类删除成功');
         // 3秒后自动清除成功消息

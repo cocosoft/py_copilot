@@ -21,7 +21,6 @@ const ModelCapabilityManagement = () => {
   // 获取所有能力
   const loadCapabilities = async () => {
     try {
-      console.log('🔄 开始加载能力数据...');
       setLoading(true);
       const response = await capabilityApi.getAll();
       
@@ -46,23 +45,13 @@ const ModelCapabilityManagement = () => {
         ...capability
       }));
       
-      console.log('✅ 能力数据加载成功，共加载', normalizedCapabilities.length, '个能力');
+
       setCapabilities(normalizedCapabilities);
       setError(null);
     } catch (err) {
       console.error('❌ 获取能力失败:', err);
       setError('获取能力列表失败，请稍后重试');
-      
-      // 错误降级处理：使用本地模拟数据
-      const mockCapabilities = [
-        { id: 1, name: 'text_generation', display_name: '文本生成', capability_type: 'text', is_active: true },
-        { id: 2, name: 'code_generation', display_name: '代码生成', capability_type: 'code', is_active: true },
-        { id: 3, name: 'image_generation', display_name: '图像生成', capability_type: 'vision', is_active: true },
-        { id: 4, name: 'multi_modal', display_name: '多模态', capability_type: 'general', is_active: true },
-        { id: 5, name: 'embedding', display_name: '向量嵌入', capability_type: 'text', is_active: true }
-      ];
-      console.log('⚠️ 使用模拟能力数据作为降级方案');
-      setCapabilities(mockCapabilities);
+
     } finally {
       setLoading(false);
     }

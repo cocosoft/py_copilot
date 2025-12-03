@@ -30,13 +30,11 @@ const buildCategoryTree = (categories) => {
 export const categoryApi = {
   // 获取所有分类
   getAll: async () => {
-    console.log('🔄 categoryApi.getAll - 开始调用后端API');
     try {
       const result = await request('/model/categories', {
         method: 'GET'
       });
       
-      console.log('🔄 categoryApi.getAll - 收到后端响应:', result);
       
       // 处理不同的数据格式返回
       let categoriesData = [];
@@ -49,7 +47,6 @@ export const categoryApi = {
         categoriesData = result.data;
       }
       
-      console.log('✅ categoryApi.getAll - 处理分类数据，数量:', categoriesData.length);
       // 构建分类树
       return buildCategoryTree(categoriesData);
     } catch (error) {
@@ -89,7 +86,6 @@ export const categoryApi = {
   // 更新分类
   update: async (categoryId, updatedData) => {
     try {
-      console.log('🔄 发送更新请求数据:', { categoryId, updatedData });
       return await request(`/model/categories/${categoryId}`, {
         method: 'PUT',
         body: JSON.stringify(updatedData),

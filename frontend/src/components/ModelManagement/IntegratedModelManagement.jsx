@@ -9,7 +9,6 @@ import '../../styles/IntegratedModelManagement.css';
 
 const IntegratedModelManagement = () => {
   const supplierContext = useSupplier();
-  console.log('SupplierContext数据:', supplierContext);
   const { selectedSupplier, selectSupplier, suppliers: contextSuppliers, loading: contextLoading } = supplierContext;
   const [activeTab, setActiveTab] = useState('models'); // 'models', 'categories', 'capabilities'
   // 直接使用context中的suppliers，不再维护自己的状态
@@ -18,9 +17,7 @@ const IntegratedModelManagement = () => {
   // 加载模型分类列表
   const loadCategories = async () => {
     try {
-      console.log('🔄 加载模型分类列表...');
       const response = await api.categoryApi.getAll();
-      console.log('✅ 模型分类列表响应:', response);
     } catch (error) {
       console.error('❌ 加载模型分类失败:', error);
     }
@@ -29,9 +26,7 @@ const IntegratedModelManagement = () => {
   // 加载能力信息列表
   const loadCapabilities = async () => {
     try {
-      console.log('🔄 加载能力信息列表...');
       const response = await api.capabilityApi.getAll();
-      console.log('✅ 能力信息列表响应:', response);
     } catch (error) {
       console.error('❌ 加载能力信息失败:', error);
     }
@@ -42,13 +37,11 @@ const IntegratedModelManagement = () => {
   // 在组件挂载时，加载必要的数据
   useEffect(() => {
     // 并行加载分类和能力数据
-    console.log('🔄 开始加载分类和能力数据...');
     Promise.all([
       loadCategories(),
       loadCapabilities()
       // 不再加载自己的供应商列表，直接使用context中的数据
     ]).then(() => {
-      console.log('✅ 分类和能力数据加载完成');
       setLoading(false);
     }).catch(err => {
       console.error('❌ 数据加载过程中发生错误:', err);
@@ -56,20 +49,13 @@ const IntegratedModelManagement = () => {
     });
   }, []);
 
-  // 监听context中suppliers的变化
-  useEffect(() => {
-    console.log('Context中的供应商数据更新:', contextSuppliers);
-  }, [contextSuppliers]);
-
   // 处理供应商选择
   const handleSupplierSelect = (supplier) => {
-    console.log('选择供应商:', supplier);
     selectSupplier(supplier);
   };
 
   // 处理供应商更新
   const handleSupplierUpdate = async () => {
-    console.log('更新供应商列表');
     // 使用SupplierContext中的loadSuppliers方法重新加载数据
     if (supplierContext.loadSuppliers) {
       await supplierContext.loadSuppliers();

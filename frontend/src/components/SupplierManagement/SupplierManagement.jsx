@@ -11,9 +11,7 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
 
   // 优先使用传入的初始供应商数据（来自父组件）
   useEffect(() => {
-    console.log('收到父组件传入的initialSuppliers:', JSON.stringify(initialSuppliers));
     if (initialSuppliers && Array.isArray(initialSuppliers) && initialSuppliers.length > 0) {
-      console.log('使用父组件传入的供应商数据:', initialSuppliers);
       // 处理初始供应商数据，确保字段命名一致
       const processedInitialSuppliers = initialSuppliers.map(supplier => ({
         ...supplier,
@@ -38,9 +36,7 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
   const loadSuppliers = async () => {
     try {
       setLoading(true);
-      console.log('正在加载供应商数据...');
       const data = await api.supplierApi.getAll();
-      console.log('获取到的供应商原始数据:', data);
       
       // 处理供应商数据，确保字段命名一致
       const processedSuppliers = Array.isArray(data) ? 
@@ -57,7 +53,6 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
           is_active: supplier.is_active
         })) : [];
       
-      console.log('处理后用于UI显示的供应商数据:', processedSuppliers);
       setSuppliers(processedSuppliers);
       setError(null); // 清除错误状态
     } catch (err) {
@@ -82,14 +77,12 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
     if (!supplier) return '';
 
     try {
-      console.log('DEBUG: 获取供应商logo:', supplier.logo);
       // 如果有logo
       if (supplier.logo) {
         // 检测是否为外部URL
         if (supplier.logo.startsWith('http')) {
           // 使用后端代理端点处理外部URL，避免ORB安全限制
           const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(supplier.logo)}`;
-          console.log('使用代理URL:', proxyUrl);
           return proxyUrl;
         } else if (supplier.logo.startsWith('/logos/providers/')) {
           // 如果是/logo/providers/开头的相对路径，直接使用
@@ -109,7 +102,6 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
 
   // 处理供应商选择
   const handleSupplierSelect = (supplier) => {
-    console.log('SupplierManagement: 选择供应商', { supplier, logo: supplier.logo });
     setCurrentSupplier(supplier);
     if (onSupplierSelect) {
       onSupplierSelect(supplier);
@@ -142,23 +134,17 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
       
       // 检查是否是FormData对象（用于文件上传）
       const isFormData = apiData instanceof FormData;
-      console.log('SupplierManagement: 检查数据类型 - 是否为FormData:', isFormData);
       
       if (modalMode === 'edit' && currentSupplier) {
-        console.log('SupplierManagement: 编辑模式，准备更新供应商', currentSupplier.id);
         // 直接使用已经格式化好的apiData进行API调用（支持FormData和普通对象）
         await api.supplierApi.update(currentSupplier.id, apiData);
-        console.log('SupplierManagement: 更新供应商成功');
       } else if (modalMode === 'add') {
-        console.log('SupplierManagement: 添加模式，准备创建新供应商');
         // 添加新供应商 - 直接使用已经格式化好的apiData（支持FormData和普通对象）
         await api.supplierApi.create(apiData);
-        console.log('SupplierManagement: 创建供应商成功');
       }
       
       // 关键点：保存成功后直接重新加载供应商列表
       // 这样可以确保前端显示的是后端的最新数据，避免任何字段映射问题
-      console.log('SupplierManagement: 重新加载供应商列表以获取最新数据...');
       await loadSuppliers();
       
       // 强制刷新页面数据，确保所有组件都更新
@@ -221,7 +207,6 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
     return (a.name || '').localeCompare(b.name || '');
   });
 
-  console.log('SupplierManagement rendering, suppliers count:', suppliers.length);
   return (
     <div className="supplier-management">
       <div className="supplier-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>

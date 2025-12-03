@@ -127,7 +127,6 @@ export const modelApi = {
   
   // 获取指定供应商的所有模型
   getBySupplier: async (supplierId) => {
-    console.log('🔄 modelApi.getBySupplier - 开始调用，供应商ID:', supplierId);
     // 确保supplierId为整数格式（后端要求）
     const integerSupplierId = Number(supplierId);
     
@@ -150,12 +149,10 @@ export const modelApi = {
     
     try {
       // 使用正确的路径格式：/model-management/suppliers/{supplier_id}/models
-      console.log(`🔄 modelApi.getBySupplier - 调用后端API，路径: /model-management/suppliers/${integerSupplierId}/models`);
       const result = await request(`/model-management/suppliers/${integerSupplierId}/models`, {
         method: 'GET'
       });
       
-      console.log('🔄 modelApi.getBySupplier - 收到后端响应:', result);
       
       // 统一返回格式，确保包含models数组
       let modelsData = [];
@@ -171,7 +168,6 @@ export const modelApi = {
       // 使用统一的格式化函数
       const formattedModels = modelsData.map(formatModelData);
       
-      console.log('✅ modelApi.getBySupplier - 成功格式化模型数据，数量:', formattedModels.length);
       return { 
         models: formattedModels, 
         total: formattedModels.length, 
@@ -243,7 +239,6 @@ export const modelApi = {
       // 使用统一的构建函数准备数据
       const modelDataForBackend = buildModelDataForBackend(model, supplierId);
       
-      console.log('🔄 modelApi.create - 发送到后端的数据:', modelDataForBackend);
       
       // 使用正确的路径格式
       const response = await request(`/model-management/suppliers/${integerSupplierId}/models`, {
@@ -256,7 +251,6 @@ export const modelApi = {
       
       // 使用统一的格式化函数处理响应
       const formattedModel = formatModelData(response);
-      console.log('✅ modelApi.create - 模型创建成功:', formattedModel);
       return {
         ...formattedModel,
         success: true
@@ -292,7 +286,6 @@ export const modelApi = {
       // 使用统一的构建函数准备数据
       const modelDataForBackend = buildModelDataForBackend(updatedModel, supplierId);
       
-      console.log('🔄 modelApi.update - 发送到后端的数据:', modelDataForBackend);
       
       // 使用正确的路径格式
       const response = await request(`/model-management/suppliers/${integerSupplierId}/models/${integerModelId}`, {
@@ -305,7 +298,7 @@ export const modelApi = {
       
       // 使用统一的格式化函数处理响应
       const formattedModel = formatModelData(response);
-      console.log('✅ modelApi.update - 模型更新成功:', formattedModel);
+
       return {
         ...formattedModel,
         success: true
@@ -338,10 +331,6 @@ export const modelApi = {
         method: 'DELETE'
       });
       
-      console.log('✅ modelApi.delete - 模型删除成功', {
-        supplierId: integerSupplierId,
-        modelId: integerModelId
-      });
       
       return {
         success: true,
@@ -375,11 +364,6 @@ export const modelApi = {
       // 使用正确的路径格式
       const response = await request(`/model-management/suppliers/${integerSupplierId}/models/set-default/${integerModelId}`, {
         method: 'POST'
-      });
-      
-      console.log('✅ modelApi.setDefault - 默认模型设置成功', {
-        supplierId: integerSupplierId,
-        modelId: integerModelId
       });
       
       return {

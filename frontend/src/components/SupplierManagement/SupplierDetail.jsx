@@ -22,7 +22,6 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
       }
 
       const apiUrl = `${API_BASE_URL}/model-management/suppliers/${supplier.id}`;
-      console.log(`切换供应商状态: ${apiUrl}, 新状态: ${newStatus}`);
 
       await supplierApi.updateSupplierStatus(supplier.id, newStatus);
 
@@ -30,7 +29,6 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
         setTimeout(() => onSupplierUpdate(), 0);
       }
 
-      console.log(`供应商状态已${newStatus ? '启用' : '停用'}: ${supplier.name}`);
     } catch (err) {
       console.error('Failed to toggle supplier status:', err);
     }
@@ -50,15 +48,8 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
   const handleSaveSupplier = async (apiData, frontendData) => {
     try {
       setSaving(true);
-      console.log('🔄 handleSaveSupplier - 开始保存供应商');
-      console.log('🔄 handleSaveSupplier - 提交的API数据:', apiData);
-      console.log('🔄 handleSaveSupplier - 提交的前端数据:', frontendData);
-      console.log('🔄 handleSaveSupplier - 当前模态窗口模式:', supplierModalMode);
-      console.log('🔄 handleSaveSupplier - 当前供应商状态:', currentSupplier);
 
       const isFormData = apiData instanceof FormData;
-      console.log('🔄 handleSaveSupplier - 是否为FormData对象:', isFormData);
-
       // 创建新的数据副本，避免直接修改传入的数据
       let dataToSend;
       if (isFormData) {
@@ -97,20 +88,16 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
         dataToSend.api_key_env_name = `API_KEY_${supplierKey}`;
       }
 
-      console.log('✅ handleSaveSupplier - 准备发送到API的数据:', dataToSend);
 
       let updatedSupplierData;
 
       if (supplierModalMode === 'edit' && currentSupplier) {
-        console.log('处理编辑模式');
         const supplierId = Number(currentSupplier.id);
-        console.log('更新供应商ID:', currentSupplier.id, '转换后的数字ID:', supplierId);
 
         // 使用supplierApi.update方法
         updatedSupplierData = await supplierApi.update(supplierId, dataToSend);
-        console.log('DEBUG: API返回的更新后数据:', updatedSupplierData);
+
       } else {
-        console.log('处理添加模式');
         // 添加模式下，调用create方法
         updatedSupplierData = await supplierApi.create(dataToSend);
       }
@@ -130,14 +117,12 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
       // 如果更新的是当前选中的供应商，同步更新选中状态
       if (selectedSupplier?.id === updatedSupplierData.id) {
         if (onSupplierSelect) {
-          console.log('调用onSupplierSelect更新选中的供应商');
           onSupplierSelect(frontendFormat);
         }
       }
 
       // 刷新供应商列表
       if (onSupplierUpdate) {
-        console.log('调用onSupplierUpdate刷新数据');
         // 使用setTimeout确保UI更新后再刷新
         setTimeout(() => onSupplierUpdate(), 0);
       }
@@ -151,7 +136,6 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
       throw new Error(errorMessage);
     } finally {
       setSaving(false);
-      console.log('🔄 handleSaveSupplier - 保存操作完成');
     }
   };
 
@@ -159,14 +143,12 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
     if (!supplier) return '';
 
     try {
-      console.log('DEBUG: 获取供应商logo:', supplier.logo);
       // 如果有logo
       if (supplier.logo) {
         // 检测是否为外部URL
         if (supplier.logo.startsWith('http')) {
           // 使用后端代理端点处理外部URL，避免ORB安全限制
           const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(supplier.logo)}`;
-          console.log('使用代理URL:', proxyUrl);
           return proxyUrl;
         } else if (supplier.logo.startsWith('/logos/providers/')) {
           // 如果是/logo/providers/开头的相对路径，直接使用
@@ -185,43 +167,35 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
   };
 
   const handleDeleteSupplier = async (supplier) => {
-    console.log('🔄 handleDeleteSupplier - 开始', supplier);
     
     // 防止多次点击
     if (isDeleting) {
-      console.log('❌ 正在删除中，请勿重复点击');
       return;
     }
     
     setIsDeleting(true);
     
     if (!window.confirm(`确定要删除供应商 "${supplier.name}" 吗？删除后将无法恢复。`)) {
-      console.log('❌ 用户取消删除');
       setIsDeleting(false);
       return;
     }
 
     try {
       // 使用api.supplierApi.delete方法删除供应商，确保使用正确的API端口
-      console.log('🔄 调用supplierApi.delete，ID:', supplier.id);
       await supplierApi.delete(supplier.id);
-      console.log('✅ 删除供应商成功');
 
       // 显示成功消息
       alert('供应商删除成功');
 
       // 延迟刷新和取消选中，确保请求完成
       setTimeout(() => {
-        console.log('🔄 延迟处理后续操作');
         // 刷新供应商列表
         if (onSupplierUpdate) {
-          console.log('🔄 调用onSupplierUpdate刷新列表');
           onSupplierUpdate();
         }
 
         // 取消选中当前供应商
         if (onSupplierSelect) {
-          console.log('🔄 调用onSupplierSelect(null)取消选中');
           onSupplierSelect(null);
         }
       }, 100);
@@ -232,7 +206,6 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
       alert('删除供应商失败，请稍后重试');
     } finally {
       setIsDeleting(false);
-      console.log('🔄 handleDeleteSupplier - 结束');
     }
   };
 
@@ -342,7 +315,6 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
                       if (onSupplierUpdate) {
                         setTimeout(() => onSupplierUpdate(), 0);
                       }
-                      console.log(`供应商状态已${newStatus ? '启用' : '停用'}: ${selectedSupplier.name}`);
                     })
                     .catch(err => {
                       console.error('Failed to toggle supplier status:', err);

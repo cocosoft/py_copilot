@@ -300,6 +300,17 @@ export const capabilityApi = {
     }
   },
   
+  // 添加能力到模型（别名，保持向后兼容）
+  addCapabilityToModel: async (associationData) => {
+    try {
+      const { model_id, capability_id, config, value } = associationData;
+      return await capabilityApi.addModelCapability(model_id, capability_id, value || config);
+    } catch (error) {
+      console.error('添加能力到模型失败:', error);
+      throw error;
+    }
+  },
+  
   // 移除模型能力关联
   removeModelCapability: async (modelId, capabilityId) => {
     try {
@@ -310,6 +321,11 @@ export const capabilityApi = {
       console.error('移除模型能力关联失败:', error);
       throw error;
     }
+  },
+  
+  // 从模型移除能力（别名，保持向后兼容）
+  removeCapabilityFromModel: async (modelId, capabilityId) => {
+    return capabilityApi.removeModelCapability(modelId, capabilityId);
   },
   
   // 更新模型能力值
@@ -338,6 +354,11 @@ export const capabilityApi = {
       console.error(`获取模型 ${modelId} 的能力失败:`, error);
       throw error;
     }
+  },
+  
+  // 获取模型的所有能力（别名，保持向后兼容）
+  getCapabilitiesByModel: async (modelId) => {
+    return capabilityApi.getModelCapabilities(modelId);
   },
   
   // 获取具备特定能力的模型

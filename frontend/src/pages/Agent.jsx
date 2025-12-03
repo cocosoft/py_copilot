@@ -18,7 +18,7 @@ const Agent = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     // 这里可以添加创建智能体的API调用逻辑
-    console.log('创建新智能体:', newAgent);
+
     // 模拟API调用后的重置和关闭对话框
     setNewAgent({ name: '', description: '', avatar: '🤖', prompt: '', knowledgeBase: '' });
     setShowCreateDialog(false);

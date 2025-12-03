@@ -61,7 +61,6 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
 
         try {
           setSaving(true);
-          console.log('创建默认模型:', defaultModel);
           // 确保使用整数ID
           await api.modelApi.create(selectedSupplier.id, defaultModel);
           await loadModels();
@@ -86,13 +85,11 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
 
     setLoading(true);
     try {
-      console.log('🔄 开始加载供应商模型列表，供应商ID:', selectedSupplier.id);
       // 使用selectedSupplier.id作为参数调用更新后的API方法
       const result = await api.modelApi.getBySupplier(selectedSupplier.id);
       
       // 从结果中提取models数组
       const models = result.models || [];
-      console.log('✅ 成功加载到模型列表，数量:', models.length);
       setCurrentModels(models); // 使用models数组而不是整个返回对象
     } catch (err) {
       const errorMessage = err.message || '加载模型失败';
@@ -375,12 +372,20 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
                 {currentModels.map((model) => (
                   <div key={model.id} className={`model-card ${model.is_default ? 'default' : ''}`}>
                     <div className="model-header">
-                      <h3 className="model-name">{model.name}</h3>
+                      <h3 className="model-name">{model.display_name || model.name}</h3>
                       {model.is_default && <span className="default-badge">默认</span>}
+                      <span className="model-type-badge">{model.model_type || 'chat'}</span>
                     </div>
                     <div className="model-desc">{model.description}</div>
                     <div className="model-meta">
-                      <span className="context-window">上下文窗口: {model.contextWindow}</span>
+                      <div className="meta-item">上下文窗口: {model.contextWindow || model.context_window}</div>
+                      <div className="meta-item">最大Token: {model.max_tokens || 1000}</div>
+                      <div className="meta-item">
+                        <span className="status-label">状态:</span>
+                        <span className={`status-indicator ${model.is_active ? 'active' : 'inactive'}`}>
+                          {model.is_active ? '启用' : '禁用'}
+                        </span>
+                      </div>
                     </div>
 
                     <div className="model-actions">

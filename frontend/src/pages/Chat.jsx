@@ -64,25 +64,19 @@ const Chat = () => {
     
     try {
       // 使用api.js中的conversationApi发送消息
-      console.log('向对话发送消息...');
-      
+
       const messageData = {
         content: text,
         use_llm: true,
         model_name: 'deepseek-chat'
       };
-      console.log('消息数据:', messageData);
-      
-      console.log('调用conversationApi.sendMessage...');
+
       const response = await conversationApi.sendMessage(1, messageData);
-      console.log('API调用完成');
-      
-      // 添加日志记录响应信息
-      console.log('API响应成功:', JSON.stringify(response, null, 2));
+
       
       // 从响应中提取助手回复
       const botReply = response.assistant_message?.content || '抱歉，我无法生成回复。';
-      console.log('提取到的回复内容:', botReply);
+
       
       const newBotMessage = {
         id: messages.length + 2,

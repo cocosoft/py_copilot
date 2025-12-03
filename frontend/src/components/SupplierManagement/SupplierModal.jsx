@@ -113,11 +113,9 @@ const SupplierModal = ({ isOpen, onClose, onSave, supplier = null, mode = 'add' 
         formDataToSubmit.append('existing_logo', formData.logo);
       }
       
-      console.log('SupplierModal: 准备调用onSave，提交的FormData:', formDataToSubmit);
       
       // 调用父组件的保存函数，传递FormData
       await onSave(formDataToSubmit);
-      console.log('SupplierModal: onSave调用成功，准备关闭模态窗口');
       onClose();
     } catch (error) {
       console.error('SupplierModal: 保存供应商失败:', error);

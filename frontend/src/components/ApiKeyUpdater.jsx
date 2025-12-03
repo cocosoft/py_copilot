@@ -21,7 +21,6 @@ const ApiKeyUpdater = () => {
             ...deepseekSupplier,
             apiKey: 'sk-e532f4d835044ee595b38e25db741999'
           });
-          console.log('DeepSeek API密钥已更新');
         }
       } catch (error) {
         console.error('更新API密钥时出错:', error);
@@ -40,7 +39,6 @@ const ApiKeyUpdater = () => {
           if (deepseekIndex !== -1) {
             suppliers[deepseekIndex].apiKey = 'sk-e532f4d835044ee595b38e25db741999';
             localStorage.setItem(suppliersKey, JSON.stringify(suppliers));
-            console.log('通过localStorage更新了DeepSeek API密钥');
           }
         } catch (localError) {
           console.error('localStorage更新失败:', localError);
