@@ -212,8 +212,12 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
 
   // 现在添加供应商的功能通过模态窗口实现，这个函数已经被handleSaveSupplier替代
 
-  // 按名称排序供应商
+  // 按状态（启用在前）和名称排序供应商
   const sortedSuppliers = (Array.isArray(suppliers) ? [...suppliers] : []).sort((a, b) => {
+    // 首先按激活状态排序（启用在前）
+    if (a.is_active && !b.is_active) return -1;
+    if (!a.is_active && b.is_active) return 1;
+    // 如果状态相同，则按名称排序
     return (a.name || '').localeCompare(b.name || '');
   });
 
