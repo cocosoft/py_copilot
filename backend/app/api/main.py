@@ -103,7 +103,7 @@ app.include_router(api_router)
 from app.models.base import Base
 # 在创建表之前导入所有模型类，确保它们被注册
 from app.models.supplier_db import SupplierDB, ModelDB
-from app.modules.capability_category.models.capability_db import CapabilityDB
+from app.models.model_capability import ModelCapability, ModelCapabilityAssociation
 from app.modules.capability_category.models.category_db import ModelCategoryDB
 # User模型暂时不导入，避免重复定义
 Base.metadata.create_all(bind=engine)

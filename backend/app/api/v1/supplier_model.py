@@ -194,7 +194,7 @@ def get_supplier_models(supplier_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="供应商不存在")
     
     # 获取该供应商的所有模型
-    models = db.query(Model).filter(Model.supplier_id == supplier_id).all()
+    models = db.query(ModelDB).filter(ModelDB.supplier_id == supplier_id).all()
     total = len(models)
     
     # 转换为响应格式
@@ -235,7 +235,7 @@ def get_model(supplier_id: int, model_id: int, db: Session = Depends(get_db)):
     return model
 
 @router.post("/suppliers/{supplier_id}/models", response_model=ModelResponse, status_code=201)
-def create_model(supplier_id: int, model: ModelCreate, db: Session = Depends(get_db)):
+def create_model(supplier_id: int, model: dict, db: Session = Depends(get_db)):
     """创建新模型"""
     # 验证供应商是否存在
     supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
@@ -274,7 +274,7 @@ def create_model(supplier_id: int, model: ModelCreate, db: Session = Depends(get
     return db_model
 
 @router.put("/suppliers/{supplier_id}/models/{model_id}", response_model=ModelResponse)
-def update_model(supplier_id: int, model_id: int, model_update: ModelCreate, db: Session = Depends(get_db)):
+def update_model(supplier_id: int, model_id: int, model_update: dict, db: Session = Depends(get_db)):
     """更新模型信息"""
     # 验证供应商是否存在
     supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()

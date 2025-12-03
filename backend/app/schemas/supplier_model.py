@@ -38,7 +38,7 @@ class ModelBase(BaseModel):
     is_active: bool = True
 
 class ModelCreate(ModelBase):
-    supplier_id: int
+    pass
 
 class ModelResponse(BaseModel):
     id: int

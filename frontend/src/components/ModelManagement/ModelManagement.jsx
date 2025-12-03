@@ -10,6 +10,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
   const [error, setError] = useState(null);
   const [currentModel, setCurrentModel] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState(null); // 成功消息状态
   // 供应商相关状态已移至SupplierDetail组件中
   // 模型模态框相关状态
   const [isModelModalOpen, setIsModelModalOpen] = useState(false);
@@ -79,47 +80,42 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
     return () => clearTimeout(timeoutId);
   }, [selectedSupplier, currentModels.length, saving]);
 
-  // 加载模型数据
+  // 加载模型列表
   const loadModels = async () => {
-    if (!selectedSupplier) {
-      console.warn('⚠️ 没有选择供应商');
-      return;
-    }
+    if (!selectedSupplier) return;
 
+    setLoading(true);
     try {
-      setLoading(true);
-      console.log(`🔄 加载模型数据，供应商ID: ${selectedSupplier.id}`);
-      // 使用selectedSupplier.id的原始值（字符串或数字）
-      const data = await api.modelApi.getBySupplier(selectedSupplier.id);
-
-      // 统一处理不同的响应格式
-      let models = [];
-      if (Array.isArray(data)) {
-        models = data;
-      } else if (data && Array.isArray(data.models)) {
-        models = data.models;
-      } else if (data && Array.isArray(data.data)) {
-        models = data.data;
-      }
-
-      // 确保所有模型都有必要的属性
-      const normalizedModels = models.map(model => ({
-        ...model,
-        id: model.id || model.model_id || String(Date.now() + Math.random()),
-        name: model.name || '未知模型',
-        description: model.description || '暂无描述',
-        isDefault: model.isDefault || model.is_default || false
-      }));
-
-      console.log(`✅ 模型加载完成，数量: ${normalizedModels.length}`);
-      setCurrentModels(normalizedModels);
-      setError(null);
+      console.log('🔄 开始加载供应商模型列表，供应商ID:', selectedSupplier.id);
+      // 使用selectedSupplier.id作为参数调用更新后的API方法
+      const result = await api.modelApi.getBySupplier(selectedSupplier.id);
+      
+      // 从结果中提取models数组
+      const models = result.models || [];
+      console.log('✅ 成功加载到模型列表，数量:', models.length);
+      setCurrentModels(models); // 使用models数组而不是整个返回对象
     } catch (err) {
-      console.error('❌ 加载模型数据失败:', err);
-      setError('加载模型数据失败');
-
-      // 降级处理：设置空数组，因为api.modelApi.getBySupplier应该已经处理了降级
-      setCurrentModels([]);
+      const errorMessage = err.message || '加载模型失败';
+      console.error('❌ 加载模型失败:', errorMessage);
+      setError(`加载模型失败: ${errorMessage}`);
+      
+      // 降级处理：如果是DeepSeek供应商，创建默认模型
+      if (selectedSupplier.key === 'deepseek') {
+        console.log('⚠️ 降级处理：为DeepSeek供应商创建默认模型');
+        const defaultModel = {
+          id: 'deepseek-chat',
+          model_id: 'deepseek-chat',
+          name: 'DeepSeek Chat',
+          description: 'DeepSeek的默认聊天模型',
+          contextWindow: 8000,
+          isDefault: true,
+          supplier_id: selectedSupplier.id,
+          modelType: 'chat',
+          maxTokens: 1000,
+          is_active: true
+        };
+        setCurrentModels([defaultModel]);
+      }
     } finally {
       setLoading(false);
     }
@@ -131,14 +127,24 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
 
     try {
       setSaving(true);
-      // 使用selectedSupplier.id的原始值（字符串）
+      console.log('🔄 设置默认模型，供应商ID:', selectedSupplier.id, '模型ID:', modelId);
+      // 使用selectedSupplier.id调用更新后的API方法
       await api.modelApi.setDefault(selectedSupplier.id, modelId);
-      // 刷新模型列表
-      await loadModels();
+      
+      // 更新本地状态
+      console.log('✅ 默认模型设置成功');
+      const updatedModels = currentModels.map(model => ({
+        ...model,
+        isDefault: model.id === modelId
+      }));
+      setCurrentModels(updatedModels);
     } catch (err) {
-      setError('设置默认模型失败');
-      console.error('Failed to set default model:', err);
+      const errorMessage = err.message || '设置默认模型失败';
+      console.error('❌ 设置默认模型失败:', errorMessage);
+      setError(`设置默认模型失败: ${errorMessage}`);
+      
       // 降级处理：本地更新
+      console.log('⚠️ 降级处理：本地设置默认模型');
       const updatedModels = currentModels.map(model => ({
         ...model,
         isDefault: model.id === modelId
@@ -173,49 +179,42 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
     }
   };
 
-  // 保存模型数据（用于模态框）
+  // 保存模型数据（新增或更新）
   const handleSaveModelData = async (modelData) => {
     if (!selectedSupplier || saving) return;
 
     try {
       setSaving(true);
       
+      // 根据模态框模式调用不同的API方法
       if (modelModalMode === 'add') {
-        // 构建符合后端要求的模型数据结构
-        const modelToAdd = {
-          name: modelData.name,
-          display_name: modelData.name, // 使用name作为display_name
-          description: modelData.description || '',
-          context_window: modelData.contextWindow || 8000,
-          max_tokens: 1000,
-          is_active: true,
-          is_default: modelData.isDefault || currentModels.length === 0
-          // 不需要手动设置supplier_id，后端路由会处理
-        };
-        
-        await api.modelApi.create(selectedSupplier.id, modelToAdd);
+        console.log('🔄 添加新模型，供应商ID:', selectedSupplier.id, '模型数据:', modelData);
+        // 使用API的create方法并传入已格式化的数据
+        await api.modelApi.create(selectedSupplier.id, modelData);
+        console.log('✅ 模型添加成功');
       } else {
-        // 更新模型
-        const modelToUpdate = {
-          ...modelData,
-          context_window: modelData.contextWindow || 8000,
-          model_type: modelData.modelType || 'chat', // 添加model_type字段
-          max_tokens: modelData.maxTokens || 1000, // 添加max_tokens字段
-          is_default: modelData.isDefault
-        };
-        
-        await api.modelApi.update(selectedSupplier.id, modelData.id, modelToUpdate);
+        console.log('🔄 更新模型，供应商ID:', selectedSupplier.id, '模型ID:', modelData.id);
+        // 使用API的update方法
+        await api.modelApi.update(selectedSupplier.id, modelData.id, modelData);
+        console.log('✅ 模型更新成功');
       }
       
       // 重新加载模型列表
       await loadModels();
-      // 成功提示
-      alert(modelModalMode === 'add' ? '模型添加成功' : '模型更新成功');
+      // 关闭模态框
+      handleCloseModelModal();
+      // 显示成功消息
+      setSuccess(modelModalMode === 'add' ? '模型创建成功' : '模型更新成功');
+      // 3秒后自动清除成功消息
+      setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      setError(modelModalMode === 'add' ? '添加模型失败' : '更新模型失败');
-      console.error(`${modelModalMode === 'add' ? 'Failed to add' : 'Failed to update'} model:`, err);
+      const action = modelModalMode === 'add' ? '添加' : '更新';
+      const errorMessage = err.message || `${action}模型失败`;
+      console.error(`❌ ${action}模型失败:`, errorMessage);
+      setError(`模型${action}失败: ${errorMessage}`);
       
       // 降级处理：本地更新
+      console.log('⚠️ 降级处理：本地更新模型数据');
       if (modelModalMode === 'add') {
         const localModel = {
           id: modelData.id || String(Date.now()),
@@ -223,12 +222,10 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
           name: modelData.name || '未命名模型',
           description: modelData.description || '暂无描述',
           contextWindow: modelData.contextWindow || 8000,
-          context_window: modelData.contextWindow || 8000,
           isDefault: modelData.isDefault || currentModels.length === 0,
-          is_default: modelData.isDefault || currentModels.length === 0,
           supplier_id: selectedSupplier.id,
-          model_type: 'chat', // 修改为model_type，与后端API匹配
-          max_tokens: 1000, // 添加max_tokens字段
+          modelType: modelData.modelType || 'chat',
+          maxTokens: modelData.maxTokens || 1000,
           is_active: true
         };
         setCurrentModels([...currentModels, localModel]);
@@ -236,94 +233,20 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
         const updatedModels = currentModels.map(model =>
           model.id === modelData.id ? {
             ...model,
-            ...modelData,
-            context_window: modelData.contextWindow || 8000,
-            model_type: modelData.modelType || model.model_type || 'chat', // 添加model_type字段
-            max_tokens: modelData.maxTokens || model.max_tokens || 1000, // 添加max_tokens字段
-            is_default: modelData.isDefault
+            ...modelData
           } : model
         );
         setCurrentModels(updatedModels);
       }
+      
+      // 关闭模态框
+      handleCloseModelModal();
     } finally {
       setSaving(false);
     }
   };
 
-  // 添加新模型
-  const handleAddModel = async () => {
-    if (!newModel.id || !newModel.name || !selectedSupplier || saving) return;
-
-    // 如果是第一个模型，自动设为默认
-    const isFirstModel = currentModels.length === 0;
-
-    // 构建符合后端要求的模型数据结构
-    const modelToAdd = {
-      model_id: newModel.id, // 映射到后端需要的model_id字段
-      name: newModel.name,
-      description: newModel.description || '',
-      type: 'chat', // 默认为chat类型，这是后端必需字段
-      context_window: newModel.contextWindow || 8000, // 映射到后端格式
-      default_temperature: 0.7,
-      default_max_tokens: 1000,
-      default_top_p: 1.0,
-      default_frequency_penalty: 0.0,
-      default_presence_penalty: 0.0,
-      is_active: true,
-      is_default: isFirstModel,
-      supplier_id: selectedSupplier.id // 使用供应商的整数ID
-    };
-
-    try {
-      setSaving(true);
-      console.log('🔄 添加模型数据:', modelToAdd);
-      await api.modelApi.create(selectedSupplier.id, modelToAdd);
-      console.log('✅ 模型添加成功');
-      await loadModels();
-
-      // 重置新模型表单
-      setNewModel({
-        id: '',
-        name: '',
-        description: '',
-        contextWindow: 8000,
-        isDefault: false
-      });
-    } catch (err) {
-      console.error('❌ 添加模型失败:', err);
-      setError('添加模型失败，但已保存到本地');
-
-      // 降级处理：本地添加，使用更完善的数据格式
-      console.log('⚠️ 降级处理：将模型添加到本地状态');
-      const localModel = {
-        id: newModel.id || String(Date.now()),
-        model_id: newModel.id,
-        name: newModel.name || '未命名模型',
-        description: newModel.description || '暂无描述',
-        contextWindow: newModel.contextWindow || 8000,
-        context_window: newModel.contextWindow || 8000, // 同时支持两种格式
-        isDefault: isFirstModel,
-        is_default: isFirstModel,
-        supplier_id: selectedSupplier.id,
-        type: 'chat',
-        is_active: true
-      };
-
-      const updatedModels = [...currentModels, localModel];
-      setCurrentModels(updatedModels);
-
-      // 重置表单，确保用户体验一致
-      setNewModel({
-        id: '',
-        name: '',
-        description: '',
-        contextWindow: 8000,
-        isDefault: false
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
+  // 添加新模型已整合到handleSaveModelData方法中，通过模态框处理
 
   // 删除模型
   const handleDeleteModel = async (modelId) => {
@@ -335,18 +258,23 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
 
     try {
       setSaving(true);
-      // 使用selectedSupplier.id的原始值（字符串）
+      console.log('🔄 删除模型，供应商ID:', selectedSupplier.id, '模型ID:', modelId);
+      // 使用selectedSupplier.id调用更新后的API方法
       await api.modelApi.delete(selectedSupplier.id, modelId);
+      console.log('✅ 模型删除成功');
       await loadModels();
     } catch (err) {
-      setError('删除模型失败');
-      console.error('Failed to delete model:', err);
+      const errorMessage = err.message || '删除模型失败';
+      console.error('❌ 删除模型失败:', errorMessage);
+      setError(`删除模型失败: ${errorMessage}`);
+      
       // 降级处理：本地删除
+      console.log('⚠️ 降级处理：本地删除模型');
       const modelToDelete = currentModels.find(model => model.id === modelId);
       const updatedModels = currentModels.filter(model => model.id !== modelId);
 
       // 如果删除的是默认模型，将第一个模型设为默认
-      if (modelToDelete.isDefault && updatedModels.length > 0) {
+      if (modelToDelete?.isDefault && updatedModels.length > 0) {
         updatedModels[0].isDefault = true;
       }
 
@@ -367,6 +295,9 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
       <div className="model-management">
         <div className="model-header">
           <h3>模型管理</h3>
+          {success && (
+            <div className="success">{success}</div>
+          )}
           {selectedSupplier && (
             <button
               className="btn btn-primary"

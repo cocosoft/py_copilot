@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { categoryApi } from '../../utils/api/categoryApi';
+import { API_BASE_URL } from '../../utils/apiUtils';
 import '../../styles/ModelCategoryManagement.css';
 
 // 将树形结构的分类数据扁平化为数组
@@ -41,6 +42,7 @@ const ModelCategoryManagement = () => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null); // 添加成功状态
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [currentCategory, setCurrentCategory] = useState(null);
@@ -61,7 +63,7 @@ const ModelCategoryManagement = () => {
       setLoading(true);
       
       // 直接调用API获取原始数据，避免在API层进行树形转换
-      const rawResponse = await fetch('/api/model/categories', {
+      const rawResponse = await fetch(`${API_BASE_URL}/model/categories`, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -178,7 +180,7 @@ const ModelCategoryManagement = () => {
       display_name: category.display_name,
       description: category.description || '',
       category_type: category.category_type,
-      parent_id: category.parent_id || '',
+      parent_id: category.parent_id !== null ? category.parent_id : null,
       is_active: category.is_active
     });
     setShowEditModal(true);
@@ -198,6 +200,9 @@ const ModelCategoryManagement = () => {
       await categoryApi.create(formData);
       setShowCreateModal(false);
       loadCategories(); // 重新加载列表
+      setSuccess('分类创建成功');
+      // 3秒后自动清除成功消息
+      setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       console.error('创建分类失败:', err);
       setError('创建分类失败，请检查输入并重试');
@@ -213,6 +218,9 @@ const ModelCategoryManagement = () => {
       await categoryApi.update(currentCategory.id, formData);
       setShowEditModal(false);
       loadCategories(); // 重新加载列表
+      setSuccess('分类更新成功');
+      // 3秒后自动清除成功消息
+      setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       console.error('更新分类失败:', err);
       setError('更新分类失败，请检查输入并重试');
@@ -228,6 +236,9 @@ const ModelCategoryManagement = () => {
         const result = await categoryApi.delete(categoryId);
         console.log('✅ 删除成功，结果:', result);
         loadCategories(); // 重新加载列表
+        setSuccess('分类删除成功');
+        // 3秒后自动清除成功消息
+        setTimeout(() => setSuccess(null), 3000);
       } catch (err) {
         console.error('❌ 删除分类失败:', err);
         console.error('❌ 错误详情:', err.message, err.stack);
@@ -268,6 +279,13 @@ const ModelCategoryManagement = () => {
         <div className="alert alert-error">
           {error}
           <button onClick={() => setError(null)} className="btn btn-small">×</button>
+        </div>
+      )}
+      
+      {success && (
+        <div className="alert alert-success">
+          {success}
+          <button onClick={() => setSuccess(null)} className="btn btn-small">×</button>
         </div>
       )}
       

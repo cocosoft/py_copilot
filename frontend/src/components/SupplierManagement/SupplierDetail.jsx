@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { supplierApi } from '../../utils/api/supplierApi';
+import { API_BASE_URL } from '../../utils/apiUtils';
 import SupplierModal from './SupplierModal';
 
 const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }) => {
@@ -7,6 +8,7 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
   const [supplierModalMode, setSupplierModalMode] = useState('edit');
   const [saving, setSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleToggleSupplierStatus = async (supplier) => {
     try {
@@ -19,7 +21,7 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
         return;
       }
 
-      const apiUrl = `http://localhost:8000/api/model-management/suppliers/${supplier.id}`;
+      const apiUrl = `${API_BASE_URL}/model-management/suppliers/${supplier.id}`;
       console.log(`切换供应商状态: ${apiUrl}, 新状态: ${newStatus}`);
 
       await supplierApi.updateSupplierStatus(supplier.id, newStatus);
@@ -69,7 +71,7 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
           }
         }
         // 如果有isDomestic信息，添加到FormData中
-        if (frontendData.isDomestic !== undefined) {
+        if (frontendData && frontendData.isDomestic !== undefined) {
           dataToSend.append('is_domestic', frontendData.isDomestic ? 'true' : 'false');
         }
 
@@ -84,7 +86,7 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
           ...apiData,
           // 设置默认值
           is_active: apiData.is_active !== undefined ? apiData.is_active : true,
-          is_domestic: frontendData.isDomestic !== undefined ? frontendData.isDomestic : (apiData.is_domestic !== undefined ? apiData.is_domestic : false)
+          is_domestic: frontendData && frontendData.isDomestic !== undefined ? frontendData.isDomestic : (apiData.is_domestic !== undefined ? apiData.is_domestic : false)
         };
 
         // 使用currentSupplier的key或name作为环境变量名的一部分
@@ -119,7 +121,7 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
         key: String(updatedSupplierData.id),
         name: updatedSupplierData.name,
         description: updatedSupplierData.description,
-        isDomestic: frontendData.isDomestic !== undefined ? frontendData.isDomestic : updatedSupplierData.is_domestic || false
+        isDomestic: frontendData && frontendData.isDomestic !== undefined ? frontendData.isDomestic : updatedSupplierData.is_domestic || false
       };
 
       // 立即更新本地currentSupplier状态
@@ -183,26 +185,54 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
   };
 
   const handleDeleteSupplier = async (supplier) => {
+    console.log('🔄 handleDeleteSupplier - 开始', supplier);
+    
+    // 防止多次点击
+    if (isDeleting) {
+      console.log('❌ 正在删除中，请勿重复点击');
+      return;
+    }
+    
+    setIsDeleting(true);
+    
     if (!window.confirm(`确定要删除供应商 "${supplier.name}" 吗？删除后将无法恢复。`)) {
+      console.log('❌ 用户取消删除');
+      setIsDeleting(false);
       return;
     }
 
     try {
       // 使用api.supplierApi.delete方法删除供应商，确保使用正确的API端口
+      console.log('🔄 调用supplierApi.delete，ID:', supplier.id);
       await supplierApi.delete(supplier.id);
+      console.log('✅ 删除供应商成功');
 
-      // 刷新供应商列表
-      if (onSupplierUpdate) {
-        onSupplierUpdate();
-      }
+      // 显示成功消息
+      alert('供应商删除成功');
 
-      // 取消选中当前供应商
-      if (onSupplierSelect) {
-        onSupplierSelect(null);
-      }
+      // 延迟刷新和取消选中，确保请求完成
+      setTimeout(() => {
+        console.log('🔄 延迟处理后续操作');
+        // 刷新供应商列表
+        if (onSupplierUpdate) {
+          console.log('🔄 调用onSupplierUpdate刷新列表');
+          onSupplierUpdate();
+        }
+
+        // 取消选中当前供应商
+        if (onSupplierSelect) {
+          console.log('🔄 调用onSupplierSelect(null)取消选中');
+          onSupplierSelect(null);
+        }
+      }, 100);
 
     } catch (err) {
-      console.error('Failed to delete supplier:', err);
+      console.error('❌ Failed to delete supplier:', err);
+      console.error('❌ 错误详情:', JSON.stringify(err, null, 2));
+      alert('删除供应商失败，请稍后重试');
+    } finally {
+      setIsDeleting(false);
+      console.log('🔄 handleDeleteSupplier - 结束');
     }
   };
 
@@ -271,7 +301,7 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
           </button>
           <button
             className="btn-delete"
-            onClick={() => handleDeleteSupplier(selectedSupplier.id)}
+            onClick={() => handleDeleteSupplier(selectedSupplier)}
             title="删除供应商"
             style={{
               padding: '6px 6px',

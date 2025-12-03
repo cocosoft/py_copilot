@@ -43,8 +43,8 @@ class ModelCategoryAssociation(Base):
     __tablename__ = "model_category_associations"
     
     id = Column(Integer, primary_key=True, index=True)
-    model_id = Column(Integer, ForeignKey("models.id"), nullable=False)
-    category_id = Column(Integer, ForeignKey("model_categories.id"), nullable=False)
+    model_id = Column(Integer, ForeignKey("models.id", ondelete="CASCADE"), nullable=False)
+    category_id = Column(Integer, ForeignKey("model_categories.id", ondelete="CASCADE"), nullable=False)
     
     # 时间戳
     created_at = Column(DateTime(timezone=True), server_default=func.now())

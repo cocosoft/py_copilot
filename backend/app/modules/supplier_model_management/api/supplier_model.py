@@ -70,6 +70,7 @@ async def create_supplier(
     now = datetime.utcnow()
     db_supplier = SupplierDB(
         name=name,
+        display_name=name,  # display_name与name保持一致
         description=description,
         logo=logo_path,
         website=website,
@@ -93,18 +94,47 @@ async def create_supplier(
     }
 
 # 供应商相关路由
-@router.get("/suppliers/all", response_model=List[SupplierResponse])
+# 注意：固定路径路由必须放在带参数的路由之前
+@router.get("/suppliers")
 def get_all_suppliers(db: Session = Depends(get_db)):
     """获取所有供应商"""
-    return db.query(SupplierDB).all()
+    suppliers = db.query(SupplierDB).all()
+    # 返回包含display_name字段的供应商信息列表
+    return [{
+        "id": supplier.id,
+        "name": supplier.name,
+        "display_name": supplier.display_name,
+        "description": supplier.description,
+        "logo": supplier.logo,
+        "website": supplier.website,
+        "created_at": supplier.created_at,
+        "updated_at": supplier.updated_at,
+        "is_active": supplier.is_active
+    } for supplier in suppliers]
 
-@router.get("/suppliers/{supplier_id}", response_model=SupplierResponse)
+@router.get("/suppliers/{supplier_id}")
 def get_supplier(supplier_id: int, db: Session = Depends(get_db)):
     """获取单个供应商"""
     supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
     if not supplier:
         raise HTTPException(status_code=404, detail="供应商不存在")
-    return supplier
+    # 返回包含display_name字段的供应商信息
+    return {
+        "id": supplier.id,
+        "name": supplier.name,
+        "display_name": supplier.display_name,
+        "description": supplier.description,
+        "logo": supplier.logo,
+        "website": supplier.website,
+        "created_at": supplier.created_at,
+        "updated_at": supplier.updated_at,
+        "is_active": supplier.is_active
+    }
+
+@router.get("/suppliers/all")
+def get_all_suppliers_legacy(db: Session = Depends(get_db)):
+    """获取所有供应商（兼容旧版端点）"""
+    return get_all_suppliers(db)
 
 @router.put("/suppliers/{supplier_id}")
 async def update_supplier(
@@ -157,35 +187,37 @@ async def update_supplier(
         "is_active": supplier.is_active
     }
 
-@router.patch("/suppliers/{supplier_id}/status")
-def update_supplier_status(supplier_id: int, is_active: bool, db: Session = Depends(get_db)):
+@router.patch("/suppliers/{supplier_id}/status", response_model=dict)
+def update_supplier_status(supplier_id: int, status_update: dict, db: Session = Depends(get_db)):
     """更新供应商状态"""
     supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
     if not supplier:
         raise HTTPException(status_code=404, detail="供应商不存在")
     
+    # 从请求体中获取is_active字段
+    is_active = status_update.get("is_active", supplier.is_active)
+    
     # 更新供应商状态
-    db.query(SupplierDB).filter(SupplierDB.id == supplier_id).update({
-        "is_active": is_active,
-        "updated_at": datetime.utcnow()
-    })
+    supplier.is_active = is_active
+    supplier.updated_at = datetime.utcnow()
     
     db.commit()
     db.refresh(supplier)
     
-    return supplier
+    # 返回包含display_name字段的供应商信息
+    return {
+        "id": supplier.id,
+        "name": supplier.name,
+        "display_name": supplier.display_name,
+        "description": supplier.description,
+        "logo": supplier.logo,
+        "website": supplier.website,
+        "created_at": supplier.created_at,
+        "updated_at": supplier.updated_at,
+        "is_active": supplier.is_active
+    }
 
-@router.delete("/suppliers/{supplier_id}")
-def delete_supplier(supplier_id: int, db: Session = Depends(get_db)):
-    """删除供应商"""
-    supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
-    if not supplier:
-        raise HTTPException(status_code=404, detail="供应商不存在")
-    
-    db.delete(supplier)
-    db.commit()
-    
-    return {"message": "供应商删除成功"}
+
 
 # 模型相关路由
 @router.get("/suppliers/{supplier_id}/models", response_model=ModelListResponse)
@@ -197,7 +229,7 @@ def get_supplier_models(supplier_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="供应商不存在")
     
     # 获取该供应商的所有模型
-    models = db.query(Model).filter(Model.supplier_id == supplier_id).all()
+    models = db.query(ModelDB).filter(ModelDB.supplier_id == supplier_id).all()
     total = len(models)
     
     # 转换为响应格式

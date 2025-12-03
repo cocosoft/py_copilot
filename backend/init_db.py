@@ -1,7 +1,9 @@
 """数据库初始化脚本"""
 from app.core.database import SessionLocal, engine
 from app.core.database import Base
-from app.models.supplier_db import SupplierDB
+from app.models.supplier_db import SupplierDB, ModelDB, ModelParameter
+from app.models.model_category import ModelCategory
+from app.models.model_capability import ModelCapability
 
 # 创建数据库表
 print("开始创建数据库表...")

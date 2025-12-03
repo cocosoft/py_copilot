@@ -6,6 +6,7 @@ const ModelCapabilityManagement = () => {
   const [capabilities, setCapabilities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null); // 添加成功状态
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [currentCapability, setCurrentCapability] = useState(null);
@@ -126,6 +127,9 @@ const ModelCapabilityManagement = () => {
       await capabilityApi.create(formData);
       setShowCreateModal(false);
       loadCapabilities(); // 重新加载列表
+      setSuccess('能力创建成功');
+      // 3秒后自动清除成功消息
+      setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       console.error('创建能力失败:', err);
       setError('创建能力失败，请检查输入并重试');
@@ -141,6 +145,9 @@ const ModelCapabilityManagement = () => {
       await capabilityApi.update(currentCapability.id, formData);
       setShowEditModal(false);
       loadCapabilities(); // 重新加载列表
+      setSuccess('能力更新成功');
+      // 3秒后自动清除成功消息
+      setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       console.error('更新能力失败:', err);
       setError('更新能力失败，请检查输入并重试');
@@ -153,6 +160,9 @@ const ModelCapabilityManagement = () => {
       try {
         await capabilityApi.delete(capabilityId);
         loadCapabilities(); // 重新加载列表
+        setSuccess('能力删除成功');
+        // 3秒后自动清除成功消息
+        setTimeout(() => setSuccess(null), 3000);
       } catch (err) {
         console.error('删除能力失败:', err);
         setError('删除能力失败，可能是因为该能力与模型存在关联');
@@ -187,6 +197,13 @@ const ModelCapabilityManagement = () => {
         <div className="alert alert-error">
           {error}
           <button onClick={() => setError(null)} className="btn btn-small">×</button>
+        </div>
+      )}
+      
+      {success && (
+        <div className="alert alert-success">
+          {success}
+          <button onClick={() => setSuccess(null)} className="btn btn-small">×</button>
         </div>
       )}
       

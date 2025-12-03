@@ -236,7 +236,7 @@ class LLMService:
                         try:
                             # 设置DeepSeek API配置
                             openai.api_key = settings.deepseek_api_key
-                            openai.api_base = "https://api.deepseek.com/v1"
+                            openai.api_base = settings.deepseek_api_base
                             
                             # 使用OpenAI兼容的接口调用DeepSeek
                             response = openai.ChatCompletion.create(

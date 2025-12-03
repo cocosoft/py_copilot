@@ -120,6 +120,7 @@ const IntegratedModelManagement = () => {
                       ) : selectedSupplier ? (
                         <ModelManagement 
                           selectedSupplier={selectedSupplier} 
+                          onSupplierUpdate={handleSupplierUpdate}
                         />
                       ) : (
                         <div className="no-selection">请先选择一个供应商</div>

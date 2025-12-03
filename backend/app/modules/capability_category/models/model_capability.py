@@ -37,8 +37,8 @@ class ModelCapabilityAssociation(Base):
     __tablename__ = "model_capability_associations"
     
     id = Column(Integer, primary_key=True, index=True)
-    model_id = Column(Integer, ForeignKey("models.id"), nullable=False)
-    capability_id = Column(Integer, ForeignKey("model_capabilities.id"), nullable=False)
+    model_id = Column(Integer, ForeignKey("models.id", ondelete="CASCADE"), nullable=False)
+    capability_id = Column(Integer, ForeignKey("model_capabilities.id", ondelete="CASCADE"), nullable=False)
     
     # 可以添加额外的关联属性，如能力的具体配置、限制等
     config = Column(String(255), nullable=True)

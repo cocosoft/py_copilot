@@ -58,6 +58,7 @@ class ModelBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     display_name: str = Field(..., min_length=1, max_length=100)
     description: Optional[str] = None
+    model_type: str = Field(default="chat", max_length=50)  # 模型类型：chat, completion, embedding等
     context_window: Optional[int] = None
     max_tokens: Optional[int] = None
     is_default: bool = False
@@ -66,7 +67,7 @@ class ModelBase(BaseModel):
 
 class ModelCreate(ModelBase):
     """创建模型请求模型"""
-    supplier_id: int
+    pass
 
 
 class ModelUpdate(BaseModel):
@@ -74,6 +75,7 @@ class ModelUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     display_name: Optional[str] = Field(None, min_length=1, max_length=100)
     description: Optional[str] = None
+    model_type: Optional[str] = Field(None, max_length=50)
     context_window: Optional[int] = None
     max_tokens: Optional[int] = None
     is_default: Optional[bool] = None

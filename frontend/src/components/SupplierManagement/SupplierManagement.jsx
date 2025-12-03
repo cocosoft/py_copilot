@@ -75,6 +75,7 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('add'); // 'add' 或 'edit'
   const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState(null); // 成功消息状态
 
   // 从SupplierDetail.jsx中提取的getSupplierLogo函数
   const getSupplierLogo = (supplier) => {
@@ -168,6 +169,11 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
       // 关闭模态窗口
       handleCloseModal();
       
+      // 显示成功消息
+      setSuccess(modalMode === 'add' ? '供应商创建成功' : '供应商更新成功');
+      // 3秒后自动清除成功消息
+      setTimeout(() => setSuccess(null), 3000);
+      
       // 返回成功信息
       return { success: true };
       
@@ -232,6 +238,8 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
         <div className="loading">加载中...</div>
       ) : error ? (
         <div className="error">{error}</div>
+      ) : success ? (
+        <div className="success">{success}</div>
       ) : (
         <div className="supplier-list">
           {sortedSuppliers.map(supplier => (

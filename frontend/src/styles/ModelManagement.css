@@ -1,4 +1,13 @@
 /* 供应商和模型管理通用样式 */
+.success {
+  background-color: #d4edda;
+  color: #155724;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  border: 1px solid #c3e6cb;
+  font-weight: 500;
+}
 .integrated-model-management {
   padding: 20px;
   background-color: #f8f9fa;

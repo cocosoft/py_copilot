@@ -56,6 +56,12 @@ export const request = async (endpoint, options = {}) => {
       throw new Error(errorMessage);
     }
     
+    // 特别处理204 No Content（DELETE请求的标准响应）
+    if (response.status === 204) {
+      console.log('✅ API请求成功，返回204 No Content');
+      return null; // 204响应没有内容，返回null
+    }
+    
     // 检查响应内容类型
     const contentType = response.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
@@ -76,7 +82,8 @@ export const request = async (endpoint, options = {}) => {
 // 检查网络连接
 export const checkNetworkConnection = async () => {
   try {
-    const response = await fetch('/api/health', { method: 'HEAD', cache: 'no-cache' });
+    // 健康检查端点不需要/api前缀，直接访问根路径下的/health
+    const response = await fetch('/health', { method: 'HEAD', cache: 'no-cache' });
     return response.ok;
   } catch {
     return false;

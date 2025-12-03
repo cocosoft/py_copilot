@@ -89,6 +89,7 @@ export const categoryApi = {
   // 更新分类
   update: async (categoryId, updatedData) => {
     try {
+      console.log('🔄 发送更新请求数据:', { categoryId, updatedData });
       return await request(`/model/categories/${categoryId}`, {
         method: 'PUT',
         body: JSON.stringify(updatedData),

@@ -11,6 +11,7 @@ class SupplierDB(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), unique=True, index=True)
+    display_name = Column(String(200))  # 新增display_name字段，与name保持一致
     description = Column(Text, nullable=True)
     api_endpoint = Column(String(255), nullable=True)
     api_key_required = Column(Boolean, default=False)
@@ -38,8 +39,9 @@ class ModelDB(Base):
     display_name = Column(String(200))
     description = Column(Text, nullable=True)
     supplier_id = Column(Integer, ForeignKey("suppliers.id", ondelete="CASCADE"), nullable=False)
-    model_type = Column(String(50), nullable=False, default="language")  # 模型类型: language, vision, multimodal, audio等
-    sub_type = Column(String(50), nullable=True)  # 子类型: chat, completion, embedding, image_generation等
+    model_type = Column(String(50), default="chat", nullable=False)  # 模型类型：chat, completion, embedding等
+    context_window = Column(Integer, nullable=True)  # 上下文窗口大小
+    max_tokens = Column(Integer, nullable=True)  # 最大token数
     is_default = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -46,8 +46,8 @@ class ModelCapabilityAssociation(Base):
     __tablename__ = "model_capability_associations"
     
     id = Column(Integer, primary_key=True, index=True)
-    model_id = Column(Integer, ForeignKey("models.id"), nullable=False)
-    capability_id = Column(Integer, ForeignKey("model_capabilities.id"), nullable=False)
+    model_id = Column(Integer, ForeignKey("models.id", ondelete="CASCADE"), nullable=False)
+    capability_id = Column(Integer, ForeignKey("model_capabilities.id", ondelete="CASCADE"), nullable=False)
     
     # 简单配置（兼容旧系统）
     config = Column(String(255), nullable=True)

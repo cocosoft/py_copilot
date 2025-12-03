@@ -64,7 +64,7 @@ class ModelBase(BaseModel):
 
 class ModelCreate(ModelBase):
     """创建模型请求模型"""
-    supplier_id: int
+    pass
 
 
 class ModelUpdate(BaseModel):

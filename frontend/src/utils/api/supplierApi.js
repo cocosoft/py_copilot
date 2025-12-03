@@ -141,36 +141,17 @@ export const supplierApi = {
     console.log('🔄 supplierApi.updateSupplierStatus - ID:', id, '转换为数字:', numericId);
     console.log('🔄 supplierApi.updateSupplierStatus - 新状态:', isActive);
     
-    // 先获取当前供应商的完整数据，使用直接的request调用避免循环引用
-    const getEndpoint = `/model-management/suppliers/${numericId}`;
-    console.log('🔄 supplierApi.updateSupplierStatus - 获取供应商数据的端点:', getEndpoint);
-    const currentSupplier = await request(getEndpoint, { method: 'GET' });
-    console.log('🔄 supplierApi.updateSupplierStatus - 当前供应商数据:', currentSupplier);
-    
-    // 重要：使用FormData而不是JSON，因为后端API使用Form参数接收数据
-    const formData = new FormData();
-    
-    // 只需要更新is_active字段，后端会保留其他字段的当前值
-    formData.append('is_active', isActive.toString());
-    
-    // 如果当前供应商有logo，设置existing_logo以防止logo丢失
-    if (currentSupplier.logo) {
-      formData.append('existing_logo', currentSupplier.logo);
-    }
-    
-    console.log('🔄 supplierApi.updateSupplierStatus - 发送到后端的FormData数据:');
-    console.log('  is_active:', isActive);
-    console.log('  existing_logo:', currentSupplier.logo || '无');
-    
-    // 使用正确的端点
-    const endpoint = `/model-management/suppliers/${numericId}`;
+    // 使用专门的状态更新端点(PATCH请求)
+    const endpoint = `/model-management/suppliers/${numericId}/status`;
     console.log('🔄 supplierApi.updateSupplierStatus - endpoint:', endpoint);
     
-    // 发送PUT请求，不设置Content-Type，让浏览器自动设置
+    // 发送PATCH请求，使用JSON格式
     const response = await request(endpoint, {
-      method: 'PUT',
-      body: formData
-      // 不设置Content-Type，FormData会自动处理
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ is_active: isActive })
     });
     
     console.log('✅ supplierApi.updateSupplierStatus - 状态更新成功');
@@ -180,6 +161,7 @@ export const supplierApi = {
       id: response.id,
       key: String(response.id),
       name: response.name,
+      display_name: response.display_name,
       description: response.description || '',
       website: response.website || '',
       api_endpoint: response.api_endpoint || '',

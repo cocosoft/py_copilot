@@ -191,41 +191,17 @@ async def get_models(
     Returns:
         模型列表
     """
-    # 供应商验证已移除，现在使用数据库中的suppliers表
+    print(f"收到获取供应商 {supplier_id} 模型列表的请求")
     
-    models = db.query(Model).filter(
-        Model.supplier_id == supplier_id
-    ).offset(skip).limit(limit).all()
+    # 查询数据库获取模型数据
+    models = db.query(Model).filter(Model.supplier_id == supplier_id).offset(skip).limit(limit).all()
     total = db.query(Model).filter(Model.supplier_id == supplier_id).count()
     
-    # 转换模型数据为响应格式
-    model_responses = []
-    for model in models:
-        # 创建符合ModelResponse结构的字典，为缺少的字段提供默认值
-        model_data = {
-            "id": model.id,
-            "supplier_id": model.supplier_id,
-            "model_id": getattr(model, "model_id", str(model.id)),  # 使用id作为默认model_id
-            "name": getattr(model, "name", ""),
-            "description": getattr(model, "description", None),
-            "type": getattr(model, "type", "chat"),  # 默认类型为chat
-            "context_window": getattr(model, "context_window", 8000),
-            "default_temperature": getattr(model, "default_temperature", 0.7),
-            "default_max_tokens": getattr(model, "max_tokens", 1000) or getattr(model, "default_max_tokens", 1000),
-            "default_top_p": getattr(model, "default_top_p", 1.0),
-            "default_frequency_penalty": getattr(model, "default_frequency_penalty", 0.0),
-            "default_presence_penalty": getattr(model, "default_presence_penalty", 0.0),
-            "custom_params": getattr(model, "custom_params", None),
-            "is_active": getattr(model, "is_active", True),
-            "is_default": getattr(model, "is_default", False),
-            "created_at": getattr(model, "created_at", datetime.now()),
-            "updated_at": getattr(model, "updated_at", None),
-            "categories": []
-        }
-        model_responses.append(model_data)
+    print(f"返回 {len(models)} 个模型，总计 {total} 个模型")
     
+    # 返回数据库查询结果
     return ModelListResponse(
-        models=model_responses,
+        models=models,
         total=total
     )
 

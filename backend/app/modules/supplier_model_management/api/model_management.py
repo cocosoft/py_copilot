@@ -12,6 +12,7 @@ from datetime import datetime
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.models.supplier_db import SupplierDB, ModelDB as Model
+from sqlalchemy import inspect
 
 # 从core导入数据库依赖
 from app.core.dependencies import get_db
@@ -34,6 +35,8 @@ print(f"文件上传目录: {UPLOAD_DIR}")  # 添加日志以便调试
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 
 # 模拟用户相关定义已在其他地方声明
+
+# 移除重复函数定义
 
 def allowed_file(filename):
     """检查文件扩展名是否允许"""
@@ -491,7 +494,7 @@ async def get_models(
     current_user: MockUser = Depends(get_mock_user)
 ) -> Any:
     """
-    获取指定供应商的模型列表
+    获取指定供应商的所有模型
     
     Args:
         supplier_id: 供应商ID
@@ -503,38 +506,12 @@ async def get_models(
     Returns:
         模型列表
     """
-    # 验证供应商是否存在
-    supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
-    if not supplier:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="供应商不存在"
-        )
-    
-    models = db.query(Model).filter(
-        Model.supplier_id == supplier_id
-    ).offset(skip).limit(limit).all()
+    # 从数据库中查询指定供应商的模型
+    models = db.query(Model).filter(Model.supplier_id == supplier_id).offset(skip).limit(limit).all()
     total = db.query(Model).filter(Model.supplier_id == supplier_id).count()
     
-    model_responses = [
-        ModelResponse(
-            id=model.id,
-            name=model.name,
-            display_name=getattr(model, "display_name", model.name),
-            description=model.description,
-            supplier_id=model.supplier_id,
-            context_window=model.context_window,
-            max_tokens=getattr(model, "max_tokens", None),
-            is_default=model.is_default,
-            is_active=model.is_active,
-            created_at=model.created_at,
-            updated_at=model.updated_at
-        )
-        for model in models
-    ]
-    
     return ModelListResponse(
-        models=model_responses,
+        models=models,
         total=total
     )
 

@@ -12,8 +12,10 @@ function App() {
           <ApiKeyUpdater />
           {/* 添加独立的顶部标题栏 */}
           <header className="app-header">
-            <img src="/app-logo.png" alt="App Logo" className="app-logo" width="36" height="36" />
-            <h1 style={{ marginLeft: '10px' }}>Py Copilot</h1>
+            <a href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+              <img src="/app-logo.png" alt="App Logo" className="app-logo" width="36" height="36" />
+              <h1 style={{ marginLeft: '10px' }}>Py Copilot</h1>
+            </a>
           </header>
           <div className="app-body">
             <Navbar />
