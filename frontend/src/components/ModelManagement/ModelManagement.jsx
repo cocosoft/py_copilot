@@ -263,6 +263,15 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
 
   return (
     <div className="model-management-container">
+      {/* 供应商详情 */}
+      <div className="supplier-detail-section">
+        <SupplierDetail
+          selectedSupplier={selectedSupplier}
+          onSupplierSelect={onSupplierSelect}
+          onSupplierUpdate={onSupplierUpdate}
+        />
+      </div>
+
       {/* 供应商选择和模型管理界面 */}
       {selectedModel ? (
         <div className="model-parameters-section">

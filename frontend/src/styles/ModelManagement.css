@@ -1,4 +1,24 @@
 /* 供应商和模型管理通用样式 */
+
+/* 供应商详情区域样式 */
+.supplier-detail-section {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.supplier-detail-section .supplier-detail {
+  max-width: 100%;
+}
+
+/* 确保供应商详情与模型管理区域布局协调 */
+.model-management-container {
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
 .success {
   background-color: #d4edda;
   color: #155724;
