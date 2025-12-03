@@ -372,3 +372,28 @@ def delete_model(supplier_id: int, model_id: int, db: Session = Depends(get_db))
     db.commit()
     
     return {"message": "模型删除成功"}
+
+@router.get("/models", response_model=ModelListResponse)
+def get_all_models(db: Session = Depends(get_db)):
+    """获取所有模型（通用接口）"""
+    # 获取所有模型
+    models = db.query(ModelDB).all()
+    total = len(models)
+    
+    # 转换为响应格式
+    model_responses = [
+        ModelResponse(
+            id=str(model.id),
+            name=str(model.name) if model.name is not None else "",
+            display_name=str(getattr(model, "display_name", model.name)) if getattr(model, "display_name", model.name) is not None else "",
+            description=str(model.description) if model.description is not None else None,
+            supplier_id=int(model.supplier_id),
+            context_window=int(model.context_window) if model.context_window is not None else None,
+            max_tokens=int(getattr(model, "max_tokens", model.default_max_tokens)) if getattr(model, "max_tokens", model.default_max_tokens) is not None else None,
+            is_default=bool(model.is_default),
+            is_active=bool(model.is_active)
+        )
+        for model in models
+    ]
+    
+    return ModelListResponse(models=model_responses, total=total)

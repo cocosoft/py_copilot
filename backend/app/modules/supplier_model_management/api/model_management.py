@@ -689,3 +689,32 @@ async def set_default_model(
     db.commit()
     db.refresh(model)
     return model
+
+
+@router.get("/models", response_model=ModelListResponse)
+async def get_all_models(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: MockUser = Depends(get_mock_user)
+) -> Any:
+    """
+    获取所有模型（通用接口）
+    
+    Args:
+        skip: 跳过的记录数
+        limit: 返回的最大记录数
+        db: 数据库会话
+        current_user: 当前活跃的超级用户
+    
+    Returns:
+        所有模型列表
+    """
+    # 从数据库中查询所有模型
+    models = db.query(Model).offset(skip).limit(limit).all()
+    total = db.query(Model).count()
+    
+    return ModelListResponse(
+        models=models,
+        total=total
+    )

@@ -118,3 +118,46 @@ class ModelListResponse(BaseModel):
 class SetDefaultModelRequest(BaseModel):
     """设置默认模型请求模型"""
     model_id: int
+
+
+# Model Parameter 相关schemas
+class ModelParameterBase(BaseModel):
+    """模型参数基础模型"""
+    model_config = ConfigDict(protected_namespaces=())
+    parameter_name: str = Field(..., min_length=1, max_length=100)
+    parameter_value: str = Field(..., min_length=1)
+    parameter_type: str = Field(default="string", pattern="^(string|number|boolean|json)$")
+    description: Optional[str] = None
+    is_required: bool = False
+    is_active: bool = True
+
+
+class ModelParameterCreate(ModelParameterBase):
+    """创建模型参数请求模型"""
+    model_id: int
+
+
+class ModelParameterUpdate(BaseModel):
+    """更新模型参数请求模型"""
+    parameter_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    parameter_value: Optional[str] = None
+    parameter_type: Optional[str] = Field(None, pattern="^(string|number|boolean|json)$")
+    description: Optional[str] = None
+    is_required: Optional[bool] = None
+    is_active: Optional[bool] = None
+
+
+class ModelParameterResponse(ModelParameterBase):
+    """模型参数响应模型"""
+    id: int
+    model_id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ModelParameterListResponse(BaseModel):
+    """模型参数列表响应模型"""
+    parameters: List[ModelParameterResponse]
+    total: int

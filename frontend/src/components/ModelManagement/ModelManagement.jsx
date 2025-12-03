@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ModelModal from './ModelModal';
+import ModelParameterModal from './ModelParameterModal';
 import SupplierDetail from '../SupplierManagement/SupplierDetail';
 import '../../styles/ModelManagement.css';
 import api from '../../utils/api';
@@ -11,21 +12,20 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
   const [currentModel, setCurrentModel] = useState(null);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(null); // 成功消息状态
-  // 供应商相关状态已移至SupplierDetail组件中
+  
   // 模型模态框相关状态
   const [isModelModalOpen, setIsModelModalOpen] = useState(false);
   const [modelModalMode, setModelModalMode] = useState('add');
   const [editingModel, setEditingModel] = useState(null);
-  const [newModel, setNewModel] = useState({
-    id: '',
-    name: '',
-    description: '',
-    contextWindow: 8000,
-    isDefault: false
-  });
+  
+  // 模型参数相关状态
+  const [modelParameters, setModelParameters] = useState([]);
+  const [selectedModel, setSelectedModel] = useState(null);
+  const [isParameterModalOpen, setIsParameterModalOpen] = useState(false);
+  const [parameterModalMode, setParameterModalMode] = useState('add');
+  const [editingParameter, setEditingParameter] = useState(null);
 
   // 当选择的供应商改变时，加载对应模型列表
-  // 初始加载时，如果有供应商，加载其模型
   useEffect(() => {
     if (selectedSupplier) {
       loadModels();
@@ -98,346 +98,322 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
       const errorMessage = err.message || '加载模型失败';
       console.error('❌ 加载模型失败:', errorMessage);
       setError(`加载模型失败: ${errorMessage}`);
-      
-      // 降级处理：如果是DeepSeek供应商，创建默认模型
-      if (selectedSupplier.key === 'deepseek') {
-        console.log('⚠️ 降级处理：为DeepSeek供应商创建默认模型');
-        const defaultModel = {
-          id: 'deepseek-chat',
-          model_id: 'deepseek-chat',
-          name: 'DeepSeek Chat',
-          description: 'DeepSeek的默认聊天模型',
-          contextWindow: 8000,
-          isDefault: true,
-          supplier_id: selectedSupplier.id,
-          modelType: 'chat',
-          maxTokens: 1000,
-          is_active: true
-        };
-        setCurrentModels([defaultModel]);
-      }
     } finally {
       setLoading(false);
     }
   };
 
-  // 设置默认模型
-  const handleSetDefault = async (modelId) => {
-    if (!selectedSupplier || saving) return;
-
-    try {
-      setSaving(true);
-      console.log('🔄 设置默认模型，供应商ID:', selectedSupplier.id, '模型ID:', modelId);
-      // 使用selectedSupplier.id调用更新后的API方法
-      await api.modelApi.setDefault(selectedSupplier.id, modelId);
-      
-      // 更新本地状态
-      console.log('✅ 默认模型设置成功');
-      const updatedModels = currentModels.map(model => ({
-        ...model,
-        isDefault: model.id === modelId
-      }));
-      setCurrentModels(updatedModels);
-    } catch (err) {
-      const errorMessage = err.message || '设置默认模型失败';
-      console.error('❌ 设置默认模型失败:', errorMessage);
-      setError(`设置默认模型失败: ${errorMessage}`);
-      
-      // 降级处理：本地更新
-      console.log('⚠️ 降级处理：本地设置默认模型');
-      const updatedModels = currentModels.map(model => ({
-        ...model,
-        isDefault: model.id === modelId
-      }));
-      setCurrentModels(updatedModels);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // 保存模型
-  const handleSaveModel = async () => {
-    if (!currentModel || !selectedSupplier || saving) return;
-
-    try {
-      setSaving(true);
-      // 使用selectedSupplier.id的原始值（字符串）
-      await api.modelApi.update(selectedSupplier.id, currentModel.id, currentModel);
-      await loadModels();
-      setIsEditing(false);
-    } catch (err) {
-      setError('更新模型失败');
-      console.error('Failed to update model:', err);
-      // 降级处理：本地更新
-      const updatedModels = currentModels.map(model =>
-        model.id === currentModel.id ? currentModel : model
-      );
-      setCurrentModels(updatedModels);
-      setIsEditing(false);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // 保存模型数据（新增或更新）
-  const handleSaveModelData = async (modelData) => {
-    if (!selectedSupplier || saving) return;
-
-    try {
-      setSaving(true);
-      
-      // 根据模态框模式调用不同的API方法
-      if (modelModalMode === 'add') {
-        console.log('🔄 添加新模型，供应商ID:', selectedSupplier.id, '模型数据:', modelData);
-        // 使用API的create方法并传入已格式化的数据
-        await api.modelApi.create(selectedSupplier.id, modelData);
-        console.log('✅ 模型添加成功');
-      } else {
-        console.log('🔄 更新模型，供应商ID:', selectedSupplier.id, '模型ID:', modelData.id);
-        // 使用API的update方法
-        await api.modelApi.update(selectedSupplier.id, modelData.id, modelData);
-        console.log('✅ 模型更新成功');
-      }
-      
-      // 重新加载模型列表
-      await loadModels();
-      // 关闭模态框
-      handleCloseModelModal();
-      // 显示成功消息
-      setSuccess(modelModalMode === 'add' ? '模型创建成功' : '模型更新成功');
-      // 3秒后自动清除成功消息
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      const action = modelModalMode === 'add' ? '添加' : '更新';
-      const errorMessage = err.message || `${action}模型失败`;
-      console.error(`❌ ${action}模型失败:`, errorMessage);
-      setError(`模型${action}失败: ${errorMessage}`);
-      
-      // 降级处理：本地更新
-      console.log('⚠️ 降级处理：本地更新模型数据');
-      if (modelModalMode === 'add') {
-        const localModel = {
-          id: modelData.id || String(Date.now()),
-          model_id: modelData.id,
-          name: modelData.name || '未命名模型',
-          description: modelData.description || '暂无描述',
-          contextWindow: modelData.contextWindow || 8000,
-          isDefault: modelData.isDefault || currentModels.length === 0,
-          supplier_id: selectedSupplier.id,
-          modelType: modelData.modelType || 'chat',
-          maxTokens: modelData.maxTokens || 1000,
-          is_active: true
-        };
-        setCurrentModels([...currentModels, localModel]);
-      } else {
-        const updatedModels = currentModels.map(model =>
-          model.id === modelData.id ? {
-            ...model,
-            ...modelData
-          } : model
-        );
-        setCurrentModels(updatedModels);
-      }
-      
-      // 关闭模态框
-      handleCloseModelModal();
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // 添加新模型已整合到handleSaveModelData方法中，通过模态框处理
-
-  // 删除模型
-  const handleDeleteModel = async (modelId) => {
-    if (!selectedSupplier || saving) return;
-
-    if (!window.confirm('确定要删除这个模型吗？')) {
-      return;
-    }
-
-    try {
-      setSaving(true);
-      console.log('🔄 删除模型，供应商ID:', selectedSupplier.id, '模型ID:', modelId);
-      // 使用selectedSupplier.id调用更新后的API方法
-      await api.modelApi.delete(selectedSupplier.id, modelId);
-      console.log('✅ 模型删除成功');
-      await loadModels();
-    } catch (err) {
-      const errorMessage = err.message || '删除模型失败';
-      console.error('❌ 删除模型失败:', errorMessage);
-      setError(`删除模型失败: ${errorMessage}`);
-      
-      // 降级处理：本地删除
-      console.log('⚠️ 降级处理：本地删除模型');
-      const modelToDelete = currentModels.find(model => model.id === modelId);
-      const updatedModels = currentModels.filter(model => model.id !== modelId);
-
-      // 如果删除的是默认模型，将第一个模型设为默认
-      if (modelToDelete?.isDefault && updatedModels.length > 0) {
-        updatedModels[0].isDefault = true;
-      }
-
-      setCurrentModels(updatedModels);
-    } finally {
-      setSaving(false);
-    }
+  // 添加模型
+  const handleAddModelClick = () => {
+    setEditingModel(null);
+    setModelModalMode('add');
+    setIsModelModalOpen(true);
   };
 
   // 编辑模型
-  const handleEditModel = (model) => {
-    setCurrentModel({ ...model });
-    setIsEditing(true);
-  };
-
-  if (!selectedSupplier) {
-    return (
-      <div className="model-management">
-        <div className="model-header">
-          <h3>模型管理</h3>
-          {success && (
-            <div className="success">{success}</div>
-          )}
-          {selectedSupplier && (
-            <button
-              className="btn btn-primary"
-              onClick={handleAddModelClick}
-              disabled={saving}
-            >
-              添加模型
-            </button>
-          )}
-        </div>
-        <div className="no-supplier-selected">
-          <p>请先选择一个供应商</p>
-        </div>
-      </div>
-    );
-  }
-
-  // 供应商相关函数已移至SupplierDetail组件中
-  // 为显示供应商logo保留必要的辅助函数
-  const getSupplierLogo = (supplier) => {
-    if (!supplier) return null;
-    
-    // 根据供应商key返回简单的logo或图标
-    const logoStyles = {
-      width: '24px',
-      height: '24px',
-      display: 'inline-flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: '#f0f0f0',
-      borderRadius: '4px',
-      fontSize: '14px',
-      fontWeight: 'bold'
-    };
-    
-    // 返回供应商名称的首字母作为简单logo
-    return <span style={logoStyles}>{supplier.name.charAt(0)}</span>;
-  };
-
-  // 供应商相关处理函数已移至SupplierDetail组件中
-  
-  // 处理打开添加模型模态窗口
-  const handleAddModelClick = () => {
-    setModelModalMode('add');
-    setEditingModel(null);
-    setIsModelModalOpen(true);
-  };
-  
-  // 处理编辑模型
   const handleEditModelClick = (model) => {
-    setEditingModel({ ...model });
+    setEditingModel(model);
     setModelModalMode('edit');
     setIsModelModalOpen(true);
   };
-  
-  // 处理关闭模型模态窗口
+
+  // 关闭模型模态框
   const handleCloseModelModal = () => {
     setIsModelModalOpen(false);
     setEditingModel(null);
   };
 
-  // 供应商相关函数和处理逻辑已移至SupplierDetail组件中
+  // 保存模型数据
+  const handleSaveModelData = async (modelData) => {
+    try {
+      setSaving(true);
+      if (modelModalMode === 'add') {
+        await api.modelApi.create(selectedSupplier.id, modelData);
+        setSuccess('模型添加成功');
+      } else {
+        await api.modelApi.update(selectedSupplier.id, editingModel.id, modelData);
+        setSuccess('模型更新成功');
+      }
+      await loadModels();
+    } catch (err) {
+      const errorMessage = err.message || '保存模型失败';
+      console.error('❌ 保存模型失败:', errorMessage);
+      setError(`保存模型失败: ${errorMessage}`);
+    } finally {
+      setSaving(false);
+      setIsModelModalOpen(false);
+      setSuccess(null);
+    }
+  };
+
+  // 删除模型
+  const handleDeleteModel = async (modelId) => {
+    if (window.confirm('确定要删除这个模型吗？')) {
+      try {
+        setSaving(true);
+        await api.modelApi.delete(selectedSupplier.id, modelId);
+        setSuccess('模型删除成功');
+        await loadModels();
+      } catch (err) {
+        const errorMessage = err.message || '删除模型失败';
+        console.error('❌ 删除模型失败:', errorMessage);
+        setError(`删除模型失败: ${errorMessage}`);
+      } finally {
+        setSaving(false);
+        setSuccess(null);
+      }
+    }
+  };
+
+  // 设置默认模型
+  const handleSetDefault = async (modelId) => {
+    try {
+      setSaving(true);
+      await api.modelApi.setDefault(selectedSupplier.id, modelId);
+      setSuccess('默认模型设置成功');
+      await loadModels();
+    } catch (err) {
+      const errorMessage = err.message || '设置默认模型失败';
+      console.error('❌ 设置默认模型失败:', errorMessage);
+      setError(`设置默认模型失败: ${errorMessage}`);
+    } finally {
+      setSaving(false);
+      setSuccess(null);
+    }
+  };
+
+  // 模型参数相关处理函数
+  const handleViewParameters = (model) => {
+    setSelectedModel(model);
+    loadModelParameters(model.id);
+  };
+
+  const handleBackToModels = () => {
+    setSelectedModel(null);
+    setModelParameters([]);
+  };
+
+  const loadModelParameters = async (modelId) => {
+    try {
+      setLoading(true);
+      const parameters = await api.modelApi.getParameters(selectedSupplier.id, modelId);
+      setModelParameters(parameters);
+    } catch (err) {
+      console.error('加载模型参数失败:', err);
+      setError('加载模型参数失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddParameterClick = () => {
+    setEditingParameter(null);
+    setParameterModalMode('add');
+    setIsParameterModalOpen(true);
+  };
+
+  const handleEditParameterClick = (parameter) => {
+    setEditingParameter(parameter);
+    setParameterModalMode('edit');
+    setIsParameterModalOpen(true);
+  };
+
+  const handleCloseParameterModal = () => {
+    setIsParameterModalOpen(false);
+    setEditingParameter(null);
+  };
+
+  const handleSaveParameterData = async (parameterData) => {
+    try {
+      setSaving(true);
+      if (parameterModalMode === 'add') {
+        await api.modelApi.createParameter(selectedSupplier.id, selectedModel.id, parameterData);
+        setSuccess('参数添加成功');
+      } else {
+        await api.modelApi.updateParameter(selectedSupplier.id, selectedModel.id, editingParameter.id, parameterData);
+        setSuccess('参数更新成功');
+      }
+      loadModelParameters(selectedModel.id);
+    } catch (err) {
+      console.error('保存参数失败:', err);
+      setError('保存参数失败');
+    } finally {
+      setSaving(false);
+      setIsParameterModalOpen(false);
+      setSuccess(null);
+    }
+  };
+
+  const handleDeleteParameter = async (parameterId) => {
+    if (window.confirm('确定要删除这个参数吗？')) {
+      try {
+        setSaving(true);
+        await api.modelApi.deleteParameter(selectedSupplier.id, selectedModel.id, parameterId);
+        setSuccess('参数删除成功');
+        loadModelParameters(selectedModel.id);
+      } catch (err) {
+        console.error('删除参数失败:', err);
+        setError('删除参数失败');
+      } finally {
+        setSaving(false);
+        setSuccess(null);
+      }
+    }
+  };
 
   return (
-    <div className="model-management">
-      {/* 使用SupplierDetail组件显示供应商详情 */}
-      <SupplierDetail 
-        selectedSupplier={selectedSupplier} 
-        onSupplierUpdate={onSupplierUpdate} 
-        onSupplierSelect={onSupplierSelect}
-      />
+    <div className="model-management-container">
+      {/* 供应商选择和模型管理界面 */}
+      {selectedModel ? (
+        <div className="model-parameters-section">
+          <div className="section-header">
+            <h2>{selectedModel.name} - 参数管理</h2>
+            <div className="section-actions">
+              <button
+                className="btn btn-primary"
+                onClick={() => handleAddParameterClick()}
+                disabled={saving}
+              >
+                添加参数
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={() => handleBackToModels()}
+                disabled={saving}
+              >
+                返回模型列表
+              </button>
+            </div>
+          </div>
 
-      {/* 新增模型功能已移至模态对话框 */}
-
-      {/* 模型列表 */}
-      {loading ? (
-        <div className="loading">加载中...</div>
-      ) : error ? (
-        <div className="error-message">{error}</div>
+          {loading ? (
+            <div className="loading-state">加载参数中...</div>
+          ) : error ? (
+            <div className="error-message">{error}</div>
+          ) : modelParameters.length === 0 ? (
+            <div className="empty-state">暂无参数，请添加参数</div>
+          ) : (
+            <div className="parameters-table-container">
+              <table className="parameters-table">
+                <thead>
+                  <tr>
+                    <th>参数名称</th>
+                    <th>参数值</th>
+                    <th>类型</th>
+                    <th>默认值</th>
+                    <th>描述</th>
+                    <th>必填</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {modelParameters.map((param) => (
+                    <tr key={param.id}>
+                      <td>{param.parameter_name}</td>
+                      <td>{param.parameter_value}</td>
+                      <td>{param.parameter_type}</td>
+                      <td>{param.default_value}</td>
+                      <td>{param.description}</td>
+                      <td>{param.is_required ? '是' : '否'}</td>
+                      <td>
+                        <div className="parameter-actions">
+                          <button
+                            className="btn btn-secondary btn-small"
+                            onClick={() => handleEditParameterClick(param)}
+                            disabled={saving}
+                          >
+                            编辑
+                          </button>
+                          <button
+                            className="btn btn-danger btn-small"
+                            onClick={() => handleDeleteParameter(param.id)}
+                            disabled={saving}
+                          >
+                            删除
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       ) : (
-        <div className="model-list panel">
-          <h4>模型列表</h4>        <button
-            className="btn btn-primary"
-            onClick={handleAddModelClick}
-            disabled={saving}
-          >
-            添加模型
-          </button>
-          <div className="model-items">
-            {currentModels.length === 0 ? (
-              <p className="empty-message">该供应商暂无模型，请添加模型</p>
+        <div className="model-management-section">
+          {/* 模型列表 */}
+          <div className="model-section">
+            <div className="section-header">
+              <h2>模型列表</h2>
+              <button
+                className="btn btn-primary"
+                onClick={() => handleAddModelClick()}
+                disabled={saving || !selectedSupplier}
+              >
+                添加模型
+              </button>
+            </div>
+
+            {loading ? (
+              <div className="loading-state">加载模型中...</div>
+            ) : error ? (
+              <div className="error-message">{error}</div>
+            ) : currentModels.length === 0 ? (
+              <div className="empty-state">暂无模型，请添加模型</div>
             ) : (
-              currentModels.map(model => (
-                <div key={model.id} className={`model-item ${model.isDefault ? 'default' : ''}`}>
-                  <div className="model-info">
-                    <div className="model-header-info">
-                      <span className="model-name">{model.name}</span>
-                      {model.isDefault && <span className="model-default-tag">默认</span>}
+              <div className="models-container">
+                {currentModels.map((model) => (
+                  <div key={model.id} className={`model-card ${model.is_default ? 'default' : ''}`}>
+                    <div className="model-header">
+                      <h3 className="model-name">{model.name}</h3>
+                      {model.is_default && <span className="default-badge">默认</span>}
                     </div>
                     <div className="model-desc">{model.description}</div>
                     <div className="model-meta">
                       <span className="context-window">上下文窗口: {model.contextWindow}</span>
                     </div>
-                  </div>
 
-                  <div className="model-actions">
-                    {!model.isDefault && (
+                    <div className="model-actions">
+                      {!model.is_default && (
+                        <button
+                          className="btn btn-secondary btn-small"
+                          onClick={() => handleSetDefault(model.id)}
+                          disabled={saving}
+                        >
+                          设为默认
+                        </button>
+                      )}
                       <button
                         className="btn btn-secondary btn-small"
-                        onClick={() => handleSetDefault(model.id)}
+                        onClick={() => handleEditModelClick(model)}
                         disabled={saving}
                       >
-                        设为默认
+                        编辑
                       </button>
-                    )}
-                    <button
-                      className="btn btn-secondary btn-small"
-                      onClick={() => handleEditModelClick(model)}
-                      disabled={saving}
-                    >
-                      编辑
-                    </button>
-                    <button
-                      className="btn btn-danger btn-small"
-                      onClick={() => handleDeleteModel(model.id)}
-                      disabled={saving}
-                    >
-                      删除
-                    </button>
+                      <button
+                        className="btn btn-success btn-small"
+                        onClick={() => handleViewParameters(model)}
+                        disabled={saving}
+                      >
+                        管理参数
+                      </button>
+                      <button
+                        className="btn btn-danger btn-small"
+                        onClick={() => handleDeleteModel(model.id)}
+                        disabled={saving}
+                      >
+                        删除
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
         </div>
       )}
 
-      {/* 编辑模型功能已移至模态对话框 */}
-      {/* 供应商相关的模态窗口已移至SupplierDetail组件中 */}
-      
       {/* 模型模态窗口 */}
       <ModelModal
         isOpen={isModelModalOpen}
@@ -446,6 +422,15 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
         model={editingModel}
         mode={modelModalMode}
         isFirstModel={currentModels.length === 0}
+      />
+
+      {/* 模型参数模态窗口 */}
+      <ModelParameterModal
+        isOpen={isParameterModalOpen}
+        onClose={handleCloseParameterModal}
+        onSave={handleSaveParameterData}
+        parameter={editingParameter}
+        mode={parameterModalMode}
       />
     </div>
   );

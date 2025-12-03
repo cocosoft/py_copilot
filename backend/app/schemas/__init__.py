@@ -30,5 +30,7 @@ __all__ = [
     # Model Capability
     "ModelCapabilityBase", "ModelCapabilityCreate", "ModelCapabilityUpdate", "ModelCapabilityResponse", "ModelCapabilityListResponse", "ModelCapabilityAssociationCreate", "ModelCapabilityAssociationUpdate", "ModelCapabilityAssociationResponse", "ModelWithCapabilitiesResponse", "CapabilityWithModelsResponse",
     # Model Management
-    "ModelSupplierBase", "ModelSupplierCreate", "ModelSupplierUpdate", "ModelSupplierResponse", "ModelSupplierListResponse", "ModelBase", "ModelCreate", "ModelUpdate", "ModelResponse", "ModelListResponse", "ModelWithSupplierResponse",
+    "ModelSupplierBase", "ModelSupplierCreate", "ModelSupplierUpdate", "ModelSupplierResponse", "ModelSupplierListResponse", "ModelBase", "ModelCreate", "ModelUpdate", "ModelResponse", "ModelListResponse", "ModelWithSupplierResponse", "SetDefaultModelRequest",
+    # Model Parameter
+    "ModelParameterBase", "ModelParameterCreate", "ModelParameterUpdate", "ModelParameterResponse", "ModelParameterListResponse",
 ]

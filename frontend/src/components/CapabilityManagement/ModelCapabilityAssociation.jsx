@@ -14,14 +14,11 @@ const ModelCapabilityAssociation = () => {
   // 加载所有模型
   const fetchModels = async () => {
     try {
-      // 由于modelApi.getAll需要supplierId参数，但我们需要所有模型
-      // 这里使用null或空字符串作为默认值，并确保返回的是数组
-      let response = await modelApi.getAll(null);
-      // 确保response是数组类型
-      if (!Array.isArray(response)) {
-        response = [];
-      }
-      setModels(response);
+      // modelApi.getAll返回的是一个包含models数组的对象
+      let response = await modelApi.getAll();
+      // 确保response.models是数组类型
+      const modelsData = Array.isArray(response.models) ? response.models : [];
+      setModels(modelsData);
     } catch (error) {
       console.error('获取模型列表失败:', error);
       setError('获取模型列表失败');
@@ -63,7 +60,7 @@ const ModelCapabilityAssociation = () => {
     }
   };
 
-  // 组件初始化
+  // 初始加载数据
   useEffect(() => {
     fetchModels();
     fetchCapabilities();
@@ -139,7 +136,7 @@ const ModelCapabilityAssociation = () => {
     return capabilities.filter(cap => !associatedCapabilityIds.includes(cap.id));
   };
 
-  // 关联的能力表格列
+  // 关联的能力表格列定义（仅用于参考，实际使用原生表格）
   const associationColumns = [
     {
       title: '能力名称',
@@ -158,17 +155,7 @@ const ModelCapabilityAssociation = () => {
     },
     {
       title: '操作',
-      key: 'action',
-      render: (_, record) => (
-        <Button
-          danger
-          icon={<MinusOutlined />}
-          onClick={() => handleRemoveCapability(record.id)}
-          loading={updateLoading}
-        >
-          移除
-        </Button>
-      )
+      key: 'action'
     }
   ];
 
