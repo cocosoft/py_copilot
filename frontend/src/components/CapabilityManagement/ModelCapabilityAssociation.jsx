@@ -18,6 +18,11 @@ const ModelCapabilityAssociation = () => {
       let response = await modelApi.getAll();
       // 确保response.models是数组类型
       const modelsData = Array.isArray(response.models) ? response.models : [];
+      
+      // 添加调试信息，查看模型数据结构
+      console.log('获取的模型列表:', modelsData);
+      console.log('第一个模型的供应商信息:', modelsData[0]?.supplier);
+      
       setModels(modelsData);
     } catch (error) {
       console.error('获取模型列表失败:', error);
@@ -30,10 +35,9 @@ const ModelCapabilityAssociation = () => {
   // 加载所有能力
   const fetchCapabilities = async () => {
     try {
-      const response = await capabilityApi.getAll();
-        // 确保response是数组类型
-        const capabilitiesData = Array.isArray(response) ? response : [];
-        setCapabilities(capabilitiesData);
+      const capabilitiesData = await capabilityApi.getAll();
+      // 直接使用capabilityApi返回的已经处理好的数据
+      setCapabilities(Array.isArray(capabilitiesData) ? capabilitiesData : []);
     } catch (error) {
       console.error('获取能力列表失败:', error);
       setError('获取能力列表失败');
@@ -48,10 +52,9 @@ const ModelCapabilityAssociation = () => {
     
     setLoading(true);
     try {
-      const response = await capabilityApi.getCapabilitiesByModel(modelId);
-        // 确保response是数组类型
-        const modelCapabilitiesData = Array.isArray(response) ? response : [];
-        setModelCapabilities(modelCapabilitiesData);
+      const modelCapabilitiesData = await capabilityApi.getCapabilitiesByModel(modelId);
+      // 直接使用capabilityApi返回的已经处理好的数据
+      setModelCapabilities(Array.isArray(modelCapabilitiesData) ? modelCapabilitiesData : []);
     } catch (error) {
       console.error('获取模型能力关联失败:', error);
       setError('获取模型能力关联失败');
@@ -97,12 +100,17 @@ const ModelCapabilityAssociation = () => {
   };
 
   // 从模型移除能力
-  const handleRemoveCapability = async (associationId) => {
+  const handleRemoveCapability = async (capabilityId) => {
+    if (!selectedModel) return;
+    
+    // 确认操作
+    const confirmRemove = window.confirm('确定要移除该能力吗？');
+    if (!confirmRemove) return;
+    
     setUpdateLoading(true);
     try {
-      // 注意：根据后端实现，我们需要先获取association_id
-      // 这里暂时使用模拟的删除方式
-      await capabilityApi.removeCapabilityFromModel(selectedModel.id, null);
+      // 调用API移除能力关联
+      await capabilityApi.removeCapabilityFromModel(selectedModel.id, capabilityId);
       setError('能力移除成功');
       setTimeout(() => setError(null), 3000);
       fetchModelCapabilities(selectedModel.id);
@@ -132,7 +140,7 @@ const ModelCapabilityAssociation = () => {
 
   // 获取模型尚未关联的能力
   const getAvailableCapabilities = () => {
-    const associatedCapabilityIds = modelCapabilities.map(mc => mc.capability_id);
+    const associatedCapabilityIds = modelCapabilities.map(mc => mc.id);
     return capabilities.filter(cap => !associatedCapabilityIds.includes(cap.id));
   };
 
@@ -182,7 +190,7 @@ const ModelCapabilityAssociation = () => {
             <option value="">请选择一个模型</option>
             {models.map(model => (
               <option key={model.id} value={model.id}>
-                {model.name}
+                {model.name} - {model.supplierDisplayName || model.supplierName || '未知供应商'}
               </option>
             ))}
           </select>
@@ -223,9 +231,9 @@ const ModelCapabilityAssociation = () => {
                   ) : (
                     modelCapabilities.map(record => (
                       <tr key={record.id}>
-                        <td>{record.capability?.name}</td>
-                        <td>{record.capability?.display_name}</td>
-                        <td>{record.capability?.capability_type}</td>
+                        <td>{record.name}</td>
+                        <td>{record.display_name}</td>
+                        <td>{record.capability_type}</td>
                         <td>
                           <button
                             onClick={() => handleRemoveCapability(record.id)}

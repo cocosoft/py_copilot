@@ -57,6 +57,27 @@ const handleApiError = (error, operation, additionalInfo = '') => {
 const formatModelData = (model) => {
   if (!model) return null;
   
+  // 添加调试信息，查看原始模型数据结构
+  console.log('原始模型数据:', model);
+  
+  // 处理供应商信息 - 检查不同的可能路径
+  let supplierName = '';
+  let supplierDisplayName = '';
+  
+  // 首先检查直接的supplier对象
+  if (model.supplier) {
+    supplierName = model.supplier.name || '';
+    supplierDisplayName = supplierName; // 数据库中没有display_name字段，直接使用name
+  } 
+  // 检查是否有嵌套的supplier数据
+  else if (model.supplier_id) {
+    // 如果只有supplier_id而没有supplier对象，我们需要通过API获取供应商信息
+    // 这里暂时设置为空，实际项目中可能需要额外的API调用
+    console.log('模型有supplier_id但没有supplier对象:', model.supplier_id);
+  }
+  
+  console.log('处理后的供应商信息:', { supplierName, supplierDisplayName });
+  
   return {
     id: model.id,
     name: model.name || '',
@@ -67,6 +88,8 @@ const formatModelData = (model) => {
     isDefault: model.is_default || model.isDefault || false,
     isActive: model.is_active || model.isActive || true,
     supplierId: model.supplier_id || model.supplierId,
+    supplierName: supplierName,
+    supplierDisplayName: supplierDisplayName,
     modelType: model.model_type || model.modelType || 'chat',
     createdAt: model.created_at || model.createdAt,
     updatedAt: model.updated_at || model.updatedAt

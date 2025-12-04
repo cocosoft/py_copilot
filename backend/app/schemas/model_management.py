@@ -11,10 +11,7 @@ class ModelSupplierBase(BaseModel):
     """模型供应商基础模型"""
     model_config = ConfigDict(protected_namespaces=())
     name: str = Field(..., min_length=1, max_length=100)
-    display_name: str = Field(..., min_length=1, max_length=100)
     description: Optional[str] = None
-    base_url: Optional[str] = None
-    api_key_env_name: Optional[str] = None
     is_active: bool = True
     logo: Optional[str] = None
 
@@ -26,10 +23,8 @@ class ModelSupplierCreate(ModelSupplierBase):
 
 class ModelSupplierUpdate(BaseModel):
     """更新模型供应商请求模型"""
-    display_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
     description: Optional[str] = None
-    base_url: Optional[str] = None
-    api_key_env_name: Optional[str] = None
     is_active: Optional[bool] = None
 
 
@@ -38,7 +33,11 @@ class ModelSupplierResponse(ModelSupplierBase):
     id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
-    logo: Optional[str] = None
+    api_endpoint: Optional[str] = None
+    api_key_required: bool = False
+    category: Optional[str] = None
+    website: Optional[str] = None
+    api_docs: Optional[str] = None
     
     model_config = ConfigDict(from_attributes=True)
 
@@ -110,7 +109,7 @@ class ModelSupplierListResponse(BaseModel):
 
 class ModelListResponse(BaseModel):
     """模型列表响应模型"""
-    models: List[ModelResponse]
+    models: List[ModelWithSupplierResponse]
     total: int
 
 

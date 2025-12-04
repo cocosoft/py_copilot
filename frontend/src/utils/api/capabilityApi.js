@@ -1,215 +1,40 @@
 // 模型能力相关API模块
 import { request } from '../apiUtils';
 
-// 本地能力数据处理函数
-const getCapabilitiesStorageKey = () => {
-  return `${STORAGE_PREFIX}capabilities`;
-};
-
-const getCapabilityAssociationsStorageKey = () => {
-  return `${STORAGE_PREFIX}capability_associations`;
-};
-
-const handleLocalCapabilitiesGetAll = () => {
-  try {
-    const capabilities = localStorage.getItem(getCapabilitiesStorageKey());
-    if (capabilities) {
-      return JSON.parse(capabilities);
-    }
-    // 返回默认能力数据
-    const defaultCapabilities = [
-      {
-        id: 1,
-        name: 'multilingual',
-        display_name: '多语言支持',
-        description: '模型支持多种自然语言的处理能力',
-        capability_type: 'language',
-        unit: null,
-        is_active: true,
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z'
-      },
-      {
-        id: 2,
-        name: 'context_window',
-        display_name: '上下文窗口',
-        description: '模型能够处理的上下文长度',
-        capability_type: 'processing',
-        unit: 'tokens',
-        is_active: true,
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z'
-      },
-      {
-        id: 3,
-        name: 'response_format',
-        display_name: '响应格式',
-        description: '模型支持的输出格式',
-        capability_type: 'output',
-        unit: null,
-        is_active: true,
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z'
-      },
-      {
-        id: 4,
-        name: 'fine_tuning',
-        display_name: '微调支持',
-        description: '模型是否支持微调能力',
-        capability_type: 'training',
-        unit: null,
-        is_active: true,
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z'
-      },
-      {
-        id: 5,
-        name: 'code_generation',
-        display_name: '代码生成',
-        description: '模型生成代码的能力',
-        capability_type: 'function',
-        unit: null,
-        is_active: true,
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z'
-      },
-      {
-        id: 6,
-        name: 'image_generation',
-        display_name: '图像生成',
-        description: '模型生成图像的能力',
-        capability_type: 'function',
-        unit: null,
-        is_active: true,
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z'
-      }
-    ];
-    localStorage.setItem(getCapabilitiesStorageKey(), JSON.stringify(defaultCapabilities));
-    return defaultCapabilities;
-  } catch (error) {
-    console.error('Error handling local capabilities:', error);
-    return [];
-  }
-};
-
-const handleLocalCapabilityCreate = (capabilityData) => {
-  const capabilities = handleLocalCapabilitiesGetAll();
-  const newCapability = {
-    ...capabilityData,
-    id: Date.now(), // 使用时间戳作为临时ID
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  };
-  capabilities.push(newCapability);
-  localStorage.setItem(getCapabilitiesStorageKey(), JSON.stringify(capabilities));
-  return newCapability;
-};
-
-const handleLocalCapabilityUpdate = (capabilityId, updatedData) => {
-  const capabilities = handleLocalCapabilitiesGetAll();
-  const index = capabilities.findIndex(c => c.id === capabilityId);
-  if (index !== -1) {
-    capabilities[index] = {
-      ...capabilities[index],
-      ...updatedData,
-      updated_at: new Date().toISOString()
-    };
-    localStorage.setItem(getCapabilitiesStorageKey(), JSON.stringify(capabilities));
-    return capabilities[index];
-  }
-  throw new Error('Capability not found');
-};
-
-const handleLocalCapabilityDelete = (capabilityId) => {
-  const capabilities = handleLocalCapabilitiesGetAll();
-  const filtered = capabilities.filter(c => c.id !== capabilityId);
-  localStorage.setItem(getCapabilitiesStorageKey(), JSON.stringify(filtered));
-  
-  // 同时删除相关的关联关系
-  const associations = handleLocalCapabilityAssociationsGet();
-  const filteredAssociations = associations.filter(a => a.capability_id !== capabilityId);
-  localStorage.setItem(getCapabilityAssociationsStorageKey(), JSON.stringify(filteredAssociations));
-  
-  return { success: true };
-};
-
-// 能力关联关系处理函数
-const handleLocalCapabilityAssociationsGet = () => {
-  try {
-    const associations = localStorage.getItem(getCapabilityAssociationsStorageKey());
-    return associations ? JSON.parse(associations) : [];
-  } catch (error) {
-    console.error('Error getting capability associations:', error);
-    return [];
-  }
-};
-
-const handleLocalCapabilityAssociationCreate = (modelId, capabilityId, value = null) => {
-  const associations = handleLocalCapabilityAssociationsGet();
-  const newAssociation = {
-    id: Date.now(),
-    model_id: modelId,
-    capability_id: capabilityId,
-    value: value,
-    created_at: new Date().toISOString()
-  };
-  associations.push(newAssociation);
-  localStorage.setItem(getCapabilityAssociationsStorageKey(), JSON.stringify(associations));
-  return newAssociation;
-};
-
-const handleLocalCapabilityAssociationDelete = (modelId, capabilityId) => {
-  const associations = handleLocalCapabilityAssociationsGet();
-  const filtered = associations.filter(
-    a => a.model_id !== modelId || a.capability_id !== capabilityId
-  );
-  localStorage.setItem(getCapabilityAssociationsStorageKey(), JSON.stringify(filtered));
-  return { success: true };
-};
-
-const handleLocalCapabilityAssociationUpdate = (modelId, capabilityId, value) => {
-  const associations = handleLocalCapabilityAssociationsGet();
-  const index = associations.findIndex(
-    a => a.model_id === modelId && a.capability_id === capabilityId
-  );
-  if (index !== -1) {
-    associations[index] = {
-      ...associations[index],
-      value: value,
-      updated_at: new Date().toISOString()
-    };
-    localStorage.setItem(getCapabilityAssociationsStorageKey(), JSON.stringify(associations));
-    return associations[index];
-  }
-  throw new Error('Association not found');
-};
-
-// 获取模型的能力
-const handleLocalModelCapabilitiesGet = (modelId) => {
-  const associations = handleLocalCapabilityAssociationsGet();
-  const capabilities = handleLocalCapabilitiesGetAll();
-  
-  const modelAssociations = associations.filter(a => a.model_id === modelId);
-  const modelCapabilities = modelAssociations.map(association => {
-    const capability = capabilities.find(c => c.id === association.capability_id);
-    return {
-      ...capability,
-      value: association.value
-    };
-  });
-  
-  return modelCapabilities;
-};
-
 // 模型能力API实现
 export const capabilityApi = {
   // 获取所有能力
-  getAll: async () => {
+  getAll: async (params = {}) => {
     try {
-      return await request('/model/capabilities', {
+      // 构建查询参数
+      const queryParams = new URLSearchParams();
+      if (params.is_active !== undefined) {
+        queryParams.append('is_active', params.is_active);
+      }
+      if (params.capability_type) {
+        queryParams.append('capability_type', params.capability_type);
+      }
+      if (params.skip) {
+        queryParams.append('skip', params.skip);
+      }
+      if (params.limit) {
+        queryParams.append('limit', params.limit);
+      }
+      
+      // 构建完整URL
+      const url = queryParams.toString() 
+        ? `/capabilities?${queryParams.toString()}` 
+        : '/capabilities';
+      
+      const response = await request(url, {
         method: 'GET'
       });
+      
+      // 统一处理API返回格式
+      if (response?.capabilities && Array.isArray(response.capabilities)) {
+        return response.capabilities;
+      }
+      return response;
     } catch (error) {
       console.error('获取能力列表失败:', error);
       throw error;
@@ -219,7 +44,7 @@ export const capabilityApi = {
   // 获取单个能力
   getById: async (capabilityId) => {
     try {
-      return await request(`/model/capabilities/${capabilityId}`, {
+      return await request(`/capabilities/${capabilityId}`, {
         method: 'GET'
       });
     } catch (error) {
@@ -231,7 +56,7 @@ export const capabilityApi = {
   // 创建能力
   create: async (capabilityData) => {
     try {
-      return await request('/model/capabilities', {
+      return await request('/capabilities', {
         method: 'POST',
         body: JSON.stringify(capabilityData),
         headers: {
@@ -247,7 +72,7 @@ export const capabilityApi = {
   // 更新能力
   update: async (capabilityId, updatedData) => {
     try {
-      return await request(`/model/capabilities/${capabilityId}`, {
+      return await request(`/capabilities/${capabilityId}`, {
         method: 'PUT',
         body: JSON.stringify(updatedData),
         headers: {
@@ -263,7 +88,7 @@ export const capabilityApi = {
   // 删除能力
   delete: async (capabilityId) => {
     try {
-      return await request(`/model/capabilities/${capabilityId}`, {
+      return await request(`/capabilities/${capabilityId}`, {
         method: 'DELETE'
       });
     } catch (error) {
@@ -275,7 +100,7 @@ export const capabilityApi = {
   // 获取能力分类
   getTypes: async () => {
     try {
-      return await request('/model/capabilities/types', {
+      return await request('/capabilities/types', {
         method: 'GET'
       });
     } catch (error) {
@@ -287,7 +112,7 @@ export const capabilityApi = {
   // 添加模型能力关联
   addModelCapability: async (modelId, capabilityId, value = null) => {
     try {
-      return await request('/model/capabilities/associations', {
+      return await request('/capabilities/associations', {
         method: 'POST',
         body: JSON.stringify({ model_id: modelId, capability_id: capabilityId, value: value }),
         headers: {
@@ -314,7 +139,7 @@ export const capabilityApi = {
   // 移除模型能力关联
   removeModelCapability: async (modelId, capabilityId) => {
     try {
-      return await request(`/model/capabilities/associations/model/${modelId}/capability/${capabilityId}`, {
+      return await request(`/capabilities/associations/model/${modelId}/capability/${capabilityId}`, {
         method: 'DELETE'
       });
     } catch (error) {
@@ -331,7 +156,7 @@ export const capabilityApi = {
   // 更新模型能力值
   updateModelCapabilityValue: async (modelId, capabilityId, value) => {
     try {
-      return await request(`/model/capabilities/associations/model/${modelId}/capability/${capabilityId}`, {
+      return await request(`/capabilities/associations/model/${modelId}/capability/${capabilityId}`, {
         method: 'PUT',
         body: JSON.stringify({ value: value }),
         headers: {
@@ -347,9 +172,15 @@ export const capabilityApi = {
   // 获取模型的所有能力
   getModelCapabilities: async (modelId) => {
     try {
-      return await request(`/model/capabilities/model/${modelId}`, {
+      const response = await request(`/capabilities/model/${modelId}/capabilities`, {
         method: 'GET'
       });
+      
+      // 统一处理API返回格式
+      if (response?.capabilities && Array.isArray(response.capabilities)) {
+        return response.capabilities;
+      }
+      return response;
     } catch (error) {
       console.error(`获取模型 ${modelId} 的能力失败:`, error);
       throw error;
@@ -370,7 +201,7 @@ export const capabilityApi = {
       }
       const queryString = params.toString() ? `?${params.toString()}` : '';
       
-      return await request(`/model/capabilities/${capabilityId}/models${queryString}`, {
+      return await request(`/capabilities/${capabilityId}/models${queryString}`, {
         method: 'GET'
       });
     } catch (error) {
@@ -379,16 +210,12 @@ export const capabilityApi = {
     }
   },
   
-  // 批量更新模型能力
+  // 批量更新模型能力 - 注意：后端目前没有这个端点，暂时返回空对象
   batchUpdateModelCapabilities: async (modelId, capabilities) => {
     try {
-      return await request(`/model/capabilities/model/${modelId}/batch`, {
-        method: 'POST',
-        body: JSON.stringify({ capabilities: capabilities }),
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+      console.warn('批量更新模型能力功能尚未实现，因为后端没有对应的API端点');
+      // 暂时返回一个空对象
+      return { success: true, message: '批量更新功能尚未实现' };
     } catch (error) {
       console.error(`批量更新模型 ${modelId} 的能力失败:`, error);
       throw error;

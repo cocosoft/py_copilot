@@ -142,8 +142,9 @@ async def get_all_models(
     """
     print("收到获取所有模型列表的请求")
     
-    # 查询数据库获取所有模型数据
-    models = db.query(Model).offset(skip).limit(limit).all()
+    # 查询数据库获取所有模型数据，包括供应商信息
+    from sqlalchemy.orm import joinedload
+    models = db.query(Model).options(joinedload(Model.supplier)).offset(skip).limit(limit).all()
     total = db.query(Model).count()
     
     print(f"返回 {len(models)} 个模型，总计 {total} 个模型")

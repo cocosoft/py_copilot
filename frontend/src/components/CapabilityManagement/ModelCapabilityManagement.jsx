@@ -10,6 +10,7 @@ const ModelCapabilityManagement = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [currentCapability, setCurrentCapability] = useState(null);
+  const [activeTab, setActiveTab] = useState('all'); // 当前激活的标签页
   const [formData, setFormData] = useState({
     name: '',
     display_name: '',
@@ -22,29 +23,27 @@ const ModelCapabilityManagement = () => {
   const loadCapabilities = async () => {
     try {
       setLoading(true);
+      // 获取所有能力（包括激活和禁用的）
       const response = await capabilityApi.getAll();
       
-      // 统一响应格式处理
+      // 直接使用capabilityApi返回的已经处理好的数据
       let capabilitiesData = [];
       if (Array.isArray(response)) {
         capabilitiesData = response;
-      } else if (response?.capabilities) {
-        capabilitiesData = response.capabilities;
-      } else if (response?.data) {
-        capabilitiesData = response.data;
       }
       
       // 标准化能力数据，确保每个能力都有必要的属性
-      const normalizedCapabilities = capabilitiesData.map(capability => ({
-        id: capability.id ?? `capability_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        name: capability.name ?? `未命名能力_${capability.id || 'unknown'}`,
-        display_name: capability.display_name ?? capability.name ?? '未命名能力',
-        description: capability.description || '',
-        capability_type: capability.capability_type || 'general',
-        is_active: capability.is_active ?? true,
-        ...capability
-      }));
-      
+      const normalizedCapabilities = capabilitiesData
+        .map(capability => ({
+          id: capability.id ?? `capability_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          name: capability.name ?? `未命名能力_${capability.id || 'unknown'}`,
+          display_name: capability.display_name ?? capability.name ?? '未命名能力',
+          description: capability.description || '',
+          capability_type: capability.capability_type || 'general',
+          is_active: capability.is_active ?? true,
+          ...capability
+        }));
+       
 
       setCapabilities(normalizedCapabilities);
       setError(null);
@@ -167,6 +166,25 @@ const ModelCapabilityManagement = () => {
   
   const capabilityTypes = getCapabilityTypes();
   
+  // 筛选能力
+  const filterCapabilities = () => {
+    if (activeTab === 'all') {
+      return capabilities;
+    } else if (activeTab === 'active') {
+      return capabilities.filter(cap => cap.is_active);
+    } else if (activeTab === 'inactive') {
+      return capabilities.filter(cap => !cap.is_active);
+    } else {
+      // 按能力类型筛选
+      return capabilities.filter(cap => cap.capability_type === activeTab);
+    }
+  };
+  
+  // 处理标签页点击
+  const handleTabClick = (type) => {
+    setActiveTab(type);
+  };
+  
   if (loading) {
     return <div className="capability-management-loading">加载中...</div>;
   }
@@ -201,14 +219,37 @@ const ModelCapabilityManagement = () => {
           <div className="empty-state">暂无能力数据</div>
         ) : (
           <div className="capability-tabs">
-            <div className="tab active" data-type="all">所有能力</div>
+            <div 
+              className={`tab ${activeTab === 'all' ? 'active' : ''}`} 
+              data-type="all"
+              onClick={() => handleTabClick('all')}
+            >
+              所有能力
+            </div>
             {capabilityTypes.map(type => (
-              <div key={type} className="tab" data-type={type}>
+              <div 
+                key={type} 
+                className={`tab ${activeTab === type ? 'active' : ''}`} 
+                data-type={type}
+                onClick={() => handleTabClick(type)}
+              >
                 {type}
               </div>
             ))}
-            <div className="tab" data-type="active">启用</div>
-            <div className="tab" data-type="inactive">禁用</div>
+            <div 
+              className={`tab ${activeTab === 'active' ? 'active' : ''}`} 
+              data-type="active"
+              onClick={() => handleTabClick('active')}
+            >
+              启用
+            </div>
+            <div 
+              className={`tab ${activeTab === 'inactive' ? 'active' : ''}`} 
+              data-type="inactive"
+              onClick={() => handleTabClick('inactive')}
+            >
+              禁用
+            </div>
           </div>
         )}
         
@@ -225,7 +266,7 @@ const ModelCapabilityManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {capabilities.map(capability => (
+              {filterCapabilities().map(capability => (
                 <tr key={capability.id}>
                   <td>{capability.id}</td>
                   <td>{capability.name}</td>

@@ -33,11 +33,18 @@ def create_capability(
 def get_capabilities(
     skip: int = 0,
     limit: int = 100,
+    is_active: bool = None,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
     """获取能力列表"""
-    return db.query(CapabilityDB).offset(skip).limit(limit).all()
+    query = db.query(CapabilityDB)
+    
+    # 过滤活跃状态
+    if is_active is not None:
+        query = query.filter(CapabilityDB.is_active == is_active)
+    
+    return query.offset(skip).limit(limit).all()
 
 @router.get("/model/capabilities/{capability_id}", response_model=CapabilityResponse)
 def get_capability(
