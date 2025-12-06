@@ -2,6 +2,7 @@
 from sqlalchemy import Column, Integer, String, Boolean, Text, ForeignKey, DateTime, func
 from sqlalchemy.orm import relationship
 from app.core.database import Base
+from app.core.encryption import encrypt_string, decrypt_string
 
 
 class SupplierDB(Base):
@@ -22,8 +23,30 @@ class SupplierDB(Base):
     category = Column(String(100), nullable=True)
     website = Column(String(255), nullable=True)
     api_docs = Column(String(255), nullable=True)
-    api_key = Column(String(255), nullable=True)
+    _api_key = Column("api_key", String(255), nullable=True)  # 实际存储加密后的API密钥
     is_active = Column(Boolean, default=True)
+    
+    @property
+    def api_key(self):
+        """获取解密后的API密钥"""
+        if self._api_key:
+            try:
+                # 尝试解密
+                return decrypt_string(self._api_key)
+            except Exception as e:
+                # 如果解密失败，可能是因为这是旧的未加密API密钥
+                print(f"Warning: Failed to decrypt API key for supplier {self.name}: {e}")
+                # 返回原始值，但不建议这样做，更好的做法是自动加密
+                return self._api_key
+        return None
+    
+    @api_key.setter
+    def api_key(self, value):
+        """设置API密钥，自动加密存储"""
+        if value:
+            self._api_key = encrypt_string(value)
+        else:
+            self._api_key = None
     
     # 添加关系定义
     models = relationship("ModelDB", back_populates="supplier")

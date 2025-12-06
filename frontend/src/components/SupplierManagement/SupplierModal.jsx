@@ -6,7 +6,9 @@ const SupplierModal = ({ isOpen, onClose, onSave, supplier = null, mode = 'add' 
     name: '',
     description: '',
     logo: '',
-    website: ''
+    website: '',
+    api_endpoint: '',
+    api_key: ''
   });
   const [saving, setSaving] = useState(false);
   const [file, setFile] = useState(null);
@@ -19,7 +21,9 @@ const SupplierModal = ({ isOpen, onClose, onSave, supplier = null, mode = 'add' 
         name: supplier.name || '',
         description: supplier.description || '',
         logo: supplier.logo || '',
-        website: supplier.website || ''
+        website: supplier.website || '',
+        api_endpoint: supplier.api_endpoint || '',
+        api_key: supplier.api_key || ''
       });
       // 重置文件和预览
       setFile(null);
@@ -103,6 +107,10 @@ const SupplierModal = ({ isOpen, onClose, onSave, supplier = null, mode = 'add' 
       formDataToSubmit.append('display_name', formData.name);
       formDataToSubmit.append('description', formData.description);
       formDataToSubmit.append('website', formData.website);
+      formDataToSubmit.append('api_endpoint', formData.api_endpoint || '');
+      formDataToSubmit.append('api_key', formData.api_key || '');
+      // 后端需要api_key_required字段，如果提供了api_key则设置为true
+      formDataToSubmit.append('api_key_required', formData.api_key ? 'true' : 'false');
       
       // 如果有文件上传，添加文件
       if (file) {
@@ -228,7 +236,6 @@ const SupplierModal = ({ isOpen, onClose, onSave, supplier = null, mode = 'add' 
           </div>
           
           <div className="form-row">
-
             <div className="form-group">
               <label htmlFor="website">官网</label>
               <input 
@@ -238,6 +245,36 @@ const SupplierModal = ({ isOpen, onClose, onSave, supplier = null, mode = 'add' 
                 value={formData.website}
                 onChange={handleChange}
                 placeholder="https://"
+                disabled={saving}
+              />
+            </div>
+          </div>
+          
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="api_endpoint">API地址</label>
+              <input 
+                type="url" 
+                id="api_endpoint"
+                name="api_endpoint"
+                value={formData.api_endpoint}
+                onChange={handleChange}
+                placeholder="https://api.example.com/v1"
+                disabled={saving}
+              />
+            </div>
+          </div>
+          
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="api_key">API密钥</label>
+              <input 
+                type="text" 
+                id="api_key"
+                name="api_key"
+                value={formData.api_key}
+                onChange={handleChange}
+                placeholder="API密钥"
                 disabled={saving}
               />
             </div>

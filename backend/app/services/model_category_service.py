@@ -5,7 +5,7 @@ from sqlalchemy import and_
 from fastapi import HTTPException, status
 
 from app.models.model_category import ModelCategory, ModelCategoryAssociation
-from app.models.model_management import Model
+from app.models.supplier_db import ModelDB as Model
 from app.schemas.model_category import ModelCategoryCreate, ModelCategoryUpdate
 
 

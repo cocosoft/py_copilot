@@ -4,15 +4,10 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime
 import time
 import logging
-# 简化配置导入，使用默认值
-# from app.core.config import settings
-
-# 本地配置替代
-class LocalSettings:
-    DEFAULT_MODEL = "text-davinci-003"
-    DEFAULT_CHAT_MODEL = "gpt-3.5-turbo"
-
-settings = LocalSettings()
+import inspect
+from app.core.config import settings
+from app.models.supplier_db import SupplierDB, ModelDB
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +103,8 @@ class LLMService:
                 messages=messages,
                 model_name=kwargs.get("model_name"),
                 max_tokens=kwargs.get("max_tokens", 1000),
-                temperature=kwargs.get("temperature", 0.7)
+                temperature=kwargs.get("temperature", 0.7),
+                db=kwargs.get("db")
             )
         except Exception as e:
             logger.error(f"Error in chat: {str(e)}")
@@ -178,27 +174,45 @@ class LLMService:
                 except Exception as openai_error:
                     logger.warning(f"OpenAI API error, falling back to simulated response: {str(openai_error)}")
             
-            # 模拟模式或OpenAI不可用时返回模拟响应
+            # 模拟模式或OpenAI不可用时返回明确错误信息
             execution_time = (time.time() - start_time) * 1000
+            
+            error_response = "系统提示: 当前AI模型连接失败。\n\n"
+            error_response += "可能的原因：\n"
+            error_response += "1. API密钥无效或已过期\n"
+            error_response += "2. 网络连接问题\n"
+            error_response += "3. 模型服务暂时不可用\n\n"
+            error_response += "请检查并更新您的API密钥配置。"
+            
             return {
-                "model": f"{model} (simulation)",
-                "generated_text": f"[模拟响应] 基于提示: {prompt[:50]}...",
-                "tokens_used": len(prompt.split()) // 2 + max_tokens // 2,
+                "model": f"{model} (错误)",
+                "generated_text": error_response,
+                "tokens_used": 0,
                 "execution_time_ms": round(execution_time, 2),
                 "success": False,
-                "simulated": True
+                "simulated": False,
+                "error": "API调用失败或模型服务不可用"
             }
         except Exception as e:
             logger.error(f"Error in text completion: {str(e)}")
             execution_time = (time.time() - start_time) * 1000
+            
+            error_response = "系统提示: 处理您的请求时发生异常。\n\n"
+            error_response += "错误详情：" + str(e) + "\n\n"
+            error_response += "可能的原因：\n"
+            error_response += "1. API密钥无效或已过期\n"
+            error_response += "2. 网络连接问题\n"
+            error_response += "3. 模型服务暂时不可用\n\n"
+            error_response += "请检查并更新您的API密钥配置。"
+            
             return {
                 "model": model,
-                "generated_text": f"[模拟响应] 基于提示: {prompt[:50]}...",
+                "generated_text": error_response,
                 "tokens_used": 0,
                 "error": str(e),
                 "execution_time_ms": round(execution_time, 2),
                 "success": False,
-                "simulated": True
+                "simulated": False
             }
     
     def chat_completion(
@@ -211,35 +225,122 @@ class LLMService:
         n: int = 1,
         stop: Optional[List[str]] = None,
         frequency_penalty: float = 0.0,
-        presence_penalty: float = 0.0
+        presence_penalty: float = 0.0,
+        db: Optional[Session] = None
     ) -> Dict[str, Any]:
         """聊天补全功能 - 支持OpenAI和DeepSeek模型"""
+        print("DEBUG: 进入chat_completion方法")
         start_time = time.time()
         model_name = model_name or self.default_chat_model
         
+        # 从数据库获取模型和供应商信息
+        model_info = None
+        supplier_info = None
+        all_models = []
+        all_suppliers = []
+        
+        print(f"DEBUG: db是否存在: {db is not None}")
+        try:
+            if db:
+                # 查询所有模型
+                all_models = db.query(ModelDB).all()
+                print(f"DEBUG: 从数据库获取到的所有模型数: {len(all_models)}")
+                
+                # 查询指定模型
+                model_info = db.query(ModelDB).filter(
+                    ModelDB.name == model_name,
+                    ModelDB.is_active == True
+                ).first()
+                print(f"DEBUG: 查询到的模型信息: {model_info}")
+                
+                if model_info:
+                    # 查询供应商信息
+                    supplier_info = db.query(SupplierDB).filter(
+                        SupplierDB.id == model_info.supplier_id,
+                        SupplierDB.is_active == True
+                    ).first()
+                    print(f"DEBUG: 查询到的供应商信息: {supplier_info}")
+                    
+                    # 查询所有供应商
+                    all_suppliers = db.query(SupplierDB).all()
+        except Exception as e:
+            import traceback
+            error_message = f"数据库查询异常: {str(e)}\n{traceback.format_exc()}"
+            print(f"DEBUG: 数据库查询异常: {error_message}")
+            return {
+                "model": model_name,
+                "generated_text": error_message,
+                "tokens_used": 0,
+                "error": "数据库查询失败",
+                "execution_time_ms": 0,
+                "success": False
+            }
+        
+
+        
+        print("DEBUG: 进入主处理try块")
         try:
             # 检查是否有openai模块
             import importlib.util
             has_openai = importlib.util.find_spec('openai') is not None
             
+            print(f"DEBUG: 是否有openai模块: {has_openai}")
+            print(f"DEBUG: model_name: {model_name}")
+            print(f"DEBUG: supplier_info类型: {type(supplier_info)}")
+            print(f"DEBUG: supplier_info内容: {supplier_info}")
+            
             if has_openai:
                 import openai
                 
+                # 导入必要的服务
+                from app.services.model_query_service import ModelQueryService
+                
                 # 根据模型名称选择API配置
                 if model_name.startswith("deepseek-"):
-                    # DeepSeek模型配置 - 使用正确的小写配置名
-                    if hasattr(settings, 'deepseek_api_key') and settings.deepseek_api_key:
-                        # 保存原始配置
-                        original_api_key = openai.api_key
-                        original_api_base = openai.api_base
-                        
+                    # DeepSeek模型配置
+                    api_key = None
+                    api_base = None
+                    
+                    # 添加更多调试信息
+                    logger.info(f"supplier_info: {supplier_info}")
+                    logger.info(f"supplier_info.name: {supplier_info.name if supplier_info else 'None'}")
+                    logger.info(f"supplier_info.api_endpoint: {supplier_info.api_endpoint if supplier_info else 'None'}")
+                    logger.info(f"supplier_info.api_key_required: {supplier_info.api_key_required if supplier_info else 'None'}")
+                    
+                    # 优先从数据库获取
+                    if supplier_info:
+                        print(f"DEBUG: supplier_info属性: {dir(supplier_info)}")
+                        # 获取解密后的API密钥
+                        supplier_with_decrypted_key = ModelQueryService.get_supplier_with_decrypted_api_key(supplier_info)
+                        print(f"DEBUG: supplier_with_decrypted_key类型: {type(supplier_with_decrypted_key)}")
+                        print(f"DEBUG: supplier_with_decrypted_key: {supplier_with_decrypted_key}")
+                        print(f"DEBUG: supplier_with_decrypted_key.keys(): {supplier_with_decrypted_key.keys()}")
+                        api_key = supplier_with_decrypted_key['api_key']
+                        # 为API端点设置默认值
+                        api_base = supplier_info.api_endpoint if supplier_info.api_endpoint else "https://api.deepseek.com/v1"
+                        logger.info(f"使用解密后的API密钥: {'None' if api_key is None else f'{api_key[:5]}...{api_key[-4:]}'}")
+                        logger.info(f"使用的API端点: {api_base}")
+                    # 回退到配置文件
+                    elif hasattr(settings, 'deepseek_api_key') and settings.deepseek_api_key:
+                        api_key = settings.deepseek_api_key
+                        api_base = settings.deepseek_api_base
+                    
+                    # 添加更多调试信息
+                    logger.info(f"最终的api_key: {api_key}")
+                    logger.info(f"最终的api_base: {api_base}")
+                    
+                    if api_key and api_base:
                         try:
-                            # 设置DeepSeek API配置
-                            openai.api_key = settings.deepseek_api_key
-                            openai.api_base = settings.deepseek_api_base
+                            # 使用OpenAI客户端对象配置DeepSeek API，添加超时设置
+                            deepseek_client = openai.OpenAI(
+                                api_key=api_key,
+                                base_url=api_base,
+                                timeout=10  # 设置10秒超时
+                            )
                             
-                            # 使用OpenAI兼容的接口调用DeepSeek
-                            response = openai.ChatCompletion.create(
+                            logger.info("正在调用DeepSeek API...")
+                            # 使用配置好的客户端调用DeepSeek
+                            response = deepseek_client.chat.completions.create(
                                 model=model_name,
                                 messages=messages,
                                 max_tokens=max_tokens,
@@ -265,16 +366,46 @@ class LLMService:
                             }
                         except Exception as deepseek_error:
                             logger.warning(f"DeepSeek API error: {str(deepseek_error)}")
-                            # 恢复原始配置
-                            openai.api_key = original_api_key
-                            openai.api_base = original_api_base
+                            logger.warning(f"错误类型: {type(deepseek_error).__name__}")
+                            # 记录更多错误详情
+                            import traceback
+                            logger.warning(f"错误堆栈: {traceback.format_exc()}")
+                            
+                            # 继续执行，尝试其他模型或返回错误信息
                     else:
-                        logger.warning("DeepSeek API密钥未配置或使用默认值")
+                        logger.warning("DeepSeek API密钥或API端点未配置")
+                        # 提供友好的错误消息
+                        return {
+                            "generated_text": "错误: DeepSeek API配置不完整。请在供应商设置中配置有效的API密钥和API端点。",
+                            "model": model_name,
+                            "tokens_used": 0,
+                            "error": "API配置不完整",
+                            "execution_time_ms": round((time.time() - start_time) * 1000, 2),
+                            "success": False
+                        }
                 
                 # OpenAI模型配置
-                if hasattr(settings, 'OPENAI_API_KEY') and settings.OPENAI_API_KEY and settings.OPENAI_API_KEY != "sk-your-api-key-here":
+                # 先从数据库查找OpenAI供应商和模型
+                api_key = None
+                api_base = None
+                
+                print(f"DEBUG: 处理OpenAI模型配置，supplier_info: {supplier_info}")
+                if supplier_info:
+                    api_key = supplier_info.api_key
+                    api_base = supplier_info.api_endpoint
+                elif hasattr(settings, 'OPENAI_API_KEY') and settings.OPENAI_API_KEY and settings.OPENAI_API_KEY != "sk-your-api-key-here":
+                    api_key = settings.OPENAI_API_KEY
+                    api_base = settings.OPENAI_API_BASE if hasattr(settings, 'OPENAI_API_BASE') else None
+                
+                if api_key:
                     try:
-                        response = openai.ChatCompletion.create(
+                        # 使用OpenAI客户端对象
+                        openai_client = openai.OpenAI(
+                            api_key=api_key,
+                            base_url=api_base
+                        )
+                        
+                        response = openai_client.chat.completions.create(
                             model=model_name,
                             messages=messages,
                             max_tokens=max_tokens,
@@ -298,25 +429,49 @@ class LLMService:
                     except Exception as openai_error:
                         logger.warning(f"OpenAI API error: {str(openai_error)}")
             
-            # 如果所有API调用都失败，返回详细的错误信息而不是模拟响应
+            # 如果所有API调用都失败，返回明确的错误信息而不是模拟响应
             logger.error(f"所有模型API调用失败: {model_name}")
+            
+            # 返回明确的错误信息
+            error_response = "系统提示: 当前AI模型连接失败。\n\n"
+            error_response += "可能的原因：\n"
+            error_response += "1. API密钥无效或已过期\n"
+            error_response += "2. 网络连接问题\n"
+            error_response += "3. 模型服务暂时不可用\n\n"
+            error_response += "请检查并更新您的API密钥配置。"
+                
             return {
-                "generated_text": f"错误: 无法连接到{model_name}模型API。请检查API密钥和网络连接。",
-                "model": model_name,
+                "generated_text": error_response,
+                "model": f"{model_name} (错误)",
                 "tokens_used": 0,
                 "execution_time_ms": round((time.time() - start_time) * 1000, 2),
                 "success": False,
+                "simulated": False,
                 "error": "API调用失败"
             }
         except Exception as e:
-            logger.error(f"Error in chat completion: {str(e)}")
+            logger.error(f"所有模型API调用失败: {model_name}")
+            logger.error(f"错误详情: {str(e)}")
+            import traceback
+            logger.error(f"错误堆栈: {traceback.format_exc()}")
+            
+            # 返回明确的错误信息
+            error_response = "系统提示: 处理您的请求时发生异常。\n\n"
+            error_response += "错误详情：" + str(e) + "\n\n"
+            error_response += "可能的原因：\n"
+            error_response += "1. API密钥无效或已过期\n"
+            error_response += "2. 网络连接问题\n"
+            error_response += "3. 模型服务暂时不可用\n\n"
+            error_response += "请检查并更新您的API密钥配置。"
+            
             return {
-                "generated_text": f"错误: 处理请求时发生异常 - {str(e)}",
-                "model": model_name,
+                "generated_text": error_response,
+                "model": f"{model_name} (错误)",
                 "tokens_used": 0,
-                "error": str(e),
                 "response_time_ms": int((time.time() - start_time) * 1000),
-                "success": False
+                "success": False,
+                "simulated": False,
+                "error": str(e)
             }
     
     def generate_embeddings(

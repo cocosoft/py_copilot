@@ -6,7 +6,17 @@
 
 import uvicorn
 import sys
+import logging
 from app.core.config import settings as config
+
+# 配置日志
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
 
 if __name__ == "__main__":
     print(f"启动简化版服务器，运行在 {config.server_host}:{config.server_port}...")

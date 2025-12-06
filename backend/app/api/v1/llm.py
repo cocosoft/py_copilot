@@ -101,7 +101,8 @@ async def chat_completion(
             n=request.n,
             stop=request.stop,
             frequency_penalty=request.frequency_penalty,
-            presence_penalty=request.presence_penalty
+            presence_penalty=request.presence_penalty,
+            db=db
         )
         
         # 记录请求历史

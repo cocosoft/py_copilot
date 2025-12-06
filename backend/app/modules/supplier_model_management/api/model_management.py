@@ -163,10 +163,12 @@ async def create_model_supplier(
             category=category,
             website=website,
             api_docs=api_docs,
-            api_key=api_key,
             created_at=now,
             updated_at=now
         )
+        # 单独设置API密钥以确保加密生效
+        if api_key is not None:
+            db_supplier.api_key = api_key
         
         db.add(db_supplier)
         db.commit()
@@ -349,7 +351,7 @@ async def update_model_supplier(
     if api_docs is not None:
         setattr(supplier, 'api_docs', api_docs)
     if api_key is not None:
-        setattr(supplier, 'api_key', api_key)
+        supplier.api_key = api_key  # 直接使用属性设置以确保加密生效
     
     # 处理logo上传
     if logo:
@@ -710,8 +712,9 @@ async def get_all_models(
     Returns:
         所有模型列表
     """
-    # 从数据库中查询所有模型
-    models = db.query(Model).offset(skip).limit(limit).all()
+    # 查询数据库获取所有模型数据，包括供应商信息
+    from sqlalchemy.orm import joinedload
+    models = db.query(Model).options(joinedload(Model.supplier)).offset(skip).limit(limit).all()
     total = db.query(Model).count()
     
     return ModelListResponse(

@@ -67,7 +67,7 @@ const formatModelData = (model) => {
   // 首先检查直接的supplier对象
   if (model.supplier) {
     supplierName = model.supplier.name || '';
-    supplierDisplayName = supplierName; // 数据库中没有display_name字段，直接使用name
+    supplierDisplayName = model.supplier.display_name || supplierName; // 使用display_name，如果没有则使用name
   } 
   // 检查是否有嵌套的supplier数据
   else if (model.supplier_id) {

@@ -65,6 +65,15 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
         if (frontendData && frontendData.isDomestic !== undefined) {
           dataToSend.append('is_domestic', frontendData.isDomestic ? 'true' : 'false');
         }
+        // 添加API地址和API密钥（映射前端字段到后端期望的字段名）
+        if (frontendData) {
+          if (frontendData.apiUrl !== undefined) {
+            dataToSend.append('api_endpoint', frontendData.apiUrl);
+          }
+          if (frontendData.apiKey !== undefined) {
+            dataToSend.append('api_key', frontendData.apiKey);
+          }
+        }
 
         // 添加api_key_env_name
         const supplierKey = currentSupplier ?
@@ -75,9 +84,12 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
         // 对于普通对象，创建新对象
         dataToSend = {
           ...apiData,
+          // 映射前端字段到后端期望的字段名
+          api_endpoint: frontendData?.apiUrl ?? apiData.api_endpoint ?? apiData.apiUrl,
+          api_key: frontendData?.apiKey ?? apiData.api_key ?? apiData.apiKey,
           // 设置默认值
           is_active: apiData.is_active !== undefined ? apiData.is_active : true,
-          is_domestic: frontendData && frontendData.isDomestic !== undefined ? frontendData.isDomestic : (apiData.is_domestic !== undefined ? apiData.is_domestic : false)
+          is_domestic: frontendData?.isDomestic ?? apiData.is_domestic ?? false
         };
 
         // 使用currentSupplier的key或name作为环境变量名的一部分

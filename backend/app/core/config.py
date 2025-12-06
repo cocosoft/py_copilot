@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     app_name: str = Field(default="Py Copilot", env="APP_NAME")
     debug: bool = Field(default=True, env="DEBUG")
     
+    # 加密配置
+    encryption_key: Optional[str] = Field(default=None, env="ENCRYPTION_KEY")
+    
     # 数据库配置
     database_url: str = Field(
         default="sqlite:///./py_copilot.db", 

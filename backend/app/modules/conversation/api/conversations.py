@@ -2,8 +2,10 @@
 from datetime import datetime
 from typing import Any, List, Dict, Optional
 
-from fastapi import APIRouter, HTTPException, Query, status, Body
+from fastapi import APIRouter, HTTPException, Query, status, Body, Depends
+from sqlalchemy.orm import Session
 
+from app.core.database import get_db
 from app.modules.conversation.schemas.conversation import SendMessageRequest
 from app.modules.llm.services.llm_service import llm_service
 from app.modules.llm.services.llm_tasks import llm_tasks
@@ -197,7 +199,8 @@ async def delete_conversation(conversation_id: int) -> None:
 @router.post("/{conversation_id}/messages")
 async def send_message(
     conversation_id: int,
-    request: SendMessageRequest = Body(...)
+    request: SendMessageRequest = Body(...),
+    db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """
     在对话中发送消息
@@ -205,10 +208,9 @@ async def send_message(
     # 查询对话
     conversation = mock_storage.get_conversation(conversation_id)
     if not conversation:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="对话不存在"
-        )
+        # 如果对话不存在，自动创建一个新对话
+        conversation = mock_storage.create_conversation(title=f"对话 {conversation_id}")
+        print(f"已自动创建对话: {conversation}")
     
     if not conversation.get("is_active", True):
         raise HTTPException(
@@ -237,25 +239,40 @@ async def send_message(
             try:
                 # 使用请求中的模型名称，如果没有则使用默认值
                 model_name = request.model_name or "gpt-3.5-turbo"
+                print(f"调用llm_service.chat_completion，模型: {model_name}")
+                print(f"聊天消息: {chat_messages}")
                 llm_response = llm_service.chat_completion(
                     messages=chat_messages,
-                    model_name=model_name
+                    model_name=model_name,
+                    db=db
                 )
+                print(f"LLM响应: {llm_response}")
                 ai_content = llm_response.get("generated_text", "抱歉，我无法生成回复。")
-            except (AttributeError, TypeError):
+                print(f"提取的AI内容: {ai_content}")
+            except (AttributeError, TypeError) as e:
+                print(f"chat_completion调用失败: {str(e)}")
                 # 尝试使用chat方法
                 try:
-                    llm_response = llm_service.chat(chat_messages, model_name=model_name)
+                    llm_response = llm_service.chat(chat_messages, model_name=model_name, db=db)
                     ai_content = llm_response.get("content", "抱歉，我无法生成回复。")
-                except Exception:
+                except Exception as e:
+                    print(f"LLM chat方法调用失败: {str(e)}")
                     # 使用模拟回复
                     ai_content = f"这是一条模拟回复，基于您的消息：{request.content[:50]}..."
+            except Exception as e:
+                print(f"chat_completion调用发生其他错误: {str(e)}")
+                ai_content = f"这是一条模拟回复，基于您的消息：{request.content[:50]}..."
             
             # 创建助手回复消息
+            print(f"创建助手消息，内容: {ai_content}")
             assistant_message = mock_storage.create_message(conversation_id, ai_content, "assistant")
+            print(f"助手消息创建结果: {assistant_message}")
             
         except Exception as e:
             print(f"LLM生成回复失败: {str(e)}")
+            # 即使发生异常，也要创建一个模拟回复
+            ai_content = f"这是一条模拟回复，基于您的消息：{request.content[:50]}..."
+            assistant_message = mock_storage.create_message(conversation_id, ai_content, "assistant")
     
     # 构建响应
     response = {
@@ -264,9 +281,12 @@ async def send_message(
         "generated_at": datetime.utcnow()
     }
     
+    print(f"构建响应，assistant_message存在: {assistant_message is not None}")
     if assistant_message:
         response["assistant_message"] = assistant_message
+        print(f"响应中包含助手消息: {response['assistant_message']}")
     
+    print(f"最终响应: {response}")
     return response
 
 

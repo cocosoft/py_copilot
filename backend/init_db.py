@@ -23,8 +23,7 @@ try:
                 "display_name": "OpenAI",
                 "description": "提供GPT系列模型的AI公司",
                 "website": "https://openai.com",
-                "base_url": "https://api.openai.com/v1",
-                "is_domestic": False,
+                "api_endpoint": "https://api.openai.com/v1",
                 "is_active": True
             },
             {
@@ -32,8 +31,7 @@ try:
                 "display_name": "百度文心一言",
                 "description": "百度AI开发的大语言模型",
                 "website": "https://wenxin.baidu.com",
-                "base_url": "https://aip.baidubce.com",
-                "is_domestic": True,
+                "api_endpoint": "https://aip.baidubce.com",
                 "is_active": True
             }
         ]

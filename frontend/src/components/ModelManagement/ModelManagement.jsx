@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import ModelModal from './ModelModal';
 import ModelParameterModal from './ModelParameterModal';
 import SupplierDetail from '../SupplierManagement/SupplierDetail';
+import ModelCapabilityAssociation from '../CapabilityManagement/ModelCapabilityAssociation';
 import '../../styles/ModelManagement.css';
 import api from '../../utils/api';
+import capabilityApi from '../../utils/api/capabilityApi';
 
 const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }) => {
   const [currentModels, setCurrentModels] = useState([]);
@@ -24,6 +26,11 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
   const [isParameterModalOpen, setIsParameterModalOpen] = useState(false);
   const [parameterModalMode, setParameterModalMode] = useState('add');
   const [editingParameter, setEditingParameter] = useState(null);
+  
+  // 模型能力相关状态
+  const [modelCapabilities, setModelCapabilities] = useState({}); // 存储每个模型的能力信息
+  const [isCapabilityModalOpen, setIsCapabilityModalOpen] = useState(false);
+  const [currentCapabilitiesModel, setCurrentCapabilitiesModel] = useState(null);
 
   // 当选择的供应商改变时，加载对应模型列表
   useEffect(() => {
@@ -31,6 +38,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
       loadModels();
     } else {
       setCurrentModels([]);
+      setModelCapabilities({});
       setError(null);
     }
   }, [selectedSupplier]);
@@ -90,13 +98,36 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
       
       // 从结果中提取models数组
       const models = result.models || [];
-      setCurrentModels(models); // 使用models数组而不是整个返回对象
+      setCurrentModels(models);
+      
+      // 为每个模型加载能力信息
+      await Promise.all(
+        models.map(model => loadModelCapabilities(model.id))
+      );
     } catch (err) {
       const errorMessage = err.message || '加载模型失败';
       console.error('❌ 加载模型失败:', errorMessage);
       setError(`加载模型失败: ${errorMessage}`);
     } finally {
       setLoading(false);
+    }
+  };
+  
+  // 加载模型能力信息
+  const loadModelCapabilities = async (modelId) => {
+    try {
+      const capabilities = await capabilityApi.getModelCapabilities(modelId);
+      setModelCapabilities(prev => ({
+        ...prev,
+        [modelId]: capabilities
+      }));
+    } catch (err) {
+      console.error(`加载模型 ${modelId} 的能力失败:`, err);
+      // 即使加载失败，也设置为空数组，避免显示错误
+      setModelCapabilities(prev => ({
+        ...prev,
+        [modelId]: []
+      }));
     }
   };
 
@@ -176,6 +207,22 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
     } finally {
       setSaving(false);
       setSuccess(null);
+    }
+  };
+  
+  // 管理模型能力
+  const handleManageCapabilities = (model) => {
+    setCurrentCapabilitiesModel(model);
+    setIsCapabilityModalOpen(true);
+  };
+  
+  // 关闭能力管理模态框
+  const handleCloseCapabilityModal = () => {
+    setIsCapabilityModalOpen(false);
+    setCurrentCapabilitiesModel(null);
+    // 关闭时重新加载模型能力，以便更新显示
+    if (selectedModel) {
+      loadModelCapabilities(selectedModel.id);
     }
   };
 
@@ -273,7 +320,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
       {selectedModel ? (
         <div className="model-parameters-section">
           <div className="section-header">
-            <h2>{selectedModel.name} - 参数管理</h2>
+            <h2>{selectedModel.displayName ? `${selectedModel.displayName} (${selectedModel.name})` : selectedModel.name} - 参数管理</h2>
             <div className="section-actions">
               <button
                 className="btn btn-primary"
@@ -372,7 +419,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
                 {currentModels.map((model) => (
                   <div key={model.id} className={`model-card ${model.is_default ? 'default' : ''}`}>
                     <div className="model-header">
-                      <h3 className="model-name">{model.display_name || model.name}</h3>
+                      <h3 className="model-name">{model.displayName ? `${model.displayName} (${model.name})` : model.name}</h3>
                       {model.is_default && <span className="default-badge">默认</span>}
                       <span className="model-type-badge">{model.model_type || 'chat'}</span>
                     </div>
@@ -385,6 +432,21 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
                         <span className={`status-indicator ${model.is_active ? 'active' : 'inactive'}`}>
                           {model.is_active ? '启用' : '禁用'}
                         </span>
+                      </div>
+                      {/* 显示模型能力信息 */}
+                      <div className="meta-item capabilities">
+                        <span className="status-label">能力:</span>
+                        <div className="capabilities-list">
+                          {modelCapabilities[model.id]?.length > 0 ? (
+                            modelCapabilities[model.id].map(capability => (
+                              <span key={capability.id} className="capability-tag">
+                                {capability.display_name || capability.name}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="no-capabilities">暂无能力</span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -411,6 +473,13 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
                         disabled={saving}
                       >
                         管理参数
+                      </button>
+                      <button
+                        className="btn btn-info btn-small"
+                        onClick={() => handleManageCapabilities(model)}
+                        disabled={saving}
+                      >
+                        能力管理
                       </button>
                       <button
                         className="btn btn-danger btn-small"
@@ -446,6 +515,15 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
         parameter={editingParameter}
         mode={parameterModalMode}
       />
+      
+      {/* 模型能力管理模态窗口 */}
+      {currentCapabilitiesModel && (
+        <ModelCapabilityAssociation
+          isOpen={isCapabilityModalOpen}
+          onClose={handleCloseCapabilityModal}
+          model={currentCapabilitiesModel}
+        />
+      )}
     </div>
   );
 };

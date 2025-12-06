@@ -2,11 +2,31 @@
 from datetime import datetime
 from typing import Any, List, Dict, Optional
 
-from fastapi import APIRouter, HTTPException, Query, status, Body
+from fastapi import APIRouter, HTTPException, Query, status, Body, Depends
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 from app.schemas.conversation import SendMessageRequest
-from app.services.llm_service import llm_service
-from app.services.llm_tasks import llm_tasks
+from app.modules.llm.services.llm_service import llm_service
+from app.modules.llm.services.llm_tasks import llm_tasks
+
+# 创建直接连接到py_copilot_iv.db的数据库会话
+def get_db():
+    print("get_db函数被调用")
+    # 使用绝对路径连接到项目根目录下的数据库文件
+    db_path = 'sqlite:///e:\\PY\\CODES\\py copilot IV\\py_copilot_iv.db'
+    print(f"数据库路径: {db_path}")
+    engine = create_engine(db_path)
+    print(f"创建的数据库引擎: {engine}")
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    print(f"创建的会话工厂: {SessionLocal}")
+    db = SessionLocal()
+    print(f"创建的数据库会话: {db}")
+    try:
+        yield db
+    finally:
+        db.close()
+        print("数据库会话已关闭")
 
 router = APIRouter()
 
@@ -195,10 +215,13 @@ async def delete_conversation(conversation_id: int) -> None:
 
 
 @router.post("/{conversation_id}/messages")
-async def send_message(
+def send_message(
     conversation_id: int,
-    request: SendMessageRequest = Body(...)
+    request: SendMessageRequest = Body(...),
+    db = Depends(get_db)
 ) -> Dict[str, Any]:
+    print(f"send_message函数中的db参数: {db}")
+    print(f"db参数的类型: {type(db)}")
     """
     在对话中发送消息
     """
@@ -222,6 +245,7 @@ async def send_message(
     # 如果需要使用LLM生成回复
     assistant_message = None
     if request.use_llm:
+        print("开始使用LLM生成回复...")
         try:
             # 获取对话历史
             conversation_history = mock_storage.get_conversation_messages(conversation_id)
@@ -237,25 +261,39 @@ async def send_message(
             try:
                 # 使用请求中的模型名称，如果没有则使用默认值
                 model_name = request.model_name or "gpt-3.5-turbo"
+                print(f"调用LLM服务，模型名称：{model_name}")
+                print(f"调用llm_service.chat_completion时传递的db参数: {db}")
                 llm_response = llm_service.chat_completion(
-                    messages=chat_messages,
-                    model_name=model_name
-                )
+                        messages=chat_messages,
+                        model_name=model_name,
+                        db=db
+                    )
+                print(f"LLM响应：{llm_response}")
                 ai_content = llm_response.get("generated_text", "抱歉，我无法生成回复。")
-            except (AttributeError, TypeError):
+                print(f"AI回复内容：{ai_content}")
+            except (AttributeError, TypeError) as e:
+                print(f"AttributeError或TypeError：{str(e)}")
                 # 尝试使用chat方法
                 try:
-                    llm_response = llm_service.chat(chat_messages, model_name=model_name)
+                    print("尝试使用chat方法...")
+                    llm_response = llm_service.chat(chat_messages, model_name=model_name, db=db)
                     ai_content = llm_response.get("content", "抱歉，我无法生成回复。")
-                except Exception:
+                except Exception as e:
+                    print(f"LLM chat方法调用失败: {str(e)}")
                     # 使用模拟回复
                     ai_content = f"这是一条模拟回复，基于您的消息：{request.content[:50]}..."
             
             # 创建助手回复消息
+            print(f"准备创建助手消息，内容：{ai_content}")
             assistant_message = mock_storage.create_message(conversation_id, ai_content, "assistant")
+            print(f"助手消息创建成功：{assistant_message}")
             
         except Exception as e:
             print(f"LLM生成回复失败: {str(e)}")
+            # 即使发生异常，也要创建一个模拟回复
+            ai_content = f"这是一条模拟回复，基于您的消息：{request.content[:50]}..."
+            assistant_message = mock_storage.create_message(conversation_id, ai_content, "assistant")
+            print(f"异常情况下创建的助手消息：{assistant_message}")
     
     # 构建响应
     response = {
@@ -264,9 +302,14 @@ async def send_message(
         "generated_at": datetime.utcnow()
     }
     
+    print(f"assistant_message存在吗？{assistant_message is not None}")
     if assistant_message:
         response["assistant_message"] = assistant_message
+        print(f"响应中添加了助手消息")
+    else:
+        print("响应中没有添加助手消息")
     
+    print(f"最终响应：{response}")
     return response
 
 

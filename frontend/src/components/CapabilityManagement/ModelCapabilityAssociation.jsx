@@ -180,20 +180,32 @@ const ModelCapabilityAssociation = () => {
       
       <div className="card">
         <div className="form-group">
-          <label htmlFor="model-select">选择模型 *</label>
-          <select
-            id="model-select"
-            onChange={(e) => handleModelChange(Number(e.target.value))}
-            value={selectedModel?.id || ''}
+          <label htmlFor="model-input">选择或输入模型名称 *</label>
+          <input
+            type="text"
+            id="model-input"
+            list="models-datalist"
+            onChange={(e) => {
+              const inputValue = e.target.value;
+              // 尝试查找匹配的模型ID
+              const model = models.find(m => 
+                m.id.toString() === inputValue || 
+                m.name.toLowerCase().includes(inputValue.toLowerCase())
+              );
+              if (model) {
+                handleModelChange(model.id);
+              }
+            }}
+            placeholder="输入模型名称或选择"
             className="form-control"
-          >
-            <option value="">请选择一个模型</option>
+          />
+          <datalist id="models-datalist">
             {models.map(model => (
-              <option key={model.id} value={model.id}>
-                {model.name} - {model.supplierDisplayName || model.supplierName || '未知供应商'}
-              </option>
-            ))}
-          </select>
+                <option key={model.id} value={model.id}>
+                  {model.displayName ? `${model.displayName} (${model.name})` : model.name} - {model.supplierDisplayName || model.supplierName || '未知供应商'}
+                </option>
+              ))}
+          </datalist>
         </div>
       </div>
 

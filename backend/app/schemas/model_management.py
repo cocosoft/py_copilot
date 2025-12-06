@@ -11,6 +11,7 @@ class ModelSupplierBase(BaseModel):
     """模型供应商基础模型"""
     model_config = ConfigDict(protected_namespaces=())
     name: str = Field(..., min_length=1, max_length=100)
+    display_name: str = Field(..., min_length=1, max_length=200)
     description: Optional[str] = None
     is_active: bool = True
     logo: Optional[str] = None
