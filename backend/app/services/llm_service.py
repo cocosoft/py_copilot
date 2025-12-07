@@ -3,12 +3,12 @@ import os
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 import time
-import logging
 from app.core.config import settings
 from app.services.model_query_service import model_query_service
 from app.models.supplier_db import SupplierDB
 
-logger = logging.getLogger(__name__)
+# 导入自定义日志配置
+from app.core.logging_config import logger
 
 
 class LLMService:

@@ -6,6 +6,10 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 import os
 import aiofiles
+import requests
+
+# 导入项目配置的日志记录器
+from app.core.logging_config import logger
 
 from app.core.dependencies import get_db
 from app.models.supplier_db import SupplierDB, ModelDB
@@ -407,3 +411,112 @@ def get_all_models(db: Session = Depends(get_db)):
     ]
     
     return ModelListResponse(models=model_responses, total=total)
+
+
+@router.post("/suppliers/{supplier_id}/test-api")
+def test_api_config(
+    supplier_id: int,
+    request_data: dict,
+    db: Session = Depends(get_db)
+):
+    """测试供应商API配置的有效性"""
+    try:
+        logger.info(f"开始测试供应商API配置，供应商ID: {supplier_id}")
+        
+        # 验证供应商是否存在
+        supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
+        if not supplier:
+            logger.error(f"测试API配置失败：供应商ID {supplier_id} 不存在")
+            return JSONResponse(
+                status_code=404,
+                content={"status": "error", "message": "供应商不存在"}
+            )
+        
+        logger.info(f"找到供应商：{supplier.name}")
+        
+        # 获取API配置
+        api_endpoint = request_data.get("api_endpoint")
+        api_key = request_data.get("api_key")
+        
+        logger.info(f"获取API配置：endpoint={api_endpoint}, api_key={'已提供' if api_key else '未提供'}")
+        
+        if not api_endpoint:
+            logger.error(f"测试API配置失败：未提供API端点")
+            return JSONResponse(
+                status_code=400,
+                content={"status": "error", "message": "API端点不能为空"}
+            )
+        
+        try:
+            # 设置请求头
+            headers = {}
+            if api_key:
+                headers["Authorization"] = f"Bearer {api_key}"
+            
+            logger.info(f"发送测试请求到：{api_endpoint}, 头信息: {headers}")
+            
+            # 发送GET请求测试API连接
+            response = requests.get(api_endpoint, headers=headers, timeout=10)
+            
+            logger.info(f"API请求成功，状态码: {response.status_code}, 响应内容: {response.text[:200]}...")
+            
+            # 检查响应状态码
+            if response.status_code == 200:
+                return JSONResponse(
+                    status_code=200,
+                    content={
+                        "status": "success",
+                        "message": "API测试成功",
+                        "status_code": response.status_code,
+                        "response_text": response.text
+                    }
+                )
+            else:
+                return JSONResponse(
+                    status_code=200,
+                    content={
+                        "status": "error",
+                        "message": f"API测试失败，返回状态码: {response.status_code}",
+                        "status_code": response.status_code,
+                        "response_text": response.text
+                    }
+                )
+        except requests.exceptions.ConnectionError:
+            logger.error(f"API测试失败：无法连接到 {api_endpoint}，连接错误")
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "status": "error",
+                    "message": "无法连接到API端点，请检查地址是否正确。",
+                    "status_code": 0,
+                    "response_text": "连接错误"
+                }
+            )
+        except requests.exceptions.Timeout:
+            logger.error(f"API测试失败：请求 {api_endpoint} 超时")
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "status": "error",
+                    "message": "API请求超时，请检查网络连接或尝试调整超时设置。",
+                    "status_code": 0,
+                    "response_text": "请求超时"
+                }
+            )
+        except requests.exceptions.RequestException as e:
+            logger.error(f"API测试失败：请求异常 - {str(e)}")
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "status": "error",
+                    "message": f"API请求异常：{str(e)}",
+                    "status_code": 0,
+                    "response_text": str(e)
+                }
+            )
+    except Exception as e:
+        logger.error(f"测试API配置时发生未知错误：{str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": f"测试失败：{str(e)}"}
+        )

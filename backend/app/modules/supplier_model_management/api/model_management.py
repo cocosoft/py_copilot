@@ -6,6 +6,9 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 import os
+
+# 导入日志记录器
+from app.core.logging_config import logger
 import uuid
 from datetime import datetime
 
@@ -510,22 +513,66 @@ async def delete_model_supplier(
 
 
 import requests
+from fastapi import Body, HTTPException, status
+from pydantic import BaseModel
+
+# 定义API测试请求体的Pydantic模型
+class TestApiConfigRequest(BaseModel):
+    api_endpoint: str | None = None
+    api_key: str | None = None
 
 @router.post("/suppliers/{supplier_id}/test-api")
 async def test_supplier_api_config(
     supplier_id: int,
-    api_endpoint: str = Form(...),
-    api_key: Optional[str] = Form(None),
+    request_data: TestApiConfigRequest = Body(...),
     db: Session = Depends(get_db),
     current_user: MockUser = Depends(get_mock_user)
 ) -> Any:
+    # 添加调试信息
+    logger.info(f"接收到的请求体: {request_data}")
+    
+    # 首先验证供应商是否存在并获取供应商信息
+    supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
+    if not supplier:
+        logger.error(f"供应商不存在: supplier_id={supplier_id}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="供应商不存在"
+        )
+    
+    # 始终使用数据库中的API端点
+    api_endpoint = supplier.api_endpoint
+    
+    # 验证数据库中的API端点是否存在且有效
+    if not api_endpoint:
+        logger.error(f"数据库中的API端点不能为空。供应商ID: {supplier_id}, 供应商名称: {supplier.name}")
+        return {
+            "status": "error",
+            "message": "数据库中的API端点不能为空",
+            "status_code": 0,
+            "response_text": ""
+        }
+    
+    # 验证API端点格式是否正确（必须包含http://或https://）
+    if not (api_endpoint.startswith('http://') or api_endpoint.startswith('https://')):
+        logger.error(f"API端点格式不正确，必须包含http://或https://。数据库中的api_endpoint: {api_endpoint}")
+        return {
+            "status": "error",
+            "message": f"API端点格式不正确，必须包含http://或https://。当前配置: {api_endpoint}",
+            "status_code": 0,
+            "response_text": ""
+        }
+    
+    # 从请求体中获取API密钥
+    api_key = request_data.api_key
+    
     """
     测试供应商API配置
     
     Args:
         supplier_id: 供应商ID
-        api_endpoint: API端点
-        api_key: API密钥（可选）
+        api_endpoint: API端点（始终使用数据库中的值）
+        api_key: API密钥（来自请求体）
         db: 数据库会话
         current_user: 当前用户
     
@@ -533,21 +580,33 @@ async def test_supplier_api_config(
         测试结果
     """
     try:
-        # 验证供应商是否存在
-        supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
-        if not supplier:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="供应商不存在"
-            )
+        # 添加更多调试信息
+        logger.info(f"测试API配置: supplier_id={supplier_id}, supplier_name={supplier.name}, api_endpoint={api_endpoint}, api_key_provided={api_key is not None}")
         
         # 构建测试请求
         headers = {}
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
         
-        # 发送测试请求（这里使用简单的GET请求作为示例）
-        response = requests.get(api_endpoint, headers=headers, timeout=10)
+        # 根据供应商类型使用不同的测试端点
+        test_endpoint = api_endpoint
+        # 为DeepSeek和硅基流动等供应商添加特定端点处理
+        if supplier.name in ["深度求索", "deepseek", "硅基流动", "siliconflow"]:
+            # 这些API需要使用具体的路径
+            if not test_endpoint.endswith("/"):
+                test_endpoint += "/"
+            # 确保路径包含v1版本
+            if not test_endpoint.endswith("v1/"):
+                test_endpoint += "v1/"
+            # 使用models端点进行测试
+            test_endpoint += "models"
+        
+        logger.info(f"发送请求: URL={test_endpoint}, Headers={headers.keys()}")
+        
+        # 发送测试请求
+        response = requests.get(test_endpoint, headers=headers, timeout=10)
+        
+        logger.info(f"收到响应: Status={response.status_code}, Content-Type={response.headers.get('content-type')}")
         
         # 检查响应
         if response.status_code == 200:
@@ -558,32 +617,42 @@ async def test_supplier_api_config(
                 "response_text": response.text[:500]  # 只返回前500个字符
             }
         else:
+            error_msg = f"API配置测试失败！服务器返回状态码: {response.status_code}"
+            logger.error(f"响应错误: {error_msg}, Response={response.text[:200]}...")
+            # 直接返回错误响应，而不是抛出HTTPException
             return {
                 "status": "error",
-                "message": f"API配置测试失败！",
+                "message": error_msg,
                 "status_code": response.status_code,
                 "response_text": response.text[:500]
             }
-    except requests.exceptions.ConnectionError:
+    except requests.exceptions.ConnectionError as e:
+        error_msg = "无法连接到API端点，请检查地址是否正确。"
+        logger.error(f"连接错误: {error_msg}, Exception={str(e)}")
         return {
             "status": "error",
-            "message": "无法连接到API端点，请检查地址是否正确。",
+            "message": error_msg,
             "status_code": 0,
-            "response_text": ""
+            "response_text": str(e)
         }
-    except requests.exceptions.Timeout:
+    except requests.exceptions.Timeout as e:
+        error_msg = "API请求超时，请检查网络连接和API端点。"
+        logger.error(f"超时错误: {error_msg}, Exception={str(e)}")
         return {
             "status": "error",
-            "message": "API请求超时，请检查网络连接和API端点。",
+            "message": error_msg,
             "status_code": 0,
-            "response_text": ""
+            "response_text": str(e)
         }
     except Exception as e:
+        # 捕获所有其他异常，提供更详细的错误信息
+        error_msg = f"测试API配置时发生错误：{str(e)}"
+        logger.error(f"未捕获的异常: {error_msg}, 异常类型: {type(e).__name__}")
         return {
             "status": "error",
-            "message": f"测试API配置时发生错误：{str(e)}",
+            "message": error_msg,
             "status_code": 0,
-            "response_text": ""
+            "response_text": str(e)
         }
 
 # 模型管理相关路由

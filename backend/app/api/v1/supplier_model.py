@@ -370,7 +370,9 @@ def update_model(supplier_id: int, model_id: int, model_update: dict, db: Sessio
 
 @router.delete("/suppliers/{supplier_id}/models/{model_id}")
 def delete_model(supplier_id: int, model_id: int, db: Session = Depends(get_db)):
-    """删除模型"""
+    """
+    删除模型
+    """
     # 验证供应商是否存在
     supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
     if not supplier:
@@ -389,3 +391,102 @@ def delete_model(supplier_id: int, model_id: int, db: Session = Depends(get_db))
     db.commit()
     
     return {"message": "模型删除成功"}
+
+@router.post("/suppliers/{supplier_id}/test-api")
+async def test_api_config(supplier_id: int, api_config: dict, db: Session = Depends(get_db)):
+    """
+    测试供应商的API配置
+    
+    Args:
+        supplier_id: 供应商ID
+        api_config: API配置信息，包含api_endpoint和api_key
+        db: 数据库会话
+    
+    Returns:
+        测试结果
+    """
+    import requests
+    import logging
+    # 使用根日志记录器
+    logger = logging.getLogger()
+    
+    # 记录请求开始
+    logger.info(f"[API测试] 请求开始 - 供应商ID: {supplier_id}, API配置: {api_config}")
+    
+    # 验证供应商是否存在
+    supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
+    if not supplier:
+        logger.error(f"[API测试] 供应商不存在 - 供应商ID: {supplier_id}")
+        raise HTTPException(status_code=404, detail="供应商不存在")
+    
+    # 提取API配置 - 始终使用数据库中的API端点
+    api_endpoint = supplier.api_endpoint
+    # 使用前端传递的API密钥
+    api_key = api_config.get("api_key")
+    
+    logger.info(f"[API测试] 提取的API配置 - 端点: {api_endpoint}, 密钥长度: {len(api_key) if api_key else 0}")
+    
+    if not api_endpoint:
+        logger.error(f"[API测试] API端点为空 - 供应商ID: {supplier_id}")
+        raise HTTPException(status_code=400, detail="API端点不能为空")
+    
+    try:
+        # 根据供应商类型选择不同的测试方法
+        # 这里提供一个通用的测试方法，具体可以根据不同供应商类型进行扩展
+        headers = {"Authorization": f"Bearer {api_key}"}
+        logger.info(f"[API测试] 发送请求 - 方法: GET, 端点: {api_endpoint}, 头信息: {headers.keys()}")
+        
+        # 发送简单的GET请求测试连接
+        response = requests.get(api_endpoint, headers=headers, timeout=10)
+        
+        logger.info(f"[API测试] 请求结果 - 状态码: {response.status_code}, 响应头: {response.headers}, 响应内容: {response.text[:200]}...")
+        
+        if response.status_code == 200:
+            logger.info(f"[API测试] 测试成功 - 供应商ID: {supplier_id}, API端点: {api_endpoint}")
+            return {
+                "status": "success",
+                "message": "API连接成功",
+                "status_code": response.status_code,
+                "response_text": response.text[:500]
+            }
+        else:
+            logger.warning(f"[API测试] 测试失败 - 供应商ID: {supplier_id}, API端点: {api_endpoint}, 状态码: {response.status_code}")
+            return {
+                "status": "error",
+                "message": f"API连接失败，状态码: {response.status_code}",
+                "status_code": response.status_code,
+                "response_text": response.text
+            }
+    
+    except requests.exceptions.ConnectionError as e:
+        logger.error(f"[API测试] 连接错误 - 供应商ID: {supplier_id}, API端点: {api_endpoint}, 错误: {str(e)}")
+        return {
+            "status": "error",
+            "message": f"无法连接到API端点，请检查地址是否正确。",
+            "status_code": 0,
+            "response_text": str(e)
+        }
+    except requests.exceptions.Timeout as e:
+        logger.error(f"[API测试] 请求超时 - 供应商ID: {supplier_id}, API端点: {api_endpoint}, 错误: {str(e)}")
+        return {
+            "status": "error",
+            "message": f"API请求超时，请检查网络连接或端点响应时间。",
+            "status_code": 0,
+            "response_text": str(e)
+        }
+    except requests.exceptions.RequestException as e:
+        logger.error(f"[API测试] 请求异常 - 供应商ID: {supplier_id}, API端点: {api_endpoint}, 错误: {str(e)}")
+        return {
+            "status": "error",
+            "message": f"API连接失败: {str(e)}",
+            "status_code": 0,
+            "response_text": str(e)
+        }
+    except Exception as e:
+        logger.error(f"[API测试] 未知错误 - 供应商ID: {supplier_id}, API端点: {api_endpoint}, 错误: {str(e)}", exc_info=True)
+        return {
+            "status": "error",
+            "message": f"测试过程中发生错误: {str(e)}",
+            "status_code": 0,
+            "response_text": str(e)
+        }

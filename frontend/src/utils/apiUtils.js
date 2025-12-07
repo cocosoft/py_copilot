@@ -43,14 +43,64 @@ export const request = async (endpoint, options = {}) => {
     // 构建完整URL
     const url = `${API_BASE_URL}${endpoint}`;
     
+    // 添加调试信息
+    console.log('即将发送请求:', {
+      url: url,
+      options: mergedOptions
+    });
+    
     // 发送请求
     const response = await fetch(url, mergedOptions);
     
     // 检查响应状态
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      const errorMessage = errorData.detail || errorData.message || `HTTP错误! 状态: ${response.status}`;
-      console.error('❌ API响应错误:', response.status, errorMessage);
+      
+      // 提取错误信息
+      let errorMessage;
+      let statusCode = response.status;
+      let responseText = '';
+      
+      if (errorData.detail) {
+        // 如果detail存在，检查它是否是对象
+        if (typeof errorData.detail === 'object') {
+          // 如果detail是对象，提取其中的字段
+          const detailObj = errorData.detail;
+          // 优先使用detail中的message字段
+          errorMessage = detailObj.message || 'API错误!';
+          // 使用detail中的status_code
+          statusCode = detailObj.status_code || response.status;
+          // 使用detail中的response_text
+          responseText = detailObj.response_text || '';
+          
+          // 如果有response_text且与message不同，则添加到错误消息中
+          if (responseText && responseText !== detailObj.message) {
+            errorMessage += `：${responseText}`;
+          }
+        } else {
+          // 否则直接使用detail
+          errorMessage = errorData.detail;
+          // 使用errorData中的status_code和response_text
+          statusCode = errorData.status_code || response.status;
+          responseText = errorData.response_text || '';
+        }
+      } else {
+        // 否则使用message或默认错误消息
+        errorMessage = errorData.message || 'HTTP错误!';
+        // 使用errorData中的status_code和response_text
+        statusCode = errorData.status_code || response.status;
+        responseText = errorData.response_text || '';
+      }
+      
+      // 添加强制性的状态码信息
+      errorMessage += ` 状态码: ${statusCode}`;
+      
+      // 添加可选的响应文本信息（如果有且未包含在message中）
+      if (responseText && !errorMessage.includes(responseText)) {
+        errorMessage += ` 响应文本: ${responseText}`;
+      }
+      
+      console.error('❌ API响应错误:', statusCode, errorMessage);
       throw new Error(errorMessage);
     }
     

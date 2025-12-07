@@ -284,24 +284,87 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
       setTesting(true);
       setTestResult(null);
 
+      // 前端验证API配置
+      if (!localApiConfig.apiUrl) {
+        setTestResult({
+          type: 'error',
+          message: 'API测试失败',
+          details: 'API端点不能为空'
+        });
+        return;
+      }
+
+      // 验证API端点格式是否正确（必须包含http://或https://）
+      if (!(/^https?:\/\/.+/.test(localApiConfig.apiUrl))) {
+        setTestResult({
+          type: 'error',
+          message: 'API测试失败',
+          details: 'API端点格式不正确，必须包含http://或https://'
+        });
+        return;
+      }
+
+      if (!localApiConfig.apiKey) {
+        setTestResult({
+          type: 'error',
+          message: 'API测试失败',
+          details: 'API密钥不能为空'
+        });
+        return;
+      }
+
       // 测试API配置
+      console.log('即将调用testApiConfig，传递的参数:', {
+        id: selectedSupplier.id,
+        apiConfig: {
+          apiUrl: localApiConfig.apiUrl,
+          apiKey: localApiConfig.apiKey
+        }
+      });
       const result = await supplierApi.testApiConfig(selectedSupplier.id, {
-        api_endpoint: localApiConfig.apiUrl,
-        api_key: localApiConfig.apiKey
+        apiUrl: localApiConfig.apiUrl,
+        apiKey: localApiConfig.apiKey
       });
 
-      setTestResult({
-        type: 'success',
-        message: 'API测试成功！',
-        details: result.message || 'API连接正常'
-      });
+      // 根据后端返回的状态设置测试结果
+      if (result.status === 'success') {
+        setTestResult({
+          type: 'success',
+          message: 'API测试成功！',
+          details: result.message || 'API连接正常'
+        });
+      } else {
+        setTestResult({
+          type: 'error',
+          message: 'API测试失败',
+          details: result.message || '无法连接到API'
+        });
+      }
     } catch (error) {
-      console.error('API测试失败:', error);
-      setTestResult({
-        type: 'error',
-        message: 'API测试失败',
-        details: error.message || '无法连接到API'
-      });
+        console.error('测试API失败:', error);
+        console.error('错误消息:', error.message);
+        console.error('错误对象:', error);
+        
+        // 解析错误信息，优先使用error.message（apiUtils.js已处理）
+        let errorDetails = '无法连接到API';
+        
+        // 首先使用apiUtils.js处理过的错误消息
+        if (error.message) {
+          errorDetails = error.message;
+        } else if (error.response && error.response.data) {
+          // 如果没有处理过的消息，尝试从response.data中提取
+          const responseData = error.response.data;
+          errorDetails = responseData.message || 
+                        responseData.detail || 
+                        responseData.response_text || 
+                        JSON.stringify(responseData);
+        }
+        
+        setTestResult({
+          type: 'error',
+          message: 'API测试失败',
+          details: errorDetails
+        });
     } finally {
       setTesting(false);
     }

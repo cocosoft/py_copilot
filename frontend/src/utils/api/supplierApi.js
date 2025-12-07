@@ -237,17 +237,40 @@ export const supplierApi = {
     // 确保ID是数字类型
     const numericId = Number(id);
     
+    // 添加调试信息
+    console.log('调用testApiConfig，传递的apiConfig:', apiConfig);
+    console.log('要发送到后端的请求体:', {
+      api_endpoint: apiConfig.apiUrl,
+      api_key: apiConfig.apiKey
+    });
+    
     const endpoint = `/model-management/suppliers/${numericId}/test-api`;
-    return await request(endpoint, {
+    const response = await request(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        api_endpoint: apiConfig.api_endpoint,
-        api_key: apiConfig.api_key
+        api_endpoint: apiConfig.apiUrl,
+        api_key: apiConfig.apiKey
       })
     });
+    
+    // 检查后端返回的状态
+    if (response.status === 'error') {
+      // 构建错误信息
+      let errorMessage = response.message;
+      if (response.response_text) {
+        errorMessage += `: ${response.response_text}`;
+      }
+      
+      // 抛出错误，让前端的错误处理逻辑捕获
+      const error = new Error(errorMessage);
+      error.response = response;
+      throw error;
+    }
+    
+    return response;
   }
 };
 
