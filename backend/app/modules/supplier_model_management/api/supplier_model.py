@@ -17,11 +17,21 @@ from app.modules.supplier_model_management.schemas.supplier_model import (
 router = APIRouter()
 
 # 文件上传配置
-UPLOAD_DIR = "../../frontend/public/logos/providers"
+# 获取项目根目录（backend的父目录）
+CURRENT_FILE = os.path.abspath(__file__)
+# 从当前文件开始向上导航到项目根目录
+BASE_DIR = os.path.dirname(CURRENT_FILE)  # api
+BASE_DIR = os.path.dirname(BASE_DIR)  # supplier_model_management
+BASE_DIR = os.path.dirname(BASE_DIR)  # modules
+BASE_DIR = os.path.dirname(BASE_DIR)  # app
+BASE_DIR = os.path.dirname(BASE_DIR)  # backend
+UPLOAD_DIR = os.path.join(BASE_DIR, "../frontend/public/logos/providers")
+UPLOAD_DIR = os.path.normpath(UPLOAD_DIR)  # 规范化路径
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "svg"}
 
 # 确保上传目录存在
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+print(f"文件上传目录: {UPLOAD_DIR}")  # 添加日志以便调试
 
 # 供应商相关路由
 async def save_upload_file(file: UploadFile) -> str:

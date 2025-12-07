@@ -17,11 +17,20 @@ from app.schemas.supplier_model import (
 router = APIRouter()
 
 # 文件上传配置
-UPLOAD_DIR = "../../frontend/public/logos/providers"
+# 获取项目根目录（backend的父目录）
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # 当前文件目录
+BASE_DIR = os.path.dirname(BASE_DIR)  # api/v1
+BASE_DIR = os.path.dirname(BASE_DIR)  # api
+BASE_DIR = os.path.dirname(BASE_DIR)  # app
+BASE_DIR = os.path.dirname(BASE_DIR)  # backend
+BASE_DIR = os.path.dirname(BASE_DIR)  # 项目根目录
+UPLOAD_DIR = os.path.join(BASE_DIR, "frontend/public/logos/providers")
+UPLOAD_DIR = os.path.normpath(UPLOAD_DIR)  # 规范化路径
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "svg"}
 
 # 确保上传目录存在
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+print(f"文件上传目录: {UPLOAD_DIR}")  # 添加日志以便调试
 
 # 供应商相关路由
 async def save_upload_file(file: UploadFile) -> str:
@@ -106,6 +115,8 @@ def get_supplier(supplier_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="供应商不存在")
     return supplier
 
+from sqlalchemy import text
+
 @router.put("/suppliers/{supplier_id}")
 async def update_supplier(
     supplier_id: int,
@@ -116,43 +127,76 @@ async def update_supplier(
     db: Session = Depends(get_db)
 ):
     """更新供应商信息（支持文件上传）"""
-    supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
-    if not supplier:
-        raise HTTPException(status_code=404, detail="供应商不存在")
-    
-    # 如果更新name，检查是否已存在
-    if name != supplier.name:
-        existing_supplier = db.query(SupplierDB).filter(SupplierDB.name == name).first()
-        if existing_supplier:
+    try:
+        # 检查供应商是否存在
+        result = db.execute(text("SELECT id FROM suppliers WHERE id = :supplier_id"), {
+            "supplier_id": supplier_id
+        })
+        if result.fetchone() is None:
+            raise HTTPException(status_code=404, detail="供应商不存在")
+        
+        # 如果更新name，检查是否已存在
+        result = db.execute(text("SELECT id FROM suppliers WHERE name = :name AND id != :supplier_id"), {
+            "name": name,
+            "supplier_id": supplier_id
+        })
+        if result.fetchone() is not None:
             raise HTTPException(status_code=400, detail="供应商名称已存在")
-    
-    # 保存新logo文件（如果有）
-    if logo:
-        logo_path = await save_upload_file(logo)
-        supplier.logo = logo_path
-    
-    # 更新基础信息字段
-    db.query(SupplierDB).filter(SupplierDB.id == supplier_id).update({
-        "name": name,
-        "description": description,
-        "website": website,
-        "updated_at": datetime.utcnow()
-    })
-    
-    db.commit()
-    db.refresh(supplier)
-    
-    # 返回供应商信息
-    return {
-        "id": supplier.id,
-        "name": supplier.name,
-        "description": supplier.description,
-        "logo": supplier.logo,
-        "website": supplier.website,
-        "created_at": supplier.created_at,
-        "updated_at": supplier.updated_at,
-        "is_active": supplier.is_active
-    }
+        
+        # 保存新logo文件（如果有）
+        logo_path = None
+        if logo:
+            logo_path = await save_upload_file(logo)
+        
+        # 更新基础信息字段
+        update_data = {
+            "name": name,
+            "description": description,
+            "website": website,
+            "updated_at": datetime.utcnow()
+        }
+        
+        # 如果有logo更新，添加到更新数据
+        if logo_path:
+            update_data["logo"] = logo_path
+        
+        # 构建更新SQL
+        set_clause = ", ".join([f"{key} = :{key}" for key in update_data.keys()])
+        update_query = text(f"UPDATE suppliers SET {set_clause} WHERE id = :supplier_id")
+        
+        # 执行更新
+        db.execute(update_query, {**update_data, "supplier_id": supplier_id})
+        
+        # 查询更新后的供应商信息
+        result = db.execute(text("""
+            SELECT id, name, description, logo, website, created_at, updated_at, is_active
+            FROM suppliers WHERE id = :supplier_id
+        """), {"supplier_id": supplier_id})
+        supplier = result.fetchone()
+        
+        db.commit()
+        
+        # 检查供应商是否存在
+        if supplier is None:
+            raise HTTPException(status_code=404, detail="供应商不存在")
+        
+        # 返回供应商信息
+        return {
+            "id": supplier.id,
+            "name": supplier.name,
+            "description": supplier.description,
+            "logo": supplier.logo,
+            "website": supplier.website,
+            "created_at": supplier.created_at,
+            "updated_at": supplier.updated_at,
+            "is_active": supplier.is_active
+        }
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"更新供应商失败: {str(e)}")
 
 @router.patch("/suppliers/{supplier_id}/status")
 def update_supplier_status(supplier_id: int, is_active: bool, db: Session = Depends(get_db)):
@@ -179,6 +223,14 @@ def delete_supplier(supplier_id: int, db: Session = Depends(get_db)):
     if not supplier:
         raise HTTPException(status_code=404, detail="供应商不存在")
     
+    # 检查是否有相关模型
+    model_count = db.query(ModelDB).filter(ModelDB.supplier_id == supplier_id).count()
+    if model_count > 0:
+        raise HTTPException(
+            status_code=400,
+            detail="无法删除包含模型的供应商，请先删除相关模型"
+        )
+    
     db.delete(supplier)
     db.commit()
     
@@ -203,10 +255,10 @@ def get_supplier_models(supplier_id: int, db: Session = Depends(get_db)):
             id=model.id,
             name=model.name,
             display_name=getattr(model, "display_name", model.name),
-            description=model.description,
+            description=getattr(model, "description", None),
             supplier_id=model.supplier_id,
-            context_window=model.context_window,
-            max_tokens=getattr(model, "max_tokens", model.default_max_tokens),
+            context_window=getattr(model, "context_window", None),
+            max_tokens=getattr(model, "max_tokens", getattr(model, "default_max_tokens", None)),
             is_default=model.is_default,
             is_active=model.is_active
         )
@@ -244,27 +296,27 @@ def create_model(supplier_id: int, model: dict, db: Session = Depends(get_db)):
     
     # 检查模型名称是否已存在
     existing_model = db.query(ModelDB).filter(
-        ModelDB.name == model.name,
+        ModelDB.name == model.get('name'),
         ModelDB.supplier_id == supplier_id
     ).first()
     if existing_model:
         raise HTTPException(status_code=400, detail="模型名称已存在")
     
     # 如果设置为默认模型，先将其他模型设为非默认
-    if model.is_default:
+    if model.get('is_default'):
         db.query(ModelDB).filter(ModelDB.supplier_id == supplier_id).update({"is_default": False})
     
     # 创建新模型
     # 只使用ModelDB中定义的字段
     db_model_data = {
-        "name": model.name,
-        "display_name": getattr(model, 'display_name', None),
-        "description": getattr(model, 'description', None),
+        "name": model.get('name'),
+        "display_name": model.get('display_name'),
+        "description": model.get('description'),
         "supplier_id": supplier_id,
-        "context_window": getattr(model, 'context_window', None),
-        "max_tokens": getattr(model, 'max_tokens', None),
-        "is_default": model.is_default,
-        "is_active": getattr(model, 'is_active', True)
+        "context_window": model.get('context_window'),
+        "max_tokens": model.get('max_tokens'),
+        "is_default": model.get('is_default'),
+        "is_active": model.get('is_active', True)
     }
     db_model = ModelDB(**db_model_data)
     db.add(db_model)
@@ -291,9 +343,10 @@ def update_model(supplier_id: int, model_id: int, model_update: dict, db: Sessio
         raise HTTPException(status_code=404, detail="模型不存在")
     
     # 检查模型名称是否被其他模型使用
-    if model_update.name != model.name:
+    update_name = model_update.get('name')
+    if update_name is not None and update_name != model.name:
         existing_model = db.query(ModelDB).filter(
-            ModelDB.name == model_update.name,
+            ModelDB.name == update_name,
             ModelDB.supplier_id == supplier_id,
             ModelDB.id != model_id
         ).first()
@@ -301,12 +354,11 @@ def update_model(supplier_id: int, model_id: int, model_update: dict, db: Sessio
             raise HTTPException(status_code=400, detail="模型名称已存在")
     
     # 如果设置为默认模型，先将其他模型设为非默认
-    if model_update.is_default:
+    if model_update.get('is_default'):
         db.query(ModelDB).filter(ModelDB.supplier_id == supplier_id).update({"is_default": False})
     
     # 更新模型数据
-    update_data = model_update.dict(exclude_unset=True)
-    for key, value in update_data.items():
+    for key, value in model_update.items():
         setattr(model, key, value)
     
     # 移除时间戳更新，因为ModelDB不包含此字段

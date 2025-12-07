@@ -235,7 +235,6 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
           <div 
             key={supplier.id} 
             className={`supplier-item ${selectedSupplier && selectedSupplier.id === supplier.id ? 'selected' : ''}`}
-            onClick={() => handleSupplierSelect(supplier)}
             style={{ display: 'flex', alignItems: 'center' }}
           >
             <div className="supplier-info" style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
@@ -259,7 +258,7 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
                 </div>
               </div>
               <div className="supplier-name" style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
-                {supplier.name}
+                <span onClick={() => handleSupplierSelect(supplier)} style={{ cursor: 'pointer' }}>{supplier.name}</span>
               </div>
               <div className="supplier-tag" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {supplier.is_active === false ? (
@@ -267,6 +266,24 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
                 ) : (
                   <div className="supplier-tag active" title="已启用" style={{  padding: '2px 8px', borderRadius: '12px', fontSize: '12px', minWidth: '60px', textAlign: 'center' }}>🟢 ON</div>
                 )}
+              </div>
+              <div className="supplier-actions" style={{ display: 'flex', gap: '5px', marginLeft: '10px' }}>
+                <button 
+                  className="btn btn-sm btn-secondary"
+                  onClick={() => handleEditSupplier(supplier)}
+                  style={{ padding: '2px 6px', fontSize: '12px' }}
+                  disabled={saving}
+                >
+                  编辑
+                </button>
+                <button 
+                  className="btn btn-sm btn-danger"
+                  onClick={() => handleDeleteSupplier(supplier)}
+                  style={{ padding: '2px 6px', fontSize: '12px' }}
+                  disabled={saving}
+                >
+                  删除
+                </button>
               </div>
             </div>
           </div>

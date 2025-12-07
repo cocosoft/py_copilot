@@ -42,13 +42,20 @@ const SupplierModal = ({ isOpen, onClose, onSave, supplier = null, mode = 'add' 
           }
         }
         setPreviewUrl(finalPreviewUrl);
+        // 设置表单中的logo值（保持原始值，不包含完整路径前缀）
+        setFormData(prev => ({
+          ...prev,
+          logo: logoUrl
+        }));
     } else if (mode === 'add') {
       // 重置表单数据
       setFormData({
         name: '',
         description: '',
         logo: '',
-        website: ''
+        website: '',
+        api_endpoint: '',
+        api_key: ''
       });
       setFile(null);
       setPreviewUrl('');

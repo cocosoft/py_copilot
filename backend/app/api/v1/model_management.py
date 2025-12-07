@@ -32,8 +32,11 @@ from app.schemas.model_management import (
 
 # 创建上传目录
 # 使用绝对路径确保文件能正确保存
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-UPLOAD_DIR = os.path.join(BASE_DIR, "../frontend/public/logos/providers")
+# 获取项目根目录（backend的父目录）
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # backend/app
+BASE_DIR = os.path.dirname(BASE_DIR)  # backend
+BASE_DIR = os.path.dirname(BASE_DIR)  # 项目根目录
+UPLOAD_DIR = os.path.join(BASE_DIR, "frontend/public/logos/providers")
 UPLOAD_DIR = os.path.normpath(UPLOAD_DIR)  # 规范化路径
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 print(f"文件上传目录: {UPLOAD_DIR}")  # 添加日志以便调试

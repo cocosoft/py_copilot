@@ -88,16 +88,17 @@ const SupplierList = () => {
           >
             <div className="supplier-info" style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
               <div className="supplier-logo" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {/* 首先检查logo是否为完整URL且未发生错误 */}
-                {supplier.logo && supplier.logo.startsWith('http') && !imageErrors[supplier.id] ? (
+                {/* 检查logo是否存在且未发生错误 */}
+                {supplier.logo && !imageErrors[supplier.id] ? (
+                  // 如果是完整URL直接使用，否则添加前缀路径
                   <img 
-                    src={supplier.logo} 
+                    src={supplier.logo.startsWith('http') ? supplier.logo : `/logos/providers/${supplier.logo}`} 
                     alt={`${supplier.name} logo`} 
                     style={{ width: '30px', height: '30px', borderRadius: '4px', objectFit: 'contain' }} 
                     onError={() => handleImageError(supplier.id)}
                   />
                 ) : (
-                  // 不是URL或图片加载失败时使用回退logo
+                  // logo不存在或图片加载失败时使用回退logo
                   renderFallbackLogo(supplier)
                 )}
               </div>

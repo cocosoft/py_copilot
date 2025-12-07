@@ -9,7 +9,8 @@ import os
 import uuid
 from datetime import datetime
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
+from app.core.encryption import encrypt_string
 from sqlalchemy.orm import sessionmaker
 from app.models.supplier_db import SupplierDB, ModelDB as Model
 from sqlalchemy import inspect
@@ -25,7 +26,14 @@ from app.modules.supplier_model_management.schemas.model_management import (
 
 # 创建上传目录
 # 使用绝对路径确保文件能正确保存
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# 获取项目根目录（backend的父目录）
+CURRENT_FILE = os.path.abspath(__file__)
+# 从当前文件开始向上导航到项目根目录
+BASE_DIR = os.path.dirname(CURRENT_FILE)  # api
+BASE_DIR = os.path.dirname(BASE_DIR)  # supplier_model_management
+BASE_DIR = os.path.dirname(BASE_DIR)  # modules
+BASE_DIR = os.path.dirname(BASE_DIR)  # app
+BASE_DIR = os.path.dirname(BASE_DIR)  # backend
 UPLOAD_DIR = os.path.join(BASE_DIR, "../frontend/public/logos/providers")
 UPLOAD_DIR = os.path.normpath(UPLOAD_DIR)  # 规范化路径
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -152,50 +160,85 @@ async def create_model_supplier(
             logo_url = await save_upload_file(logo)
         
         # 创建新供应商
-        now = datetime.utcnow()
-        db_supplier = SupplierDB(
-            name=name,
-            description=description,
-            api_endpoint=api_endpoint,
-            api_key_required=api_key_required,
-            is_active=is_active,
-            logo=logo_url,
-            category=category,
-            website=website,
-            api_docs=api_docs,
-            created_at=now,
-            updated_at=now
-        )
-        # 单独设置API密钥以确保加密生效
+        now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+        
+        # 使用原始SQL插入供应商记录，避免ORM的关系映射问题
+        from sqlalchemy import text
+        
+        # 加密API密钥
+        encrypted_api_key = None
         if api_key is not None:
-            db_supplier.api_key = api_key
+            from app.core.encryption import encrypt_string
+            encrypted_api_key = encrypt_string(api_key)
         
-        db.add(db_supplier)
+        # 构建插入SQL
+        insert_sql = text("""
+            INSERT INTO suppliers (
+                name, display_name, description, api_endpoint, api_key_required, 
+                is_active, logo, category, website, api_docs, api_key, 
+                created_at, updated_at
+            ) VALUES (
+                :name, :display_name, :description, :api_endpoint, :api_key_required, 
+                :is_active, :logo, :category, :website, :api_docs, :api_key, 
+                :created_at, :updated_at
+            )
+        """)
+        
+        # 执行插入
+        db.execute(insert_sql, {
+            "name": name,
+            "display_name": name,
+            "description": description,
+            "api_endpoint": api_endpoint,
+            "api_key_required": api_key_required,
+            "is_active": is_active,
+            "logo": logo_url,
+            "category": category,
+            "website": website,
+            "api_docs": api_docs,
+            "api_key": encrypted_api_key,
+            "created_at": now,
+            "updated_at": now
+        })
         db.commit()
-        db.refresh(db_supplier)
         
-        # 返回响应 - 使用name作为display_name
+        # 获取新插入的供应商ID
+        result = db.execute(text("SELECT last_insert_rowid()"))
+        supplier_id = result.scalar()
+        
+        # 解密API密钥用于返回
+        decrypted_api_key = None
+        if api_key is not None:
+            decrypted_api_key = api_key
+        
+        # 返回响应
         return {
-            "id": db_supplier.id,
-            "name": db_supplier.name,
-            "display_name": db_supplier.name,  # 使用name作为display_name
-            "description": db_supplier.description,
-            "api_endpoint": db_supplier.api_endpoint,
-            "api_key_required": db_supplier.api_key_required,
-            "is_active": db_supplier.is_active,
-            "logo": db_supplier.logo,
-            "category": db_supplier.category,
-            "website": db_supplier.website,
-            "api_docs": db_supplier.api_docs,
-            "api_key": db_supplier.api_key,
-            "created_at": db_supplier.created_at,
-            "updated_at": db_supplier.updated_at
+            "id": supplier_id,
+            "name": name,
+            "display_name": name,
+            "description": description,
+            "api_endpoint": api_endpoint,
+            "api_key_required": api_key_required,
+            "is_active": is_active,
+            "logo": logo_url,
+            "category": category,
+            "website": website,
+            "api_docs": api_docs,
+            "api_key": decrypted_api_key,
+            "created_at": now,
+            "updated_at": now
         }
     except IntegrityError:
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="创建供应商失败，请检查输入数据"
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"创建供应商失败: {str(e)}"
         )
 
 
@@ -315,62 +358,90 @@ async def update_model_supplier(
     Returns:
         更新后的模型供应商信息
     """
-    supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
-    if not supplier:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="供应商不存在"
-        )
-    
-    # 检查名称是否重复
-    if name and name != supplier.name:
-        existing_supplier = db.query(SupplierDB).filter(
-            SupplierDB.name == name
-        ).first()
-        if existing_supplier:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="供应商名称已存在"
-            )
-    
-    # 更新字段
-    if name is not None:
-        setattr(supplier, 'name', name)
-    if description is not None:
-        setattr(supplier, 'description', description)
-    if api_endpoint is not None:
-        setattr(supplier, 'api_endpoint', api_endpoint)
-    if api_key_required is not None:
-        setattr(supplier, 'api_key_required', api_key_required)
-    if is_active is not None:
-        setattr(supplier, 'is_active', is_active)
-    if category is not None:
-        setattr(supplier, 'category', category)
-    if website is not None:
-        setattr(supplier, 'website', website)
-    if api_docs is not None:
-        setattr(supplier, 'api_docs', api_docs)
-    if api_key is not None:
-        supplier.api_key = api_key  # 直接使用属性设置以确保加密生效
-    
-    # 处理logo上传
-    if logo:
-        # 如果有新的logo文件上传，保存它
-        logo_path = await save_upload_file(logo)
-        setattr(supplier, 'logo', logo_path)
-        print(f"已更新logo为新上传的文件: {logo_path}")
-    elif existing_logo is not None:
-        # 如果提供了existing_logo，使用它
-        setattr(supplier, 'logo', existing_logo)
-        print(f"保留现有logo: {supplier.logo}")
-    # 否则，保持原有logo不变
-    
-    # 更新时间戳
-    setattr(supplier, 'updated_at', datetime.utcnow())
-    
     try:
+        # 检查供应商是否存在
+        result = db.execute(text("SELECT id FROM suppliers WHERE id = :supplier_id"), {
+            "supplier_id": supplier_id
+        })
+        if result.fetchone() is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="供应商不存在"
+            )
+        
+        # 如果更新名称，检查是否重复
+        if name is not None:
+            result = db.execute(text("SELECT id FROM suppliers WHERE name = :name AND id != :supplier_id"), {
+                "name": name,
+                "supplier_id": supplier_id
+            })
+            if result.fetchone() is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="供应商名称已存在"
+                )
+        
+        # 处理logo上传
+        logo_path = None
+        if logo:
+            # 如果有新的logo文件上传，保存它
+            logo_path = await save_upload_file(logo)
+            print(f"已更新logo为新上传的文件: {logo_path}")
+        elif existing_logo is not None:
+            # 如果提供了existing_logo，使用它
+            logo_path = existing_logo
+            print(f"保留现有logo: {logo_path}")
+        
+        # 构建更新数据
+        update_data = {
+            "supplier_id": supplier_id,
+            "updated_at": datetime.utcnow()
+        }
+        
+        # 添加需要更新的字段
+        if name is not None:
+            update_data["name"] = name
+        if description is not None:
+            update_data["description"] = description
+        if api_endpoint is not None:
+            update_data["api_endpoint"] = api_endpoint
+        if api_key_required is not None:
+            update_data["api_key_required"] = api_key_required
+        if is_active is not None:
+            update_data["is_active"] = is_active
+        if category is not None:
+            update_data["category"] = category
+        if website is not None:
+            update_data["website"] = website
+        if api_docs is not None:
+            update_data["api_docs"] = api_docs
+        if logo_path is not None:
+            update_data["logo"] = logo_path
+        if api_key is not None:
+            # 加密API密钥
+            update_data["api_key"] = encrypt_string(api_key)
+        
+        # 构建更新SQL语句
+        set_clause = ", ".join([f"{key} = :{key}" for key in update_data.keys() if key != "supplier_id"])
+        update_query = text(f"UPDATE suppliers SET {set_clause} WHERE id = :supplier_id")
+        
+        # 执行更新
+        db.execute(update_query, update_data)
+        
+        # 查询更新后的供应商信息
+        result = db.execute(text("""
+            SELECT id, name, description, api_endpoint, api_key_required, 
+                   is_active, logo, category, website, api_docs, api_key, 
+                   created_at, updated_at
+            FROM suppliers WHERE id = :supplier_id
+        """), {"supplier_id": supplier_id})
+        supplier = result.fetchone()
+        
         db.commit()
-        db.refresh(supplier)
+        
+        # 检查供应商是否存在
+        if supplier is None:
+            raise HTTPException(status_code=404, detail="供应商不存在")
         
         # 返回响应 - 使用name作为display_name
         return {
@@ -389,11 +460,16 @@ async def update_model_supplier(
             "created_at": supplier.created_at,
             "updated_at": supplier.updated_at
         }
-    except IntegrityError:
+    except HTTPException:
         db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="更新供应商失败，请检查输入数据"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"更新供应商失败: {str(e)}"
         )
 
 
@@ -418,14 +494,18 @@ async def delete_model_supplier(
             detail="供应商不存在"
         )
     
-    # 检查是否有相关模型
-    if supplier.models:
+    # 检查是否有相关模型 - 使用查询方式避免直接访问关系属性
+    from app.models.supplier_db import ModelDB
+    model_count = db.query(ModelDB).filter(ModelDB.supplier_id == supplier_id).count()
+    if model_count > 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="无法删除包含模型的供应商，请先删除相关模型"
         )
     
-    db.delete(supplier)
+    # 使用原始SQL删除供应商记录，避免ORM关系映射问题
+    from sqlalchemy import text
+    db.execute(text("DELETE FROM suppliers WHERE id = :id"), {"id": supplier_id})
     db.commit()
 
 
@@ -512,8 +592,11 @@ async def get_models(
     models = db.query(Model).filter(Model.supplier_id == supplier_id).offset(skip).limit(limit).all()
     total = db.query(Model).filter(Model.supplier_id == supplier_id).count()
     
+    # 将ModelDB实例转换为ModelResponse实例
+    model_responses = [ModelResponse.from_orm(model) for model in models]
+    
     return ModelListResponse(
-        models=models,
+        models=model_responses,
         total=total
     )
 
@@ -717,7 +800,10 @@ async def get_all_models(
     models = db.query(Model).options(joinedload(Model.supplier)).offset(skip).limit(limit).all()
     total = db.query(Model).count()
     
+    # 将ModelDB实例转换为ModelResponse实例
+    model_responses = [ModelResponse.from_orm(model) for model in models]
+    
     return ModelListResponse(
-        models=models,
+        models=model_responses,
         total=total
     )
