@@ -1,7 +1,7 @@
 """模型管理相关API接口"""
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Dict
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Body, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -13,7 +13,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import create_engine, text
-from app.core.encryption import encrypt_string
+from app.core.encryption import encrypt_string, decrypt_string
 from sqlalchemy.orm import sessionmaker
 from app.models.supplier_db import SupplierDB, ModelDB as Model
 from sqlalchemy import inspect
@@ -271,6 +271,17 @@ async def get_suppliers(
     # 为每个供应商添加display_name字段，使用name作为默认值
     suppliers_with_display_name = []
     for supplier in suppliers:
+        # 解密API密钥（如果有）
+        decrypted_api_key = None
+        if supplier.api_key:
+            try:
+                from app.core.encryption import decrypt_string
+                decrypted_api_key = decrypt_string(supplier.api_key)
+            except Exception as e:
+                # 如果解密失败，记录错误但不中断请求
+                import logging
+                logging.error(f"解密供应商 {supplier.id} 的API密钥失败: {str(e)}")
+        
         # 创建一个带有display_name属性的对象
         supplier_dict = {
             "id": supplier.id,
@@ -284,7 +295,7 @@ async def get_suppliers(
             "category": supplier.category,
             "website": supplier.website,
             "api_docs": supplier.api_docs,
-            "api_key": supplier.api_key,
+            "api_key": decrypted_api_key,
             "created_at": supplier.created_at,
             "updated_at": supplier.updated_at
         }
@@ -319,12 +330,25 @@ async def get_model_supplier(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="供应商不存在"
         )
+    
+    # 解密API密钥（如果有）
+    if supplier.api_key:
+        try:
+            from app.core.encryption import decrypt_string
+            supplier.api_key = decrypt_string(supplier.api_key)
+        except Exception as e:
+            # 如果解密失败，记录错误但不中断请求
+            import logging
+            logging.error(f"解密供应商 {supplier.id} 的API密钥失败 (重新加载检查): {str(e)}")
+            supplier.api_key = None
+    
     return supplier
 
 
 @router.put("/suppliers/{supplier_id}")
 async def update_model_supplier(
     supplier_id: int,
+    request: Request,
     name: Optional[str] = Form(None),
     description: Optional[str] = Form(None),
     api_endpoint: Optional[str] = Form(None),
@@ -372,57 +396,108 @@ async def update_model_supplier(
                 detail="供应商不存在"
             )
         
-        # 如果更新名称，检查是否重复
-        if name is not None:
-            result = db.execute(text("SELECT id FROM suppliers WHERE name = :name AND id != :supplier_id"), {
-                "name": name,
-                "supplier_id": supplier_id
-            })
-            if result.fetchone() is not None:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="供应商名称已存在"
-                )
+        # 获取Content-Type
+        content_type = request.headers.get("Content-Type", "")
+        logger.info(f"[更新供应商] Content-Type: {content_type}")
         
-        # 处理logo上传
-        logo_path = None
-        if logo:
-            # 如果有新的logo文件上传，保存它
-            logo_path = await save_upload_file(logo)
-            print(f"已更新logo为新上传的文件: {logo_path}")
-        elif existing_logo is not None:
-            # 如果提供了existing_logo，使用它
-            logo_path = existing_logo
-            print(f"保留现有logo: {logo_path}")
-        
-        # 构建更新数据
+        # 初始化更新数据
         update_data = {
             "supplier_id": supplier_id,
             "updated_at": datetime.utcnow()
         }
         
-        # 添加需要更新的字段
-        if name is not None:
-            update_data["name"] = name
-        if description is not None:
-            update_data["description"] = description
-        if api_endpoint is not None:
-            update_data["api_endpoint"] = api_endpoint
-        if api_key_required is not None:
-            update_data["api_key_required"] = api_key_required
-        if is_active is not None:
-            update_data["is_active"] = is_active
-        if category is not None:
-            update_data["category"] = category
-        if website is not None:
-            update_data["website"] = website
-        if api_docs is not None:
-            update_data["api_docs"] = api_docs
-        if logo_path is not None:
-            update_data["logo"] = logo_path
-        if api_key is not None:
-            # 加密API密钥
-            update_data["api_key"] = encrypt_string(api_key)
+        # 处理logo上传
+        logo_path = None
+        
+        # 处理JSON格式请求
+        if "application/json" in content_type:
+            # 解析JSON数据
+            try:
+                json_data = await request.json()
+                logger.info(f"[更新供应商] JSON数据: {json_data}")
+                
+                # 检查名称是否重复
+                if "name" in json_data and json_data["name"] is not None:
+                    result = db.execute(text("SELECT id FROM suppliers WHERE name = :name AND id != :supplier_id"), {
+                        "name": json_data["name"],
+                        "supplier_id": supplier_id
+                    })
+                    if result.fetchone() is not None:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="供应商名称已存在"
+                        )
+                
+                # 构建更新数据
+                if "name" in json_data and json_data["name"] is not None:
+                    update_data["name"] = json_data["name"]
+                if "description" in json_data and json_data["description"] is not None:
+                    update_data["description"] = json_data["description"]
+                if "api_endpoint" in json_data and json_data["api_endpoint"] is not None:
+                    update_data["api_endpoint"] = json_data["api_endpoint"]
+                if "api_key_required" in json_data:
+                    update_data["api_key_required"] = json_data["api_key_required"]
+                if "is_active" in json_data:
+                    update_data["is_active"] = json_data["is_active"]
+                if "category" in json_data and json_data["category"] is not None:
+                    update_data["category"] = json_data["category"]
+                if "website" in json_data and json_data["website"] is not None:
+                    update_data["website"] = json_data["website"]
+                if "api_docs" in json_data and json_data["api_docs"] is not None:
+                    update_data["api_docs"] = json_data["api_docs"]
+                if "api_key" in json_data and json_data["api_key"] is not None:
+                    # 加密API密钥
+                    update_data["api_key"] = encrypt_string(json_data["api_key"])
+            except Exception as e:
+                logger.error(f"[更新供应商] 解析JSON数据失败: {str(e)}")
+                raise HTTPException(status_code=400, detail="无效的JSON数据")
+        
+        # 处理FormData格式请求
+        else:
+            # 检查名称是否重复
+            if name is not None:
+                result = db.execute(text("SELECT id FROM suppliers WHERE name = :name AND id != :supplier_id"), {
+                    "name": name,
+                    "supplier_id": supplier_id
+                })
+                if result.fetchone() is not None:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="供应商名称已存在"
+                    )
+            
+            # 处理logo上传
+            if logo:
+                # 如果有新的logo文件上传，保存它
+                logo_path = await save_upload_file(logo)
+                print(f"已更新logo为新上传的文件: {logo_path}")
+            elif existing_logo is not None:
+                # 如果提供了existing_logo，使用它
+                logo_path = existing_logo
+                print(f"保留现有logo: {logo_path}")
+            
+            # 构建更新数据
+            if name is not None:
+                update_data["name"] = name
+            if description is not None:
+                update_data["description"] = description
+            if api_endpoint is not None:
+                update_data["api_endpoint"] = api_endpoint
+            if api_key_required is not None:
+                update_data["api_key_required"] = api_key_required
+            if is_active is not None:
+                update_data["is_active"] = is_active
+            if category is not None:
+                update_data["category"] = category
+            if website is not None:
+                update_data["website"] = website
+            if api_docs is not None:
+                update_data["api_docs"] = api_docs
+            if logo_path is not None:
+                update_data["logo"] = logo_path
+            if api_key is not None:
+                # 加密API密钥
+                update_data["api_key"] = encrypt_string(api_key)
         
         # 构建更新SQL语句
         set_clause = ", ".join([f"{key} = :{key}" for key in update_data.keys() if key != "supplier_id"])
@@ -446,7 +521,15 @@ async def update_model_supplier(
         if supplier is None:
             raise HTTPException(status_code=404, detail="供应商不存在")
         
-        # 返回响应 - 使用name作为display_name
+        # 返回响应 - 使用name作为display_name，确保API密钥是解密后的
+        decrypted_api_key = None
+        if supplier.api_key_required and supplier.api_key:
+            try:
+                decrypted_api_key = decrypt_string(supplier.api_key)
+            except Exception as e:
+                import logging
+                logging.error(f"解密供应商API密钥失败: {str(e)}")
+        
         return {
             "id": supplier.id,
             "name": supplier.name,
@@ -459,7 +542,7 @@ async def update_model_supplier(
             "category": supplier.category,
             "website": supplier.website,
             "api_docs": supplier.api_docs,
-            "api_key": supplier.api_key,
+            "api_key": decrypted_api_key,
             "created_at": supplier.created_at,
             "updated_at": supplier.updated_at
         }
@@ -590,7 +673,7 @@ async def test_supplier_api_config(
         
         # 根据供应商类型使用不同的测试端点
         test_endpoint = api_endpoint
-        # 为DeepSeek和硅基流动等供应商添加特定端点处理
+        # 为不同供应商添加特定端点处理
         if supplier.name in ["深度求索", "deepseek", "硅基流动", "siliconflow"]:
             # 这些API需要使用具体的路径
             if not test_endpoint.endswith("/"):
@@ -600,8 +683,19 @@ async def test_supplier_api_config(
                 test_endpoint += "v1/"
             # 使用models端点进行测试
             test_endpoint += "models"
+        elif supplier.name.lower() == "ollama":
+            # Ollama API需要使用特定的路径
+            if not test_endpoint.endswith("/"):
+                test_endpoint += "/"
+            # Ollama API路径格式为 /api/tags（用于列出模型）
+            if not test_endpoint.endswith("api/"):
+                test_endpoint += "api/"
+            test_endpoint += "tags"
+            # Ollama通常不需要API密钥，移除Authorization头
+            if "Authorization" in headers:
+                del headers["Authorization"]
         
-        logger.info(f"发送请求: URL={test_endpoint}, Headers={headers.keys()}")
+        logger.info(f"发送请求: URL={test_endpoint}, Headers={headers}")
         
         # 发送测试请求
         response = requests.get(test_endpoint, headers=headers, timeout=10)

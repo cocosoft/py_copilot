@@ -111,7 +111,7 @@ async def chat_completion(
         
         # 记录请求历史
         llm_service.log_request(
-            user_id=current_user.id,
+            user_id=current_user["id"],  # 使用字典访问方式
             model_name=result["model"],
             prompt=str(messages),
             response=result["generated_text"],

@@ -5,7 +5,7 @@ from datetime import datetime
 import time
 from app.core.config import settings
 from app.services.model_query_service import model_query_service
-from app.models.supplier_db import SupplierDB
+from app.models.model_management import Model, ModelSupplier
 
 # 导入自定义日志配置
 from app.core.logging_config import logger
@@ -277,41 +277,104 @@ class LLMService:
                     logger.info(f"完整的API密钥: {supplier['api_key']}")
                     logger.info(f"API密钥最后4位: {supplier['api_key'][-4:] if supplier['api_key'] else 'None'}")
                     
-                    # 使用OpenAI 1.0+客户端
-                    from openai import OpenAI
-                    
-                    # 创建客户端实例，设置API密钥和端点
-                    # 只使用数据库中的API密钥，不回退到环境变量
-                    logger.info("只使用数据库中的API密钥，不回退到环境变量")
-                    
-                    client_params = {
-                        "api_key": supplier["api_key"],
-                        "base_url": supplier["api_endpoint"] if supplier["api_endpoint"] else "https://api.deepseek.com/v1"
-                    }
-                    
-                    logger.info(f"最终使用的API密钥: {client_params['api_key'][:5]}...{client_params['api_key'][-4:]}" if client_params['api_key'] else "最终使用的API密钥: None")
-                    logger.info(f"使用的API端点: {client_params['base_url']}")
-                    
-                    logger.info(f"客户端参数: {client_params}")
-                    
-                    client = OpenAI(**client_params)
-                    
-                    # 使用客户端调用模型
-                    try:
-                        response = client.chat.completions.create(
-                            model=model.name,
-                            messages=messages,
-                            max_tokens=max_tokens if max_tokens else model.max_tokens,
-                            temperature=temperature,
-                            top_p=top_p,
-                            n=n,
-                            stop=stop,
-                            frequency_penalty=frequency_penalty,
-                            presence_penalty=presence_penalty
-                        )
+                    # 根据供应商类型选择不同的客户端配置
+                    if supplier['name'].lower() == 'ollama':
+                        # Ollama API处理
+                        logger.info("使用Ollama客户端配置")
                         
-                        response_text = response.choices[0].message.content.strip() if response.choices else ""
-                        tokens_used = response.usage.total_tokens if hasattr(response, 'usage') else 0
+                        # 构建Ollama客户端
+                        try:
+                            from langchain_ollama import ChatOllama
+                            
+                            # 设置Ollama客户端参数
+                            ollama_params = {
+                                "model": model.name,
+                                "temperature": temperature,
+                                "top_p": top_p,
+                                "stop": stop,
+                            }
+                            
+                            # 添加API端点配置（如果提供）
+                            if supplier["api_endpoint"]:
+                                # Ollama API端点需要是OpenAI兼容格式，即 http://localhost:11434/v1
+                                ollama_url = supplier["api_endpoint"]
+                                logger.info(f"原始Ollama API端点: {ollama_url}")
+                                
+                                # 修复URL格式：如果以/api结尾，替换为/v1；否则确保以/v1结尾
+                                if ollama_url.endswith('/api'):
+                                    ollama_url = ollama_url[:-4] + '/v1'  # 将/api替换为/v1
+                                elif ollama_url.endswith('/api/'):
+                                    ollama_url = ollama_url[:-5] + '/v1'  # 将/api/替换为/v1
+                                elif not ollama_url.endswith('/v1'):
+                                    ollama_url += '/v1'  # 如果没有/v1后缀，添加它
+                                
+                                ollama_params["base_url"] = ollama_url
+                                logger.info(f"修复后的Ollama API端点: {ollama_url}")
+                            
+                            logger.info(f"Ollama客户端参数: {ollama_params}")
+                            
+                            # 创建Ollama客户端
+                            ollama_client = ChatOllama(**ollama_params)
+                            
+                            # 调用Ollama API
+                            response = ollama_client.invoke(messages)
+                            
+                            # 处理Ollama响应
+                            response_text = response.content.strip() if hasattr(response, 'content') else ""
+                            tokens_used = response.response_metadata.get('token_usage', {}).get('total_tokens', 0) if hasattr(response, 'response_metadata') else 0
+                            
+                            logger.info(f"Ollama模型API调用成功: {model.name}")
+                            
+                            return {
+                                "generated_text": response_text,
+                                "model": model.name,
+                                "tokens_used": tokens_used,
+                                "execution_time_ms": round((time.time() - start_time) * 1000, 2),
+                                "success": True,
+                                "supplier": supplier["name"]
+                            }
+                        except Exception as ollama_error:
+                            logger.warning(f"Ollama API调用失败: {str(ollama_error)}")
+                            raise
+                    else:
+                        # 使用OpenAI 1.0+客户端
+                        from openai import OpenAI
+                        
+                        # 创建客户端实例，设置API密钥和端点
+                        # 只使用数据库中的API密钥，不回退到环境变量
+                        logger.info("只使用数据库中的API密钥，不回退到环境变量")
+                        
+                        client_params = {
+                            "api_key": supplier["api_key"],
+                            "base_url": supplier["api_endpoint"] if supplier["api_endpoint"] else "https://api.deepseek.com/v1"
+                        }
+                        
+                        logger.info(f"最终使用的API密钥: {client_params['api_key'][:5]}...{client_params['api_key'][-4:]}" if client_params['api_key'] else "最终使用的API密钥: None")
+                        logger.info(f"使用的API端点: {client_params['base_url']}")
+                        
+                        logger.info(f"客户端参数: {client_params}")
+                        
+                        client = OpenAI(**client_params)
+                        
+                        # 使用客户端调用模型
+                        try:
+                            response = client.chat.completions.create(
+                                model=model.name,
+                                messages=messages,
+                                max_tokens=max_tokens if max_tokens else model.max_tokens,
+                                temperature=temperature,
+                                top_p=top_p,
+                                n=n,
+                                stop=stop,
+                                frequency_penalty=frequency_penalty,
+                                presence_penalty=presence_penalty
+                            )
+                            
+                            response_text = response.choices[0].message.content.strip() if response.choices else ""
+                            tokens_used = response.usage.total_tokens if hasattr(response, 'usage') else 0
+                        except Exception as openai_error:
+                            logger.warning(f"OpenAI API调用失败: {str(openai_error)}")
+                            raise
                         
                         logger.info(f"数据库模型API调用成功: {model.name}")
                         
@@ -323,9 +386,6 @@ class LLMService:
                             "success": True,
                             "supplier": supplier["name"]
                         }
-                    except Exception as db_model_error:
-                        logger.warning(f"数据库模型API调用失败: {str(db_model_error)}")
-                        # 客户端是临时创建的，不需要恢复配置
                 
                 # 根据模型名称选择API配置（传统方式）
                 if model_name.startswith("deepseek-"):
@@ -334,10 +394,10 @@ class LLMService:
                         try:
                             logger.info("尝试从数据库获取DeepSeek供应商配置")
                             # 添加更多调试信息，检查数据库连接和查询结果
-                            all_suppliers = db.query(SupplierDB).all()
+                            all_suppliers = db.query(ModelSupplier).all()
                             logger.info(f"所有供应商: {[s.name for s in all_suppliers]}")
                             
-                            deepseek_supplier = db.query(SupplierDB).filter(SupplierDB.name == "深度求索").first()
+                            deepseek_supplier = db.query(ModelSupplier).filter(ModelSupplier.name == "深度求索").first()
                             if deepseek_supplier:
                                 logger.info(f"找到供应商配置: {deepseek_supplier.name}")
                                 logger.info(f"API端点: {deepseek_supplier.api_endpoint}")

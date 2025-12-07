@@ -52,9 +52,9 @@ class Model(Base):
     # 添加关系定义
     supplier = relationship("ModelSupplier", back_populates="models")
     
-    # 与模型分类的多对多关系
-    categories = relationship(
-        "ModelCategory",
-        secondary="model_category_associations",
-        backref="models"
-    )
+    # 与模型分类的多对多关系 - 暂时注释，因为缺少model_category_associations中间表定义
+    # categories = relationship(
+    #     "ModelCategory",
+    #     secondary="model_category_associations",
+    #     backref="models"
+    # )

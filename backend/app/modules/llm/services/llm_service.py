@@ -6,7 +6,7 @@ import time
 import logging
 import inspect
 from app.core.config import settings
-from app.models.supplier_db import SupplierDB, ModelDB
+from app.models.model_management import Model, ModelSupplier
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -243,26 +243,26 @@ class LLMService:
         try:
             if db:
                 # 查询所有模型
-                all_models = db.query(ModelDB).all()
+                all_models = db.query(Model).all()
                 print(f"DEBUG: 从数据库获取到的所有模型数: {len(all_models)}")
                 
                 # 查询指定模型
-                model_info = db.query(ModelDB).filter(
-                    ModelDB.name == model_name,
-                    ModelDB.is_active == True
+                model_info = db.query(Model).filter(
+                    Model.name == model_name,
+                    Model.is_active == True
                 ).first()
                 print(f"DEBUG: 查询到的模型信息: {model_info}")
                 
                 if model_info:
                     # 查询供应商信息
-                    supplier_info = db.query(SupplierDB).filter(
-                        SupplierDB.id == model_info.supplier_id,
-                        SupplierDB.is_active == True
+                    supplier_info = db.query(ModelSupplier).filter(
+                        ModelSupplier.id == model_info.supplier_id,
+                        ModelSupplier.is_active == True
                     ).first()
                     print(f"DEBUG: 查询到的供应商信息: {supplier_info}")
                     
                     # 查询所有供应商
-                    all_suppliers = db.query(SupplierDB).all()
+                    all_suppliers = db.query(ModelSupplier).all()
         except Exception as e:
             import traceback
             error_message = f"数据库查询异常: {str(e)}\n{traceback.format_exc()}"
@@ -295,8 +295,113 @@ class LLMService:
                 # 导入必要的服务
                 from app.services.model_query_service import ModelQueryService
                 
-                # 根据模型名称选择API配置
-                if model_name.startswith("deepseek-"):
+                # 检查供应商是否为Ollama
+                is_ollama_supplier = False
+                if supplier_info and supplier_info.name == "Ollama":
+                    is_ollama_supplier = True
+                    print(f"DEBUG: 检测到Ollama供应商，将使用Ollama API")
+                
+                # 根据模型名称或供应商选择API配置
+                if is_ollama_supplier:
+                    # Ollama模型配置
+                    api_key = None
+                    api_base = None
+                    
+                    # 优先从数据库获取Ollama配置
+                    if supplier_info:
+                        api_base = supplier_info.api_endpoint
+                        logger.info(f"从数据库获取Ollama API端点: {api_base}")
+                        
+                        # 确保Ollama API端点格式正确
+                        if api_base:
+                            # 调试：显示原始API端点
+                            print(f"DEBUG: 原始API端点: {api_base}")
+                            
+                            # 如果API端点以/api结尾，将其替换为/v1
+                            if api_base.endswith('/api'):
+                                api_base = api_base[:-4] + '/v1'
+                            elif api_base.endswith('/api/'):
+                                api_base = api_base[:-5] + '/v1'
+                            # 如果API端点不以/v1结尾，添加/v1
+                            elif not api_base.endswith('/v1'):
+                                if api_base.endswith('/'):
+                                    api_base += 'v1'
+                                else:
+                                    api_base += '/v1'
+                            logger.info(f"修正后的Ollama API端点: {api_base}")
+                            print(f"DEBUG: 修正后的API端点: {api_base}")
+                    else:
+                        print("DEBUG: 未找到Ollama供应商信息")
+                        logger.warning("未找到Ollama供应商信息")
+                        
+                        # 使用默认的Ollama API端点
+                        api_base = "http://localhost:11434/v1"
+                        logger.info(f"使用默认的Ollama API端点: {api_base}")
+                        print(f"DEBUG: 使用默认API端点: {api_base}")
+                    
+                    if api_base:
+                        try:
+                            print(f"DEBUG: 最终使用的Ollama API端点: {api_base}")
+                            logger.info(f"最终使用的Ollama API端点: {api_base}")
+                            
+                            # 使用OpenAI客户端对象配置Ollama API
+                            print("DEBUG: 创建Ollama客户端...")
+                            ollama_client = openai.OpenAI(
+                                api_key="ollama",  # Ollama不需要实际的API密钥，但需要提供一个值
+                                base_url=api_base,
+                                timeout=30  # 设置较长超时
+                            )
+                            print(f"DEBUG: Ollama客户端创建成功，base_url: {api_base}")
+                            
+                            print("DEBUG: 开始调用Ollama API...")
+                            logger.info("正在调用Ollama API...")
+                            
+                            # 打印调用参数
+                            print(f"DEBUG: 调用参数 - model: {model_name}, messages: {messages}")
+                            
+                            # 使用配置好的客户端调用Ollama
+                            response = ollama_client.chat.completions.create(
+                                model=model_name,
+                                messages=messages,
+                                max_tokens=max_tokens,
+                                temperature=temperature,
+                                top_p=top_p,
+                                n=n,
+                                stop=stop
+                            )
+                            
+                            response_text = response.choices[0].message.content.strip() if response.choices else ""
+                            tokens_used = response.usage.total_tokens if hasattr(response, 'usage') else 0
+                            
+                            logger.info(f"Ollama API调用成功: {model_name}")
+                            
+                            return {
+                                "generated_text": response_text,
+                                "model": model_name,
+                                "tokens_used": tokens_used,
+                                "execution_time_ms": round((time.time() - start_time) * 1000, 2),
+                                "success": True
+                            }
+                        except Exception as ollama_error:
+                            logger.warning(f"Ollama API error: {str(ollama_error)}")
+                            logger.warning(f"错误类型: {type(ollama_error).__name__}")
+                            # 记录更多错误详情
+                            import traceback
+                            logger.warning(f"错误堆栈: {traceback.format_exc()}")
+                            
+                            # 继续执行，尝试其他模型或返回错误信息
+                    else:
+                        logger.warning("Ollama API端点未配置")
+                        # 提供友好的错误消息
+                        return {
+                            "generated_text": "错误: Ollama API配置不完整。请在供应商设置中配置有效的API端点。",
+                            "model": model_name,
+                            "tokens_used": 0,
+                            "error": "API配置不完整",
+                            "execution_time_ms": round((time.time() - start_time) * 1000, 2),
+                            "success": False
+                        }
+                elif model_name.startswith("deepseek-"):
                     # DeepSeek模型配置
                     api_key = None
                     api_base = None

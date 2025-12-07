@@ -32,6 +32,7 @@ export const supplierApi = {
       api_docs: supplier.api_docs || '',  // 添加api_docs字段
       website: supplier.website || '',  // 添加官网字段
       apiKeyRequired: supplier.api_key_required || (supplier.api_key ? true : false),
+      api_key: supplier.api_key || '',  // 添加API密钥字段
       is_active: supplier.is_active !== undefined ? supplier.is_active : false // 添加is_active字段
     }));
     return formattedSuppliers;
@@ -40,6 +41,11 @@ export const supplierApi = {
   // 获取单个供应商
   getById: async (id) => {
     const endpoint = `/model-management/suppliers/${id}`;
+    
+    // 调用API获取供应商详情
+    const supplier = await request(endpoint, {
+      method: 'GET'
+    });
 
     // 格式化响应数据以匹配前端需求
     if (supplier) {
@@ -53,6 +59,7 @@ export const supplierApi = {
         description: supplier.description || '',
         apiUrl: supplier.api_endpoint || supplier.api_url || supplier.base_url || '',
         api_docs: supplier.api_docs || '',  // 添加api_docs字段
+        api_key: supplier.api_key || '',  // 添加API密钥字段
         apiKeyRequired: supplier.api_key_required || (supplier.api_key ? true : false),
         is_active: supplier.is_active !== undefined ? supplier.is_active : false // 添加is_active字段
       };
@@ -156,7 +163,7 @@ export const supplierApi = {
     };
   },
   
-  // 更新供应商（完整更新）
+  // 更新供应商（部分更新）
   update: async (id, updatedSupplier) => {
 
     // 确保ID是数字类型
@@ -167,21 +174,21 @@ export const supplierApi = {
     let requestData = updatedSupplier;
     
     if (!isFormData) {
-      // 发送完整的供应商数据，确保包含所有必需字段
-      // 先复制所有字段
-      const backendUpdateData = { ...updatedSupplier };
-      // 然后确保所有必需字段都有正确的值
-      backendUpdateData.name = updatedSupplier.name || '';
-      backendUpdateData.display_name = updatedSupplier.display_name || updatedSupplier.name || ''; // 后端需要display_name字段
-      backendUpdateData.description = updatedSupplier.description || '';
-      backendUpdateData.logo = updatedSupplier.logo || '';
-      backendUpdateData.category = updatedSupplier.category || '';
-      backendUpdateData.website = updatedSupplier.website || '';
-      backendUpdateData.api_endpoint = updatedSupplier.api_endpoint || '';
-      backendUpdateData.api_docs = updatedSupplier.api_docs || '';
-      backendUpdateData.api_key = updatedSupplier.api_key || '';
-      backendUpdateData.api_key_required = updatedSupplier.api_key_required !== undefined ? updatedSupplier.api_key_required : !!updatedSupplier.api_key;
-      backendUpdateData.is_active = updatedSupplier.is_active !== undefined ? updatedSupplier.is_active : true;
+      // 只发送请求中包含的字段，避免覆盖现有值
+      const backendUpdateData = {};
+      
+      // 只复制updatedSupplier中实际存在的字段
+      for (const [key, value] of Object.entries(updatedSupplier)) {
+        if (value !== undefined && value !== null) {
+          backendUpdateData[key] = value;
+        }
+      }
+      
+      // 确保api_endpoint和api_key使用正确的字段名
+      if (backendUpdateData.apiUrl) {
+        backendUpdateData.api_endpoint = backendUpdateData.apiUrl;
+        delete backendUpdateData.apiUrl;
+      }
       
       requestData = JSON.stringify(backendUpdateData);
     } else {

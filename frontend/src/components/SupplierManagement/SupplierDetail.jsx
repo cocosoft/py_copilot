@@ -254,8 +254,11 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
         api_key: localApiConfig.apiKey
       };
 
+      console.log('保存API配置：', updateData);
+      
       // 更新供应商信息
-      await supplierApi.update(selectedSupplier.id, updateData);
+      const response = await supplierApi.update(selectedSupplier.id, updateData);
+      console.log('保存API配置响应：', response);
 
       // 显示保存成功
       setSaveStatus({

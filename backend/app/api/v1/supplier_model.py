@@ -1,6 +1,6 @@
 """供应商和模型相关的API路由"""
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from datetime import datetime
@@ -113,6 +113,18 @@ def get_supplier(supplier_id: int, db: Session = Depends(get_db)):
     supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
     if not supplier:
         raise HTTPException(status_code=404, detail="供应商不存在")
+    
+    # 解密API密钥（如果有）
+    if supplier.api_key:
+        try:
+            from app.core.encryption import decrypt_string
+            supplier.api_key = decrypt_string(supplier.api_key)
+        except Exception as e:
+            # 如果解密失败，记录错误但不中断请求
+            import logging
+            logging.error(f"解密供应商 {supplier.id} 的API密钥失败: {str(e)}")
+            supplier.api_key = None
+    
     return supplier
 
 from sqlalchemy import text
@@ -120,77 +132,117 @@ from sqlalchemy import text
 @router.put("/suppliers/{supplier_id}")
 async def update_supplier(
     supplier_id: int,
-    name: str = Form(...),
-    description: str = Form(...),
-    website: str = Form(...),
+    request: Request,
+    name: str = Form(None),
+    description: str = Form(None),
+    website: str = Form(None),
+    api_key: str = Form(None),
     logo: UploadFile = File(None),
     db: Session = Depends(get_db)
 ):
-    """更新供应商信息（支持文件上传）"""
+    """更新供应商信息（支持文件上传和JSON格式）"""
     try:
+        import logging
+        logger = logging.getLogger()
+        
         # 检查供应商是否存在
-        result = db.execute(text("SELECT id FROM suppliers WHERE id = :supplier_id"), {
-            "supplier_id": supplier_id
-        })
-        if result.fetchone() is None:
+        supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
+        if not supplier:
             raise HTTPException(status_code=404, detail="供应商不存在")
         
-        # 如果更新name，检查是否已存在
-        result = db.execute(text("SELECT id FROM suppliers WHERE name = :name AND id != :supplier_id"), {
-            "name": name,
-            "supplier_id": supplier_id
-        })
-        if result.fetchone() is not None:
-            raise HTTPException(status_code=400, detail="供应商名称已存在")
+        # 初始化更新数据
+        update_data = {}
+        
+        # 获取Content-Type
+        content_type = request.headers.get("Content-Type", "")
+        logger.info(f"[更新供应商] Content-Type: {content_type}")
+        logger.info(f"[更新供应商] 请求头: {dict(request.headers)}")
+        
+        # 处理JSON格式请求
+        if "application/json" in content_type:
+            # 解析JSON数据
+            try:
+                json_data = await request.json()
+                update_data = json_data
+                logger.info(f"[更新供应商] JSON数据: {update_data}")
+                logger.info(f"[更新供应商] JSON数据类型: {type(update_data)}")
+                logger.info(f"[更新供应商] JSON数据中是否包含api_key: {'api_key' in update_data}")
+                if 'api_key' in update_data:
+                    logger.info(f"[更新供应商] JSON数据中的api_key: {update_data['api_key']}")
+            except Exception as e:
+                logger.error(f"[更新供应商] 解析JSON数据失败: {str(e)}")
+                raise HTTPException(status_code=400, detail="无效的JSON数据")
+        # 处理FormData格式请求
+        else:
+            # 收集表单数据
+            if name:
+                update_data["name"] = name
+            if description:
+                update_data["description"] = description
+            if website:
+                update_data["website"] = website
+            if api_key is not None:
+                update_data["api_key"] = api_key
+            logger.info(f"[更新供应商] Form数据: {update_data}")
+            logger.info(f"[更新供应商] api_key表单参数: {api_key}")
+        
+        # 检查名称是否重复（如果更新了名称）
+        if "name" in update_data and update_data["name"] != supplier.name:
+            existing_supplier = db.query(SupplierDB).filter(
+                SupplierDB.name == update_data["name"],
+                SupplierDB.id != supplier_id
+            ).first()
+            if existing_supplier:
+                raise HTTPException(status_code=400, detail="供应商名称已存在")
         
         # 保存新logo文件（如果有）
-        logo_path = None
         if logo:
             logo_path = await save_upload_file(logo)
-        
-        # 更新基础信息字段
-        update_data = {
-            "name": name,
-            "description": description,
-            "website": website,
-            "updated_at": datetime.utcnow()
-        }
-        
-        # 如果有logo更新，添加到更新数据
-        if logo_path:
             update_data["logo"] = logo_path
         
-        # 构建更新SQL
-        set_clause = ", ".join([f"{key} = :{key}" for key in update_data.keys()])
-        update_query = text(f"UPDATE suppliers SET {set_clause} WHERE id = :supplier_id")
+        # 更新基本信息
+        logger.info(f"[更新供应商] 要更新的字段: {list(update_data.keys())}")
+        for key, value in update_data.items():
+            if hasattr(supplier, key) and value is not None:
+                if key == "api_key":
+                    logger.info(f"[更新供应商] 直接设置API密钥: {value}")
+                    supplier.api_key = value
+                else:
+                    logger.info(f"[更新供应商] 更新字段: {key} = {value} (类型: {type(value)})")
+                    setattr(supplier, key, value)
         
-        # 执行更新
-        db.execute(update_query, {**update_data, "supplier_id": supplier_id})
+        # 检查API密钥是否被正确设置
+        if hasattr(supplier, 'api_key'):
+            logger.info(f"[更新供应商] API密钥设置后: {supplier.api_key}")
+            logger.info(f"[更新供应商] API密钥加密后: {supplier._api_key}")
         
-        # 查询更新后的供应商信息
-        result = db.execute(text("""
-            SELECT id, name, description, logo, website, created_at, updated_at, is_active
-            FROM suppliers WHERE id = :supplier_id
-        """), {"supplier_id": supplier_id})
-        supplier = result.fetchone()
+        # 更新时间
+        supplier.updated_at = datetime.utcnow()
         
+        logger.info(f"[更新供应商] 准备提交到数据库")
         db.commit()
-        
-        # 检查供应商是否存在
-        if supplier is None:
-            raise HTTPException(status_code=404, detail="供应商不存在")
+        db.refresh(supplier)
+        logger.info(f"[更新供应商] 更新成功")
         
         # 返回供应商信息
-        return {
+        # 显式解密API密钥，确保返回解密后的值
+        response_data = {
             "id": supplier.id,
             "name": supplier.name,
+            "display_name": supplier.display_name,
             "description": supplier.description,
             "logo": supplier.logo,
             "website": supplier.website,
+            "api_endpoint": supplier.api_endpoint,
+            "api_key_required": supplier.api_key_required,
+            "category": supplier.category,
+            "api_docs": supplier.api_docs,
+            "is_active": supplier.is_active,
             "created_at": supplier.created_at,
             "updated_at": supplier.updated_at,
-            "is_active": supplier.is_active
+            "api_key": supplier.api_key  # 这会自动调用getter方法获取解密后的值
         }
+        return response_data
     except HTTPException:
         db.rollback()
         raise

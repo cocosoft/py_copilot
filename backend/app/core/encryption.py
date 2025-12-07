@@ -76,5 +76,20 @@ def encrypt_string(data: str) -> str:
 
 
 def decrypt_string(encrypted_data: str) -> str:
-    """解密字符串的便捷函数"""
+    """解密字符串的便捷函数
+    
+    Args:
+        encrypted_data: 要解密的字符串，如果不是有效的Fernet令牌，则直接返回
+        
+    Returns:
+        解密后的字符串或原始字符串（如果不是加密数据）
+    """
+    if not encrypted_data:
+        return encrypted_data
+    
+    # 检查是否为有效的Fernet令牌（通常以gAAAAAB开头）
+    if not encrypted_data.startswith('gAAAAAB'):
+        # 如果不是加密数据，直接返回
+        return encrypted_data
+    
     return encryption_tool.decrypt(encrypted_data)
