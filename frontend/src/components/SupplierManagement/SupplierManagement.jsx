@@ -236,6 +236,7 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
             key={supplier.id} 
             className={`supplier-item ${selectedSupplier && selectedSupplier.id === supplier.id ? 'selected' : ''}`}
             style={{ display: 'flex', alignItems: 'center' }}
+            onClick={() => handleSupplierSelect(supplier)}
           >
             <div className="supplier-info" style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
               <div className="supplier-logo" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -258,7 +259,7 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
                 </div>
               </div>
               <div className="supplier-name" style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
-                <span onClick={() => handleSupplierSelect(supplier)} style={{ cursor: 'pointer' }}>{supplier.name}</span>
+                {supplier.name}
               </div>
               <div className="supplier-tag" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {supplier.is_active === false ? (

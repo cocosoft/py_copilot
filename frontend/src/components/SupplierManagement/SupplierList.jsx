@@ -3,7 +3,7 @@ import { useSupplier } from '../contexts/SupplierContext';
 import { supplierApi } from '../../utils/api/supplierApi';
 
 const SupplierList = () => {
-  const { suppliers, selectedSupplier, selectSupplier } = useSupplier();
+  const { suppliers, selectedSupplier, selectSupplier, loadSuppliers } = useSupplier();
   const [imageErrors, setImageErrors] = useState({}); // 跟踪哪些图片加载失败
 
   // 按名称排序供应商
