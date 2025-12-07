@@ -267,24 +267,7 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
                   <div className="supplier-tag active" title="已启用" style={{  padding: '2px 8px', borderRadius: '12px', fontSize: '12px', minWidth: '60px', textAlign: 'center' }}>🟢 ON</div>
                 )}
               </div>
-              <div className="supplier-actions" style={{ display: 'flex', gap: '5px', marginLeft: '10px' }}>
-                <button 
-                  className="btn btn-sm btn-secondary"
-                  onClick={() => handleEditSupplier(supplier)}
-                  style={{ padding: '2px 6px', fontSize: '12px' }}
-                  disabled={saving}
-                >
-                  编辑
-                </button>
-                <button 
-                  className="btn btn-sm btn-danger"
-                  onClick={() => handleDeleteSupplier(supplier)}
-                  style={{ padding: '2px 6px', fontSize: '12px' }}
-                  disabled={saving}
-                >
-                  删除
-                </button>
-              </div>
+
             </div>
           </div>
           ))}
