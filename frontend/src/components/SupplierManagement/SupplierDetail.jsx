@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supplierApi } from '../../utils/api/supplierApi';
 import { API_BASE_URL } from '../../utils/apiUtils';
 import SupplierModal from './SupplierModal';
+import './SupplierDetail.css';
 
 const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }) => {
   const [currentSupplier, setCurrentSupplier] = useState(null);
@@ -9,6 +10,26 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
   const [supplierModalMode, setSupplierModalMode] = useState('edit');
   const [saving, setSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [localApiConfig, setLocalApiConfig] = useState({
+    apiUrl: '',
+    apiKey: ''
+  });
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState(null);
+  const [saveStatus, setSaveStatus] = useState(null);
+
+  // 当选中的供应商变化时，更新本地API配置
+  useEffect(() => {
+    if (selectedSupplier) {
+      setLocalApiConfig({
+        apiUrl: selectedSupplier.apiUrl || selectedSupplier.api_endpoint || '',
+        apiKey: selectedSupplier.api_key || ''
+      });
+      // 重置状态
+      setTestResult(null);
+      setSaveStatus(null);
+    }
+  }, [selectedSupplier]);
 
   const handleToggleSupplierStatus = async (supplier) => {
     try {
@@ -221,6 +242,71 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
     }
   };
 
+  // 保存API配置
+  const handleSaveApiConfig = async () => {
+    try {
+      setSaving(true);
+      setSaveStatus(null);
+
+      // 准备更新数据
+      const updateData = {
+        api_endpoint: localApiConfig.apiUrl,
+        api_key: localApiConfig.apiKey
+      };
+
+      // 更新供应商信息
+      await supplierApi.update(selectedSupplier.id, updateData);
+
+      // 显示保存成功
+      setSaveStatus({
+        type: 'success',
+        message: 'API配置保存成功'
+      });
+
+      // 刷新供应商列表
+      if (onSupplierUpdate) {
+        setTimeout(() => onSupplierUpdate(), 0);
+      }
+    } catch (error) {
+      console.error('保存API配置失败:', error);
+      setSaveStatus({
+        type: 'error',
+        message: '保存失败，请稍后重试'
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // 测试API配置
+  const handleTestApiConfig = async () => {
+    try {
+      setTesting(true);
+      setTestResult(null);
+
+      // 测试API配置
+      const result = await supplierApi.testApiConfig(selectedSupplier.id, {
+        api_endpoint: localApiConfig.apiUrl,
+        api_key: localApiConfig.apiKey
+      });
+
+      setTestResult({
+        type: 'success',
+        message: 'API测试成功！',
+        details: result.message || 'API连接正常'
+      });
+    } catch (error) {
+      console.error('API测试失败:', error);
+      setTestResult({
+        type: 'error',
+        message: 'API测试失败',
+        details: error.message || '无法连接到API'
+      });
+    } finally {
+      setTesting(false);
+    }
+  };
+
   // 格式化API密钥显示
   const formatApiKey = (apiKey) => {
     if (!apiKey || typeof apiKey !== 'string') return '';
@@ -238,8 +324,8 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
 
   return (
     <div className="supplier-detail">
-      <div className="supplier-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div className="supplier-title" style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+      <div className="supplier-header">
+        <div className="supplier-title">
           <img
             className="supplier-logo"
             src={getSupplierLogo(selectedSupplier)}
@@ -248,39 +334,24 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
               // 图片加载失败时显示默认占位
               e.target.src = '/logos/providers/default.png';
             }}
-            style={{ width: '40px', height: '40px', objectFit: 'contain', marginRight: '10px' }}
           />
-          <h2 style={{ margin: 0, fontSize: '18px' }}>{selectedSupplier.name}</h2>
+          <h2>{selectedSupplier.name}</h2>
           {selectedSupplier.website && (
-            <div className="info-row">
-              <a
-                href={selectedSupplier.website}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="external-link"
-                style={{ marginLeft: '10px' }}
-              >
-                官网
-              </a>
-            </div>
+            <a
+              href={selectedSupplier.website}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="supplier-website"
+            >
+              官网
+            </a>
           )}
-
+        </div>
+        <div className="action-buttons">
           <button
             className="btn-edit"
             onClick={() => handleEditSupplier(selectedSupplier)}
             title="编辑供应商信息"
-            style={{
-              marginRight: '10px',
-              padding: '6px 6px',
-              border: '1px solid #969a96ff',
-              borderRadius: '4px',
-              backgroundColor: 'transparent',
-              cursor: 'pointer',
-              fontSize: '16px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
           >
             ✏️
           </button>
@@ -288,30 +359,12 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
             className="btn-delete"
             onClick={() => handleDeleteSupplier(selectedSupplier)}
             title="删除供应商"
-            style={{
-              padding: '6px 6px',
-              border: '1px solid #969a96ff',
-              borderRadius: '4px',
-              backgroundColor: 'transparent',
-              cursor: 'pointer',
-              fontSize: '16px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
           >
             🗑️
           </button>
         </div>
-        <div className="supplier-actions" style={{ display: 'flex', alignItems: 'center' }}>
-          <label className="toggle-switch" title={selectedSupplier.is_active ? '当前已启用，点击停用' : '当前已停用，点击启用'} style={{
-            position: 'relative',
-            display: 'inline-block',
-            width: '60px',
-            height: '34px',
-            marginLeft: '20px',
-            cursor: 'pointer'
-          }}>
+        <div className="supplier-actions">
+          <label className="toggle-switch" title={selectedSupplier.is_active ? '当前已启用，点击停用' : '当前已停用，点击启用'}>
             <input
               type="checkbox"
               checked={selectedSupplier.is_active}
@@ -333,109 +386,98 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
                     });
                 }
               }}
-              style={{
-                opacity: 0,
-                width: 0,
-                height: 0
-              }}
             />
-            <span style={{
-              position: 'absolute',
-              cursor: 'pointer',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: selectedSupplier.is_active ? '#4CAF50' : '#ccc',
-              transition: '.4s',
-              borderRadius: '34px'
-            }}>
-            </span>
-            <span style={{
-              position: 'absolute',
-              content: '',
-              height: '26px',
-              width: '26px',
-              left: '4px',
-              bottom: '4px',
-              backgroundColor: 'white',
-              transition: '.4s',
-              borderRadius: '50%',
-              transform: selectedSupplier.is_active ? 'translateX(26px)' : 'translateX(0)'
-            }}>
-            </span>
+            <span className="toggle-slider"></span>
           </label>
         </div>
       </div>
-      <div style={{ marginLeft: '10px' }}>   {selectedSupplier.description || '未提供描述'}</div>
-      <div className="supplier-info-panel panel">
+      
+      <div className="supplier-description">
+        {selectedSupplier.description || '未提供描述'}
+      </div>
+      
+      <div className="supplier-info-panel">
         <div className="supplier-info-grid">
           <div className="info-row">
             <span className="info-label">API地址:</span>
             <input
               type="url"
               className="info-value"
-              value={selectedSupplier.apiUrl || selectedSupplier.api_endpoint || '未设置'}
-              readOnly
-              style={{
-                width: '100%',
-                padding: '8px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                backgroundColor: '#f9f9f9',
-                fontFamily: 'inherit'
-              }}
+              value={localApiConfig.apiUrl}
+              onChange={(e) => setLocalApiConfig({ ...localApiConfig, apiUrl: e.target.value })}
+              placeholder="请输入API地址"
             />
-            {(selectedSupplier.apiUrl || selectedSupplier.api_endpoint) && (
-              <a
-                href={selectedSupplier.apiUrl || selectedSupplier.api_endpoint}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="external-link"
-                style={{ marginLeft: '10px' }}
-              >
-                访问
-              </a>
-            )}
           </div>
 
-          <div className="info-row">
+          <div className="api-key-row">
             <span className="info-label">API密钥:</span>
-            <input
-              type="text"
-              className="info-value api-key"
-              value={formatApiKey(selectedSupplier.api_key)}
-              readOnly
-              style={{
-                flex: 1,
-                padding: '8px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                backgroundColor: '#f9f9f9',
-                fontFamily: 'inherit'
-              }}
-            />
-            {selectedSupplier.api_key && (
+            <div className="api-key-input-group">
+              <input
+                type="text"
+                className="info-value"
+                value={localApiConfig.apiKey}
+                onChange={(e) => setLocalApiConfig({ ...localApiConfig, apiKey: e.target.value })}
+                placeholder="请输入API密钥"
+              />
               <button
                 className="btn-copy"
-                onClick={() => navigator.clipboard.writeText(selectedSupplier.api_key)}
+                onClick={() => navigator.clipboard.writeText(localApiConfig.apiKey)}
                 title="复制API密钥"
-                style={{ marginLeft: '10px' }}
+                disabled={!localApiConfig.apiKey}
               >
                 复制
               </button>
-            )}
+            </div>
           </div>
 
+          {/* API配置操作按钮 */}
+          <div className="api-config-actions">
+            <button
+              className="btn-save"
+              onClick={handleSaveApiConfig}
+              disabled={saving}
+            >
+              {saving ? '保存中...' : '保存配置'}
+            </button>
+            <button
+              className="btn-test"
+              onClick={handleTestApiConfig}
+              disabled={testing || !localApiConfig.apiUrl || !localApiConfig.apiKey}
+            >
+              {testing ? '测试中...' : '测试API'}
+            </button>
+          </div>
+
+          {/* 保存状态提示 */}
+          {saveStatus && (
+            <div className="status-message">
+              <div
+                className={`status-message ${saveStatus.type}`}
+              >
+                {saveStatus.message}
+              </div>
+            </div>
+          )}
+
+          {/* 测试结果提示 */}
+          {testResult && (
+            <div className="status-message">
+              <div
+                className={`status-message ${testResult.type}`}
+              >
+                <strong>{testResult.message}</strong>
+                {testResult.details && <p>{testResult.details}</p>}
+              </div>
+            </div>
+          )}
+
           {selectedSupplier.api_docs && (
-            <div className="info-row">
+            <div className="api-docs-link">
               <span className="info-label">查看 {selectedSupplier.name} 的</span>
               <a
                 href={selectedSupplier.api_docs}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="external-link"
-                style={{ marginLeft: '10px' }}
               >
                 API文档
               </a>，以获得更多信息

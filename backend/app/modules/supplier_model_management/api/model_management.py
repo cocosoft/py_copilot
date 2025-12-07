@@ -509,6 +509,83 @@ async def delete_model_supplier(
     db.commit()
 
 
+import requests
+
+@router.post("/suppliers/{supplier_id}/test-api")
+async def test_supplier_api_config(
+    supplier_id: int,
+    api_endpoint: str = Form(...),
+    api_key: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+    current_user: MockUser = Depends(get_mock_user)
+) -> Any:
+    """
+    测试供应商API配置
+    
+    Args:
+        supplier_id: 供应商ID
+        api_endpoint: API端点
+        api_key: API密钥（可选）
+        db: 数据库会话
+        current_user: 当前用户
+    
+    Returns:
+        测试结果
+    """
+    try:
+        # 验证供应商是否存在
+        supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
+        if not supplier:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="供应商不存在"
+            )
+        
+        # 构建测试请求
+        headers = {}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+        
+        # 发送测试请求（这里使用简单的GET请求作为示例）
+        response = requests.get(api_endpoint, headers=headers, timeout=10)
+        
+        # 检查响应
+        if response.status_code == 200:
+            return {
+                "status": "success",
+                "message": "API配置测试成功！",
+                "status_code": response.status_code,
+                "response_text": response.text[:500]  # 只返回前500个字符
+            }
+        else:
+            return {
+                "status": "error",
+                "message": f"API配置测试失败！",
+                "status_code": response.status_code,
+                "response_text": response.text[:500]
+            }
+    except requests.exceptions.ConnectionError:
+        return {
+            "status": "error",
+            "message": "无法连接到API端点，请检查地址是否正确。",
+            "status_code": 0,
+            "response_text": ""
+        }
+    except requests.exceptions.Timeout:
+        return {
+            "status": "error",
+            "message": "API请求超时，请检查网络连接和API端点。",
+            "status_code": 0,
+            "response_text": ""
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"测试API配置时发生错误：{str(e)}",
+            "status_code": 0,
+            "response_text": ""
+        }
+
 # 模型管理相关路由
 @router.post("/suppliers/{supplier_id}/models", response_model=ModelResponse)
 async def create_model(

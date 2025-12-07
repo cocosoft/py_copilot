@@ -230,6 +230,24 @@ export const supplierApi = {
     return await request(endpoint, {
       method: 'DELETE'
     });
+  },
+
+  // 测试API配置
+  testApiConfig: async (id, apiConfig) => {
+    // 确保ID是数字类型
+    const numericId = Number(id);
+    
+    const endpoint = `/model-management/suppliers/${numericId}/test-api`;
+    return await request(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        api_endpoint: apiConfig.api_endpoint,
+        api_key: apiConfig.api_key
+      })
+    });
   }
 };
 

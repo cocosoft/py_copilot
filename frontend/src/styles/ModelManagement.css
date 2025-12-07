@@ -233,15 +233,22 @@
   background-color: #27ae60;
 }
 
+.btn-small {
+  padding: 6px 12px;
+  font-size: 13px;
+  min-width: 60px;
+  text-align: center;
+}
+
 /* 模型管理样式 */
-.model-list {
+.models-container {
   margin-top: 15px;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 24px;
 }
 
-.model-item {
+.model-card {
   border: 1px solid #e1e5e9;
   border-radius: 12px;
   padding: 20px;
@@ -253,9 +260,15 @@
   height: 100%;
 }
 
-.model-item:hover {
+.model-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.model-card.default {
+  border-color: #2ecc71;
+  box-shadow: 0 2px 8px rgba(46, 204, 113, 0.1);
+  border-width: 2px;
 }
 
 .model-item.default {
@@ -265,6 +278,8 @@
 
 .model-item:hover {
   border-color: #3498db;
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.15);
+}
 
 /* Toggle Switch 样式 */
 .toggle-switch {
@@ -461,54 +476,63 @@ input:not(:checked) + .toggle-slider:before {
   box-shadow: 0 2px 8px rgba(52, 152, 219, 0.1);
 }
 
-.model-info {
-  margin-bottom: 10px;
-}
+
 
 .model-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
   flex-wrap: wrap;
   gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .model-name {
   font-weight: 600;
   color: #2c3e50;
-  margin-bottom: 5px;
+  font-size: 16px;
+  margin: 0;
+  flex: 1;
+  word-break: break-word;
 }
 
 .model-desc {
   font-size: 14px;
   color: #7f8c8d;
-  margin-bottom: 8px;
+  margin-bottom: 16px;
+  line-height: 1.5;
+  min-height: 42px;
 }
 
 .model-meta {
-  font-size: 12px;
-  color: #95a5a6;
+  font-size: 13px;
+  color: #6c757d;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
+  margin-bottom: 16px;
 }
 
 .meta-item {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .status-label {
   font-weight: 500;
+  color: #495057;
+  min-width: 50px;
 }
 
 .status-indicator {
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 3px 8px;
+  border-radius: 12px;
   font-weight: 500;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .status-indicator.active {
@@ -524,9 +548,11 @@ input:not(:checked) + .toggle-slider:before {
 .model-actions {
   display: flex;
   gap: 8px;
-  margin-top: 16px;
+  margin-top: 20px;
   flex-wrap: wrap;
   margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
 }
 
 .model-default-tag {
@@ -542,17 +568,18 @@ input:not(:checked) + .toggle-slider:before {
 .default-badge {
   background-color: #2ecc71;
   color: white;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 3px 8px;
+  border-radius: 12px;
   font-size: 12px;
   font-weight: 500;
+  margin-left: 8px;
 }
 
 .model-type-badge {
   background-color: #3498db;
   color: white;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 3px 8px;
+  border-radius: 12px;
   font-size: 12px;
   font-weight: 500;
 }
@@ -670,6 +697,40 @@ input:not(:checked) + .toggle-slider:before {
     flex: 1;
     min-width: 80px;
   }
+  
+  /* 模型卡片在移动端的响应式调整 */
+  .models-container {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .model-card {
+    padding: 16px;
+  }
+  
+  .model-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .model-name {
+    font-size: 15px;
+  }
+  
+  .model-desc {
+    min-height: auto;
+  }
+  
+  .model-actions {
+    justify-content: stretch;
+  }
+  
+  .btn-small {
+    flex: 1;
+    min-width: 60px;
+    font-size: 12px;
+  }
 }
 
 /* 动画效果 */
@@ -718,31 +779,39 @@ input:not(:checked) + .toggle-slider:before {
 .capabilities {
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
+  gap: 6px;
 }
 
 .capabilities-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
   margin-top: 4px;
+  width: 100%;
 }
 
 .capability-tag {
   display: inline-block;
-  padding: 3px 8px;
+  padding: 4px 10px;
   background-color: #e3f2fd;
   color: #1976d2;
-  border-radius: 12px;
-  font-size: 11px;
+  border-radius: 16px;
+  font-size: 12px;
   font-weight: 500;
   border: 1px solid #bbdefb;
+  transition: all 0.2s ease;
+}
+
+.capability-tag:hover {
+  background-color: #bbdefb;
+  color: #1565c0;
+  transform: translateY(-1px);
 }
 
 .no-capabilities {
   color: #9e9e9e;
   font-style: italic;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 /* 信息按钮样式 */
