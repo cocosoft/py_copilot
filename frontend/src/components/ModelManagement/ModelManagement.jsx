@@ -461,10 +461,10 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
         </div>
       ) : (
         <div className="model-management-section">
-          {/* 模型列表 */}
+          {/* 模型卡片 */}
           <div className="model-section">
             <div className="section-header">
-              <h2>模型列表</h2>
+              <h2>模型卡片</h2>
               <button
                 className="btn btn-primary"
                 onClick={() => handleAddModelClick()}
@@ -521,13 +521,8 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
                       )}
                     </div>
                     <div className="model-meta">
-                      <div className="meta-item">上下文窗口: {model.contextWindow || model.context_window}</div>
-                      <div className="meta-item">最大Token: {model.max_tokens || 1000}</div>
-                      <div className="meta-item">
-                        <span className={`model-status ${model.is_active ? 'active' : 'inactive'}`}>
-                          {model.is_active ? '启用' : '禁用'}
-                        </span>
-                      </div>
+                        <div className="meta-item">上下文窗口: {model.contextWindow || model.context_window}</div>
+                        <div className="meta-item">最大Token: {model.max_tokens || 1000}</div>
                       {/* 显示模型能力信息 */}
                       <div className="meta-item">
                         <span>能力:</span>
@@ -546,15 +541,6 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
                     </div>
 
                     <div className="model-actions">
-                      {!model.is_default && (
-                        <button
-                          className="btn btn-secondary btn-small"
-                          onClick={() => handleSetDefault(model.id)}
-                          disabled={saving}
-                        >
-                          设为默认
-                        </button>
-                      )}
                       <button
                         className="btn btn-secondary btn-small"
                         onClick={() => handleEditModelClick(model)}
@@ -567,14 +553,14 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
                         onClick={() => handleViewParameters(model)}
                         disabled={saving}
                       >
-                        管理参数
+                        参数
                       </button>
                       <button
                         className="btn btn-info btn-small"
                         onClick={() => handleManageCapabilities(model)}
                         disabled={saving}
                       >
-                        能力管理
+                        能力
                       </button>
                       <button
                         className="btn btn-danger btn-small"
