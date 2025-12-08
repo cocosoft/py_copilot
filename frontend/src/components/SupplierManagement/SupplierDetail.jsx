@@ -17,6 +17,7 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
   const [saveStatus, setSaveStatus] = useState(null);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   // 当选中的供应商变化时，更新本地API配置
   useEffect(() => {
@@ -376,8 +377,8 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
   // 格式化API密钥显示
   const formatApiKey = (apiKey) => {
     if (!apiKey || typeof apiKey !== 'string') return '';
-    if (apiKey.length <= 8) return apiKey;
-    return `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}`;
+    if (apiKey.length <= 8) return '••••••••';
+    return `${apiKey.slice(0, 4)}••••${apiKey.slice(-4)}`;
   };
 
   if (!selectedSupplier) {
@@ -478,13 +479,24 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
           <div className="api-key-row">
             <span className="info-label">API密钥:</span>
             <div className="api-key-input-group">
-              <input
-                type="text"
-                className="info-value"
-                value={localApiConfig.apiKey}
-                onChange={(e) => setLocalApiConfig({ ...localApiConfig, apiKey: e.target.value })}
-                placeholder="请输入API密钥"
-              />
+              {isEditMode ? (
+                <input
+                  type="text"
+                  className="info-value"
+                  value={localApiConfig.apiKey}
+                  onChange={(e) => setLocalApiConfig({ ...localApiConfig, apiKey: e.target.value })}
+                  placeholder="请输入API密钥"
+                  autoFocus
+                  onBlur={() => setIsEditMode(false)}
+                />
+              ) : (
+                <div 
+                  className="info-value api-key-display"
+                  onClick={() => setIsEditMode(true)}
+                >
+                  {localApiConfig.apiKey ? formatApiKey(localApiConfig.apiKey) : '点击输入API密钥'}
+                </div>
+              )}
               <button
                 className="btn-copy"
                 onClick={() => navigator.clipboard.writeText(localApiConfig.apiKey)}

@@ -4,7 +4,6 @@ import '../../styles/ModelModal.css';
 
 const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFirstModel = false }) => {
   const [formData, setFormData] = useState({
-    id: '',
     name: '',
     display_name: '',
     description: '',
@@ -14,6 +13,8 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
     isDefault: false,
     is_active: true
   });
+  const [logo, setLogo] = useState(null);
+  const [logoPreview, setLogoPreview] = useState(null);
   const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
@@ -110,9 +111,8 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
   useEffect(() => {
     if (mode === 'edit' && model) {
       setFormData({
-        id: model.id || model.model_id || '',
         name: model.name || '',
-        display_name: model.display_name || model.name || '',
+        display_name: model.display_name || '',
         description: model.description || '',
         contextWindow: model.contextWindow || model.context_window || 8000,
         max_tokens: model.max_tokens || 1000,
@@ -120,10 +120,16 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
         isDefault: model.isDefault || model.is_default || false,
         is_active: model.is_active || true
       });
+      // 确保模型LOGO预览使用正确的路径
+      let logoPath = model.logo || null;
+      if (logoPath && !logoPath.startsWith('http') && !logoPath.startsWith('/logos/models/')) {
+        logoPath = `/logos/models/${logoPath}`;
+      }
+      setLogoPreview(logoPath);
+      setLogo(null);
     } else if (mode === 'add') {
       // 重置表单数据
       setFormData({
-        id: '',
         name: '',
         display_name: '',
         description: '',
@@ -133,6 +139,8 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
         isDefault: isFirstModel, // 如果是第一个模型，默认设为默认模型
         is_active: true
       });
+      setLogo(null);
+      setLogoPreview(null);
     }
   }, [model, mode, isFirstModel]);
 
@@ -145,13 +153,39 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
     }));
   };
 
+  // 处理LOGO文件选择
+  const handleLogoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setLogo(file);
+      // 创建预览
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // 处理移除LOGO
+  const handleRemoveLogo = () => {
+    setLogo(null);
+    setLogoPreview(null);
+  };
+
   // 处理表单提交
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     // 验证必填字段
-    if (!formData.id || !formData.name) {
-      alert('请填写模型ID和模型名称');
+    if (!formData.name) {
+      alert('请填写模型ID');
+      return;
+    }
+    
+    // 验证显示名称（根据后端schema要求，必须有至少1个字符）
+    if (!formData.display_name || formData.display_name.trim() === '') {
+      alert('请填写模型名称，该字段为必填项');
       return;
     }
     
@@ -161,8 +195,6 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
       // 准备传递给父组件的数据
       const modelData = {
         ...formData,
-        // 确保包含后端需要的model_id字段
-        model_id: formData.id,
         // 确保字段命名一致性和类型转换
         context_window: parseInt(formData.contextWindow) || 8000,
         max_tokens: parseInt(formData.max_tokens) || 1000,
@@ -171,9 +203,8 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
         is_active: formData.is_active || true
       };
       
-      
       // 调用父组件的保存函数
-      await onSave(modelData);
+      await onSave(modelData, logo);
       onClose();
     } catch (error) {
       console.error('ModelModal: 保存模型失败:', error);
@@ -223,43 +254,34 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
           
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="id">模型ID: {mode === 'add' && <span className="required">*</span>}</label>
-              <input 
-                type="text" 
-                id="id"
-                name="id"
-                value={formData.id}
-                onChange={handleChange}
-                placeholder="模型ID"
-                disabled={mode === 'edit' || saving}
-                required={mode === 'add'}
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="name">模型名称: <span className="required">*</span></label>
+              <label htmlFor="name">模型ID: <span className="required">*</span></label>
               <input 
                 type="text" 
                 id="name"
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
-                placeholder="模型名称"
+                placeholder="模型ID（同一供应商下唯一）"
                 required
                 disabled={saving}
               />
+              <div className="field-hint">
+                该ID是模型正确调用的唯一ID，请确保与供应商提供的模型名称（ID）保持一致。否则可能会导致模型调用失败。
+              </div>
             </div>
           </div>
           
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="display_name">显示名称</label>
+              <label htmlFor="display_name">模型名称: <span className="required">*</span></label>
               <input 
                 type="text" 
                 id="display_name"
                 name="display_name"
                 value={formData.display_name}
                 onChange={handleChange}
-                placeholder="用户友好的显示名称"
+                placeholder="模型名称（必填）"
+                required
                 disabled={saving}
               />
             </div>
@@ -307,6 +329,35 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
                 placeholder="最大生成Token数"
                 disabled={saving}
               />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="logo">模型LOGO</label>
+            <div className="logo-upload-container">
+              {logoPreview ? (
+                <div className="logo-preview">
+                  <img src={logoPreview} alt="Logo Preview" />
+                  <button type="button" className="remove-logo-btn" onClick={handleRemoveLogo}>
+                    ×
+                  </button>
+                </div>
+              ) : (
+                <div className="logo-upload-placeholder">
+                  <span>点击上传LOGO或拖拽文件到此处</span>
+                </div>
+              )}
+              <input 
+                type="file" 
+                id="logo"
+                accept="image/*"
+                onChange={handleLogoChange}
+                style={{ display: 'none' }}
+                disabled={saving}
+              />
+              <label htmlFor="logo" className="btn btn-secondary" style={{ marginTop: '10px' }}>
+                选择LOGO
+              </label>
             </div>
           </div>
           

@@ -15,6 +15,51 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(null); // 成功消息状态
   
+  // 获取模型LOGO，如果模型没有LOGO，则使用供应商LOGO
+  const getModelLogo = (model, supplier) => {
+    if (!model && !supplier) return '/logos/providers/default.png';
+    
+    try {
+      // 优先使用模型LOGO
+      if (model.logo) {
+        // 检测是否为外部URL
+        if (model.logo.startsWith('http')) {
+          // 使用后端代理端点处理外部URL，避免ORB安全限制
+          const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(model.logo)}`;
+          return proxyUrl;
+        } else if (model.logo.startsWith('/logos/models/')) {
+          // 如果是/logo/models/开头的相对路径，直接使用
+          return model.logo;
+        } else {
+          // 兼容处理：如果是单独的文件名，添加路径前缀
+          return `/logos/models/${model.logo}`;
+        }
+      }
+      
+      // 如果模型没有LOGO，使用供应商LOGO
+      if (supplier && supplier.logo) {
+        // 检测是否为外部URL
+        if (supplier.logo.startsWith('http')) {
+          // 使用后端代理端点处理外部URL，避免ORB安全限制
+          const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(supplier.logo)}`;
+          return proxyUrl;
+        } else if (supplier.logo.startsWith('/logos/providers/')) {
+          // 如果是/logo/providers/开头的相对路径，直接使用
+          return supplier.logo;
+        } else {
+          // 兼容处理：如果是单独的文件名，添加路径前缀
+          return `/logos/providers/${supplier.logo}`;
+        }
+      }
+      
+      // 没有logo时的默认路径
+      return '/logos/providers/default.png';
+    } catch (error) {
+      console.error('获取模型logo失败:', error);
+      return '/logos/providers/default.png';
+    }
+  };
+  
   // 模型模态框相关状态
   const [isModelModalOpen, setIsModelModalOpen] = useState(false);
   const [modelModalMode, setModelModalMode] = useState('add');
@@ -152,14 +197,14 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
   };
 
   // 保存模型数据
-  const handleSaveModelData = async (modelData) => {
+  const handleSaveModelData = async (modelData, logo) => {
     try {
       setSaving(true);
       if (modelModalMode === 'add') {
-        await api.modelApi.create(selectedSupplier.id, modelData);
+        await api.modelApi.create(selectedSupplier.id, { ...modelData, logo });
         setSuccess('模型添加成功');
       } else {
-        await api.modelApi.update(selectedSupplier.id, editingModel.id, modelData);
+        await api.modelApi.update(selectedSupplier.id, editingModel.id, { ...modelData, logo });
         setSuccess('模型更新成功');
       }
       await loadModels();
@@ -419,9 +464,20 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
                 {currentModels.map((model) => (
                   <div key={model.id} className={`model-card ${model.is_default ? 'default' : ''}`}>
                     <div className="model-header">
-                      <h3 className="model-name">{model.displayName ? `${model.displayName} (${model.name})` : model.name}</h3>
-                      {model.is_default && <span className="default-badge">默认</span>}
-                      <span className="model-type-badge">{model.model_type || 'chat'}</span>
+                      <div className="model-header-left">
+                        <div className="model-logo">
+                          <img 
+                            src={getModelLogo(model, selectedSupplier)} 
+                            alt="模型LOGO" 
+                            className="model-logo-image"
+                          />
+                        </div>
+                        <h3 className="model-name">{model.displayName ? `${model.displayName} (${model.name})` : model.name}</h3>
+                      </div>
+                      <div className="model-header-right">
+                        {model.is_default && <span className="default-badge">默认</span>}
+                        <span className="model-type-badge">{model.model_type || 'chat'}</span>
+                      </div>
                     </div>
                     <div className="model-desc">{model.description}</div>
                     <div className="model-meta">

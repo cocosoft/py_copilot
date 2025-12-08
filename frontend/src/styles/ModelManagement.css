@@ -489,13 +489,34 @@ input:not(:checked) + .toggle-slider:before {
   border-bottom: 1px solid #f0f0f0;
 }
 
+.model-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.model-logo {
+  flex-shrink: 0;
+}
+
+.model-logo-image {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
 .model-name {
+  margin: 0;
+  font-size: 16px;
   font-weight: 600;
   color: #2c3e50;
-  font-size: 16px;
-  margin: 0;
+  overflow: hidden;
   flex: 1;
   word-break: break-word;
+  white-space: normal;
+  line-height: 1.4;
+}
 }
 
 .model-desc {
@@ -712,6 +733,12 @@ input:not(:checked) + .toggle-slider:before {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
+  }
+  
+  .model-header-left {
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
   }
   
   .model-name {

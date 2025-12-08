@@ -91,6 +91,7 @@ const formatModelData = (model) => {
     supplierName: supplierName,
     supplierDisplayName: supplierDisplayName,
     modelType: model.model_type || model.modelType || 'chat',
+    logo: model.logo || null,
     createdAt: model.created_at || model.createdAt,
     updatedAt: model.updated_at || model.updatedAt
   };
@@ -100,16 +101,21 @@ const formatModelData = (model) => {
 const buildModelDataForBackend = (model, supplierId) => {
   const integerSupplierId = Number(supplierId);
   
+  // 根据后端schema要求，display_name字段必须有至少1个字符
+  // 如果用户没有输入显示名称，使用模型名称作为默认值
+  const displayName = model.displayName && model.displayName.trim() !== '' ? model.displayName : model.name;
+  
   return {
     name: model.name,
-    display_name: model.displayName || model.name,
+    display_name: displayName,
     description: model.description || '',
     context_window: Number(model.contextWindow) || 8000,
     max_tokens: Number(model.maxTokens) || 1000,
     is_default: Boolean(model.isDefault),
     is_active: model.isActive !== undefined ? Boolean(model.isActive) : true,
     supplier_id: integerSupplierId,
-    model_type: model.modelType || 'chat'
+    model_type: model.modelType || 'chat',
+    logo: model.logo
   };
 };
 
@@ -262,13 +268,24 @@ export const modelApi = {
       // 使用统一的构建函数准备数据
       const modelDataForBackend = buildModelDataForBackend(model, supplierId);
       
+      // 创建FormData对象，支持文件上传
+      const formData = new FormData();
+      
+      // 添加模型数据作为JSON字符串
+      formData.append('model_data', JSON.stringify(modelDataForBackend));
+      
+      // 如果有logo文件，添加到FormData
+      if (model.logo && typeof model.logo !== 'string') {
+        formData.append('logo', model.logo);
+      }
       
       // 使用正确的路径格式
       const response = await request(`/model-management/suppliers/${integerSupplierId}/models`, {
         method: 'POST',
-        body: JSON.stringify(modelDataForBackend),
+        body: formData,
+        // 不需要设置Content-Type，浏览器会自动设置并添加边界
         headers: {
-          'Content-Type': 'application/json'
+          // 'Content-Type': 'multipart/form-data'  // 注释掉，让浏览器自动处理
         }
       });
       
@@ -309,13 +326,24 @@ export const modelApi = {
       // 使用统一的构建函数准备数据
       const modelDataForBackend = buildModelDataForBackend(updatedModel, supplierId);
       
+      // 创建FormData对象，支持文件上传
+      const formData = new FormData();
+      
+      // 添加模型数据作为JSON字符串
+      formData.append('model_data', JSON.stringify(modelDataForBackend));
+      
+      // 如果有logo文件（且不是字符串URL），添加到FormData
+      if (updatedModel.logo && typeof updatedModel.logo !== 'string') {
+        formData.append('logo', updatedModel.logo);
+      }
       
       // 使用正确的路径格式
       const response = await request(`/model-management/suppliers/${integerSupplierId}/models/${integerModelId}`, {
         method: 'PUT',
-        body: JSON.stringify(modelDataForBackend),
+        body: formData,
+        // 不需要设置Content-Type，浏览器会自动设置并添加边界
         headers: {
-          'Content-Type': 'application/json'
+          // 'Content-Type': 'multipart/form-data'  // 注释掉，让浏览器自动处理
         }
       });
       
