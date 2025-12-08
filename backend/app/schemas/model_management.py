@@ -60,6 +60,7 @@ class ModelBase(BaseModel):
     custom_params: Optional[Dict[str, Any]] = None
     is_active: bool = True
     is_default: bool = False
+    logo: Optional[str] = None
 
 
 class ModelCreate(ModelBase):
@@ -82,6 +83,7 @@ class ModelUpdate(BaseModel):
     custom_params: Optional[Dict[str, Any]] = None
     is_active: Optional[bool] = None
     is_default: Optional[bool] = None
+    logo: Optional[str] = None
 
 
 class ModelResponse(ModelBase):

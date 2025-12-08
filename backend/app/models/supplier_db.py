@@ -16,8 +16,8 @@ class SupplierDB(Base):
     description = Column(Text, nullable=True)
     api_endpoint = Column(String(255), nullable=True)
     api_key_required = Column(Boolean, default=False)
-    created_at = Column(String)
-    updated_at = Column(String)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     # 新增字段
     logo = Column(String(255), nullable=True)  # Logo存储路径或URL，现在可选
     category = Column(String(100), nullable=True)
@@ -69,6 +69,7 @@ class ModelDB(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    logo = Column(String(255), nullable=True)  # 模型LOGO存储路径或URL
     
     # 添加关系定义
     supplier = relationship("SupplierDB", back_populates="models")

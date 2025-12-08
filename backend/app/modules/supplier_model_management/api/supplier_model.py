@@ -1,6 +1,6 @@
 """供应商和模型相关的API路由"""
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from datetime import datetime
@@ -121,8 +121,8 @@ def get_all_suppliers(db: Session = Depends(get_db)):
         "description": supplier.description,
         "logo": supplier.logo,
         "website": supplier.website,
-        "created_at": supplier.created_at,
-        "updated_at": supplier.updated_at,
+        "created_at": supplier.created_at.isoformat() if supplier.created_at else None,
+        "updated_at": supplier.updated_at.isoformat() if supplier.updated_at else None,
         "is_active": supplier.is_active
     } for supplier in suppliers]
 
@@ -284,8 +284,16 @@ def get_model(supplier_id: int, model_id: int, db: Session = Depends(get_db)):
     return model
 
 @router.post("/suppliers/{supplier_id}/models", response_model=ModelResponse, status_code=201)
-def create_model(supplier_id: int, model: ModelCreate, db: Session = Depends(get_db)):
-    """创建新模型"""
+async def create_model(supplier_id: int, model_data: str = Form(...), logo: UploadFile = File(None), db: Session = Depends(get_db)):
+    """创建新模型，支持LOGO上传"""
+    import json
+    
+    # 解析JSON数据
+    try:
+        model = json.loads(model_data)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="无效的JSON格式")
+    
     # 验证供应商是否存在
     supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
     if not supplier:
@@ -293,27 +301,33 @@ def create_model(supplier_id: int, model: ModelCreate, db: Session = Depends(get
     
     # 检查模型名称是否已存在
     existing_model = db.query(ModelDB).filter(
-        ModelDB.name == model.name,
+        ModelDB.name == model['name'],
         ModelDB.supplier_id == supplier_id
     ).first()
     if existing_model:
         raise HTTPException(status_code=400, detail="模型名称已存在")
     
     # 如果设置为默认模型，先将其他模型设为非默认
-    if model.is_default:
+    if model.get('is_default', False):
         db.query(ModelDB).filter(ModelDB.supplier_id == supplier_id).update({"is_default": False})
+    
+    # 保存LOGO文件（如果有）
+    logo_path = None
+    if logo:
+        logo_path = await save_upload_file(logo)
     
     # 创建新模型
     # 只使用ModelDB中定义的字段
     db_model_data = {
-        "name": model.name,
-        "display_name": getattr(model, 'display_name', None),
-        "description": getattr(model, 'description', None),
+        "name": model['name'],
+        "display_name": model.get('display_name'),
+        "description": model.get('description'),
         "supplier_id": supplier_id,
-        "context_window": getattr(model, 'context_window', None),
-        "max_tokens": getattr(model, 'max_tokens', None),
-        "is_default": model.is_default,
-        "is_active": getattr(model, 'is_active', True)
+        "context_window": model.get('context_window'),
+        "max_tokens": model.get('max_tokens'),
+        "logo": logo_path,
+        "is_default": model.get('is_default', False),
+        "is_active": model.get('is_active', True)
     }
     db_model = ModelDB(**db_model_data)
     db.add(db_model)
@@ -323,8 +337,39 @@ def create_model(supplier_id: int, model: ModelCreate, db: Session = Depends(get
     return db_model
 
 @router.put("/suppliers/{supplier_id}/models/{model_id}", response_model=ModelResponse)
-def update_model(supplier_id: int, model_id: int, model_update: ModelCreate, db: Session = Depends(get_db)):
-    """更新模型信息"""
+async def update_model(supplier_id: int, model_id: int, request: Request, db: Session = Depends(get_db)):
+    """更新模型信息，支持LOGO上传"""
+    import json
+    
+    content_type = request.headers.get('content-type')
+    
+    if content_type and 'multipart/form-data' in content_type:
+        # 处理包含文件上传的请求
+        form_data = await request.form()
+        
+        # 解析JSON数据
+        model_json = form_data.get('model_data')
+        if not model_json:
+            raise HTTPException(
+                status_code=400,
+                detail="缺少模型数据"
+            )
+            
+        model_update = json.loads(model_json)
+        
+        # 保存LOGO文件（如果有）
+        logo_path = None
+        logo_file = form_data.get('logo')
+        if logo_file and logo_file.filename:
+            logo_path = await save_upload_file(logo_file)
+            model_update['logo'] = logo_path
+        elif 'logo' in model_update and model_update['logo'] is None:
+            # 如果明确设置logo为None，则删除logo
+            model_update['logo'] = None
+    else:
+        # 处理普通JSON请求
+        model_update = await request.json()
+    
     # 验证供应商是否存在
     supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
     if not supplier:
@@ -340,9 +385,9 @@ def update_model(supplier_id: int, model_id: int, model_update: ModelCreate, db:
         raise HTTPException(status_code=404, detail="模型不存在")
     
     # 检查模型名称是否被其他模型使用
-    if model_update.name != model.name:
+    if model_update['name'] != model.name:
         existing_model = db.query(ModelDB).filter(
-            ModelDB.name == model_update.name,
+            ModelDB.name == model_update['name'],
             ModelDB.supplier_id == supplier_id,
             ModelDB.id != model_id
         ).first()
@@ -350,15 +395,12 @@ def update_model(supplier_id: int, model_id: int, model_update: ModelCreate, db:
             raise HTTPException(status_code=400, detail="模型名称已存在")
     
     # 如果设置为默认模型，先将其他模型设为非默认
-    if model_update.is_default:
+    if model_update.get('is_default', False):
         db.query(ModelDB).filter(ModelDB.supplier_id == supplier_id).update({"is_default": False})
     
     # 更新模型数据
-    update_data = model_update.dict(exclude_unset=True)
-    for key, value in update_data.items():
+    for key, value in model_update.items():
         setattr(model, key, value)
-    
-    # 移除时间戳更新，因为ModelDB不包含此字段
     
     db.commit()
     db.refresh(model)

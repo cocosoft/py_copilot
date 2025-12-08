@@ -1,7 +1,7 @@
 """模型管理相关API接口"""
 from typing import Any, List, Optional
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -36,7 +36,7 @@ from app.schemas.model_management import (
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # backend/app
 BASE_DIR = os.path.dirname(BASE_DIR)  # backend
 BASE_DIR = os.path.dirname(BASE_DIR)  # 项目根目录
-UPLOAD_DIR = os.path.join(BASE_DIR, "frontend/public/logos/providers")
+UPLOAD_DIR = os.path.join(BASE_DIR, "frontend/public/logos/models")
 UPLOAD_DIR = os.path.normpath(UPLOAD_DIR)  # 规范化路径
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 print(f"文件上传目录: {UPLOAD_DIR}")  # 添加日志以便调试
@@ -161,31 +161,45 @@ async def get_all_models(
 @router.post("/suppliers/{supplier_id}/models", response_model=ModelResponse)
 async def create_model(
     supplier_id: int,
-    model: ModelCreate,
+    request: Request,
     db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
+    current_user: MockUser = Depends(get_mock_user),
+    model_data: str = Form(None),
+    logo: UploadFile = File(None)
 ) -> Any:
     """
     为指定供应商创建新模型
     
     Args:
         supplier_id: 供应商ID
-        model: 模型创建数据
+        request: 请求对象
         db: 数据库会话
         current_user: 当前活跃的超级用户
+        model_data: 模型数据JSON字符串
+        logo: 模型logo文件
     
     Returns:
         创建的模型信息
     """
-    # 供应商验证已移除，现在使用数据库中的suppliers表
+    # 处理FormData格式请求
+    import json
+    if model_data:
+        model_dict = json.loads(model_data)
+    else:
+        # 尝试从JSON请求体获取数据
+        model_dict = await request.json()
     
     # 确保supplier_id一致
-    model_data = model.model_dump()
-    model_data['supplier_id'] = supplier_id
+    model_dict['supplier_id'] = supplier_id
+    
+    # 保存logo文件（如果有）
+    if logo:
+        logo_filename = await save_upload_file(logo)
+        model_dict["logo"] = f"/logos/models/{logo_filename}"
     
     try:
         # 创建新模型
-        db_model = Model(**model_data)
+        db_model = Model(**model_dict)
         db.add(db_model)
         
         # 如果是第一个模型或者设置为默认模型，将其他模型的is_default设置为False
@@ -282,9 +296,10 @@ async def get_model(
 async def update_model(
     supplier_id: int,
     model_id: int,
-    model_update: ModelUpdate,
     db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
+    current_user: MockUser = Depends(get_mock_user),
+    model_data: str = Form(None),
+    logo: UploadFile = File(None)
 ) -> Any:
     """
     更新模型信息
@@ -292,13 +307,17 @@ async def update_model(
     Args:
         supplier_id: 供应商ID
         model_id: 模型ID
-        model_update: 更新数据
         db: 数据库会话
         current_user: 当前活跃的超级用户
+        model_data: 模型数据JSON字符串
+        logo: 模型logo文件
     
     Returns:
         更新后的模型信息
     """
+    import json
+    from fastapi import Request
+    
     model = db.query(Model).filter(
         Model.id == model_id,
         Model.supplier_id == supplier_id
@@ -310,8 +329,22 @@ async def update_model(
             detail="模型不存在"
         )
     
-    # 更新模型信息
-    update_data = model_update.model_dump(exclude_unset=True)
+    # 处理FormData格式请求
+    if model_data:
+        update_data = json.loads(model_data)
+    else:
+        # 保留对JSON格式请求的兼容性支持
+        request = Request(scope={"type": "http"})
+        update_data = await request.json()
+    
+    # 确保supplier_id和model_id一致
+    update_data['supplier_id'] = supplier_id
+    update_data['id'] = model_id
+    
+    # 保存logo文件（如果有）
+    if logo:
+        logo_filename = await save_upload_file(logo)
+        update_data["logo"] = f"/logos/models/{logo_filename}"
     
     # 如果更新了is_default为True，需要将其他模型的is_default设置为False
     if 'is_default' in update_data and update_data['is_default']:

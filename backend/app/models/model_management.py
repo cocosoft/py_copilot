@@ -48,6 +48,7 @@ class Model(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    logo = Column(String(255), nullable=True)  # 模型LOGO存储路径或URL
     
     # 添加关系定义
     supplier = relationship("ModelSupplier", back_populates="models")

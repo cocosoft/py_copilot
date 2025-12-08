@@ -296,8 +296,8 @@ async def get_suppliers(
             "website": supplier.website,
             "api_docs": supplier.api_docs,
             "api_key": decrypted_api_key,
-            "created_at": supplier.created_at,
-            "updated_at": supplier.updated_at
+            "created_at": supplier.created_at.isoformat() if supplier.created_at else None,
+            "updated_at": supplier.updated_at.isoformat() if supplier.updated_at else None
         }
         suppliers_with_display_name.append(supplier_dict)
     
@@ -753,16 +753,16 @@ async def test_supplier_api_config(
 @router.post("/suppliers/{supplier_id}/models", response_model=ModelResponse)
 async def create_model(
     supplier_id: int,
-    model: ModelCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: MockUser = Depends(get_mock_user)
 ) -> Any:
     """
-    为指定供应商创建新模型
+    为指定供应商创建新模型，支持LOGO上传
     
     Args:
         supplier_id: 供应商ID
-        model: 模型创建数据
+        request: 请求对象，用于处理文件上传
         db: 数据库会话
         current_user: 当前活跃的超级用户
     
@@ -777,11 +777,36 @@ async def create_model(
             detail="供应商不存在"
         )
     
-    # 确保supplier_id一致
-    model_data = model.model_dump()
-    model_data['supplier_id'] = supplier_id
-    
     try:
+        form_data = await request.form()
+        
+        # 解析JSON数据
+        model_json = form_data.get('model_data')
+        if not model_json:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="缺少模型数据"
+            )
+            
+        model_data = json.loads(model_json)
+        
+        # 确保supplier_id一致
+        model_data['supplier_id'] = supplier_id
+        
+        # 处理LOGO上传
+        logo_file = form_data.get('logo')
+        if logo_file and logo_file.filename:
+            # 验证文件类型
+            if not allowed_file(logo_file.filename):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="不支持的文件类型，仅支持 PNG, JPG, JPEG, GIF, WEBP 格式"
+                )
+            
+            # 保存LOGO文件
+            logo_filename = save_upload_file(logo_file, UPLOAD_DIR)
+            model_data['logo'] = logo_filename
+        
         # 创建新模型
         db_model = Model(**model_data)
         db.add(db_model)
@@ -804,6 +829,11 @@ async def create_model(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="创建模型失败，请检查输入数据"
+        )
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="无效的JSON格式"
         )
 
 
@@ -874,52 +904,90 @@ async def get_model(
     return model
 
 
+from fastapi import Request
+import json
+
 @router.put("/suppliers/{supplier_id}/models/{model_id}", response_model=ModelResponse)
 async def update_model(
     supplier_id: int,
     model_id: int,
-    model_update: ModelUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: MockUser = Depends(get_mock_user)
 ) -> Any:
     """
-    更新模型信息
+    更新指定供应商的模型信息，支持LOGO上传
     
     Args:
         supplier_id: 供应商ID
         model_id: 模型ID
-        model_update: 更新数据
+        request: 请求对象，用于处理文件上传
         db: 数据库会话
         current_user: 当前活跃的超级用户
     
     Returns:
         更新后的模型信息
     """
+    # 验证供应商是否存在
+    supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
+    if not supplier:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="供应商不存在"
+        )
+    
+    # 验证模型是否存在且属于该供应商
     model = db.query(Model).filter(
         Model.id == model_id,
         Model.supplier_id == supplier_id
     ).first()
-    
     if not model:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="模型不存在"
         )
     
-    # 更新模型信息
-    update_data = model_update.model_dump(exclude_unset=True)
-    
-    # 如果更新了is_default为True，需要将其他模型的is_default设置为False
-    if 'is_default' in update_data and update_data['is_default']:
-        db.query(Model).filter(
-            Model.supplier_id == supplier_id,
-            Model.id != model_id
-        ).update({Model.is_default: False})
-    
-    for field, value in update_data.items():
-        setattr(model, field, value)
-    
     try:
+        content_type = request.headers.get('content-type')
+        
+        if content_type and 'multipart/form-data' in content_type:
+            # 处理包含文件上传的请求
+            form_data = await request.form()
+            
+            # 解析JSON数据
+            model_json = form_data.get('model_data')
+            if not model_json:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="缺少模型数据"
+                )
+                
+            update_data = json.loads(model_json)
+            
+            # 处理LOGO上传
+            logo_file = form_data.get('logo')
+            if logo_file and logo_file.filename:
+                # 保存LOGO文件
+                logo_filename = save_upload_file(logo_file, UPLOAD_DIR)
+                update_data['logo'] = logo_filename
+            elif 'logo' in update_data and update_data['logo'] is None:
+                # 如果明确设置logo为None，则删除logo
+                update_data['logo'] = None
+        else:
+            # 处理普通JSON请求
+            update_data = await request.json()
+        
+        # 如果设置了is_default为True，将其他模型的is_default设置为False
+        if 'is_default' in update_data and update_data['is_default'] is True:
+            db.query(Model).filter(
+                Model.supplier_id == supplier_id,
+                Model.id != model_id
+            ).update({Model.is_default: False})
+        
+        # 更新模型
+        for field, value in update_data.items():
+            setattr(model, field, value)
+        
         db.commit()
         db.refresh(model)
         return model
@@ -928,6 +996,11 @@ async def update_model(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="更新模型失败，请检查输入数据"
+        )
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="无效的JSON格式"
         )
 
 
