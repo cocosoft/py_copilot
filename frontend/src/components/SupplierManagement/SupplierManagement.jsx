@@ -240,7 +240,7 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
           >
             <div className="supplier-info" style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
               <div className="supplier-logo" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px' }}>
-                <div style={{ position: 'relative', width: '24px', height: '36px' }}>
+                <div style={{ position: 'relative', width: '36px', height: '36px' }}>
                   <img 
                     src={getSupplierLogo(supplier)} 
                     alt={`${supplier.name} Logo`} 
@@ -258,7 +258,7 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
                   />
                 </div>
               </div>
-              <div className="supplier-name" style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+              <div className="supplier-name" style={{ flex: 1, display: 'flex', alignItems: 'center', fontSize: '14px', fontWeight: 'bold' }}>
                 {supplier.name}
               </div>
               <div className="supplier-tag" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
