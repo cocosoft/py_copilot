@@ -296,6 +296,7 @@ async def get_model(
 async def update_model(
     supplier_id: int,
     model_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: MockUser = Depends(get_mock_user),
     model_data: str = Form(None),
@@ -334,7 +335,6 @@ async def update_model(
         update_data = json.loads(model_data)
     else:
         # 保留对JSON格式请求的兼容性支持
-        request = Request(scope={"type": "http"})
         update_data = await request.json()
     
     # 确保supplier_id和model_id一致

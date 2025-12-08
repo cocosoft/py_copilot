@@ -239,8 +239,8 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
             onClick={() => handleSupplierSelect(supplier)}
           >
             <div className="supplier-info" style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
-              <div className="supplier-logo" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ position: 'relative', width: '30px', height: '30px' }}>
+              <div className="supplier-logo" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px' }}>
+                <div style={{ position: 'relative', width: '24px', height: '36px' }}>
                   <img 
                     src={getSupplierLogo(supplier)} 
                     alt={`${supplier.name} Logo`} 
@@ -265,7 +265,7 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
                 {supplier.is_active === false ? (
                   <div></div>
                 ) : (
-                  <div className="supplier-tag active" title="已启用" style={{  padding: '2px 8px', borderRadius: '12px', fontSize: '12px', minWidth: '60px', textAlign: 'center' }}>🟢 ON</div>
+                  <div className="supplier-tag active" title="已启用" style={{  padding: '2px 8px', borderRadius: '12px', fontSize: '12px', minWidth: '48px', textAlign: 'center' }}>🟢 ON</div>
                 )}
               </div>
 
