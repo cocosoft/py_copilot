@@ -21,7 +21,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
     
     try {
       // 优先使用模型LOGO
-      if (model.logo) {
+      if (model && model.logo) {
         // 检测是否为外部URL
         if (model.logo.startsWith('http')) {
           // 使用后端代理端点处理外部URL，避免ORB安全限制
@@ -76,6 +76,9 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
   const [modelCapabilities, setModelCapabilities] = useState({}); // 存储每个模型的能力信息
   const [isCapabilityModalOpen, setIsCapabilityModalOpen] = useState(false);
   const [currentCapabilitiesModel, setCurrentCapabilitiesModel] = useState(null);
+  
+  // 描述展开状态管理
+  const [expandedDescriptions, setExpandedDescriptions] = useState({});
 
   // 当选择的供应商改变时，加载对应模型列表
   useEffect(() => {
@@ -265,7 +268,25 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
   const handleCloseCapabilityModal = () => {
     setIsCapabilityModalOpen(false);
     setCurrentCapabilitiesModel(null);
-    // 关闭时重新加载模型能力，以便更新显示
+  };
+  
+  // 切换描述展开状态
+  const toggleDescription = (modelId) => {
+    setExpandedDescriptions(prev => ({
+      ...prev,
+      [modelId]: !prev[modelId]
+    }));
+  };
+  
+  // 截断描述文本
+  const truncateDescription = (text, maxLength = 100) => {
+    if (!text) return '';
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+  };
+
+  // 关闭时重新加载模型能力，以便更新显示
+  const handleCapabilityModalClose = () => {
     if (selectedModel) {
       loadModelCapabilities(selectedModel.id);
     }
@@ -470,6 +491,10 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
                             src={getModelLogo(model, selectedSupplier)} 
                             alt="模型LOGO" 
                             className="model-logo-image"
+                            onError={(e) => {
+                              e.target.src = '/logos/providers/default.png';
+                              e.target.alt = '默认LOGO';
+                            }}
                           />
                         </div>
                         <h3 className="model-name">{model.displayName ? `${model.displayName} (${model.name})` : model.name}</h3>
@@ -479,19 +504,33 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
                         <span className="model-type-badge">{model.model_type || 'chat'}</span>
                       </div>
                     </div>
-                    <div className="model-desc">{model.description}</div>
+                    <div className="model-desc">
+                      <div className="description-content">
+                        {expandedDescriptions[model.id] 
+                          ? model.description 
+                          : truncateDescription(model.description, 100)
+                        }
+                      </div>
+                      {model.description && model.description.length > 100 && (
+                        <button 
+                          className="description-toggle"
+                          onClick={() => toggleDescription(model.id)}
+                        >
+                          {expandedDescriptions[model.id] ? '收起' : '显示更多'}
+                        </button>
+                      )}
+                    </div>
                     <div className="model-meta">
                       <div className="meta-item">上下文窗口: {model.contextWindow || model.context_window}</div>
                       <div className="meta-item">最大Token: {model.max_tokens || 1000}</div>
                       <div className="meta-item">
-                        <span className="status-label">状态:</span>
-                        <span className={`status-indicator ${model.is_active ? 'active' : 'inactive'}`}>
+                        <span className={`model-status ${model.is_active ? 'active' : 'inactive'}`}>
                           {model.is_active ? '启用' : '禁用'}
                         </span>
                       </div>
                       {/* 显示模型能力信息 */}
-                      <div className="meta-item capabilities">
-                        <span className="status-label">能力:</span>
+                      <div className="meta-item">
+                        <span>能力:</span>
                         <div className="capabilities-list">
                           {modelCapabilities[model.id]?.length > 0 ? (
                             modelCapabilities[model.id].map(capability => (

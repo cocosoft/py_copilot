@@ -11,6 +11,9 @@ const Settings = () => {
   // 状态管理当前选中的二级菜单
   const [activeSection, setActiveSection] = useState('model');
   
+  // 新增：控制侧边栏是否展开的状态
+  const [sidebarExpanded, setSidebarExpanded] = useState(true);
+  
   // 搜索设置的状态
   const [searchEngine, setSearchEngine] = useState('google');
   const [safeSearch, setSafeSearch] = useState(true);
@@ -18,6 +21,11 @@ const Settings = () => {
   const [includeAdult, setIncludeAdult] = useState(false);
   const [saveHistory, setSaveHistory] = useState(true);
   const [historyDuration, setHistoryDuration] = useState('90');
+
+  // 切换侧边栏展开/收缩状态
+  const toggleSidebar = () => {
+    setSidebarExpanded(!sidebarExpanded);
+  };
 
   // 根据选中的二级菜单渲染对应内容
   const renderContent = () => {
@@ -233,102 +241,111 @@ const Settings = () => {
       
       <div className="settings-content-wrapper">
         {/* 左侧二级菜单 */}
-        <div className="settings-sidebar">
-        <nav className="settings-nav">
-          <button 
-            className={`nav-item ${activeSection === 'model' ? 'active' : ''}`}
-            onClick={() => setActiveSection('model')}
-          >
-            <span className="nav-icon">🧠</span>
-            <span className="nav-text">模型管理</span>
-          </button>
-          
-          <button 
-            className={`nav-item ${activeSection === 'agents' ? 'active' : ''}`}
-            onClick={() => setActiveSection('agents')}
-          >
-            <span className="nav-icon">🤖</span>
-            <span className="nav-text">智能体管理</span>
-          </button>
-          
-          <button 
-            className={`nav-item ${activeSection === 'knowledge' ? 'active' : ''}`}
-            onClick={() => setActiveSection('knowledge')}
-          >
-            <span className="nav-icon">📚</span>
-            <span className="nav-text">知识库管理</span>
-          </button>
-          
-          <button 
-            className={`nav-item ${activeSection === 'workflow' ? 'active' : ''}`}
-            onClick={() => setActiveSection('workflow')}
-          >
-            <span className="nav-icon">🔄</span>
-            <span className="nav-text">工作流管理</span>
-          </button>
-          
-          <button 
-            className={`nav-item ${activeSection === 'tool' ? 'active' : ''}`}
-            onClick={() => setActiveSection('tool')}
-          >
-            <span className="nav-icon">🔧</span>
-            <span className="nav-text">工具管理</span>
-          </button>
-          
-          <button 
-            className={`nav-item ${activeSection === 'search' ? 'active' : ''}`}
-            onClick={() => setActiveSection('search')}
-          >
-            <span className="nav-icon">🔍</span>
-            <span className="nav-text">搜索管理</span>
-          </button>
-          
-          <button 
-            className={`nav-item ${activeSection === 'account' ? 'active' : ''}`}
-            onClick={() => setActiveSection('account')}
-          >
-            <span className="nav-icon">👤</span>
-            <span className="nav-text">账户设置</span>
-          </button>
-          
-          <button 
-            className={`nav-item ${activeSection === 'notifications' ? 'active' : ''}`}
-            onClick={() => setActiveSection('notifications')}
-          >
-            <span className="nav-icon">🔔</span>
-            <span className="nav-text">通知设置</span>
-          </button>
-          
-          <button 
-            className={`nav-item ${activeSection === 'privacy' ? 'active' : ''}`}
-            onClick={() => setActiveSection('privacy')}
-          >
-            <span className="nav-icon">🔒</span>
-            <span className="nav-text">隐私设置</span>
-          </button>
-          
-          <button 
-            className={`nav-item ${activeSection === 'billing' ? 'active' : ''}`}
-            onClick={() => setActiveSection('billing')}
-          >
-            <span className="nav-icon">💳</span>
-            <span className="nav-text">账单管理</span>
-          </button>
-          
-          <button 
-            className={`nav-item ${activeSection === 'about' ? 'active' : ''}`}
-            onClick={() => setActiveSection('about')}
-          >
-            <span className="nav-icon">ℹ️</span>
-            <span className="nav-text">关于我们</span>
-          </button>
+        <div className={`settings-sidebar ${sidebarExpanded ? 'expanded' : 'collapsed'}`}>
+          <nav className="settings-nav">
+            <button 
+              className={`nav-item ${activeSection === 'model' ? 'active' : ''}`}
+              onClick={() => setActiveSection('model')}
+            >
+              <span className="nav-icon">🧠</span>
+              <span className="nav-text">模型管理</span>
+            </button>
             
+            <button 
+              className={`nav-item ${activeSection === 'agents' ? 'active' : ''}`}
+              onClick={() => setActiveSection('agents')}
+            >
+              <span className="nav-icon">🤖</span>
+              <span className="nav-text">智能体管理</span>
+            </button>
+            
+            <button 
+              className={`nav-item ${activeSection === 'knowledge' ? 'active' : ''}`}
+              onClick={() => setActiveSection('knowledge')}
+            >
+              <span className="nav-icon">📚</span>
+              <span className="nav-text">知识库管理</span>
+            </button>
+            
+            <button 
+              className={`nav-item ${activeSection === 'workflow' ? 'active' : ''}`}
+              onClick={() => setActiveSection('workflow')}
+            >
+              <span className="nav-icon">🔄</span>
+              <span className="nav-text">工作流管理</span>
+            </button>
+            
+            <button 
+              className={`nav-item ${activeSection === 'tool' ? 'active' : ''}`}
+              onClick={() => setActiveSection('tool')}
+            >
+              <span className="nav-icon">🔧</span>
+              <span className="nav-text">工具管理</span>
+            </button>
+            
+            <button 
+              className={`nav-item ${activeSection === 'search' ? 'active' : ''}`}
+              onClick={() => setActiveSection('search')}
+            >
+              <span className="nav-icon">🔍</span>
+              <span className="nav-text">搜索管理</span>
+            </button>
+            
+            <button 
+              className={`nav-item ${activeSection === 'account' ? 'active' : ''}`}
+              onClick={() => setActiveSection('account')}
+            >
+              <span className="nav-icon">👤</span>
+              <span className="nav-text">账户设置</span>
+            </button>
+            
+            <button 
+              className={`nav-item ${activeSection === 'notifications' ? 'active' : ''}`}
+              onClick={() => setActiveSection('notifications')}
+            >
+              <span className="nav-icon">🔔</span>
+              <span className="nav-text">通知设置</span>
+            </button>
+            
+            <button 
+              className={`nav-item ${activeSection === 'privacy' ? 'active' : ''}`}
+              onClick={() => setActiveSection('privacy')}
+            >
+              <span className="nav-icon">🔒</span>
+              <span className="nav-text">隐私设置</span>
+            </button>
+            
+            <button 
+              className={`nav-item ${activeSection === 'billing' ? 'active' : ''}`}
+              onClick={() => setActiveSection('billing')}
+            >
+              <span className="nav-icon">💳</span>
+              <span className="nav-text">账单管理</span>
+            </button>
+            
+            <button 
+              className={`nav-item ${activeSection === 'about' ? 'active' : ''}`}
+              onClick={() => setActiveSection('about')}
+            >
+              <span className="nav-icon">ℹ️</span>
+              <span className="nav-text">关于我们</span>
+            </button>
+              
 
         </nav>
       </div>
         
+        {/* 悬浮按钮 */}
+        <button 
+          className="sidebar-toggle-btn"
+          onClick={toggleSidebar}
+          title={sidebarExpanded ? "收缩导航栏" : "展开导航栏"}
+        >
+          {sidebarExpanded ? "◀" : "▶"}
+        </button>
+        
         {/* 右侧内容区域 */}
-        <div className="settings-main">
+        <div className={`settings-main ${sidebarExpanded ? '' : 'expanded'}`}>
           {renderContent()}
         </div>
       </div>

@@ -28,6 +28,7 @@
   display: flex;
   gap: 20px;
   height: calc(100% - 60px);
+  position: relative;
 }
 
 /* 左侧侧边栏 */
@@ -37,12 +38,33 @@
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+/* 侧边栏展开状态 */
+.settings-sidebar.expanded {
+  width: 220px;
+}
+
+/* 侧边栏收缩状态 */
+.settings-sidebar.collapsed {
+  width: 0;
+  min-width: 0;
+  opacity: 0;
+  transform: translateX(-20px);
 }
 
 /* 导航菜单 */
 .settings-nav {
   display: flex;
   flex-direction: column;
+  transition: all 0.3s ease;
+}
+
+.settings-sidebar.collapsed .settings-nav {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .nav-item {
@@ -80,6 +102,50 @@
 
 .nav-text {
   flex: 1;
+  transition: opacity 0.3s ease;
+}
+
+.settings-sidebar.collapsed .nav-text {
+  opacity: 0;
+}
+
+/* 悬浮按钮 */
+.sidebar-toggle-btn {
+  position: absolute;
+  top: 50%;
+  left: 220px;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 48px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 0 6px 6px 0;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+}
+
+.sidebar-toggle-btn:hover {
+  background-color: #2980b9;
+  transform: translateY(-50%) scale(1.05);
+  box-shadow: 3px 0 12px rgba(0, 0, 0, 0.2);
+}
+
+.sidebar-toggle-btn:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+/* 侧边栏收缩时调整悬浮按钮位置 */
+.settings-sidebar.collapsed + .sidebar-toggle-btn {
+  left: 0;
+  border-radius: 0 6px 6px 0;
 }
 
 /* 右侧主内容区域 */
@@ -90,6 +156,12 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   overflow-y: auto;
   min-width: 0;
+  transition: all 0.3s ease;
+}
+
+/* 侧边栏收缩时主内容区域扩展 */
+.settings-main.expanded {
+  margin-left: 0;
 }
 
 /* 设置内容 */
@@ -198,39 +270,6 @@
 }
 
 .model-select:focus,
-
-/* 模型能力相关样式 */
-.model-capability-container {
-  background-color: #f9f9f9;
-  border-radius: 8px;
-  padding: 20px;
-  margin-top: 10px;
-  border: 1px solid #e1e8ed;
-}
-
-/* 确保模型能力管理组件在设置页面中正确显示 */
-.model-capability-management {
-  background-color: transparent;
-  min-height: auto;
-  padding: 0;
-}
-
-.model-capability-management .capability-header {
-  background-color: #ffffff;
-  border-bottom: 1px solid #e1e8ed;
-  margin-bottom: 16px;
-  padding: 16px 20px;
-  border-radius: 6px;
-}
-
-.model-capability-management .capability-table-container {
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.model-capability-management .modal {
-  z-index: 2000; /* 确保模态框在设置页面之上 */
-}
 .search-select:focus {
   border-color: #3498db;
 }

@@ -24,16 +24,16 @@ const SupplierList = () => {
     return (
       <div 
         style={{
-          width: '30px', 
-          height: '30px', 
+          width: '18px', 
+          height: '18px', 
           backgroundColor: bgColor,
-          borderRadius: '4px', 
+          borderRadius: '2px', 
           display: 'flex', 
           alignItems: 'center', 
           justifyContent: 'center',
           color: 'white',
           fontWeight: 'bold',
-          fontSize: '14px'
+          fontSize: '10px'
         }}
       >
         {initial}
@@ -84,17 +84,15 @@ const SupplierList = () => {
             key={`${supplier.id}-${supplier.name}`} // 使用更唯一的key避免渲染问题
             className={`supplier-item ${selectedSupplier && selectedSupplier.id === supplier.id ? 'selected' : ''}`}
             onClick={() => selectSupplier(supplier)}
-            style={{ display: 'flex', alignItems: 'center' }}
           >
-            <div className="supplier-info" style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
-              <div className="supplier-logo" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="supplier-info">
+              <div className="supplier-logo">
                 {/* 检查logo是否存在且未发生错误 */}
                 {supplier.logo && !imageErrors[supplier.id] ? (
                   // 如果是完整URL直接使用，否则添加前缀路径
                   <img 
                     src={supplier.logo.startsWith('http') ? supplier.logo : `/logos/providers/${supplier.logo}`} 
                     alt={`${supplier.name} logo`} 
-                    style={{ width: '30px', height: '30px', borderRadius: '4px', objectFit: 'contain' }} 
                     onError={() => handleImageError(supplier.id)}
                   />
                 ) : (
@@ -102,25 +100,18 @@ const SupplierList = () => {
                   renderFallbackLogo(supplier)
                 )}
               </div>
-              <div className="supplier-name" style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+              <div className="supplier-name">
                 {supplier.name}
               </div>
-              <div className="supplier-tag" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className="supplier-tag">
                 {supplier.is_active ? (
                   <button 
                     className="supplier-status-btn active" 
                     title="点击停用" 
-                    style={{ 
-                      padding: '2px 8px', 
-                      borderRadius: '12px', 
-                      fontSize: '12px', 
-                      minWidth: '60px', 
-                      textAlign: 'center',
-                      backgroundColor: '#d4edda',
-                      border: '1px solid #c3e6cb',
-                      cursor: 'pointer'
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleSupplierStatus(supplier.id, false);
                     }}
-                    onClick={() => toggleSupplierStatus(supplier.id, false)}
                   >
                     🟢 ON
                   </button>
@@ -128,17 +119,10 @@ const SupplierList = () => {
                   <button 
                     className="supplier-status-btn inactive" 
                     title="点击启用" 
-                    style={{ 
-                      padding: '2px 8px', 
-                      borderRadius: '12px', 
-                      fontSize: '12px', 
-                      minWidth: '60px', 
-                      textAlign: 'center',
-                      backgroundColor: '#f8d7da',
-                      border: '1px solid #f5c6cb',
-                      cursor: 'pointer'
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleSupplierStatus(supplier.id, true);
                     }}
-                    onClick={() => toggleSupplierStatus(supplier.id, true)}
                   >
                     🔴 OFF
                   </button>
