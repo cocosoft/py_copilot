@@ -157,3 +157,5 @@ frontend/public/logos/providers/20251208_092726_129924.png
 frontend/public/logos/providers/20251208_093119_774194.png
 frontend/public/logos/providers/20251208_115008_317824.png
 frontend/public/logos/providers/ByteDance.svg
+backend/init_model_categories.py
+backend/list_all_model_categories.py

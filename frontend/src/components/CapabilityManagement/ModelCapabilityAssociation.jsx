@@ -167,6 +167,46 @@ const ModelCapabilityAssociation = () => {
     }
   ];
 
+  // 添加自定义下拉列表状态
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredModels, setFilteredModels] = useState(models);
+
+  // 当输入框获得焦点时显示下拉列表
+  const handleFocus = () => {
+    setFilteredModels(models);
+    setShowDropdown(true);
+  };
+
+  // 当输入框失去焦点时隐藏下拉列表
+  const handleBlur = () => {
+    setTimeout(() => setShowDropdown(false), 200); // 延迟隐藏，以便点击选项时能触发事件
+  };
+
+  // 处理输入框变化
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    
+    // 过滤模型列表
+    if (value) {
+      const filtered = models.filter(model => 
+        model.name.toLowerCase().includes(value.toLowerCase()) ||
+        (model.displayName && model.displayName.toLowerCase().includes(value.toLowerCase()))
+      );
+      setFilteredModels(filtered);
+    } else {
+      setFilteredModels(models);
+    }
+  };
+
+  // 选择模型
+  const handleSelectModel = (model) => {
+    setSearchTerm(model.displayName ? `${model.displayName} (${model.name})` : model.name);
+    handleModelChange(model.id);
+    setShowDropdown(false);
+  };
+
   return (
     <div className="model-capability-association">
       <h2>模型能力关联管理</h2>
@@ -181,31 +221,31 @@ const ModelCapabilityAssociation = () => {
       <div className="card">
         <div className="form-group">
           <label htmlFor="model-input">选择或输入模型名称 *</label>
-          <input
-            type="text"
-            id="model-input"
-            list="models-datalist"
-            onChange={(e) => {
-              const inputValue = e.target.value;
-              // 尝试查找匹配的模型ID
-              const model = models.find(m => 
-                m.id.toString() === inputValue || 
-                m.name.toLowerCase().includes(inputValue.toLowerCase())
-              );
-              if (model) {
-                handleModelChange(model.id);
-              }
-            }}
-            placeholder="输入模型名称或选择"
-            className="form-control"
-          />
-          <datalist id="models-datalist">
-            {models.map(model => (
-                <option key={model.id} value={model.id}>
-                  {model.displayName ? `${model.displayName} (${model.name})` : model.name} - {model.supplierDisplayName || model.supplierName || '未知供应商'}
-                </option>
-              ))}
-          </datalist>
+          <div className="model-datalist-container">
+            <input
+              type="text"
+              id="model-input"
+              value={searchTerm}
+              onFocus={handleFocus}
+              onBlur={handleBlur}
+              onChange={handleInputChange}
+              placeholder="输入模型名称或选择"
+              className="form-control"
+            />
+            {showDropdown && filteredModels.length > 0 && (
+              <div className="custom-datalist-dropdown">
+                {filteredModels.map(model => (
+                  <div
+                    key={model.id}
+                    className="custom-datalist-option"
+                    onClick={() => handleSelectModel(model)}
+                  >
+                    {model.displayName ? `${model.displayName} (${model.name})` : model.name} - {model.supplierDisplayName || model.supplierName || '未知供应商'}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

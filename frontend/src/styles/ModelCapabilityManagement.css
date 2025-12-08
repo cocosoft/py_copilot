@@ -337,6 +337,63 @@
   border-color: #409eff;
 }
 
+/* datalist 样式 */
+.form-group input[type="text"] {
+  position: relative;
+  z-index: 1;
+}
+
+/* 自定义 datalist 容器样式 */
+.model-datalist-container {
+  position: relative;
+  width: 100%;
+}
+
+/* 自定义下拉列表样式 */
+.custom-datalist-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background-color: #ffffff;
+  border: 1px solid #dcdfe6;
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  max-height: 300px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  box-sizing: border-box;
+}
+
+/* 自定义下拉列表选项样式 */
+.custom-datalist-option {
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  font-size: 14px;
+  color: #606266;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 鼠标悬停时的样式 */
+.custom-datalist-option:hover {
+  background-color: #f5f7fa;
+  color: #303133;
+}
+
+/* 自定义 datalist 提示信息 */
+.custom-datalist-note {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 4px;
+}
+
 .form-group textarea {
   resize: vertical;
   min-height: 80px;
