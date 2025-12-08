@@ -1,51 +1,11 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
+import { 
+  FaHome, FaComments, FaImage, FaVideo, FaMicrophoneAlt, 
+  FaLanguage, FaCog, FaAngleLeft, FaAngleRight 
+} from 'react-icons/fa';
 
-// 简单的图标组件
-const NavIcon = ({ name, isCollapsed = false }) => {
-  // 这里使用简单的文本作为图标，实际项目中可以使用Font Awesome或Material Icons
-  const iconMap = {
-    home: '🏠',
-    chat: '💬',
-    agents: '🤖',
-    image: '🖼️',
-    video: '🎬',
-    voice: '🎤',
-    translation: '🌐',
-    knowledge: '📚',
-    workflow: '🔄',
-    tools: '🔧',
-    settings: '⚙️',
-    model: '🧠',
-    search: '🔍',
-    collapse: '◀️',
-    expand: '▶️'
-  };
-  
-  // 确保图标始终显示，添加内联样式防止被隐藏
-  return (
-    <span 
-      className="nav-icon" 
-      style={{
-        display: 'inline-block',
-        visibility: 'visible',
-        opacity: 1,
-        minWidth: isCollapsed ? '36px' : '20px',
-        textAlign: 'center',
-        fontSize: isCollapsed ? '24px' : '18px',
-        height: isCollapsed ? '36px' : 'auto',
-        lineHeight: isCollapsed ? '36px' : 'auto',
-        position: 'relative',
-        zIndex: 10,
-        flexShrink: 0, // 防止被压缩
-        margin: isCollapsed ? '0 auto' : '0'
-      }}
-    >
-      {iconMap[name] || '•'}
-    </span>
-  );
-};
-
+// 简化的导航栏组件，确保图标能正确显示
 const Navbar = () => {
   // 添加导航栏收缩/展开状态
   const [collapsed, setCollapsed] = useState(false);
@@ -55,20 +15,53 @@ const Navbar = () => {
     setCollapsed(!collapsed);
   };
   
-  // 主要导航项
+  // 主要导航项，使用React Icons库
   const mainNavItems = [
-    { path: '/', name: '首页', icon: 'home' },
-    { path: '/chat', name: '聊天', icon: 'chat' },
-    { path: '/image', name: '图像', icon: 'image' },
-    { path: '/video', name: '视频', icon: 'video' },
-    { path: '/voice', name: '语音', icon: 'voice' },
-    { path: '/translate', name: '翻译', icon: 'translation' }
+    { 
+      path: '/', 
+      name: '首页', 
+      icon: <FaHome className="nav-svg" />,
+      iconCollapsed: <FaHome className="nav-svg" />
+    },
+    { 
+      path: '/chat', 
+      name: '聊天', 
+      icon: <FaComments className="nav-svg" />,
+      iconCollapsed: <FaComments className="nav-svg" />
+    },
+    { 
+      path: '/image', 
+      name: '图像', 
+      icon: <FaImage className="nav-svg" />,
+      iconCollapsed: <FaImage className="nav-svg" />
+    },
+    { 
+      path: '/video', 
+      name: '视频', 
+      icon: <FaVideo className="nav-svg" />,
+      iconCollapsed: <FaVideo className="nav-svg" />
+    },
+    { 
+      path: '/voice', 
+      name: '语音', 
+      icon: <FaMicrophoneAlt className="nav-svg" />,
+      iconCollapsed: <FaMicrophoneAlt className="nav-svg" />
+    },
+    { 
+      path: '/translate', 
+      name: '翻译', 
+      icon: <FaLanguage className="nav-svg" />,
+      iconCollapsed: <FaLanguage className="nav-svg" />
+    }
   ];
   
-
-
   // 设置导航项
-  const settingsItem = { path: '/settings', name: '设置', icon: 'settings' };
+  const settingsItem = { 
+    path: '/settings', 
+    name: '设置', 
+    icon: <FaCog className="nav-svg" />,
+    iconCollapsed: <FaCog className="nav-svg" />
+  };
 
   return (
     <nav className={`navbar ${collapsed ? 'collapsed' : ''}`}>
@@ -78,7 +71,11 @@ const Navbar = () => {
           onClick={toggleCollapse}
           title={collapsed ? '展开导航栏' : '收缩导航栏'}
         >
-          <NavIcon name={collapsed ? 'expand' : 'collapse'} />
+          {collapsed ? (
+            <FaAngleRight className="nav-svg" />
+          ) : (
+            <FaAngleLeft className="nav-svg" />
+          )}
         </button>
       </div>
       <div className="navbar-container">
@@ -90,11 +87,11 @@ const Navbar = () => {
                 className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
                 title={collapsed ? item.name : ''}
               >
-                <NavIcon name={item.icon} isCollapsed={collapsed} />
+                {collapsed ? item.iconCollapsed : item.icon}
                 <span>{item.name}</span>
               </NavLink>
             </li>
-          ))}          
+          ))}
         </ul>
         
         {/* 底部设置项 */}
@@ -105,26 +102,9 @@ const Navbar = () => {
               className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
               title={collapsed ? settingsItem.name : ''}
             >
-              <NavIcon name={settingsItem.icon} isCollapsed={collapsed} />
+              {collapsed ? settingsItem.iconCollapsed : settingsItem.icon}
               <span>{settingsItem.name}</span>
             </NavLink>
-            {/* 设置子菜单 */}
-            {settingsItem.subItems && (
-              <ul className="sub-menu">
-                {settingsItem.subItems.map((subItem, subIndex) => (
-                  <li key={subIndex} className="nav-item">
-                    <NavLink 
-                      to={subItem.path} 
-                      className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-                      title={collapsed ? subItem.name : ''}
-                    >
-                      <NavIcon name={subItem.icon} isCollapsed={collapsed} />
-                      <span>{subItem.name}</span>
-                    </NavLink>
-                  </li>
-                ))}
-              </ul>
-            )}
           </li>
         </div>
       </div>
