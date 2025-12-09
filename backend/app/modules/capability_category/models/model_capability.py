@@ -24,6 +24,9 @@ class ModelCapability(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
+    # LOGO信息
+    logo = Column(Text, nullable=True)  # SVG格式的logo数据
+    
     # 关系定义
     # 与模型的多对多关系将通过关联表定义
     

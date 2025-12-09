@@ -30,9 +30,9 @@ app = FastAPI(
 )
 
 # 添加静态文件服务，提供上传的图片访问
-UPLOAD_DIR = "uploads"
+UPLOAD_DIR = "E:/PY/CODES/py copilot IV/frontend/public/logos/agents"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+app.mount("/logos/agents", StaticFiles(directory=UPLOAD_DIR), name="agent_logos")
 
 # 添加logo文件的静态文件服务
 LOGOS_DIR = "../../frontend/public/logos/providers"

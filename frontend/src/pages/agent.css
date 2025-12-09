@@ -418,23 +418,46 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 6px;
+}
+
+.chat-btn, .edit-btn, .del-btn {
+  flex: 1;
+  padding: 8px 8px !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 6px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  min-width: 0 !important;
+  line-height: 1.2 !important;
+  box-sizing: border-box !important;
 }
 
 .chat-btn {
-  flex: 1;
-  padding: 8px 12px;
-  background-color: #3498db;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  margin-right: 8px;
+  background-color: #3498db !important;
 }
 
 .chat-btn:hover {
-  background-color: #2980b9;
+  background-color: #2980b9 !important;
+}
+
+.edit-btn {
+  background-color: #f39c12 !important;
+}
+
+.edit-btn:hover {
+  background-color: #d68910 !important;
+}
+
+.del-btn {
+  background-color: #e74c3c !important;
+}
+
+.del-btn:hover {
+  background-color: #c0392b !important;
 }
 
 .more-btn {
@@ -501,5 +524,83 @@
   
   .filter-options {
     justify-content: center;
+  }
+}
+
+/* 分页样式 */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin-top: 30px;
+  padding: 20px 0;
+  border-top: 1px solid #e0e0e0;
+}
+
+.page-btn {
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #34495e;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.page-btn:hover:not(:disabled) {
+  background-color: #3498db;
+  border-color: #3498db;
+  color: white;
+}
+
+.page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: #f8f9fa;
+}
+
+.page-info {
+  font-size: 14px;
+  color: #7f8c8d;
+  font-weight: 500;
+}
+
+.page-size-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #7f8c8d;
+}
+
+.page-size-selector select {
+  background-color: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 14px;
+  color: #34495e;
+  cursor: pointer;
+  min-width: 80px;
+}
+
+.page-size-selector select:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+}
+
+/* 分页响应式设计 */
+@media (max-width: 600px) {
+  .pagination {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .page-size-selector {
+    order: -1;
   }
 }

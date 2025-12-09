@@ -11,6 +11,7 @@ class Conversation(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    agent_id = Column(Integer, ForeignKey("agents.id"), nullable=True)  # 添加agent_id外键
     title = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
     
@@ -20,6 +21,7 @@ class Conversation(Base):
     
     # 关系定义
     user = relationship("User", back_populates="conversations")
+    agent = relationship("Agent", back_populates="conversations")  # 添加与Agent的关系
     messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan")
     
     def __repr__(self):

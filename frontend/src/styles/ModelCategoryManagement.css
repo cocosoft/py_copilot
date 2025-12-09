@@ -200,6 +200,30 @@
   color: #e6a23c;
 }
 
+/* LOGO样式 */
+.category-logo {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.category-logo.placeholder {
+  background-color: #f5f7fa;
+  border: 1px dashed #dcdfe6;
+  color: #909399;
+  font-size: 12px;
+  text-align: center;
+  line-height: 40px;
+}
+
 /* 操作按钮组 */
 .action-buttons {
   display: flex;

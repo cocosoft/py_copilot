@@ -69,9 +69,11 @@ const SupplierForm = ({ formData, setFormData, onSubmit, saving, mode = 'add' })
       formDataToSubmit.append('description', formData.description);
       formDataToSubmit.append('website', formData.website);
       formDataToSubmit.append('api_endpoint', formData.api_endpoint || '');
+      formDataToSubmit.append('api_key', formData.api_key || '');
       formDataToSubmit.append('api_docs', formData.api_docs || '');
       formDataToSubmit.append('category', formData.category || '');
       formDataToSubmit.append('is_active', formData.is_active || true);
+      formDataToSubmit.append('api_key_required', formData.api_key ? 'true' : 'false');
       
       // 如果有文件上传，添加文件
       if (file) {
@@ -196,6 +198,22 @@ const SupplierForm = ({ formData, setFormData, onSubmit, saving, mode = 'add' })
             onChange={handleChange}
             placeholder="https://api.example.com/v1"
             disabled={saving}
+          />
+        </div>
+      </div>
+      
+      <div className="form-row">
+        <div className="form-group">
+          <label htmlFor="api_key">API 密钥</label>
+          <input 
+            type="password" 
+            id="api_key"
+            name="api_key"
+            value={formData.api_key || ''}
+            onChange={handleChange}
+            placeholder="API密钥"
+            disabled={saving}
+            autoComplete="off"
           />
         </div>
       </div>

@@ -12,6 +12,7 @@ from app.api.v1.capability import router as capability_router
 from app.api.v1.model_management import router as model_management_v1_router
 from app.modules.capability_category.api.category import router as category_router
 from app.modules.capability_category.api.model_categories import router as model_categories_router
+from app.api.v1.agents import router as agents_router
 
 api_router = APIRouter()
 
@@ -26,3 +27,4 @@ api_router.include_router(capability_router, tags=["capability"])
 api_router.include_router(category_router, tags=["category"])
 api_router.include_router(model_categories_router, tags=["model-categories"])
 api_router.include_router(model_management_v1_router, prefix="/v1", tags=["model-parameters"])
+api_router.include_router(agents_router, prefix="/v1/agents", tags=["agents"])

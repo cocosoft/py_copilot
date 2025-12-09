@@ -27,6 +27,9 @@ class ModelCategory(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
+    # LOGO信息
+    logo = Column(Text, nullable=True)  # SVG格式的logo数据
+    
     # 关系定义
     # 自引用关系，用于层级分类
     parent = relationship("ModelCategory", remote_side=[id], backref="children")

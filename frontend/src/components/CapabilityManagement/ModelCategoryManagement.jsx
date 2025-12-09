@@ -48,7 +48,8 @@ const ModelCategoryManagement = () => {
     description: '',
     category_type: 'main',
     parent_id: null,
-    is_active: true
+    is_active: true,
+    logo: ''
   });
   
   // 获取所有分类
@@ -57,7 +58,7 @@ const ModelCategoryManagement = () => {
       setLoading(true);
       
       // 直接调用API获取原始数据，避免在API层进行树形转换
-      const rawResponse = await fetch(`${API_BASE_URL}/model/categories`, {
+      const rawResponse = await fetch(`${API_BASE_URL}/categories`, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -90,6 +91,7 @@ const ModelCategoryManagement = () => {
         category_type: category.category_type || 'main',
         parent_id: category.parent_id || null,
         is_active: category.is_active ?? true,
+        logo: category.logo || null,
         ...category
       }));
       
@@ -131,7 +133,8 @@ const ModelCategoryManagement = () => {
       description: '',
       category_type: 'main',
       parent_id: null,
-      is_active: true
+      is_active: true,
+      logo: ''
     });
     setCurrentCategory(null);
   };
@@ -151,7 +154,8 @@ const ModelCategoryManagement = () => {
       description: category.description || '',
       category_type: category.category_type,
       parent_id: category.parent_id !== null ? category.parent_id : null,
-      is_active: category.is_active
+      is_active: category.is_active,
+      logo: category.logo || ''
     });
     setShowEditModal(true);
   };
@@ -284,6 +288,7 @@ const ModelCategoryManagement = () => {
             <thead>
               <tr>
                 <th>ID</th>
+                <th>LOGO</th>
                 <th>名称</th>
                 <th>显示名称</th>
                 <th>类型</th>
@@ -301,6 +306,22 @@ const ModelCategoryManagement = () => {
                 return (
                   <tr key={category.id}>
                     <td>{category.id}</td>
+                    <td>
+                      {category.logo && (
+                        <div className="category-logo">
+                          <img 
+                            src={`data:image/svg+xml;utf8,${encodeURIComponent(category.logo)}`} 
+                            alt={`${category.display_name} logo`} 
+                            className="logo-image"
+                          />
+                        </div>
+                      )}
+                      {!category.logo && (
+                        <div className="category-logo placeholder">
+                          无LOGO
+                        </div>
+                      )}
+                    </td>
                     <td>{category.name}</td>
                     <td>{category.display_name}</td>
                     <td>
@@ -402,6 +423,16 @@ const ModelCategoryManagement = () => {
                   ))}
                 </select>
               </div>
+              <div className="form-group">
+                <label>LOGO (SVG格式)</label>
+                <textarea
+                  name="logo"
+                  value={formData.logo}
+                  onChange={handleInputChange}
+                  placeholder="输入SVG格式的LOGO代码"
+                  rows="5"
+                />
+              </div>
               <div className="form-group form-check">
                 <input
                   type="checkbox"
@@ -490,6 +521,16 @@ const ModelCategoryManagement = () => {
                     <option key={cat.id} value={cat.id}>{cat.display_name}</option>
                   ))}
                 </select>
+              </div>
+              <div className="form-group">
+                <label>LOGO (SVG格式)</label>
+                <textarea
+                  name="logo"
+                  value={formData.logo}
+                  onChange={handleInputChange}
+                  placeholder="输入SVG格式的LOGO代码"
+                  rows="5"
+                />
               </div>
               <div className="form-group form-check">
                 <input

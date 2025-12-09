@@ -14,6 +14,7 @@ class ModelCategoryBase(BaseModel):
     category_type: str = Field(default="main", pattern="^(main|secondary)$")
     parent_id: Optional[int] = None
     is_active: bool = True
+    logo: Optional[str] = None
 
 
 class ModelCategoryCreate(ModelCategoryBase):
@@ -29,6 +30,7 @@ class ModelCategoryUpdate(BaseModel):
     category_type: Optional[str] = Field(None, pattern="^(main|secondary)$")
     parent_id: Optional[int] = None
     is_active: Optional[bool] = None
+    logo: Optional[str] = None
 
 
 class ModelCategoryResponse(ModelCategoryBase):

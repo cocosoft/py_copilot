@@ -28,6 +28,7 @@ class User(Base):
     # 关系定义
     conversations = relationship("Conversation", back_populates="user", cascade="all, delete-orphan")
     llm_requests = relationship("LLMRequestHistory", back_populates="user", cascade="all, delete-orphan")
+    agents = relationship("Agent", back_populates="user", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}', email='{self.email}')>"

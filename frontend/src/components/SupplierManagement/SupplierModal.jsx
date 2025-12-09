@@ -8,7 +8,8 @@ const SupplierModal = ({ isOpen, onClose, onSave, supplier = null, mode = 'add' 
     logo: '',
     website: '',
     api_endpoint: '',
-    api_key: ''
+    api_key: '',
+    api_docs: ''
   });
   const [saving, setSaving] = useState(false);
   const [file, setFile] = useState(null);
@@ -22,8 +23,9 @@ const SupplierModal = ({ isOpen, onClose, onSave, supplier = null, mode = 'add' 
         description: supplier.description || '',
         logo: supplier.logo || '',
         website: supplier.website || '',
-        api_endpoint: supplier.api_endpoint || '',
-        api_key: supplier.api_key || ''
+        api_endpoint: supplier.api_endpoint || supplier.apiUrl || '',
+        api_key: supplier.api_key || '',
+        api_docs: supplier.api_docs || ''
       });
       // 重置文件和预览
       setFile(null);
@@ -55,7 +57,8 @@ const SupplierModal = ({ isOpen, onClose, onSave, supplier = null, mode = 'add' 
         logo: '',
         website: '',
         api_endpoint: '',
-        api_key: ''
+        api_key: '',
+        api_docs: ''
       });
       setFile(null);
       setPreviewUrl('');
@@ -116,6 +119,7 @@ const SupplierModal = ({ isOpen, onClose, onSave, supplier = null, mode = 'add' 
       formDataToSubmit.append('website', formData.website);
       formDataToSubmit.append('api_endpoint', formData.api_endpoint || '');
       formDataToSubmit.append('api_key', formData.api_key || '');
+      formDataToSubmit.append('api_docs', formData.api_docs || '');
       // 后端需要api_key_required字段，如果提供了api_key则设置为true
       formDataToSubmit.append('api_key_required', formData.api_key ? 'true' : 'false');
       
@@ -276,12 +280,28 @@ const SupplierModal = ({ isOpen, onClose, onSave, supplier = null, mode = 'add' 
             <div className="form-group">
               <label htmlFor="api_key">API密钥</label>
               <input 
-                type="text" 
+                type="password" 
                 id="api_key"
                 name="api_key"
                 value={formData.api_key}
                 onChange={handleChange}
                 placeholder="API密钥"
+                disabled={saving}
+                autoComplete="off"
+              />
+            </div>
+          </div>
+          
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="api_docs">API文档地址</label>
+              <input 
+                type="url" 
+                id="api_docs"
+                name="api_docs"
+                value={formData.api_docs}
+                onChange={handleChange}
+                placeholder="https://docs.example.com/api"
                 disabled={saving}
               />
             </div>

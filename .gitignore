@@ -159,3 +159,7 @@ frontend/public/logos/providers/20251208_115008_317824.png
 frontend/public/logos/providers/ByteDance.svg
 backend/init_model_categories.py
 backend/list_all_model_categories.py
+密钥升级方案文档.md
+智能体管理功能开发方案.md
+backend/verify_capability_logos.py
+backend/verify_logos.py

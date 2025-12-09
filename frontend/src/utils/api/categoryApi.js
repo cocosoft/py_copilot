@@ -31,7 +31,7 @@ export const categoryApi = {
   // 获取所有分类
   getAll: async () => {
     try {
-      const result = await request('/model/categories', {
+      const result = await request('/categories', {
         method: 'GET'
       });
       
@@ -58,7 +58,7 @@ export const categoryApi = {
   // 获取单个分类
   getById: async (categoryId) => {
     try {
-      return await request(`/model/categories/${categoryId}`, {
+      return await request(`/categories/${categoryId}`, {
         method: 'GET'
       });
     } catch (error) {
@@ -70,7 +70,7 @@ export const categoryApi = {
   // 创建分类
   create: async (categoryData) => {
     try {
-      return await request('/model/categories', {
+      return await request('/categories', {
         method: 'POST',
         body: JSON.stringify(categoryData),
         headers: {
@@ -86,7 +86,7 @@ export const categoryApi = {
   // 更新分类
   update: async (categoryId, updatedData) => {
     try {
-      return await request(`/model/categories/${categoryId}`, {
+      return await request(`/categories/${categoryId}`, {
         method: 'PUT',
         body: JSON.stringify(updatedData),
         headers: {
@@ -102,7 +102,7 @@ export const categoryApi = {
   // 删除分类
   delete: async (categoryId) => {
     try {
-      return await request(`/model/categories/${categoryId}`, {
+      return await request(`/categories/${categoryId}`, {
         method: 'DELETE'
       });
     } catch (error) {
@@ -114,7 +114,7 @@ export const categoryApi = {
   // 获取分类树形结构
   getTree: async () => {
     try {
-      return await request('/model/categories/tree/all', {
+      return await request('/categories/tree/all', {
         method: 'GET'
       });
     } catch (error) {
@@ -126,7 +126,7 @@ export const categoryApi = {
   // 添加模型分类关联
   addModelToCategory: async (modelId, categoryId) => {
     try {
-      return await request('/model/categories/associations', {
+      return await request('/categories/associations', {
         method: 'POST',
         body: JSON.stringify({ model_id: modelId, category_id: categoryId }),
         headers: {
@@ -142,7 +142,7 @@ export const categoryApi = {
   // 移除模型分类关联
   removeModelFromCategory: async (modelId, categoryId) => {
     try {
-      return await request(`/model/categories/associations/model/${modelId}/category/${categoryId}`, {
+      return await request(`/categories/associations/model/${modelId}/category/${categoryId}`, {
         method: 'DELETE'
       });
     } catch (error) {
@@ -154,7 +154,7 @@ export const categoryApi = {
   // 获取分类下的模型
   getModelsByCategory: async (categoryId) => {
     try {
-      return await request(`/model/categories/${categoryId}/models`, {
+      return await request(`/categories/${categoryId}/models`, {
         method: 'GET'
       });
     } catch (error) {
@@ -166,7 +166,7 @@ export const categoryApi = {
   // 获取模型的分类
   getCategoriesByModel: async (modelId) => {
     try {
-      return await request(`/model/categories/model/${modelId}/categories`, {
+      return await request(`/categories/model/${modelId}/categories`, {
         method: 'GET'
       });
     } catch (error) {
