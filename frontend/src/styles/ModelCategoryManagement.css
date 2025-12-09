@@ -215,6 +215,17 @@
   object-fit: contain;
 }
 
+/* Font Awesome图标样式 */
+.category-logo .fa-icon {
+  font-size: 20px;
+  color: #409eff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
 .category-logo.placeholder {
   background-color: #f5f7fa;
   border: 1px dashed #dcdfe6;

@@ -309,10 +309,10 @@ const ModelCategoryManagement = () => {
                     <td>
                       {category.logo && (
                         <div className="category-logo">
-                          <img 
-                            src={`data:image/svg+xml;utf8,${encodeURIComponent(category.logo)}`} 
-                            alt={`${category.display_name} logo`} 
-                            className="logo-image"
+                          <div 
+                            dangerouslySetInnerHTML={{__html: category.logo}}
+                            className="fa-icon"
+                            title={`${category.display_name} logo`}
                           />
                         </div>
                       )}
