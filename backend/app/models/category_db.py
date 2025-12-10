@@ -13,3 +13,4 @@ class ModelCategoryDB(Base):
     category_type = Column(String(20), default="main")
     parent_id = Column(Integer, nullable=True)
     is_active = Column(Boolean, default=True)
+    is_system = Column(Boolean, default=False)

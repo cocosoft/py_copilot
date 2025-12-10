@@ -22,6 +22,7 @@ class ModelCategory(Base):
     
     # 状态
     is_active = Column(Boolean, default=True)
+    is_system = Column(Boolean, default=False, nullable=False)
     
     # 时间戳
     created_at = Column(DateTime(timezone=True), server_default=func.now())

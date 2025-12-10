@@ -91,6 +91,7 @@ const ModelCategoryManagement = () => {
         category_type: category.category_type || 'main',
         parent_id: category.parent_id || null,
         is_active: category.is_active ?? true,
+        is_system: category.is_system ?? false,
         logo: category.logo || null,
         ...category
       }));
@@ -294,6 +295,7 @@ const ModelCategoryManagement = () => {
                 <th>类型</th>
                 <th>父分类</th>
                 <th>状态</th>
+                <th>是否系统分类</th>
                 <th>操作</th>
               </tr>
             </thead>
@@ -335,16 +337,25 @@ const ModelCategoryManagement = () => {
                         {category.is_active ? '启用' : '禁用'}
                       </span>
                     </td>
+                    <td>
+                      <span className={`system-badge ${category.is_system ? 'system' : 'custom'}`}>
+                        {category.is_system ? '是' : '否'}
+                      </span>
+                    </td>
                     <td className="action-buttons">
                       <button 
-                        className="btn btn-small btn-info" 
+                        className={`btn btn-small btn-info ${category.is_system ? 'disabled' : ''}`}
                         onClick={() => handleEditModalOpen(category)}
+                        disabled={category.is_system}
+                        title={category.is_system ? '系统分类不允许编辑' : '编辑分类'}
                       >
                         编辑
                       </button>
                       <button 
-                        className="btn btn-small btn-danger" 
+                        className={`btn btn-small btn-danger ${category.is_system ? 'disabled' : ''}`}
                         onClick={() => handleDelete(category.id)}
+                        disabled={category.is_system}
+                        title={category.is_system ? '系统分类不允许删除' : '删除分类'}
                       >
                         删除
                       </button>

@@ -14,6 +14,7 @@ class ModelCategoryBase(BaseModel):
     category_type: str = Field(default="main", pattern="^(main|secondary)$")
     parent_id: Optional[int] = None
     is_active: bool = True
+    is_system: bool = False
     logo: Optional[str] = None
 
 

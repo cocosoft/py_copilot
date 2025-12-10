@@ -94,6 +94,7 @@ class ModelCategoryService:
         # 分页查询
         categories = query.offset(skip).limit(limit).all()
         
+        # 直接返回ORM对象，让Pydantic模型自动转换
         return {
             "categories": categories,
             "total": total
@@ -107,6 +108,13 @@ class ModelCategoryService:
     ) -> ModelCategory:
         """更新模型分类"""
         db_category = ModelCategoryService.get_category(db, category_id)
+        
+        # 检查是否为系统分类
+        if db_category.is_system:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="系统分类不允许修改"
+            )
         
         # 更新非空字段
         update_data = category_update.model_dump(exclude_unset=True)
@@ -152,6 +160,13 @@ class ModelCategoryService:
     def delete_category(db: Session, category_id: int) -> bool:
         """删除模型分类（软删除）"""
         db_category = ModelCategoryService.get_category(db, category_id)
+        
+        # 检查是否为系统分类
+        if db_category.is_system:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="系统分类不允许删除"
+            )
         
         # 检查是否有子分类
         child_categories = db.query(ModelCategory).filter(

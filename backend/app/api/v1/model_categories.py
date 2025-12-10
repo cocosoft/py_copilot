@@ -50,7 +50,7 @@ async def get_category(
     return db_category
 
 
-@router.get("/", response_model=ModelCategoryListResponse)
+@router.get("/")
 async def get_categories(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
@@ -61,15 +61,43 @@ async def get_categories(
     current_user: dict = Depends(get_current_user)
 ):
     """获取模型分类列表"""
-    result = model_category_service.get_categories(
-        db=db,
-        skip=skip,
-        limit=limit,
-        category_type=category_type,
-        is_active=is_active,
-        parent_id=parent_id
-    )
-    return result
+    query = db.query(ModelCategory)
+    
+    # 应用过滤条件
+    if category_type:
+        query = query.filter(ModelCategory.category_type == category_type)
+    if is_active is not None:
+        query = query.filter(ModelCategory.is_active == is_active)
+    if parent_id is not None:
+        query = query.filter(ModelCategory.parent_id == parent_id)
+    
+    # 获取总数
+    total = query.count()
+    
+    # 分页查询
+    categories = query.offset(skip).limit(limit).all()
+    
+    # 手动构建响应，确保所有字段都被包含
+    categories_list = []
+    for category in categories:
+        categories_list.append({
+            "id": category.id,
+            "name": category.name,
+            "display_name": category.display_name,
+            "description": category.description,
+            "category_type": category.category_type,
+            "parent_id": category.parent_id,
+            "is_active": category.is_active,
+            "is_system": category.is_system,
+            "logo": category.logo,
+            "created_at": category.created_at.isoformat() if category.created_at else None,
+            "updated_at": category.updated_at.isoformat() if category.updated_at else None
+        })
+    
+    return {
+        "categories": categories_list,
+        "total": total
+    }
 
 
 @router.put("/{category_id}", response_model=ModelCategoryResponse)
