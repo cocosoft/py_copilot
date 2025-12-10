@@ -90,6 +90,34 @@
   align-items: center;
 }
 
+/* 收缩/展开按钮 */
+.btn-expand {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  background-color: #ffffff;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  color: #666;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.btn-expand:hover {
+  border-color: #1890ff;
+  color: #1890ff;
+  background-color: rgba(24, 144, 255, 0.05);
+  box-shadow: 0 2px 6px rgba(24, 144, 255, 0.15);
+}
+
+.btn-expand:active {
+  transform: scale(0.95);
+}
+
 .btn-edit, .btn-delete {
   width: 36px;
   height: 36px;
@@ -183,6 +211,30 @@ input:checked + .toggle-slider:before {
 
 input:focus + .toggle-slider {
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1), 0 0 0 2px rgba(82, 196, 26, 0.2);
+}
+
+/* 供应商内容区域 */
+.supplier-content {
+  transition: all 0.3s ease-in-out;
+  overflow: hidden;
+}
+
+.supplier-content.expanded {
+  max-height: 1000px;
+  opacity: 1;
+}
+
+.supplier-content.collapsed {
+  max-height: 0;
+  opacity: 0;
+  margin: 0;
+  padding: 0;
+}
+
+/* 确保在收缩状态下隐藏内部元素 */
+.supplier-content.collapsed .supplier-description,
+.supplier-content.collapsed .supplier-info-panel {
+  display: none;
 }
 
 /* Supplier Info Panel */
@@ -490,5 +542,12 @@ input:focus + .toggle-slider {
 
   .api-docs-link {
     padding: 10px 14px;
+  }
+  
+  /* 移动端收缩/展开按钮调整 */
+  .btn-expand {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
   }
 }

@@ -18,6 +18,8 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
   const [testResult, setTestResult] = useState(null);
   const [saveStatus, setSaveStatus] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  // 添加收缩/展开状态
+  const [isExpanded, setIsExpanded] = useState(true);
 
   // 当选中的供应商变化时，更新本地API配置
   useEffect(() => {
@@ -29,8 +31,15 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
       // 重置状态
       setTestResult(null);
       setSaveStatus(null);
+      // 当选择新供应商时自动展开
+      setIsExpanded(true);
     }
   }, [selectedSupplier]);
+
+  // 切换收缩/展开状态
+  const toggleExpand = () => {
+    setIsExpanded(!isExpanded);
+  };
 
   const handleToggleSupplierStatus = async (supplier) => {
     try {
@@ -415,6 +424,14 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
           )}
         </div>
         <div className="action-buttons">
+          {/* 收缩/展开按钮 */}
+          <button
+            className="btn-expand"
+            onClick={toggleExpand}
+            title={isExpanded ? '收缩详情' : '展开详情'}
+          >
+            {isExpanded ? '▲' : '▼'}
+          </button>
           <button
             className="btn-edit"
             onClick={() => handleEditSupplier(selectedSupplier)}
@@ -459,108 +476,111 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
         </div>
       </div>
       
-      <div className="supplier-description">
-        {selectedSupplier.description || '未提供描述'}
-      </div>
-      
-      <div className="supplier-info-panel">
-        <div className="supplier-info-grid">
-          <div className="info-row">
-            <span className="info-label">API地址:</span>
-            <input
-              type="url"
-              className="info-value"
-              value={localApiConfig.apiUrl}
-              onChange={(e) => setLocalApiConfig({ ...localApiConfig, apiUrl: e.target.value })}
-              placeholder="请输入API地址"
-            />
-          </div>
+      {/* 内容区域，根据展开状态控制显示 */}
+      <div className={`supplier-content ${isExpanded ? 'expanded' : 'collapsed'}`}>
+        <div className="supplier-description">
+          {selectedSupplier.description || '未提供描述'}
+        </div>
+        
+        <div className="supplier-info-panel">
+          <div className="supplier-info-grid">
+            <div className="info-row">
+              <span className="info-label">API地址:</span>
+              <input
+                type="url"
+                className="info-value"
+                value={localApiConfig.apiUrl}
+                onChange={(e) => setLocalApiConfig({ ...localApiConfig, apiUrl: e.target.value })}
+                placeholder="请输入API地址"
+              />
+            </div>
 
-          <div className="api-key-row">
-            <span className="info-label">API密钥:</span>
-            <div className="api-key-input-group">
-              {isEditMode ? (
-                <input
-                  type="text"
-                  className="info-value"
-                  value={localApiConfig.apiKey}
-                  onChange={(e) => setLocalApiConfig({ ...localApiConfig, apiKey: e.target.value })}
-                  placeholder="请输入API密钥"
-                  autoFocus
-                  onBlur={() => setIsEditMode(false)}
-                />
-              ) : (
-                <div 
-                  className="info-value api-key-display"
-                  onClick={() => setIsEditMode(true)}
+            <div className="api-key-row">
+              <span className="info-label">API密钥:</span>
+              <div className="api-key-input-group">
+                {isEditMode ? (
+                  <input
+                    type="text"
+                    className="info-value"
+                    value={localApiConfig.apiKey}
+                    onChange={(e) => setLocalApiConfig({ ...localApiConfig, apiKey: e.target.value })}
+                    placeholder="请输入API密钥"
+                    autoFocus
+                    onBlur={() => setIsEditMode(false)}
+                  />
+                ) : (
+                  <div 
+                    className="info-value api-key-display"
+                    onClick={() => setIsEditMode(true)}
+                  >
+                    {localApiConfig.apiKey ? formatApiKey(localApiConfig.apiKey) : '点击输入API密钥'}
+                  </div>
+                )}
+                <button
+                  className="btn-copy"
+                  onClick={() => navigator.clipboard.writeText(localApiConfig.apiKey)}
+                  title="复制API密钥"
+                  disabled={!localApiConfig.apiKey}
                 >
-                  {localApiConfig.apiKey ? formatApiKey(localApiConfig.apiKey) : '点击输入API密钥'}
-                </div>
-              )}
+                  复制
+                </button>
+              </div>
+            </div>
+
+            {/* API配置操作按钮 */}
+            <div className="api-config-actions">
               <button
-                className="btn-copy"
-                onClick={() => navigator.clipboard.writeText(localApiConfig.apiKey)}
-                title="复制API密钥"
-                disabled={!localApiConfig.apiKey}
+                className="btn-save"
+                onClick={handleSaveApiConfig}
+                disabled={saving}
               >
-                复制
+                {saving ? '保存中...' : '保存配置'}
+              </button>
+              <button
+                className="btn-test"
+                onClick={handleTestApiConfig}
+                disabled={testing || !localApiConfig.apiUrl || !localApiConfig.apiKey}
+              >
+                {testing ? '测试中...' : '测试API'}
               </button>
             </div>
-          </div>
 
-          {/* API配置操作按钮 */}
-          <div className="api-config-actions">
-            <button
-              className="btn-save"
-              onClick={handleSaveApiConfig}
-              disabled={saving}
-            >
-              {saving ? '保存中...' : '保存配置'}
-            </button>
-            <button
-              className="btn-test"
-              onClick={handleTestApiConfig}
-              disabled={testing || !localApiConfig.apiUrl || !localApiConfig.apiKey}
-            >
-              {testing ? '测试中...' : '测试API'}
-            </button>
-          </div>
-
-          {/* 保存状态提示 */}
-          {saveStatus && (
-            <div className="status-message">
-              <div
-                className={`status-message ${saveStatus.type}`}
-              >
-                {saveStatus.message}
+            {/* 保存状态提示 */}
+            {saveStatus && (
+              <div className="status-message">
+                <div
+                  className={`status-message ${saveStatus.type}`}
+                >
+                  {saveStatus.message}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* 测试结果提示 */}
-          {testResult && (
-            <div className="status-message">
-              <div
-                className={`status-message ${testResult.type}`}
-              >
-                <strong>{testResult.message}</strong>
-                {testResult.details && <p>{testResult.details}</p>}
+            {/* 测试结果提示 */}
+            {testResult && (
+              <div className="status-message">
+                <div
+                  className={`status-message ${testResult.type}`}
+                >
+                  <strong>{testResult.message}</strong>
+                  {testResult.details && <p>{testResult.details}</p>}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {selectedSupplier.api_docs && (
-            <div className="api-docs-link">
-              <span className="info-label">查看 {selectedSupplier.name} 的</span>
-              <a
-                href={selectedSupplier.api_docs}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                API文档
-              </a>，以获得更多信息
-            </div>
-          )}
+            {selectedSupplier.api_docs && (
+              <div className="api-docs-link">
+                <span className="info-label">查看 {selectedSupplier.name} 的</span>
+                <a
+                  href={selectedSupplier.api_docs}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  API文档
+                </a>，以获得更多信息
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
