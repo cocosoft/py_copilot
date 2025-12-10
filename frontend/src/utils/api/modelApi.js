@@ -103,7 +103,9 @@ const buildModelDataForBackend = (model, supplierId) => {
   
   // 根据后端schema要求，display_name字段必须有至少1个字符
   // 如果用户没有输入显示名称，使用模型名称作为默认值
-  const displayName = model.displayName && model.displayName.trim() !== '' ? model.displayName : model.name;
+  // 注意：这里需要同时检查display_name（下划线格式）和displayName（驼峰格式）以兼容不同的表单数据来源
+  const displayNameValue = model.display_name || model.displayName;
+  const displayName = displayNameValue && displayNameValue.trim() !== '' ? displayNameValue : model.name;
   
   return {
     name: model.name,
