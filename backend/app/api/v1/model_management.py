@@ -22,10 +22,12 @@ def get_db():
         yield db
     finally:
         db.close()
-from app.schemas.model_management import (
+from app.modules.supplier_model_management.schemas.model_management import (
     ModelCreate, ModelUpdate, ModelResponse,
     ModelListResponse,
-    SetDefaultModelRequest,
+    SetDefaultModelRequest
+)
+from app.schemas.model_management import (
     ModelParameterCreate, ModelParameterUpdate, ModelParameterResponse,
     ModelParameterListResponse
 )
@@ -149,6 +151,11 @@ async def get_all_models(
     from sqlalchemy.orm import joinedload
     models = db.query(Model).options(joinedload(Model.supplier)).offset(skip).limit(limit).all()
     total = db.query(Model).count()
+    
+    # 确保logo字段包含完整路径
+    for model in models:
+        if model.logo and not model.logo.startswith("/logos/models/"):
+            model.logo = f"/logos/models/{model.logo}"
     
     print(f"返回 {len(models)} 个模型，总计 {total} 个模型")
     
@@ -288,6 +295,10 @@ async def get_model(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="模型不存在"
         )
+    
+    # 确保logo字段包含完整路径
+    if model.logo and not model.logo.startswith("/logos/models/"):
+        model.logo = f"/logos/models/{model.logo}"
     
     return model
 

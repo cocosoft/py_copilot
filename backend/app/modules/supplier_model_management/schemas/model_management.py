@@ -63,6 +63,7 @@ class ModelBase(BaseModel):
     max_tokens: Optional[int] = None
     is_default: bool = False
     is_active: bool = True
+    logo: Optional[str] = None
 
 
 class ModelCreate(ModelBase):
@@ -80,6 +81,7 @@ class ModelUpdate(BaseModel):
     max_tokens: Optional[int] = None
     is_default: Optional[bool] = None
     is_active: Optional[bool] = None
+    logo: Optional[str] = None
 
 
 class ModelResponse(ModelBase):
