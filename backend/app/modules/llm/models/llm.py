@@ -11,7 +11,7 @@ class LLMRequestHistory(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    model_name = Column(String(100), nullable=False)
+    model_id = Column(String(100), nullable=False)
     prompt = Column(Text, nullable=False)
     response = Column(Text, nullable=True)
     
@@ -36,7 +36,7 @@ class LLMRequestHistory(Base):
     user = relationship("User", back_populates="llm_requests")
     
     def __repr__(self):
-        return f"<LLMRequestHistory(id={self.id}, model='{self.model_name}', status='{self.status}')>"
+        return f"<LLMRequestHistory(id={self.id}, model='{self.model_id}', status='{self.status}')>"
 
 
 class ModelConfiguration(Base):
@@ -44,7 +44,7 @@ class ModelConfiguration(Base):
     __tablename__ = "model_configurations"
     
     id = Column(Integer, primary_key=True, index=True)
-    model_name = Column(String(100), unique=True, nullable=False)
+    model_id = Column(String(100), unique=True, nullable=False)
     provider = Column(String(50), nullable=False)  # openai, huggingface, etc.
     api_key_name = Column(String(100), nullable=True)  # 环境变量中的API密钥名称
     
@@ -64,4 +64,4 @@ class ModelConfiguration(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     def __repr__(self):
-        return f"<ModelConfiguration(id={self.id}, model='{self.model_name}', provider='{self.provider}')>"
+        return f"<ModelConfiguration(id={self.id}, model='{self.model_id}', provider='{self.provider}')>"

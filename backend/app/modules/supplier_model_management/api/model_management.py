@@ -15,7 +15,9 @@ from datetime import datetime
 from sqlalchemy import create_engine, text
 from app.core.encryption import encrypt_string, decrypt_string
 from sqlalchemy.orm import sessionmaker
-from app.models.supplier_db import SupplierDB, ModelDB as Model
+from app.models.supplier_db import SupplierDB, ModelDB
+from app.models.model_management import Model
+from app.models.model_category import ModelCategory
 from sqlalchemy import inspect
 
 # 从core导入数据库依赖
@@ -823,8 +825,28 @@ async def create_model(
             logo_filename = await save_upload_file(logo_file)
             model_data['logo'] = logo_filename
         
+        # 处理模型类型：将前端发送的model_type（分类ID）转换为model_type_id
+        if 'model_type' in model_data:
+            try:
+                # 尝试将model_type转换为整数（分类ID）
+                category_id = int(model_data['model_type'])
+                # 验证分类是否存在
+                category = db.query(ModelCategory).filter(ModelCategory.id == category_id).first()
+                if category:
+                    # 使用分类ID作为model_type_id
+                    model_data['model_type_id'] = category_id
+                else:
+                    # 如果分类不存在，设为None
+                    model_data['model_type_id'] = None
+                # 删除原来的model_type字段
+                del model_data['model_type']
+            except ValueError:
+                # 如果无法转换为整数，设为None
+                model_data['model_type_id'] = None
+                del model_data['model_type']
+        
         # 创建新模型
-        db_model = Model(**model_data)
+        db_model = ModelDB(**model_data)
         db.add(db_model)
         
         # 如果是第一个模型或者设置为默认模型，将其他模型的is_default设置为False
@@ -874,8 +896,9 @@ async def get_models(
     Returns:
         模型列表
     """
-    # 从数据库中查询指定供应商的模型
-    models = db.query(Model).filter(Model.supplier_id == supplier_id).offset(skip).limit(limit).all()
+    # 从数据库中查询指定供应商的模型，预加载categories关系
+    from sqlalchemy.orm import joinedload
+    models = db.query(Model).options(joinedload(Model.categories)).filter(Model.supplier_id == supplier_id).offset(skip).limit(limit).all()
     total = db.query(Model).filter(Model.supplier_id == supplier_id).count()
     
     # 将ModelDB实例转换为ModelResponse实例
@@ -999,6 +1022,27 @@ async def update_model(
                 Model.supplier_id == supplier_id,
                 Model.id != model_id
             ).update({Model.is_default: False})
+        
+        # 处理模型类型字段
+        if 'model_type' in update_data:
+            # 获取或创建模型分类
+            model_category = db.query(ModelCategory).filter(
+                ModelCategory.name == update_data['model_type']
+            ).first()
+            if model_category:
+                update_data['model_type_id'] = model_category.id
+            # 删除原来的model_type字段
+            del update_data['model_type']
+        elif 'model_type_id' in update_data:
+            # 验证模型分类是否存在
+            model_category = db.query(ModelCategory).filter(
+                ModelCategory.id == update_data['model_type_id']
+            ).first()
+            if not model_category:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Model category with id {update_data['model_type_id']} not found"
+                )
         
         # 更新模型
         for field, value in update_data.items():
@@ -1124,10 +1168,10 @@ async def get_all_models(
     Returns:
         所有模型列表
     """
-    # 查询数据库获取所有模型数据，包括供应商信息
+    # 查询数据库获取所有模型数据，包括供应商和分类信息
     from sqlalchemy.orm import joinedload
-    models = db.query(Model).options(joinedload(Model.supplier)).offset(skip).limit(limit).all()
-    total = db.query(Model).count()
+    models = db.query(ModelDB).options(joinedload(ModelDB.supplier), joinedload(ModelDB.categories)).offset(skip).limit(limit).all()
+    total = db.query(ModelDB).count()
     
     # 将ModelDB实例转换为ModelResponse实例
     model_responses = [ModelResponse.from_orm(model) for model in models]

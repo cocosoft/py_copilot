@@ -42,18 +42,18 @@ class ModelQueryService:
         return db.query(Model).filter(Model.id == model_id).first()
     
     @staticmethod
-    def get_model_by_name(db: Session, model_name: str) -> Optional[Model]:
+    def get_model_by_model_id(db: Session, model_id: str) -> Optional[Model]:
         """
-        根据名称获取模型
+        根据模型ID获取模型
         
         Args:
             db: 数据库会话
-            model_name: 模型名称
+            model_id: 模型ID
             
         Returns:
             模型对象或None
         """
-        return db.query(Model).filter(Model.name == model_name).first()
+        return db.query(Model).filter(Model.model_id == model_id).first()
     
     @staticmethod
     def get_default_model(db: Session, model_type: str = "chat") -> Optional[Model]:
@@ -203,8 +203,8 @@ class ModelQueryService:
         return [
             {
                 "id": item["model"].id,
-                "name": item["model"].name,
-                "display_name": item["model"].display_name or item["model"].name,
+                "model_id": item["model"].model_id,
+                "model_name": item["model"].model_name or item["model"].model_id,
                 "model_type": item["model"].model_type,
                 "supplier_name": item["supplier"]["name"],
                 "supplier_id": item["supplier"]["id"],

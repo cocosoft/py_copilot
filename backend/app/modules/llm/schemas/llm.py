@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 class LLMRequest(BaseModel):
     """LLM基础请求模型"""
     prompt: str
-    model_name: Optional[str] = None
+    model_id: Optional[str] = None
     max_tokens: int = Field(default=1000, ge=1, le=4096)
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     top_p: float = Field(default=1.0, ge=0.0, le=1.0)
@@ -30,7 +30,7 @@ class LLMMessage(BaseModel):
 class LLMChatCompletionRequest(BaseModel):
     """聊天补全请求模型"""
     messages: List[LLMMessage]
-    model_name: Optional[str] = None
+    model_id: Optional[str] = None
     max_tokens: int = Field(default=1000, ge=1, le=4096)
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     top_p: float = Field(default=1.0, ge=0.0, le=1.0)
@@ -150,7 +150,7 @@ class TaskResponse(BaseModel):
 
 class ModelInfoResponse(BaseModel):
     """模型信息响应模型"""
-    name: str
+    model_id: str
     provider: str
     type: str
     max_tokens: int

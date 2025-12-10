@@ -48,7 +48,7 @@ class ModelBase(BaseModel):
     """模型基础模型"""
     model_config = ConfigDict(protected_namespaces=())
     model_id: str = Field(..., min_length=1, max_length=100)
-    name: str = Field(..., min_length=1, max_length=100)
+    model_name: str = Field(..., min_length=1, max_length=100)
     description: Optional[str] = None
     type: str = Field(..., pattern="^(chat|completion|embedding)$")
     context_window: int = Field(default=8000, ge=1)
@@ -71,7 +71,7 @@ class ModelCreate(ModelBase):
 class ModelUpdate(BaseModel):
     """更新模型请求模型"""
     model_id: Optional[str] = Field(None, min_length=1, max_length=100)
-    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    model_name: Optional[str] = Field(None, min_length=1, max_length=100)
     description: Optional[str] = None
     type: Optional[str] = Field(None, pattern="^(chat|completion|embedding)$")
     context_window: Optional[int] = Field(None, ge=1)
@@ -92,8 +92,6 @@ class ModelResponse(ModelBase):
     supplier_id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
-    # 添加分类信息
-    categories: List[ModelCategoryResponse] = []
     
     model_config = ConfigDict(from_attributes=True)
 

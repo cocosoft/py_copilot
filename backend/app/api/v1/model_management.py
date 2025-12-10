@@ -12,6 +12,7 @@ from datetime import datetime
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.models.supplier_db import ModelDB as Model, ModelParameter
+from app.models.model_category import ModelCategory
 
 # 创建直接连接到py_copilot.db的数据库会话
 def get_db():
@@ -205,6 +206,19 @@ async def create_model(
         model_dict["logo"] = f"/logos/models/{logo_filename}"
     
     try:
+        # 处理模型类型：验证前端发送的model_type_id是否存在
+        if 'model_type_id' in model_dict:
+            # 验证分类是否存在
+            category = db.query(ModelCategory).filter(ModelCategory.id == model_dict['model_type_id']).first()
+            if not category:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Model category with id {model_dict['model_type_id']} not found"
+                )
+        # 如果存在旧的model_type字段（用于向后兼容），则删除
+        if 'model_type' in model_dict:
+            del model_dict['model_type']
+        
         # 创建新模型
         db_model = Model(**model_dict)
         db.add(db_model)
@@ -352,6 +366,19 @@ async def update_model(
     update_data['supplier_id'] = supplier_id
     update_data['id'] = model_id
     
+    # 处理模型类型：验证前端发送的model_type_id是否存在
+    if 'model_type_id' in update_data:
+        # 验证分类是否存在
+        category = db.query(ModelCategory).filter(ModelCategory.id == update_data['model_type_id']).first()
+        if not category:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Model category with id {update_data['model_type_id']} not found"
+            )
+    # 如果存在旧的model_type字段（用于向后兼容），则删除
+    if 'model_type' in update_data:
+        del update_data['model_type']
+    
     # 保存logo文件（如果有）
     if logo:
         logo_filename = await save_upload_file(logo)
@@ -370,7 +397,24 @@ async def update_model(
     try:
         db.commit()
         db.refresh(model)
-        return model
+        # 创建符合ModelResponse格式的响应
+        response = {
+            "id": model.id,
+            "supplier_id": model.supplier_id,
+            "model_id": model.model_id,
+            "model_name": model.model_name,
+            "description": model.description,
+            "model_type_id": model.model_type_id,
+            "model_type_name": model.model_type.name if model.model_type else None,
+            "context_window": model.context_window,
+            "max_tokens": model.max_tokens,
+            "is_default": model.is_default,
+            "is_active": model.is_active,
+            "logo": model.logo,
+            "created_at": model.created_at,
+            "updated_at": model.updated_at
+        }
+        return response
     except IntegrityError:
         db.rollback()
         raise HTTPException(

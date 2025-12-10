@@ -29,8 +29,8 @@ class SupplierResponse(BaseModel):
 
 # 模型相关Pydantic模型
 class ModelBase(BaseModel):
-    name: str
-    display_name: Optional[str] = None
+    model_id: str
+    model_name: Optional[str] = None
     description: Optional[str] = None
     context_window: Optional[int] = None
     max_tokens: Optional[int] = None
@@ -42,8 +42,8 @@ class ModelCreate(ModelBase):
 
 class ModelResponse(BaseModel):
     id: int
-    name: str
-    display_name: Optional[str] = None
+    model_id: str
+    model_name: Optional[str] = None
     description: Optional[str] = None
     supplier_id: int
     context_window: Optional[int] = None

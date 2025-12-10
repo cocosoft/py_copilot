@@ -25,7 +25,7 @@ class LLMService:
         # 可用模型列表
         self.available_models = [
             {
-                "name": "gpt-3.5-turbo",
+                "model_id": "gpt-3.5-turbo",
                 "provider": "OpenAI",
                 "type": "chat",
                 "max_tokens": 4096,
@@ -33,7 +33,7 @@ class LLMService:
                 "is_default": True
             },
             {
-                "name": "text-davinci-003",
+                "model_id": "text-davinci-003",
                 "provider": "OpenAI",
                 "type": "completion",
                 "max_tokens": 4097,
@@ -41,7 +41,7 @@ class LLMService:
                 "is_default": False
             },
             {
-                "name": "gpt-4",
+                "model_id": "gpt-4",
                 "provider": "OpenAI",
                 "type": "chat",
                 "max_tokens": 8192,
@@ -49,7 +49,7 @@ class LLMService:
                 "is_default": False
             },
             {
-                "name": "deepseek-chat",
+                "model_id": "deepseek-chat",
                 "provider": "DeepSeek",
                 "type": "chat",
                 "max_tokens": 16384,
@@ -248,7 +248,7 @@ class LLMService:
                 
                 # 查询指定模型
                 model_info = db.query(Model).filter(
-                    Model.name == model_name,
+                    Model.model_id == model_name,
                     Model.is_active == True
                 ).first()
                 print(f"DEBUG: 查询到的模型信息: {model_info}")

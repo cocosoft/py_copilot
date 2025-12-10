@@ -223,7 +223,7 @@ class LLMService:
             logger.info(f"没有提供model_name，尝试从数据库获取默认模型")
             default_model = model_query_service.get_default_model(db, "chat")
             if default_model:
-                model_name = default_model.name
+                model_name = default_model.model_id
                 logger.info(f"从数据库获取到默认模型: {model_name}")
         
         # 如果数据库中没有默认模型或db参数未提供，使用服务默认值
@@ -245,19 +245,19 @@ class LLMService:
                 
                 if model_name:
                     logger.info(f"尝试从数据库获取模型: {model_name}")
-                    model = model_query_service.get_model_by_name(db, model_name)
+                    model = model_query_service.get_model_by_model_id(db, model_name)
                     if model:
-                        logger.info(f"找到模型: {model.name}, ID: {model.id}, 供应商ID: {model.supplier_id}")
+                        logger.info(f"找到模型: {model.model_id}, ID: {model.id}, 供应商ID: {model.supplier_id}")
                         db_model_info = model_query_service.get_model_with_supplier(db, model.id)
                         logger.info(f"db_model_info内容: {db_model_info}")
                         if db_model_info:
-                            logger.info(f"model信息: {db_model_info['model'].name}")
+                            logger.info(f"model信息: {db_model_info['model'].model_id}")
                             logger.info(f"supplier信息: {db_model_info['supplier']}")
                     else:
                         logger.warning(f"未找到模型: {model_name}")
                         # 使用model_query_service列出所有模型
                         all_models = model_query_service.get_all_models(db)
-                        logger.info(f"数据库中所有模型: {[model.name for model in all_models]}")
+                        logger.info(f"数据库中所有模型: {[model.model_id for model in all_models]}")
             
             if has_openai:
                 import openai
@@ -267,7 +267,7 @@ class LLMService:
                     model = db_model_info["model"]
                     supplier = db_model_info["supplier"]
                     
-                    logger.info(f"使用数据库中的模型配置: {model.name} (供应商: {supplier['name']})")
+                    logger.info(f"使用数据库中的模型配置: {model.model_id} (供应商: {supplier['name']})")
                     logger.info(f"supplier字典完整内容: {supplier}")
                     logger.info(f"supplier['api_key']存在: {supplier['api_key'] is not None}")
                     logger.info(f"supplier['api_key']长度: {len(supplier['api_key']) if supplier['api_key'] else 0}")
@@ -288,7 +288,7 @@ class LLMService:
                             
                             # 设置Ollama客户端参数
                             ollama_params = {
-                                "model": model.name,
+                                "model": model.model_id,
                                 "temperature": temperature,
                                 "top_p": top_p,
                                 "stop": stop,
@@ -323,11 +323,11 @@ class LLMService:
                             response_text = response.content.strip() if hasattr(response, 'content') else ""
                             tokens_used = response.response_metadata.get('token_usage', {}).get('total_tokens', 0) if hasattr(response, 'response_metadata') else 0
                             
-                            logger.info(f"Ollama模型API调用成功: {model.name}")
+                            logger.info(f"Ollama模型API调用成功: {model.model_id}")
                             
                             return {
                                 "generated_text": response_text,
-                                "model": model.name,
+                                "model": model.model_id,
                                 "tokens_used": tokens_used,
                                 "execution_time_ms": round((time.time() - start_time) * 1000, 2),
                                 "success": True,
@@ -359,7 +359,7 @@ class LLMService:
                         # 使用客户端调用模型
                         try:
                             response = client.chat.completions.create(
-                                model=model.name,
+                                model=model.model_id,
                                 messages=messages,
                                 max_tokens=max_tokens if max_tokens else model.max_tokens,
                                 temperature=temperature,
@@ -376,11 +376,11 @@ class LLMService:
                             logger.warning(f"OpenAI API调用失败: {str(openai_error)}")
                             raise
                         
-                        logger.info(f"数据库模型API调用成功: {model.name}")
+                        logger.info(f"数据库模型API调用成功: {model.model_id}")
                         
                         return {
                             "generated_text": response_text,
-                            "model": model.name,
+                            "model": model.model_id,
                             "tokens_used": tokens_used,
                             "execution_time_ms": round((time.time() - start_time) * 1000, 2),
                             "success": True,
@@ -397,7 +397,7 @@ class LLMService:
                             all_suppliers = db.query(ModelSupplier).all()
                             logger.info(f"所有供应商: {[s.name for s in all_suppliers]}")
                             
-                            deepseek_supplier = db.query(ModelSupplier).filter(ModelSupplier.name == "深度求索").first()
+                            deepseek_supplier = db.query(ModelSupplier).filter(ModelSupplier.name == "DeepSeek").first()
                             if deepseek_supplier:
                                 logger.info(f"找到供应商配置: {deepseek_supplier.name}")
                                 logger.info(f"API端点: {deepseek_supplier.api_endpoint}")
@@ -599,12 +599,13 @@ class LLMService:
                 result = []
                 for item in db_models:
                     result.append({
-                        "name": item["name"],
-                        "provider": item["supplier_name"],
-                        "type": item["model_type"],
-                        "max_tokens": item["max_tokens"],
-                        "description": f"{item['supplier_name']}的{item['model_type']}模型",
-                        "is_default": item["is_default"]
+                        "name": item.get("model_id", "unknown"),
+                        "display_name": item.get("model_name", item.get("model_id", "unknown")),
+                        "model_type": item.get("model_type", "chat"),
+                        "provider": item.get("supplier_name", "unknown"),
+                        "max_tokens": item.get("max_tokens", 4096),
+                        "description": f"{item.get('model_name', item.get('model_id', 'unknown'))} - {item.get('supplier_name', 'unknown')}模型",
+                        "is_default": item.get("is_default", False)
                     })
                 
                 return result

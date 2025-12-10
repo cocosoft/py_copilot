@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, String, Boolean, Text, ForeignKey, DateT
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 from app.core.encryption import encrypt_string, decrypt_string
+from app.models.model_category import ModelCategory
 
 
 class SupplierDB(Base):
@@ -58,11 +59,11 @@ class ModelDB(Base):
     __table_args__ = {'extend_existing': True}
     
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), index=True)
-    display_name = Column(String(200))
+    model_id = Column(String(100), index=True)
+    model_name = Column(String(200))
     description = Column(Text, nullable=True)
     supplier_id = Column(Integer, ForeignKey("suppliers.id", ondelete="CASCADE"), nullable=False)
-    model_type = Column(String(50), default="chat", nullable=False)  # 模型类型：chat, completion, embedding等
+    model_type_id = Column(Integer, ForeignKey("model_categories.id"), nullable=True)  # 模型类型ID，关联到model_categories表
     context_window = Column(Integer, nullable=True)  # 上下文窗口大小
     max_tokens = Column(Integer, nullable=True)  # 最大token数
     is_default = Column(Boolean, default=False)
@@ -74,6 +75,7 @@ class ModelDB(Base):
     # 添加关系定义
     supplier = relationship("SupplierDB", back_populates="models")
     parameters = relationship("ModelParameter", back_populates="model", cascade="all, delete-orphan")
+    model_type = relationship("ModelCategory", backref="model_db")
 
 
 class ModelParameter(Base):

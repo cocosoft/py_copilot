@@ -38,7 +38,7 @@ async def text_completion(
         # 调用LLM服务进行文本补全
         result = llm_service.text_completion(
             prompt=request.prompt,
-            model_name=request.model_name,
+            model_name=request.model_id,
             max_tokens=request.max_tokens,
             temperature=request.temperature,
             top_p=request.top_p,
@@ -98,7 +98,7 @@ async def chat_completion(
         # 调用LLM服务进行聊天补全
         result = llm_service.chat_completion(
             messages=messages,
-            model_name=request.model_name,
+            model_name=request.model_id,
             max_tokens=request.max_tokens,
             temperature=request.temperature,
             top_p=request.top_p,
@@ -230,7 +230,7 @@ async def get_available_models(
         model_responses = []
         for model in models:
             model_responses.append(llm_schemas.ModelInfoResponse(
-                name=model["name"],
+                model_id=model["model_id"],
                 provider=model["provider"],
                 type=model["type"],
                 max_tokens=model["max_tokens"],

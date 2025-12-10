@@ -305,8 +305,8 @@ def get_supplier_models(supplier_id: int, db: Session = Depends(get_db)):
     model_responses = [
         ModelResponse(
             id=model.id,
-            name=model.name,
-            display_name=getattr(model, "display_name", model.name),
+            model_id=model.model_id,
+            model_name=model.model_name,
             description=getattr(model, "description", None),
             supplier_id=model.supplier_id,
             context_window=getattr(model, "context_window", None),
@@ -346,13 +346,13 @@ def create_model(supplier_id: int, model: dict, db: Session = Depends(get_db)):
     if not supplier:
         raise HTTPException(status_code=404, detail="供应商不存在")
     
-    # 检查模型名称是否已存在
+    # 检查模型ID是否已存在
     existing_model = db.query(ModelDB).filter(
-        ModelDB.name == model.get('name'),
+        ModelDB.model_id == model.get('model_id'),
         ModelDB.supplier_id == supplier_id
     ).first()
     if existing_model:
-        raise HTTPException(status_code=400, detail="模型名称已存在")
+        raise HTTPException(status_code=400, detail="模型ID已存在")
     
     # 如果设置为默认模型，先将其他模型设为非默认
     if model.get('is_default'):
@@ -361,8 +361,8 @@ def create_model(supplier_id: int, model: dict, db: Session = Depends(get_db)):
     # 创建新模型
     # 只使用ModelDB中定义的字段
     db_model_data = {
-        "name": model.get('name'),
-        "display_name": model.get('display_name'),
+        "model_id": model.get('model_id'),
+        "model_name": model.get('model_name'),
         "description": model.get('description'),
         "supplier_id": supplier_id,
         "context_window": model.get('context_window'),
@@ -394,16 +394,16 @@ def update_model(supplier_id: int, model_id: int, model_update: dict, db: Sessio
     if not model:
         raise HTTPException(status_code=404, detail="模型不存在")
     
-    # 检查模型名称是否被其他模型使用
-    update_name = model_update.get('name')
-    if update_name is not None and update_name != model.name:
+    # 检查模型ID是否被其他模型使用
+    update_model_id = model_update.get('model_id')
+    if update_model_id is not None and update_model_id != model.model_id:
         existing_model = db.query(ModelDB).filter(
-            ModelDB.name == update_name,
+            ModelDB.model_id == update_model_id,
             ModelDB.supplier_id == supplier_id,
             ModelDB.id != model_id
         ).first()
         if existing_model:
-            raise HTTPException(status_code=400, detail="模型名称已存在")
+            raise HTTPException(status_code=400, detail="模型ID已存在")
     
     # 如果设置为默认模型，先将其他模型设为非默认
     if model_update.get('is_default'):

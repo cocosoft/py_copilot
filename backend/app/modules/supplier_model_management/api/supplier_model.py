@@ -13,6 +13,7 @@ from app.core.logging_config import logger
 
 from app.core.dependencies import get_db
 from app.models.supplier_db import SupplierDB, ModelDB
+from app.models.model_category import ModelCategory
 from app.modules.supplier_model_management.schemas.supplier_model import (
     SupplierCreate, SupplierResponse,
     ModelCreate, ModelResponse, ModelListResponse
@@ -250,8 +251,8 @@ def get_supplier_models(supplier_id: int, db: Session = Depends(get_db)):
     model_responses = [
         ModelResponse(
             id=str(model.id),
-            name=str(model.name) if model.name is not None else "",
-            display_name=str(getattr(model, "display_name", model.name)) if getattr(model, "display_name", model.name) is not None else "",
+            model_id=str(model.model_id) if model.model_id is not None else "",
+            model_name=str(getattr(model, "model_name", model.model_id)) if getattr(model, "model_name", model.model_id) is not None else "",
             description=str(model.description) if model.description is not None else None,
             supplier_id=int(model.supplier_id),
             context_window=int(model.context_window) if model.context_window is not None else None,
@@ -299,13 +300,13 @@ async def create_model(supplier_id: int, model_data: str = Form(...), logo: Uplo
     if not supplier:
         raise HTTPException(status_code=404, detail="供应商不存在")
     
-    # 检查模型名称是否已存在
+    # 检查模型ID是否已存在
     existing_model = db.query(ModelDB).filter(
-        ModelDB.name == model['name'],
+        ModelDB.model_id == model['model_id'],
         ModelDB.supplier_id == supplier_id
     ).first()
     if existing_model:
-        raise HTTPException(status_code=400, detail="模型名称已存在")
+        raise HTTPException(status_code=400, detail="模型ID已存在")
     
     # 如果设置为默认模型，先将其他模型设为非默认
     if model.get('is_default', False):
@@ -316,11 +317,32 @@ async def create_model(supplier_id: int, model_data: str = Form(...), logo: Uplo
     if logo:
         logo_path = await save_upload_file(logo)
     
+    # 处理模型类型字段
+    model_type_id = None
+    if 'model_type' in model:
+        # 获取或创建模型分类
+        model_category = db.query(ModelCategory).filter(
+            ModelCategory.name == model['model_type']
+        ).first()
+        if model_category:
+            model_type_id = model_category.id
+    elif 'model_type_id' in model:
+        # 验证模型分类是否存在
+        model_category = db.query(ModelCategory).filter(
+            ModelCategory.id == model['model_type_id']
+        ).first()
+        if not model_category:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Model category with id {model['model_type_id']} not found"
+            )
+        model_type_id = model['model_type_id']
+    
     # 创建新模型
     # 只使用ModelDB中定义的字段
     db_model_data = {
-        "name": model['name'],
-        "display_name": model.get('display_name'),
+        "model_id": model['model_id'],
+        "model_name": model.get('model_name'),
         "description": model.get('description'),
         "supplier_id": supplier_id,
         "context_window": model.get('context_window'),
@@ -329,6 +351,11 @@ async def create_model(supplier_id: int, model_data: str = Form(...), logo: Uplo
         "is_default": model.get('is_default', False),
         "is_active": model.get('is_active', True)
     }
+    
+    # 如果设置了模型类型ID，添加到数据中
+    if model_type_id is not None:
+        db_model_data['model_type_id'] = model_type_id
+    
     db_model = ModelDB(**db_model_data)
     db.add(db_model)
     db.commit()
@@ -384,19 +411,40 @@ async def update_model(supplier_id: int, model_id: int, request: Request, db: Se
     if not model:
         raise HTTPException(status_code=404, detail="模型不存在")
     
-    # 检查模型名称是否被其他模型使用
-    if model_update['name'] != model.name:
+    # 检查模型ID是否被其他模型使用
+    if 'model_id' in model_update and model_update['model_id'] != model.model_id:
         existing_model = db.query(ModelDB).filter(
-            ModelDB.name == model_update['name'],
+            ModelDB.model_id == model_update['model_id'],
             ModelDB.supplier_id == supplier_id,
             ModelDB.id != model_id
         ).first()
         if existing_model:
-            raise HTTPException(status_code=400, detail="模型名称已存在")
+            raise HTTPException(status_code=400, detail="模型ID已存在")
     
     # 如果设置为默认模型，先将其他模型设为非默认
     if model_update.get('is_default', False):
         db.query(ModelDB).filter(ModelDB.supplier_id == supplier_id).update({"is_default": False})
+    
+    # 处理模型类型字段
+    if 'model_type' in model_update:
+        # 获取或创建模型分类
+        model_category = db.query(ModelCategory).filter(
+            ModelCategory.name == model_update['model_type']
+        ).first()
+        if model_category:
+            model_update['model_type_id'] = model_category.id
+        # 删除原来的model_type字段
+        del model_update['model_type']
+    elif 'model_type_id' in model_update:
+        # 验证模型分类是否存在
+        model_category = db.query(ModelCategory).filter(
+            ModelCategory.id == model_update['model_type_id']
+        ).first()
+        if not model_category:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Model category with id {model_update['model_type_id']} not found"
+            )
     
     # 更新模型数据
     for key, value in model_update.items():
@@ -440,8 +488,8 @@ def get_all_models(db: Session = Depends(get_db)):
     model_responses = [
         ModelResponse(
             id=str(model.id),
-            name=str(model.name) if model.name is not None else "",
-            display_name=str(getattr(model, "display_name", model.name)) if getattr(model, "display_name", model.name) is not None else "",
+            model_id=str(model.model_id) if model.model_id is not None else "",
+            model_name=str(getattr(model, "model_name", model.model_id)) if getattr(model, "model_name", model.model_id) is not None else "",
             description=str(model.description) if model.description is not None else None,
             supplier_id=int(model.supplier_id),
             context_window=int(model.context_window) if model.context_window is not None else None,

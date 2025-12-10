@@ -43,6 +43,7 @@ class ModelSupplier(Base):
 class Model(Base):
     """模型表模型，扩展自现有的ModelConfiguration"""
     __tablename__ = "models"
+    __table_args__ = {'extend_existing': True}
     
     id = Column(Integer, primary_key=True, index=True)
     supplier_id = Column(Integer, ForeignKey("suppliers.id", ondelete="CASCADE"), nullable=False)
@@ -74,19 +75,9 @@ class Model(Base):
     
     # 关系通过backref自动定义
     
-    # 与模型分类的多对多关系
-    categories = relationship(
-        "ModelCategory",
-        secondary="model_category_associations",
-        backref="models"
-    )
+    # 移除与模型分类的多对多关系，因为该模块的模型使用独立的表结构
     
-    # 与模型能力的多对多关系
-    capabilities = relationship(
-        "ModelCapability",
-        secondary="model_capability_associations",
-        backref="models"
-    )
+    # 移除与模型能力的多对多关系，因为该模块的模型使用独立的表结构
     
     def __repr__(self):
         return f"<Model(id={self.id}, name='{self.name}', model_id='{self.model_id}', supplier_id={self.supplier_id})>"

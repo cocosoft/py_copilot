@@ -249,7 +249,7 @@ async def get_available_models(
 @router.post("/embeddings", response_model=dict)
 async def generate_embeddings(
     text: str,
-    model_name: str = None,
+    model_id: str = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ) -> Any:
@@ -258,7 +258,7 @@ async def generate_embeddings(
     
     Args:
         text: 要生成嵌入向量的文本
-        model_name: 要使用的模型名称
+        model_id: 要使用的模型ID
         db: 数据库会话
         current_user: 当前活跃用户
     
@@ -269,7 +269,7 @@ async def generate_embeddings(
         # 生成嵌入向量
         result = llm_service.generate_embeddings(
             text=text,
-            model_name=model_name
+            model_name=model_id
         )
         
         # 记录请求历史
