@@ -68,7 +68,7 @@ const Chat = () => {
       const messageData = {
         content: text,
         use_llm: true,
-        model_name: 'deepseek-chat'
+        model_id: 'deepseek-chat'
       };
 
       const response = await conversationApi.sendMessage(1, messageData);

@@ -896,13 +896,26 @@ async def get_models(
     Returns:
         模型列表
     """
-    # 从数据库中查询指定供应商的模型，预加载categories关系
+    # 从数据库中查询指定供应商的模型，预加载categories和model_type关系
     from sqlalchemy.orm import joinedload
-    models = db.query(Model).options(joinedload(Model.categories)).filter(Model.supplier_id == supplier_id).offset(skip).limit(limit).all()
+    models = db.query(Model).options(
+        joinedload(Model.categories),
+        joinedload(Model.model_type)
+    ).filter(Model.supplier_id == supplier_id).offset(skip).limit(limit).all()
     total = db.query(Model).filter(Model.supplier_id == supplier_id).count()
     
-    # 将ModelDB实例转换为ModelResponse实例
-    model_responses = [ModelResponse.from_orm(model) for model in models]
+    # 手动构建模型响应数据，填充完整的模型分类信息
+    model_responses = []
+    for model in models:
+        model_data = ModelResponse.from_orm(model)
+        
+        # 如果模型有模型类型，填充完整的分类信息
+        if model.model_type:
+            model_data.model_type_name = model.model_type.name  # 英文名称
+            model_data.model_type_display_name = model.model_type.display_name  # 中文显示名称
+            model_data.model_type_logo = model.model_type.logo  # logo
+        
+        model_responses.append(model_data)
     
     return ModelListResponse(
         models=model_responses,
@@ -929,7 +942,9 @@ async def get_model(
     Returns:
         模型信息
     """
-    model = db.query(Model).filter(
+    # 预加载model_type关系
+    from sqlalchemy.orm import joinedload
+    model = db.query(Model).options(joinedload(Model.model_type)).filter(
         Model.id == model_id,
         Model.supplier_id == supplier_id
     ).first()
@@ -940,7 +955,16 @@ async def get_model(
             detail="模型不存在"
         )
     
-    return model
+    # 手动构建模型响应数据，填充完整的模型分类信息
+    model_data = ModelResponse.from_orm(model)
+    
+    # 如果模型有模型类型，填充完整的分类信息
+    if model.model_type:
+        model_data.model_type_name = model.model_type.name  # 英文名称
+        model_data.model_type_display_name = model.model_type.display_name  # 中文显示名称
+        model_data.model_type_logo = model.model_type.logo  # logo
+    
+    return model_data
 
 
 from fastapi import Request

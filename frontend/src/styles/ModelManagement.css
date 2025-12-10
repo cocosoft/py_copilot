@@ -774,12 +774,63 @@ input:not(:checked) + .toggle-slider:before {
 }
 
 .model-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   background-color: #3498db;
   color: white;
   padding: 3px 8px;
   border-radius: 12px;
   font-size: 12px;
   font-weight: 500;
+}
+
+.model-type-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.model-type-logo i {
+  font-size: 12px;
+  color: white;
+}
+
+/* 模型分类样式 */
+.model-categories {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.model-category-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background-color: #4caf50;
+  color: white;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.model-category-badge:hover {
+  background-color: #388e3c;
+  transform: translateY(-1px);
+}
+
+.category-logo {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .model-form {

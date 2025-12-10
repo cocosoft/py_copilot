@@ -29,7 +29,8 @@ export const processModelData = (model) => {
   return {
     ...model,
     key: model.key || String(model.id),
-    name: model.name || '未知模型',
+    modelId: model.model_id || '未知模型',
+    modelName: model.model_name  || '未知模型',
     description: model.description || '暂无描述'
   };
 };

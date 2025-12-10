@@ -386,7 +386,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
       {selectedModel ? (
         <div className="model-parameters-section">
           <div className="section-header">
-            <h2>{selectedModel.displayName ? `${selectedModel.displayName} (${selectedModel.name})` : selectedModel.name} - 参数管理</h2>
+            <h2>{selectedModel.modelName ? `${selectedModel.modelName} (${selectedModel.modelId})` : selectedModel.modelId} - 参数管理</h2>
             <div className="section-actions">
               <button
                 className="btn btn-primary"
@@ -497,11 +497,41 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
                             }}
                           />
                         </div>
-                        <h3 className="model-name">{model.displayName ? `${model.displayName} (${model.name})` : model.name}</h3>
+                        <h3 className="model-name">{model.modelName ? `${model.modelName} (${model.modelId})` : model.modelId}</h3>
                       </div>
                       <div className="model-header-right">
                         {model.is_default && <span className="default-badge">默认</span>}
-                        <span className="model-type-badge">{model.model_type || 'chat'}</span>
+                        {/* 模型分类信息 */}
+                        {model.categories && model.categories.length > 0 ? (
+                          <div className="model-categories">
+                            {model.categories.map((category) => (
+                              <span key={category.id} className="model-category-badge">
+                                {category.logo ? (
+                                  <img 
+                                    src={category.logo} 
+                                    alt={category.display_name} 
+                                    className="category-logo"
+                                    onError={(e) => {
+                                      e.target.style.display = 'none';
+                                    }}
+                                  />
+                                ) : null}
+                                {category.display_name || category.name}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="model-type-badge">
+                            {model.modelTypeLogo && (
+                              <div 
+                                dangerouslySetInnerHTML={{__html: model.modelTypeLogo}}
+                                className="model-type-logo"
+                                title={model.modelTypeDisplayName || model.modelTypeName}
+                              />
+                            )}
+                            {model.modelTypeDisplayName || model.modelTypeName || model.modelType || '未分类'}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="model-desc">

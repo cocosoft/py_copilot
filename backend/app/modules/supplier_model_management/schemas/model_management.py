@@ -94,6 +94,8 @@ class ModelResponse(BaseModel):
     description: Optional[str] = None
     model_type_id: Optional[int] = None
     model_type_name: Optional[str] = None  # 模型类型名称，从关联的model_categories表获取
+    model_type_logo: Optional[str] = None  # 模型类型logo
+    model_type_display_name: Optional[str] = None  # 模型类型显示名称（中文）
     context_window: Optional[int] = None
     max_tokens: Optional[int] = None
     is_default: bool

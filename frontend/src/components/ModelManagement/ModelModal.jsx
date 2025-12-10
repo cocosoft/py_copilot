@@ -4,8 +4,8 @@ import '../../styles/ModelModal.css';
 
 const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFirstModel = false }) => {
   const [formData, setFormData] = useState({
-    name: '',
-    display_name: '',
+    model_id: '',
+    model_name: '',
     description: '',
     contextWindow: 8000,
     max_tokens: 1000,
@@ -111,12 +111,12 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
   useEffect(() => {
     if (mode === 'edit' && model) {
       setFormData({
-        name: model.name || '',
-        display_name: model.display_name || '',
+        model_id: model.modelId || model.model_id || model.modelName || '',
+        model_name: model.model_name || model.modelName || '', // 修复：优先使用model.model_name
         description: model.description || '',
         contextWindow: model.contextWindow || model.context_window || 8000,
         max_tokens: model.max_tokens || 1000,
-        model_type: model.model_type?.toString() || '',
+        model_type: model.modelType?.toString() || model.model_type?.toString() || '',
         isDefault: model.isDefault || model.is_default || false,
         is_active: model.is_active || true
       });
@@ -130,8 +130,8 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
     } else if (mode === 'add') {
       // 重置表单数据
       setFormData({
-        name: '',
-        display_name: '',
+        model_id: '',
+        model_name: '',
         description: '',
         contextWindow: 8000,
         max_tokens: 1000,
@@ -178,14 +178,8 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
     e.preventDefault();
     
     // 验证必填字段
-    if (!formData.name) {
+    if (!formData.model_id) {
       alert('请填写模型ID');
-      return;
-    }
-    
-    // 验证显示名称（根据后端schema要求，必须有至少1个字符）
-    if (!formData.display_name || formData.display_name.trim() === '') {
-      alert('请填写模型名称，该字段为必填项');
       return;
     }
     
@@ -196,11 +190,11 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
       const modelData = {
         ...formData,
         // 确保字段命名一致性和类型转换
-        context_window: parseInt(formData.contextWindow) || 8000,
-        max_tokens: parseInt(formData.max_tokens) || 1000,
-        model_type: formData.model_type || 'chat',
-        is_default: formData.isDefault || false,
-        is_active: formData.is_active || true
+        contextWindow: parseInt(formData.contextWindow) || 8000,
+        maxTokens: parseInt(formData.max_tokens) || 1000,
+        modelType: formData.model_type || 'chat',
+        isDefault: formData.isDefault || false,
+        isActive: formData.is_active || true
       };
       
       // 调用父组件的保存函数
@@ -254,12 +248,12 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
           
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="name">模型ID: <span className="required">*</span></label>
+              <label htmlFor="model_id">模型ID: <span className="required">*</span></label>
               <input 
                 type="text" 
-                id="name"
-                name="name"
-                value={formData.name}
+                id="model_id"
+                name="model_id"
+                value={formData.model_id}
                 onChange={handleChange}
                 placeholder="模型ID（同一供应商下唯一）"
                 required
@@ -269,22 +263,25 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
                 该ID是模型正确调用的唯一ID，请确保与供应商提供的模型名称（ID）保持一致。否则可能会导致模型调用失败。
               </div>
             </div>
-          </div>
-          
-          <div className="form-row">
             <div className="form-group">
-              <label htmlFor="display_name">模型名称: <span className="required">*</span></label>
+              <label htmlFor="model_name">模型名称: <span className="required">*</span></label>
               <input 
                 type="text" 
-                id="display_name"
-                name="display_name"
-                value={formData.display_name}
+                id="model_name"
+                name="model_name"
+                value={formData.model_name}
                 onChange={handleChange}
-                placeholder="模型名称（必填）"
+                placeholder="模型显示名称"
                 required
                 disabled={saving}
               />
+              <div className="field-hint">
+                模型在界面上显示的名称，方便用户识别
+              </div>
             </div>
+          </div>
+          
+          <div className="form-row">
             <div className="form-group">
               <label htmlFor="model_type">模型类型</label>
               <select 

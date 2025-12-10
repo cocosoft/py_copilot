@@ -76,12 +76,32 @@ const formatModelData = (model) => {
     console.log('模型有supplier_id但没有supplier对象:', model.supplier_id);
   }
   
+  // 处理分类信息
+  let categories = [];
+  if (model.categories && Array.isArray(model.categories)) {
+    categories = model.categories.map(category => ({
+      id: category.id,
+      name: category.name,
+      display_name: category.display_name,
+      description: category.description,
+      logo: category.logo,
+      category_type: category.category_type
+    }));
+  }
+  
+  // 处理模型类型信息，优先使用后端返回的完整分类信息
+  const modelType = model.model_type_id?.toString() || model.modelType || '';
+  const modelTypeName = model.model_type_name || '';
+  const modelTypeDisplayName = model.model_type_display_name || '';
+  const modelTypeLogo = model.model_type_logo || '';
+  
   console.log('处理后的供应商信息:', { supplierName, supplierDisplayName });
+  console.log('处理后的分类信息:', categories);
   
   return {
     id: model.id,
-    name: model.name || '',
-    displayName: model.display_name || model.name || '',
+    modelId: model.model_id || '',
+    modelName: model.model_name || model.modelName || '',
     description: model.description || '',
     contextWindow: model.context_window || model.contextWindow || 0,
     maxTokens: model.max_tokens || model.maxTokens || 1000,
@@ -90,7 +110,11 @@ const formatModelData = (model) => {
     supplierId: model.supplier_id || model.supplierId,
     supplierName: supplierName,
     supplierDisplayName: supplierDisplayName,
-    modelType: model.model_type || model.modelType || 'chat',
+    modelType: modelType,
+    modelTypeName: modelTypeName,
+    modelTypeDisplayName: modelTypeDisplayName,
+    modelTypeLogo: modelTypeLogo,
+    categories: categories,
     logo: model.logo || null,
     createdAt: model.created_at || model.createdAt,
     updatedAt: model.updated_at || model.updatedAt
@@ -101,24 +125,39 @@ const formatModelData = (model) => {
 const buildModelDataForBackend = (model, supplierId) => {
   const integerSupplierId = Number(supplierId);
   
-  // 根据后端schema要求，display_name字段必须有至少1个字符
-  // 如果用户没有输入显示名称，使用模型名称作为默认值
-  // 注意：这里需要同时检查display_name（下划线格式）和displayName（驼峰格式）以兼容不同的表单数据来源
-  const displayNameValue = model.display_name || model.displayName;
-  const displayName = displayNameValue && displayNameValue.trim() !== '' ? displayNameValue : model.name;
+  // 根据后端schema要求，model_id字段必须有至少1个字符
+  // 如果用户没有输入模型ID，使用模型名称作为默认值
+  // 注意：这里需要同时检查model_id（下划线格式）和modelId（驼峰格式）以兼容不同的表单数据来源
+  const modelIdValue = model.model_id || model.modelId;
+  const modelId = modelIdValue && modelIdValue.trim() !== '' ? modelIdValue : model.modelName || model.model_id;
   
-  return {
-    name: model.name,
-    display_name: displayName,
+  // 处理模型名称字段：同时检查model_name（下划线格式）和modelName（驼峰格式）
+  const modelNameValue = model.model_name || model.modelName;
+  const modelName = modelNameValue && modelNameValue.trim() !== '' ? modelNameValue : modelId;
+  
+  // 构建基本模型数据
+  const modelData = {
+    model_id: modelId,
+    model_name: modelName, // 添加模型名称字段
     description: model.description || '',
     context_window: Number(model.contextWindow) || 8000,
     max_tokens: Number(model.maxTokens) || 1000,
     is_default: Boolean(model.isDefault),
     is_active: model.isActive !== undefined ? Boolean(model.isActive) : true,
-    supplier_id: integerSupplierId,
-    model_type: model.modelType || 'chat',
-    logo: model.logo
+    supplier_id: integerSupplierId
   };
+  
+  // 处理模型类型字段：前端传递的是分类ID，需要转换为model_type_id
+  if (model.modelType && model.modelType.trim() !== '') {
+    modelData.model_type_id = Number(model.modelType);
+  }
+  
+  // 只有当logo是文件对象时才包含logo字段，避免覆盖现有logo
+  if (model.logo && typeof model.logo !== 'string') {
+    modelData.logo = model.logo;
+  }
+  
+  return modelData;
 };
 
 // 模型API实现
@@ -261,8 +300,8 @@ export const modelApi = {
       throw new Error(validationError.message);
     }
     
-    if (!model || !model.name) {
-      const validationError = handleApiError(new Error('模型名称不能为空'), 'create');
+    if (!model || !model.modelId) {
+      const validationError = handleApiError(new Error('模型ID不能为空'), 'create');
       throw new Error(validationError.message);
     }
     
@@ -301,7 +340,7 @@ export const modelApi = {
       const errorObj = handleApiError(
         error, 
         'create', 
-        `供应商ID: ${integerSupplierId}, 模型名称: ${model?.name}`
+        `供应商ID: ${integerSupplierId}, 模型ID: ${model?.modelId}`
       );
       throw new Error(errorObj.message);
     }
@@ -319,8 +358,10 @@ export const modelApi = {
       throw new Error(validationError.message);
     }
     
-    if (!updatedModel || !updatedModel.name) {
-      const validationError = handleApiError(new Error('模型名称不能为空'), 'update');
+    // 检查模型ID，兼容model_id（下划线格式）和modelId（驼峰格式）
+    const modelIdValue = updatedModel?.model_id || updatedModel?.modelId;
+    if (!updatedModel || !modelIdValue) {
+      const validationError = handleApiError(new Error('模型ID不能为空'), 'update');
       throw new Error(validationError.message);
     }
     
@@ -360,7 +401,7 @@ export const modelApi = {
       const errorObj = handleApiError(
         error, 
         'update', 
-        `供应商ID: ${integerSupplierId}, 模型ID: ${integerModelId}, 模型名称: ${updatedModel?.name}`
+        `供应商ID: ${integerSupplierId}, 模型ID: ${integerModelId}, 模型ID: ${updatedModel?.modelId}`
       );
       throw new Error(errorObj.message);
     }
@@ -454,7 +495,7 @@ export const modelApi = {
     
     try {
       // 使用正确的路径格式
-      const response = await request(`/v1/suppliers/${integerSupplierId}/models/${integerModelId}/parameters`, {
+      const response = await request(`/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters`, {
         method: 'GET'
       });
       
@@ -500,7 +541,7 @@ export const modelApi = {
       const formattedData = buildParameterDataForBackend(parameterData, integerModelId);
       
       // 使用正确的路径格式
-      const response = await request(`/v1/suppliers/${integerSupplierId}/models/${integerModelId}/parameters`, {
+      const response = await request(`/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -544,7 +585,7 @@ export const modelApi = {
     
     try {
       // 使用正确的路径格式
-      const response = await request(`/v1/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${integerParameterId}`, {
+      const response = await request(`/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${integerParameterId}`, {
         method: 'GET'
       });
       
@@ -594,7 +635,7 @@ export const modelApi = {
       };
       
       // 使用正确的路径格式
-      const response = await request(`/v1/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${integerParameterId}`, {
+      const response = await request(`/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${integerParameterId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -638,7 +679,7 @@ export const modelApi = {
     
     try {
       // 使用正确的路径格式
-      const response = await request(`/v1/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${integerParameterId}`, {
+      const response = await request(`/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${integerParameterId}`, {
         method: 'DELETE'
       });
       

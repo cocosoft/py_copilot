@@ -191,8 +191,8 @@ const ModelCapabilityAssociation = () => {
     // 过滤模型列表
     if (value) {
       const filtered = models.filter(model => 
-        model.name.toLowerCase().includes(value.toLowerCase()) ||
-        (model.displayName && model.displayName.toLowerCase().includes(value.toLowerCase()))
+        model.model_Id.toLowerCase().includes(value.toLowerCase()) ||
+        (model.model_name && model.model_name.toLowerCase().includes(value.toLowerCase()))
       );
       setFilteredModels(filtered);
     } else {
@@ -202,7 +202,7 @@ const ModelCapabilityAssociation = () => {
 
   // 选择模型
   const handleSelectModel = (model) => {
-    setSearchTerm(model.displayName ? `${model.displayName} (${model.name})` : model.name);
+    setSearchTerm(model.model_name ? `${model.model_name} (${model.model_Id})` : model.model_Id);
     handleModelChange(model.id);
     setShowDropdown(false);
   };
@@ -240,7 +240,7 @@ const ModelCapabilityAssociation = () => {
                     className="custom-datalist-option"
                     onClick={() => handleSelectModel(model)}
                   >
-                    {model.displayName ? `${model.displayName} (${model.name})` : model.name} - {model.supplierDisplayName || model.supplierName || '未知供应商'}
+                    {model.model_name ? `${model.model_name} (${model.modelId})` : model.modelId} - {model.supplierDisplayName || model.supplierName || '未知供应商'}
                   </div>
                 ))}
               </div>
