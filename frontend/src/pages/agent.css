@@ -73,9 +73,24 @@
   font-size: 14px;
   font-weight: 600;
   color: #7f8c8d;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+/* 分类组 */
+.category-group {
+  margin-bottom: 20px;
+}
+
+.category-group-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #95a5a6;
+  margin-bottom: 8px;
+  padding-left: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .agent-categories ul {
@@ -84,18 +99,171 @@
   margin: 0;
 }
 
-.agent-categories li {
+/* 预设分类 */
+.preset-categories li {
   padding: 10px 12px;
   margin-bottom: 4px;
   border-radius: 6px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
   font-size: 14px;
   color: #34495e;
 }
 
-.agent-categories li:hover {
+.preset-categories li:hover {
   background-color: #f8f9fa;
+}
+
+/* 自定义分类 */
+.custom-categories {
+  border-left: 2px solid #ecf0f1;
+  padding-left: 8px;
+}
+
+/* 分类项 */
+.category-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  border-radius: 6px;
+  transition: all 0.2s;
+  font-size: 14px;
+  color: #34495e;
+}
+
+.category-item:hover {
+  background-color: #f8f9fa;
+}
+
+.category-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  flex: 1;
+}
+
+.category-info.active {
+  color: #3498db;
+  font-weight: 500;
+}
+
+.category-logo {
+  font-size: 16px;
+  width: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.category-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 分类操作按钮 */
+.category-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.category-item:hover .category-actions {
+  opacity: 1;
+}
+
+.category-action-btn {
+  background: none;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px !important;
+  border-radius: 4px !important;
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.2s !important;
+  color: inherit !important;
+  font-weight: normal !important;
+  line-height: 1 !important;
+  box-sizing: border-box !important;
+}
+
+.category-action-btn.edit-btn:hover {
+  background-color: rgba(243, 156, 18, 0.1);
+  color: #f39c12;
+}
+
+.category-action-btn.delete-btn:hover:not(:disabled) {
+  background-color: rgba(231, 76, 60, 0.1);
+  color: #e74c3c;
+}
+
+.category-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 无分类状态 */
+.no-categories {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 12px;
+  margin-bottom: 4px;
+  border-radius: 6px;
+  background-color: #f8f9fa;
+  color: #95a5a6;
+  font-size: 13px;
+  text-align: center;
+}
+
+.create-category-quick-btn {
+  margin-top: 8px;
+  padding: 6px 12px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.create-category-quick-btn:hover {
+  background-color: #2980b9;
+}
+
+/* 创建分类按钮 */
+.create-category-btn {
+  width: 100%;
+  padding: 10px 16px;
+  background-color: #f8f9fa;
+  color: #34495e;
+  border: 1px solid #e1e8ed;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.3s;
+  margin-bottom: 20px;
+}
+
+.create-category-btn:hover {
+  background-color: #e9ecef;
+  border-color: #3498db;
+  color: #3498db;
 }
 
 /* 对话框样式 */

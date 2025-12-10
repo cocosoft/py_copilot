@@ -2,7 +2,7 @@
 import { API_BASE_URL, request } from '../utils/apiUtils';
 
 // 智能体API的基本路径
-const AGENT_API_BASE = '/v1/agents'
+const AGENT_API_BASE = '/agents'
 
 // 创建智能体
 export const createAgent = async (agentData) => {
@@ -33,10 +33,14 @@ export const getAgent = async (agentId) => {
 };
 
 // 获取用户智能体列表
-export const getAgents = async (page = 1, limit = 10) => {
+export const getAgents = async (page = 1, limit = 10, categoryId = null) => {
   try {
     const skip = (page - 1) * limit;
-    const response = await request(`${AGENT_API_BASE}/?skip=${skip}&limit=${limit}`);
+    let url = `${AGENT_API_BASE}/?skip=${skip}&limit=${limit}`;
+    if (categoryId) {
+      url += `&category_id=${categoryId}`;
+    }
+    const response = await request(url);
     return response;
   } catch (error) {
     console.error('获取智能体列表失败:', error);
