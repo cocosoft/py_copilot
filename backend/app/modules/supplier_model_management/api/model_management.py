@@ -29,18 +29,18 @@ from app.modules.supplier_model_management.schemas.model_management import (
 
 # 创建上传目录
 # 使用绝对路径确保文件能正确保存
-# 获取项目根目录（backend的父目录）
-CURRENT_FILE = os.path.abspath(__file__)
-# 从当前文件开始向上导航到项目根目录
-BASE_DIR = os.path.dirname(CURRENT_FILE)  # api
-BASE_DIR = os.path.dirname(BASE_DIR)  # supplier_model_management
-BASE_DIR = os.path.dirname(BASE_DIR)  # modules
-BASE_DIR = os.path.dirname(BASE_DIR)  # app
-BASE_DIR = os.path.dirname(BASE_DIR)  # backend
-UPLOAD_DIR = os.path.join(BASE_DIR, "../frontend/public/logos/providers")
+# 设置模型logo保存路径为frontend/public/logos/models
+# 获取当前文件所在目录
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+# 从当前目录向上导航到backend目录
+BACKEND_DIR = os.path.abspath(os.path.join(CURRENT_DIR, "../../../../"))
+# 项目根目录是backend的父目录 (包含项目文件夹名称)
+PROJECT_ROOT = os.path.abspath(os.path.join(BACKEND_DIR, ".."))
+# 构建模型logo保存路径
+UPLOAD_DIR = os.path.join(PROJECT_ROOT, "frontend", "public", "logos", "models")
 UPLOAD_DIR = os.path.normpath(UPLOAD_DIR)  # 规范化路径
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-print(f"文件上传目录: {UPLOAD_DIR}")  # 添加日志以便调试
+print(f"模型logo保存目录: {UPLOAD_DIR}")  # 添加日志以便调试
 
 # 支持的图片扩展名
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
@@ -54,9 +54,14 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-async def save_upload_file(upload_file: UploadFile) -> Optional[str]:
-    """保存上传的文件并返回文件名"""
+async def save_upload_file(upload_file: UploadFile) -> str:
+    """保存上传的文件并返回相对路径"""
+    print(f"[文件上传] 开始处理文件: {upload_file.filename}")
+    print(f"[文件上传] ALLOWED_EXTENSIONS: {ALLOWED_EXTENSIONS}")
+    print(f"[文件上传] UPLOAD_DIR: {UPLOAD_DIR}")
+    
     if not allowed_file(upload_file.filename):
+        print(f"[文件上传] 不支持的文件类型: {upload_file.filename}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="不支持的文件类型，请上传图片文件 (png, jpg, jpeg, gif, webp)"
@@ -64,12 +69,14 @@ async def save_upload_file(upload_file: UploadFile) -> Optional[str]:
     
     # 生成唯一文件名
     if not upload_file.filename:
+        print(f"[文件上传] 文件名不能为空")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="文件名不能为空"
         )
     # 检查文件名是否有扩展名
     if '.' not in upload_file.filename:
+        print(f"[文件上传] 文件名必须包含扩展名: {upload_file.filename}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="文件名必须包含扩展名"
@@ -79,16 +86,25 @@ async def save_upload_file(upload_file: UploadFile) -> Optional[str]:
     file_path = os.path.join(UPLOAD_DIR, unique_filename)
     
     try:
-        print(f"尝试保存文件到: {file_path}")  # 添加日志
+        print(f"[文件上传] 准备保存文件到: {file_path}")
+        # 确保上传目录存在
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
+        print(f"[文件上传] 目录存在检查通过")
+        
         # 保存文件
         with open(file_path, "wb") as buffer:
             content = await upload_file.read()
+            print(f"[文件上传] 读取文件内容，大小: {len(content)} bytes")
             buffer.write(content)
-        print(f"文件保存成功: {unique_filename}")  # 添加成功日志
-        # 返回文件名
-        return unique_filename
+        
+        print(f"[文件上传] 文件保存成功: {unique_filename}")
+        
+        # 返回前端可访问的路径格式
+        frontend_path = f"/logos/models/{unique_filename}"
+        print(f"[文件上传] 返回前端路径: {frontend_path}")
+        return frontend_path
     except Exception as e:
-        print(f"文件保存失败: {str(e)}")  # 添加错误日志
+        print(f"[文件上传] 文件保存失败: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"文件保存失败: {str(e)}"
@@ -804,7 +820,7 @@ async def create_model(
                 )
             
             # 保存LOGO文件
-            logo_filename = save_upload_file(logo_file, UPLOAD_DIR)
+            logo_filename = await save_upload_file(logo_file)
             model_data['logo'] = logo_filename
         
         # 创建新模型
@@ -968,7 +984,7 @@ async def update_model(
             logo_file = form_data.get('logo')
             if logo_file and logo_file.filename:
                 # 保存LOGO文件
-                logo_filename = save_upload_file(logo_file, UPLOAD_DIR)
+                logo_filename = await save_upload_file(logo_file)
                 update_data['logo'] = logo_filename
             elif 'logo' in update_data and update_data['logo'] is None:
                 # 如果明确设置logo为None，则删除logo

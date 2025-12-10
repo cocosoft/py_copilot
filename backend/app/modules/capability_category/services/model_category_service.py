@@ -204,6 +204,9 @@ class ModelCategoryService:
                 "description": category.description,
                 "category_type": category.category_type,
                 "parent_id": category.parent_id,
+                "created_at": category.created_at,
+                "updated_at": category.updated_at,
+                "is_active": category.is_active,
                 "children": [
                     build_tree(child_id)
                     for child_id in category_dict
