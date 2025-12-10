@@ -4,6 +4,8 @@ from app.core.database import Base
 from app.models.supplier_db import SupplierDB, ModelDB, ModelParameter
 from app.models.model_category import ModelCategory
 from app.models.model_capability import ModelCapability
+from app.models.agent import Agent
+from app.models.agent_category import AgentCategory
 
 # 创建数据库表
 print("开始创建数据库表...")

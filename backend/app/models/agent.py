@@ -27,6 +27,10 @@ class Agent(Base):
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
     
+    # 与分类的关系
+    category_id = Column(Integer, ForeignKey("agent_categories.id"), nullable=True)
+    category = relationship("AgentCategory", back_populates="agents")
+    
     # 与对话的关系
     conversations = relationship("Conversation", back_populates="agent", cascade="all, delete-orphan")
     

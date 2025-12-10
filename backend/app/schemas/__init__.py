@@ -1,6 +1,8 @@
 """数据校验模型"""
 from app.schemas.auth import UserRegister, UserLogin, UserResponse, Token, TokenPayload
 from app.schemas.conversation import ConversationCreate, ConversationUpdate, ConversationResponse, ConversationListResponse, MessageCreate, MessageResponse, MessageListResponse
+from app.schemas.agent import AgentBase, AgentCreate, AgentUpdate, AgentResponse, AgentListResponse
+from app.schemas.agent_category import AgentCategoryBase, AgentCategoryCreate, AgentCategoryUpdate, AgentCategoryResponse, AgentCategoryListResponse
 # LLM schemas will be imported as needed
 from app.schemas.model_category import (
     ModelCategoryBase, ModelCategoryCreate, ModelCategoryUpdate,
@@ -23,6 +25,10 @@ __all__ = [
     "UserRegister", "UserLogin", "UserResponse", "Token", "TokenPayload",
     # Conversation
     "ConversationCreate", "ConversationUpdate", "ConversationResponse", "ConversationListResponse", "MessageCreate", "MessageResponse", "MessageListResponse",
+    # Agent
+    "AgentBase", "AgentCreate", "AgentUpdate", "AgentResponse", "AgentListResponse",
+    # Agent Category
+    "AgentCategoryBase", "AgentCategoryCreate", "AgentCategoryUpdate", "AgentCategoryResponse", "AgentCategoryListResponse",
     # LLM
 
     # Model Category

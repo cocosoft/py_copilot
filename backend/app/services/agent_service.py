@@ -1,7 +1,8 @@
 """智能体服务层"""
 from typing import List, Optional
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.models.agent import Agent
+from app.models.agent_category import AgentCategory
 from app.schemas.agent import AgentCreate, AgentUpdate
 
 
@@ -19,11 +20,13 @@ def get_agent(db: Session, agent_id: int) -> Optional[Agent]:
     return db.query(Agent).filter(Agent.id == agent_id).first()
 
 
-def get_agents(db: Session, skip: int = 0, limit: int = 100, user_id: Optional[int] = None) -> tuple[List[Agent], int]:
+def get_agents(db: Session, skip: int = 0, limit: int = 100, user_id: Optional[int] = None, category_id: Optional[int] = None) -> tuple[List[Agent], int]:
     """获取智能体列表"""
-    query = db.query(Agent)
+    query = db.query(Agent).options(joinedload(Agent.category))  # 使用joinedload预加载分类信息
     if user_id is not None:
         query = query.filter(Agent.user_id == user_id)
+    if category_id is not None:
+        query = query.filter(Agent.category_id == category_id)
     total = query.count()
     agents = query.offset(skip).limit(limit).all()
     return agents, total

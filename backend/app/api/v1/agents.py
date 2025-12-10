@@ -82,6 +82,7 @@ def get_agent_api(
 def get_agents_api(
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=100),
+    category_id: int = Query(None, ge=1),
     db: Session = Depends(get_db)
 ) -> Any:
     """
@@ -90,12 +91,13 @@ def get_agents_api(
     Args:
         skip: 跳过数量
         limit: 限制数量
+        category_id: 分类ID（可选）
         db: 数据库会话
     
     Returns:
         智能体列表信息
     """
-    agents, total = get_agents(db=db, skip=skip, limit=limit, user_id=1)  # 使用固定用户ID 1
+    agents, total = get_agents(db=db, skip=skip, limit=limit, user_id=1, category_id=category_id)  # 使用固定用户ID 1
     
     # 转换智能体列表，并手动添加avatar_url字段
     agent_responses = []
