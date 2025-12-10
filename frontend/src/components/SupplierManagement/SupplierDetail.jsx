@@ -18,8 +18,8 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
   const [testResult, setTestResult] = useState(null);
   const [saveStatus, setSaveStatus] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
-  // 添加收缩/展开状态
-  const [isExpanded, setIsExpanded] = useState(true);
+  // 添加收缩/展开状态 - 默认设置为收缩状态
+  const [isExpanded, setIsExpanded] = useState(false);
 
   // 当选中的供应商变化时，更新本地API配置
   useEffect(() => {
@@ -31,8 +31,8 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
       // 重置状态
       setTestResult(null);
       setSaveStatus(null);
-      // 当选择新供应商时自动展开
-      setIsExpanded(true);
+      // 当选择新供应商时保持收缩状态
+      setIsExpanded(false);
     }
   }, [selectedSupplier]);
 
