@@ -13,6 +13,7 @@ class ModelCapabilityBase(BaseModel):
     description: Optional[str] = None
     capability_type: str = Field(default="standard", pattern="^[a-zA-Z0-9_]+$")
     is_active: bool = True
+    is_system: bool = False
 
 
 class ModelCapabilityCreate(ModelCapabilityBase):
@@ -27,6 +28,7 @@ class ModelCapabilityUpdate(BaseModel):
     description: Optional[str] = None
     capability_type: Optional[str] = Field(None, pattern="^[a-zA-Z0-9_]+$")
     is_active: Optional[bool] = None
+    is_system: Optional[bool] = None
 
 
 class ModelCapabilityResponse(ModelCapabilityBase):
@@ -34,6 +36,7 @@ class ModelCapabilityResponse(ModelCapabilityBase):
     id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
+    is_system: bool
     
     model_config = ConfigDict(from_attributes=True)
 

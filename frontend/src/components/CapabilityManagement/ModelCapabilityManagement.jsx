@@ -41,6 +41,7 @@ const ModelCapabilityManagement = () => {
           description: capability.description || '',
           capability_type: capability.capability_type || 'general',
           is_active: capability.is_active ?? true,
+          is_system: capability.is_system ?? false,
           ...capability
         }));
        
@@ -262,6 +263,7 @@ const ModelCapabilityManagement = () => {
                 <th>显示名称</th>
                 <th>类型</th>
                 <th>状态</th>
+                <th>是否系统能力</th>
                 <th>操作</th>
               </tr>
             </thead>
@@ -281,11 +283,17 @@ const ModelCapabilityManagement = () => {
                       {capability.is_active ? '启用' : '禁用'}
                     </span>
                   </td>
+                  <td>
+                    <span className={`system-badge ${capability.is_system ? 'system' : 'user'}`}>
+                      {capability.is_system ? '是' : '否'}
+                    </span>
+                  </td>
                   <td className="action-buttons">
                     <button 
                       className="btn btn-small btn-info" 
                       onClick={() => handleEditModalOpen(capability)}
                       title="编辑"
+                      disabled={capability.is_system}
                     >
                       编辑
                     </button>
@@ -293,6 +301,7 @@ const ModelCapabilityManagement = () => {
                       className="btn btn-small btn-danger" 
                       onClick={() => handleDelete(capability.id)}
                       title="删除"
+                      disabled={capability.is_system}
                     >
                       删除
                     </button>

@@ -93,6 +93,13 @@ class ModelCapabilityService:
         """更新模型能力"""
         db_capability = ModelCapabilityService.get_capability(db, capability_id)
         
+        # 检查是否为系统能力
+        if db_capability.is_system:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="系统能力不允许修改"
+            )
+        
         # 更新非空字段
         update_data = capability_update.model_dump(exclude_unset=True)
         
@@ -124,6 +131,13 @@ class ModelCapabilityService:
     def delete_capability(db: Session, capability_id: int) -> bool:
         """删除模型能力（软删除）"""
         db_capability = ModelCapabilityService.get_capability(db, capability_id)
+        
+        # 检查是否为系统能力
+        if db_capability.is_system:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="系统能力不允许删除"
+            )
         
         # 检查是否有模型关联
         model_associations = db.query(ModelCapabilityAssociation).filter(

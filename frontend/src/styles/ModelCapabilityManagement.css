@@ -171,6 +171,26 @@
   border: 1px solid #e9e9eb;
 }
 
+/* 系统能力徽章样式 */
+.system-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.system-badge.system {
+  background-color: #fff1f0;
+  color: #f56c6c;
+  border: 1px solid #fcdea8;
+}
+
+.system-badge.user {
+  background-color: #f0f9eb;
+  color: #67c23a;
+  border: 1px solid #e1f3d8;
+}
+
 /* 操作按钮 */
 .action-buttons {
   display: flex;

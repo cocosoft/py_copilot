@@ -29,6 +29,9 @@ class ModelCapability(Base):
     # 状态
     is_active = Column(Boolean, default=True)
     
+    # 是否为系统能力
+    is_system = Column(Boolean, default=False)
+    
     # 时间戳
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
