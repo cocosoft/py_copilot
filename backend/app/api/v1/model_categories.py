@@ -1,12 +1,14 @@
 """模型分类相关的API路由"""
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from typing import List, Optional, Dict, Any
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Form, Request
 from sqlalchemy.orm import Session
+import os
+import uuid
+from datetime import datetime
+from sqlalchemy import text
 
 from app.core.database import get_db
 from app.schemas.model_category import (
-    ModelCategoryCreate,
-    ModelCategoryUpdate,
     ModelCategoryResponse,
     ModelCategoryListResponse,
     ModelCategoryAssociationCreate,
@@ -16,6 +18,64 @@ from app.schemas.model_category import (
     CategoryWithModelsResponse
 )
 from app.services.model_category_service import model_category_service
+
+# 创建分类LOGO的上传目录
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # backend/app
+BASE_DIR = os.path.dirname(BASE_DIR)  # backend
+BASE_DIR = os.path.dirname(BASE_DIR)  # 项目根目录
+UPLOAD_DIR = os.path.join(BASE_DIR, "frontend/public/logos/categories")
+UPLOAD_DIR = os.path.normpath(UPLOAD_DIR)  # 规范化路径
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+print(f"分类LOGO上传目录: {UPLOAD_DIR}")  # 添加日志以便调试
+
+# 支持的图片扩展名
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
+
+# 检查文件扩展名是否允许
+def allowed_file(filename):
+    """检查文件扩展名是否允许"""
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+async def save_category_logo(upload_file: UploadFile) -> Optional[str]:
+    """保存上传的分类LOGO文件并返回文件名"""
+    if not allowed_file(upload_file.filename):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="不支持的文件类型，请上传图片文件 (png, jpg, jpeg, gif, webp)"
+        )
+    
+    # 生成唯一文件名
+    if not upload_file.filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="文件名不能为空"
+        )
+    # 检查文件名是否有扩展名
+    if '.' not in upload_file.filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="文件名必须包含扩展名"
+        )
+    file_ext = upload_file.filename.rsplit('.', 1)[1].lower()
+    unique_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.{file_ext}"
+    file_path = os.path.join(UPLOAD_DIR, unique_filename)
+    
+    try:
+        print(f"尝试保存分类LOGO到: {file_path}")  # 添加日志
+        # 保存文件
+        with open(file_path, "wb") as buffer:
+            content = await upload_file.read()
+            buffer.write(content)
+        print(f"分类LOGO保存成功: {unique_filename}")  # 添加成功日志
+        # 返回文件名
+        return unique_filename
+    except Exception as e:
+        print(f"分类LOGO保存失败: {str(e)}")  # 添加错误日志
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"文件保存失败: {str(e)}"
+        )
 
 # 创建路由器
 router = APIRouter(prefix="/categories", tags=["model_categories"])
@@ -30,13 +90,87 @@ async def get_current_user():
 
 @router.post("/", response_model=ModelCategoryResponse, status_code=status.HTTP_201_CREATED)
 async def create_category(
-    category: ModelCategoryCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """创建新的模型分类"""
-    db_category = model_category_service.create_category(db, category)
-    return db_category
+    """创建新的模型分类，支持JSON和表单请求"""
+    try:
+        # 根据Content-Type处理不同类型的请求
+        content_type = request.headers.get("Content-Type", "")
+        
+        if "application/json" in content_type:
+            # 处理JSON请求
+            json_data = await request.json()
+            name = json_data.get("name")
+            display_name = json_data.get("display_name")
+            description = json_data.get("description")
+            category_type = json_data.get("category_type", "main")
+            parent_id = json_data.get("parent_id")
+            is_active = json_data.get("is_active", True)
+            logo_path = json_data.get("logo")
+        elif "multipart/form-data" in content_type:
+            # 处理表单请求
+            form_data = await request.form()
+            name = form_data.get("name")
+            display_name = form_data.get("display_name")
+            description = form_data.get("description")
+            category_type = form_data.get("category_type", "main")
+            parent_id = form_data.get("parent_id")
+            is_active = form_data.get("is_active", True)
+            if isinstance(is_active, str):
+                is_active = is_active.lower() == "true"
+            
+            # 处理文件上传
+            logo_file = None
+            if "logo_file" in form_data:
+                logo_file = form_data["logo_file"]
+            elif "logo" in form_data and hasattr(form_data["logo"], "file"):
+                logo_file = form_data["logo"]
+            
+            logo_path = form_data.get("logo")  # Font Awesome图标
+            if logo_file:
+                # 如果上传了文件，优先使用文件
+                logo_filename = await save_category_logo(logo_file)
+                logo_path = f"/logos/categories/{logo_filename}"
+        else:
+            # 不支持的Content-Type
+            raise HTTPException(
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                detail="Unsupported media type. Please use application/json or multipart/form-data."
+            )
+        
+        # 验证必填字段
+        if not name or not display_name:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Name and display_name are required."
+            )
+        
+        # 创建分类数据
+        category_data = {
+            "name": name,
+            "display_name": display_name,
+            "description": description,
+            "category_type": category_type,
+            "parent_id": parent_id,
+            "is_active": is_active,
+            "is_system": False,
+            "logo": logo_path
+        }
+    
+    try:
+        # 调用服务创建分类
+        db_category = model_category_service.create_category(db, category_data)
+        return db_category
+    except HTTPException:
+        # 如果创建失败，删除已上传的LOGO文件
+        if logo_path:
+            try:
+                os.remove(os.path.join(UPLOAD_DIR, logo_path.split("/")[-1]))
+            except:
+                pass
+        raise
 
 
 @router.get("/{category_id}", response_model=ModelCategoryResponse)
@@ -103,15 +237,56 @@ async def get_categories(
 @router.put("/{category_id}", response_model=ModelCategoryResponse)
 async def update_category(
     category_id: int,
-    category_update: ModelCategoryUpdate,
+    request: Request,
+    name: Optional[str] = Form(None),
+    display_name: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    category_type: Optional[str] = Form(None),
+    parent_id: Optional[int] = Form(None),
+    is_active: Optional[bool] = Form(None),
+    logo: Optional[UploadFile] = File(None),
+    existing_logo: Optional[str] = Form(None),
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     """更新模型分类"""
-    updated_category = model_category_service.update_category(
-        db, category_id, category_update
-    )
-    return updated_category
+    # 处理LOGO上传
+    logo_path = None
+    if logo:
+        logo_filename = await save_category_logo(logo)
+        logo_path = f"/logos/categories/{logo_filename}"
+    elif existing_logo:
+        # 如果没有上传新LOGO，但提供了现有LOGO路径，使用现有路径
+        logo_path = existing_logo
+    
+    # 创建更新数据
+    update_data = {
+        "name": name,
+        "display_name": display_name,
+        "description": description,
+        "category_type": category_type,
+        "parent_id": parent_id,
+        "is_active": is_active,
+        "logo": logo_path
+    }
+    
+    # 过滤掉None值
+    update_data = {k: v for k, v in update_data.items() if v is not None}
+    
+    try:
+        # 调用服务更新分类
+        updated_category = model_category_service.update_category(
+            db, category_id, update_data
+        )
+        return updated_category
+    except HTTPException:
+        # 如果更新失败，删除已上传的LOGO文件
+        if logo_path and logo:
+            try:
+                os.remove(os.path.join(UPLOAD_DIR, logo_path.split("/")[-1]))
+            except:
+                pass
+        raise
 
 
 @router.delete("/{category_id}", status_code=status.HTTP_204_NO_CONTENT)

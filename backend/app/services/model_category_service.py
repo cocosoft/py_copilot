@@ -13,33 +13,33 @@ class ModelCategoryService:
     """模型分类服务类"""
     
     @staticmethod
-    def create_category(db: Session, category_data: ModelCategoryCreate) -> ModelCategory:
+    def create_category(db: Session, category_data: Dict[str, Any]) -> ModelCategory:
         """创建模型分类"""
         # 检查名称是否已存在
         existing_category = db.query(ModelCategory).filter(
-            ModelCategory.name == category_data.name
+            ModelCategory.name == category_data['name']
         ).first()
         
         if existing_category:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"模型分类 '{category_data.name}' 已存在"
+                detail=f"模型分类 '{category_data['name']}' 已存在"
             )
         
         # 检查父分类是否存在
-        if category_data.parent_id:
+        if category_data.get('parent_id'):
             parent_category = db.query(ModelCategory).filter(
-                ModelCategory.id == category_data.parent_id
+                ModelCategory.id == category_data['parent_id']
             ).first()
             
             if not parent_category:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"父分类 ID {category_data.parent_id} 不存在"
+                    detail=f"父分类 ID {category_data['parent_id']} 不存在"
                 )
         
         # 创建新分类
-        db_category = ModelCategory(**category_data.model_dump())
+        db_category = ModelCategory(**category_data)
         db.add(db_category)
         db.commit()
         db.refresh(db_category)
@@ -104,7 +104,7 @@ class ModelCategoryService:
     def update_category(
         db: Session,
         category_id: int,
-        category_update: ModelCategoryUpdate
+        category_update: Dict[str, Any]
     ) -> ModelCategory:
         """更新模型分类"""
         db_category = ModelCategoryService.get_category(db, category_id)
@@ -117,7 +117,7 @@ class ModelCategoryService:
             )
         
         # 更新非空字段
-        update_data = category_update.model_dump(exclude_unset=True)
+        update_data = category_update
         
         # 如果更新名称，检查是否重复
         if "name" in update_data:

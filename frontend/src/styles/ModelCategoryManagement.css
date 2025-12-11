@@ -202,16 +202,16 @@
 
 /* LOGO样式 */
 .category-logo {
-  width: 40px;
-  height: 40px;
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.logo-image {
-  max-width: 100%;
-  max-height: 100%;
+.category-logo img {
+  width: 20px;
+  height: 20px;
   object-fit: contain;
 }
 

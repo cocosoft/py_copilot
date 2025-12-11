@@ -25,8 +25,10 @@ api_router.include_router(model_management_router, prefix="/model-management", t
 api_router.include_router(supplier_model_router, prefix="/model-management", tags=["supplier-model"])
 api_router.include_router(model_capabilities_router, tags=["model_capabilities"])
 api_router.include_router(capability_router, tags=["capability"])
-api_router.include_router(category_router, tags=["category"])
+# 先注册支持文件上传的model_categories_router
 api_router.include_router(model_categories_router, tags=["model-categories"])
+# 再注册category_router作为备用（如果有冲突，前者会优先匹配）
+api_router.include_router(category_router, tags=["category"])
 api_router.include_router(model_management_v1_router, prefix="/v1", tags=["model-parameters"])
 api_router.include_router(agents_router, prefix="/agents", tags=["agents"])
 api_router.include_router(agent_categories_router, prefix="/agent-categories", tags=["agent-categories"])

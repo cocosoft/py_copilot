@@ -1,5 +1,7 @@
 """FastAPI应用主入口"""
 from fastapi import FastAPI, Request, HTTPException, Query
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -21,6 +23,24 @@ CORS_HEADERS = ["*"]
 
 # 从dependencies模块导入数据库引擎
 from app.api.dependencies import engine
+
+# 修改FastAPI的默认编码器，为bytes类型添加安全的编码器
+from fastapi.encoders import ENCODERS_BY_TYPE
+
+# 保存原始的bytes编码器
+original_bytes_encoder = ENCODERS_BY_TYPE.get(bytes)
+
+# 添加更安全的bytes编码器
+def safe_bytes_encoder(o):
+    """安全的bytes编码器，避免UnicodeDecodeError"""
+    try:
+        return o.decode()
+    except UnicodeDecodeError:
+        # 如果无法解码为UTF-8，返回base64编码的字符串
+        import base64
+        return base64.b64encode(o).decode('ascii')
+
+ENCODERS_BY_TYPE[bytes] = safe_bytes_encoder
 
 # 创建FastAPI应用实例
 app = FastAPI(
@@ -47,6 +67,30 @@ app.add_middleware(
     allow_methods=CORS_METHODS,
     allow_headers=CORS_HEADERS,
 )
+
+# 自定义异常处理器 - 处理UnicodeDecodeError
+@app.exception_handler(UnicodeDecodeError)
+async def unicode_decode_error_handler(request: Request, exc: UnicodeDecodeError):
+    """
+    处理UnicodeDecodeError异常，特别是在解析multipart/form-data请求时
+    """
+    logger.error(f"UnicodeDecodeError: {exc}")
+    return JSONResponse(
+        status_code=400,
+        content={"detail": "Bad request. There was an error processing your request."},
+    )
+
+# 自定义请求验证异常处理器 - 覆盖默认处理器
+@app.exception_handler(RequestValidationError)
+async def custom_request_validation_exception_handler(request: Request, exc: RequestValidationError):
+    """
+    自定义请求验证异常处理器，避免在处理multipart/form-data时出现UnicodeDecodeError
+    """
+    # 直接构建响应，完全避免使用jsonable_encoder
+    return JSONResponse(
+        status_code=422,
+        content={"detail": "请求验证错误"},
+    )
 
 # 请求日志中间件
 @app.middleware("http")
@@ -84,6 +128,17 @@ async def log_requests(request: Request, call_next):
         )
         
         return response
+    except UnicodeDecodeError as e:
+        # 专门处理UnicodeDecodeError异常
+        process_time = time.time() - start_time
+        logger.error(
+            f"请求错误 - 路径: {request.url.path}, 方法: {request.method}, "
+            f"UnicodeDecodeError: {str(e)}, 响应时间: {process_time:.4f}秒"
+        )
+        return JSONResponse(
+            status_code=400,
+            content={"detail": "Bad request. There was an error processing your request."},
+        )
     except Exception as e:
         # 计算响应时间
         process_time = time.time() - start_time

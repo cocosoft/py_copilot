@@ -42,7 +42,6 @@ def create_model_category(
         "category_type": db_category.category_type,
         "parent_id": db_category.parent_id,
         "is_active": db_category.is_active,
-        "is_system": db_category.is_system,
         "children": []
     }
 
@@ -69,7 +68,6 @@ def get_all_model_categories(
             "category_type": cat.category_type,
             "parent_id": cat.parent_id,
             "is_active": cat.is_active,
-            "is_system": cat.is_system,
             "children": []
         }
     
@@ -102,7 +100,6 @@ def get_model_category(
         "category_type": category.category_type,
         "parent_id": category.parent_id,
         "is_active": category.is_active,
-        "is_system": category.is_system,
         "children": []
     }
 
@@ -162,7 +159,6 @@ def update_model_category(
         "category_type": category.category_type,
         "parent_id": category.parent_id,
         "is_active": category.is_active,
-        "is_system": category.is_system,
         "children": []
     }
 

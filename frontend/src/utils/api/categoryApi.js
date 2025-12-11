@@ -70,10 +70,13 @@ export const categoryApi = {
   // 创建分类
   create: async (categoryData) => {
     try {
+      // 判断是否为FormData对象（用于文件上传）
+      const isFormData = categoryData instanceof FormData;
+      
       return await request('/categories', {
         method: 'POST',
-        body: JSON.stringify(categoryData),
-        headers: {
+        body: isFormData ? categoryData : JSON.stringify(categoryData),
+        headers: isFormData ? {} : {
           'Content-Type': 'application/json'
         }
       });
@@ -86,10 +89,13 @@ export const categoryApi = {
   // 更新分类
   update: async (categoryId, updatedData) => {
     try {
+      // 判断是否为FormData对象（用于文件上传）
+      const isFormData = updatedData instanceof FormData;
+      
       return await request(`/categories/${categoryId}`, {
         method: 'PUT',
-        body: JSON.stringify(updatedData),
-        headers: {
+        body: isFormData ? updatedData : JSON.stringify(updatedData),
+        headers: isFormData ? {} : {
           'Content-Type': 'application/json'
         }
       });

@@ -52,6 +52,10 @@ const ModelCategoryManagement = () => {
     logo: ''
   });
   
+  // LOGO选择相关状态
+  const [file, setFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState('');
+  
   // 获取所有分类
   const loadCategories = async () => {
     try {
@@ -138,7 +142,34 @@ const ModelCategoryManagement = () => {
       logo: ''
     });
     setCurrentCategory(null);
+    // 重置LOGO相关状态
+    setFile(null);
+    setPreviewUrl('');
   };
+  
+  // 处理文件上传变化
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    if (selectedFile) {
+      setFile(selectedFile);
+      // 创建预览URL
+      const objectUrl = URL.createObjectURL(selectedFile);
+      setPreviewUrl(objectUrl);
+      // 清除之前的Font Awesome图标选择
+      setFormData(prev => ({ ...prev, logo: '' }));
+    }
+  };
+  
+
+  
+  // 清理预览URL
+  useEffect(() => {
+    return () => {
+      if (previewUrl && previewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
   
   // 打开创建模态框
   const handleCreateModalOpen = () => {
@@ -158,6 +189,23 @@ const ModelCategoryManagement = () => {
       is_active: category.is_active,
       logo: category.logo || ''
     });
+    
+    // 重置LOGO相关状态
+    setFile(null);
+    // 处理logo预览URL
+    const logoUrl = category.logo || '';
+    let finalPreviewUrl = '';
+    if (logoUrl && logoUrl.trim() && !logoUrl.startsWith('fa-')) {
+      if (logoUrl.startsWith('/')) {
+        // 已经是完整路径，直接使用
+        finalPreviewUrl = logoUrl;
+      } else {
+        // 只有文件名，添加完整路径前缀
+        finalPreviewUrl = `/logos/categories/${logoUrl}`;
+      }
+    }
+    setPreviewUrl(finalPreviewUrl);
+    
     setShowEditModal(true);
   };
   
@@ -172,7 +220,26 @@ const ModelCategoryManagement = () => {
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
     try {
-      await categoryApi.create(formData);
+      // 创建FormData对象用于文件上传
+      const formDataToSubmit = new FormData();
+      
+      // 添加所有表单字段
+      formDataToSubmit.append('name', formData.name);
+      formDataToSubmit.append('display_name', formData.display_name);
+      formDataToSubmit.append('description', formData.description);
+      formDataToSubmit.append('category_type', formData.category_type);
+      formDataToSubmit.append('parent_id', formData.parent_id || '');
+      formDataToSubmit.append('is_active', formData.is_active.toString());
+      
+      // 处理LOGO
+      if (file) {
+        formDataToSubmit.append('logo_file', file);
+      } else if (formData.logo && !formData.logo.startsWith('fa-')) {
+        // 编辑模式下，如果没有上传新文件但有现有logo，保留现有logo
+        formDataToSubmit.append('logo', formData.logo);
+      }
+      
+      await categoryApi.create(formDataToSubmit);
       setShowCreateModal(false);
       loadCategories(); // 重新加载列表
       setSuccess('分类创建成功');
@@ -190,7 +257,26 @@ const ModelCategoryManagement = () => {
     if (!currentCategory) return;
     
     try {
-      await categoryApi.update(currentCategory.id, formData);
+      // 创建FormData对象用于文件上传
+      const formDataToSubmit = new FormData();
+      
+      // 添加所有表单字段
+      formDataToSubmit.append('name', formData.name);
+      formDataToSubmit.append('display_name', formData.display_name);
+      formDataToSubmit.append('description', formData.description);
+      formDataToSubmit.append('category_type', formData.category_type);
+      formDataToSubmit.append('parent_id', formData.parent_id || '');
+      formDataToSubmit.append('is_active', formData.is_active.toString());
+      
+      // 处理LOGO
+      if (file) {
+        formDataToSubmit.append('logo_file', file);
+      } else if (formData.logo && !formData.logo.startsWith('fa-')) {
+        // 编辑模式下，如果没有上传新文件但有现有logo，保留现有logo
+        formDataToSubmit.append('logo', formData.logo);
+      }
+      
+      await categoryApi.update(currentCategory.id, formDataToSubmit);
       setShowEditModal(false);
       loadCategories(); // 重新加载列表
       setSuccess('分类更新成功');
@@ -309,16 +395,27 @@ const ModelCategoryManagement = () => {
                   <tr key={category.id}>
                     <td>{category.id}</td>
                     <td>
-                      {category.logo && (
+                      {category.logo ? (
                         <div className="category-logo">
-                          <div 
-                            dangerouslySetInnerHTML={{__html: category.logo}}
-                            className="fa-icon"
-                            title={`${category.display_name} logo`}
-                          />
+                          {category.logo.startsWith('<i class=') ? (
+                            <div 
+                              dangerouslySetInnerHTML={{ __html: category.logo }}
+                              className="fa-icon"
+                              title={`${category.display_name} logo`}
+                            />
+                          ) : (
+                            <img 
+                              src={`/logos/categories/${category.logo}`} 
+                              alt={`${category.display_name} logo`} 
+                              title={`${category.display_name} logo`}
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                console.error('图片加载失败:', e.target.src);
+                              }}
+                            />
+                          )}
                         </div>
-                      )}
-                      {!category.logo && (
+                      ) : (
                         <div className="category-logo placeholder">
                           无LOGO
                         </div>
@@ -435,14 +532,29 @@ const ModelCategoryManagement = () => {
                 </select>
               </div>
               <div className="form-group">
-                <label>LOGO (SVG格式)</label>
-                <textarea
-                  name="logo"
-                  value={formData.logo}
-                  onChange={handleInputChange}
-                  placeholder="输入SVG格式的LOGO代码"
-                  rows="5"
-                />
+                <label>LOGO</label>
+                
+                {/* 图片上传 */}
+                <div className="logo-upload-section">
+                  {previewUrl && (
+                    <div className="logo-preview">
+                      <h4>预览</h4>
+                      <div className="category-logo">
+                        <img src={previewUrl} alt="Logo预览" className="logo-image" />
+                      </div>
+                    </div>
+                  )}
+                  <input 
+                    type="file" 
+                    id="logo-upload"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    style={{ marginTop: '10px' }}
+                  />
+                  <small style={{ display: 'block', marginTop: '5px', color: '#666' }}>
+                    支持JPG、PNG、GIF等图片格式，建议尺寸不超过500KB
+                  </small>
+                </div>
               </div>
               <div className="form-group form-check">
                 <input
@@ -534,14 +646,29 @@ const ModelCategoryManagement = () => {
                 </select>
               </div>
               <div className="form-group">
-                <label>LOGO (SVG格式)</label>
-                <textarea
-                  name="logo"
-                  value={formData.logo}
-                  onChange={handleInputChange}
-                  placeholder="输入SVG格式的LOGO代码"
-                  rows="5"
-                />
+                <label>LOGO</label>
+                
+                {/* 图片上传 */}
+                <div className="logo-upload-section">
+                  {previewUrl && (
+                    <div className="logo-preview">
+                      <h4>预览</h4>
+                      <div className="category-logo">
+                        <img src={previewUrl} alt="Logo预览" className="logo-image" />
+                      </div>
+                    </div>
+                  )}
+                  <input 
+                    type="file" 
+                    id="logo-upload-edit"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    style={{ marginTop: '10px' }}
+                  />
+                  <small style={{ display: 'block', marginTop: '5px', color: '#666' }}>
+                    支持JPG、PNG、GIF等图片格式，建议尺寸不超过500KB
+                  </small>
+                </div>
               </div>
               <div className="form-group form-check">
                 <input

@@ -300,7 +300,7 @@ export const modelApi = {
       throw new Error(validationError.message);
     }
     
-    if (!model || !model.modelId) {
+    if (!model || !model.modelId && !model.model_id) {
       const validationError = handleApiError(new Error('模型ID不能为空'), 'create');
       throw new Error(validationError.message);
     }
