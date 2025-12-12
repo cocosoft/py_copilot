@@ -110,22 +110,7 @@ async def create_supplier(
 
 # 供应商相关路由
 # 注意：固定路径路由必须放在带参数的路由之前
-@router.get("/suppliers")
-def get_all_suppliers(db: Session = Depends(get_db)):
-    """获取所有供应商"""
-    suppliers = db.query(SupplierDB).all()
-    # 返回包含display_name字段的供应商信息列表
-    return [{
-        "id": supplier.id,
-        "name": supplier.name,
-        "display_name": supplier.display_name,
-        "description": supplier.description,
-        "logo": supplier.logo,
-        "website": supplier.website,
-        "created_at": supplier.created_at.isoformat() if supplier.created_at else None,
-        "updated_at": supplier.updated_at.isoformat() if supplier.updated_at else None,
-        "is_active": supplier.is_active
-    } for supplier in suppliers]
+# 已将/suppliers路由移至model_management.py，避免路由冲突
 
 @router.get("/suppliers/{supplier_id}")
 def get_supplier(supplier_id: int, db: Session = Depends(get_db)):

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getImageUrl, DEFAULT_IMAGES } from '../../config/imageConfig';
 import { categoryApi } from '../../utils/api/categoryApi';
 import { API_BASE_URL } from '../../utils/apiUtils';
 import '../../styles/ModelCategoryManagement.css';
@@ -201,7 +202,7 @@ const ModelCategoryManagement = () => {
         finalPreviewUrl = logoUrl;
       } else {
         // 只有文件名，添加完整路径前缀
-        finalPreviewUrl = `/logos/categories/${logoUrl}`;
+        finalPreviewUrl = getImageUrl('categories', logoUrl);
       }
     }
     setPreviewUrl(finalPreviewUrl);
@@ -403,14 +404,18 @@ const ModelCategoryManagement = () => {
                               className="fa-icon"
                               title={`${category.display_name} logo`}
                             />
+                          ) : category.logo.includes('fa-') ? (
+                            <div className="fa-icon">
+                              <i className={category.logo} title={`${category.display_name} logo`}></i>
+                            </div>
                           ) : (
                             <img 
-                              src={`/logos/categories/${category.logo}`} 
+                              src={getImageUrl('categories', category.logo)} 
                               alt={`${category.display_name} logo`} 
                               title={`${category.display_name} logo`}
                               onError={(e) => {
-                                e.target.style.display = 'none';
-                                console.error('图片加载失败:', e.target.src);
+                                e.target.src = DEFAULT_IMAGES.category;
+                                console.error('图片加载失败，使用默认图片:', e.target.src);
                               }}
                             />
                           )}

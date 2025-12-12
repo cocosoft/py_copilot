@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getImageUrl, DEFAULT_IMAGES } from '../../config/imageConfig';
 import ModelModal from './ModelModal';
 import ModelParameterModal from './ModelParameterModal';
 import SupplierDetail from '../SupplierManagement/SupplierDetail';
@@ -17,7 +18,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
   
   // 获取模型LOGO，如果模型没有LOGO，则使用供应商LOGO
   const getModelLogo = (model, supplier) => {
-    if (!model && !supplier) return '/logos/providers/default.png';
+    if (!model && !supplier) return DEFAULT_IMAGES.provider;
     
     try {
       // 优先使用模型LOGO
@@ -27,12 +28,9 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
           // 使用后端代理端点处理外部URL，避免ORB安全限制
           const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(model.logo)}`;
           return proxyUrl;
-        } else if (model.logo.startsWith('/logos/models/')) {
-          // 如果是/logo/models/开头的相对路径，直接使用
-          return model.logo;
         } else {
-          // 兼容处理：如果是单独的文件名，添加路径前缀
-          return `/logos/models/${model.logo}`;
+          // 使用配置的图片路径生成函数
+          return getImageUrl('models', model.logo);
         }
       }
       
@@ -43,20 +41,17 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
           // 使用后端代理端点处理外部URL，避免ORB安全限制
           const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(supplier.logo)}`;
           return proxyUrl;
-        } else if (supplier.logo.startsWith('/logos/providers/')) {
-          // 如果是/logo/providers/开头的相对路径，直接使用
-          return supplier.logo;
         } else {
-          // 兼容处理：如果是单独的文件名，添加路径前缀
-          return `/logos/providers/${supplier.logo}`;
+          // 使用配置的图片路径生成函数
+          return getImageUrl('providers', supplier.logo);
         }
       }
       
       // 没有logo时的默认路径
-      return '/logos/providers/default.png';
+      return DEFAULT_IMAGES.provider;
     } catch (error) {
       console.error('获取模型logo失败:', error);
-      return '/logos/providers/default.png';
+      return DEFAULT_IMAGES.provider;
     }
   };
   
@@ -492,7 +487,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
                             alt="模型LOGO" 
                             className="model-logo-image"
                             onError={(e) => {
-                              e.target.src = '/logos/providers/default.png';
+                              e.target.src = DEFAULT_IMAGES.provider;
                               e.target.alt = '默认LOGO';
                             }}
                           />

@@ -22,7 +22,7 @@ def get_db() -> Generator:
     finally:
         db.close()
 
-def get_current_user():
+async def get_current_user():
     """获取当前用户的依赖 - 简化版本"""
     return {"id": 1, "username": "admin"}  # 临时实现，生产环境应该使用JWT验证
 

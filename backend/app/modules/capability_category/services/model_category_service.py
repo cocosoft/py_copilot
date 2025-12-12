@@ -218,8 +218,8 @@ class ModelCategoryService:
                 "description": category.description,
                 "category_type": category.category_type,
                 "parent_id": category.parent_id,
-                "created_at": category.created_at,
-                "updated_at": category.updated_at,
+                "created_at": category.created_at.isoformat() if category.created_at is not None else None,
+                "updated_at": category.updated_at.isoformat() if category.updated_at is not None else None,
                 "is_active": category.is_active,
                 "children": [
                     build_tree(child_id)

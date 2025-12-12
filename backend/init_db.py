@@ -9,8 +9,7 @@ from app.models.agent_category import AgentCategory
 
 # 创建数据库表
 print("开始创建数据库表...")
-# 先删除所有表，再重新创建
-Base.metadata.drop_all(bind=engine)
+# 只创建不存在的表，不删除已有表
 Base.metadata.create_all(bind=engine)
 print("数据库表创建完成！")
 

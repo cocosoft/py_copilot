@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getImageUrl } from '../../config/imageConfig';
 import '../../styles/SupplierModal.css';
 
 const SupplierModal = ({ isOpen, onClose, onSave, supplier = null, mode = 'add' }) => {
@@ -40,7 +41,7 @@ const SupplierModal = ({ isOpen, onClose, onSave, supplier = null, mode = 'add' 
             finalPreviewUrl = logoUrl;
           } else {
             // 只有文件名，添加完整路径前缀
-            finalPreviewUrl = `/logos/providers/${logoUrl}`;
+            finalPreviewUrl = getImageUrl('providers', logoUrl);
           }
         }
         setPreviewUrl(finalPreviewUrl);

@@ -8,6 +8,8 @@ from datetime import datetime
 from sqlalchemy import text
 
 from app.core.database import get_db
+from app.core.dependencies import get_current_user
+from app.models.model_category import ModelCategory
 from app.schemas.model_category import (
     ModelCategoryResponse,
     ModelCategoryListResponse,
@@ -20,11 +22,10 @@ from app.schemas.model_category import (
 from app.services.model_category_service import model_category_service
 
 # 创建分类LOGO的上传目录
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # backend/app
-BASE_DIR = os.path.dirname(BASE_DIR)  # backend
-BASE_DIR = os.path.dirname(BASE_DIR)  # 项目根目录
-UPLOAD_DIR = os.path.join(BASE_DIR, "frontend/public/logos/categories")
-UPLOAD_DIR = os.path.normpath(UPLOAD_DIR)  # 规范化路径
+# 使用绝对路径定义UPLOAD_DIR
+import os
+UPLOAD_DIR = "E:\\PY\\CODES\\py copilot IV\\frontend\\public\\logos\\categories"
+UPLOAD_DIR = os.path.normpath(UPLOAD_DIR)
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 print(f"分类LOGO上传目录: {UPLOAD_DIR}")  # 添加日志以便调试
 
@@ -88,13 +89,14 @@ async def get_current_user():
     return {"id": 1, "username": "admin"}
 
 
-@router.post("/", response_model=ModelCategoryResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_category(
     request: Request,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     """创建新的模型分类，支持JSON和表单请求"""
+    logo_path = None
     try:
         # 根据Content-Type处理不同类型的请求
         content_type = request.headers.get("Content-Type", "")
@@ -158,14 +160,27 @@ async def create_category(
             "is_system": False,
             "logo": logo_path
         }
-    
-    try:
+        
         # 调用服务创建分类
         db_category = model_category_service.create_category(db, category_data)
-        return db_category
+        
+        # 手动构建响应，确保datetime对象转换为ISO格式字符串
+        return {
+            "id": db_category.id,
+            "name": db_category.name,
+            "display_name": db_category.display_name,
+            "description": db_category.description,
+            "category_type": db_category.category_type,
+            "parent_id": db_category.parent_id,
+            "is_active": db_category.is_active,
+            "is_system": db_category.is_system,
+            "logo": db_category.logo,
+            "created_at": db_category.created_at.isoformat() if db_category.created_at else None,
+            "updated_at": db_category.updated_at.isoformat() if db_category.updated_at else None
+        }
     except HTTPException:
         # 如果创建失败，删除已上传的LOGO文件
-        if logo_path:
+        if logo_path and logo_file:
             try:
                 os.remove(os.path.join(UPLOAD_DIR, logo_path.split("/")[-1]))
             except:
@@ -181,7 +196,21 @@ async def get_category(
 ):
     """获取单个模型分类"""
     db_category = model_category_service.get_category(db, category_id)
-    return db_category
+    
+    # 手动构建响应，将datetime转换为ISO格式
+    return {
+        "id": db_category.id,
+        "name": db_category.name,
+        "display_name": db_category.display_name,
+        "description": db_category.description,
+        "category_type": db_category.category_type,
+        "parent_id": db_category.parent_id,
+        "is_active": db_category.is_active,
+        "is_system": db_category.is_system,
+        "logo": db_category.logo,
+        "created_at": db_category.created_at.isoformat() if db_category.created_at is not None else None,
+        "updated_at": db_category.updated_at.isoformat() if db_category.updated_at is not None else None
+    }
 
 
 @router.get("/")
@@ -195,25 +224,14 @@ async def get_categories(
     current_user: dict = Depends(get_current_user)
 ):
     """获取模型分类列表"""
-    query = db.query(ModelCategory)
+    # 获取分类列表
+    result = model_category_service.get_categories(
+        db, skip, limit, category_type, is_active, parent_id
+    )
     
-    # 应用过滤条件
-    if category_type:
-        query = query.filter(ModelCategory.category_type == category_type)
-    if is_active is not None:
-        query = query.filter(ModelCategory.is_active == is_active)
-    if parent_id is not None:
-        query = query.filter(ModelCategory.parent_id == parent_id)
-    
-    # 获取总数
-    total = query.count()
-    
-    # 分页查询
-    categories = query.offset(skip).limit(limit).all()
-    
-    # 手动构建响应，确保所有字段都被包含
+    # 手动构建响应，将datetime对象转换为ISO格式
     categories_list = []
-    for category in categories:
+    for category in result["categories"]:
         categories_list.append({
             "id": category.id,
             "name": category.name,
@@ -222,15 +240,15 @@ async def get_categories(
             "category_type": category.category_type,
             "parent_id": category.parent_id,
             "is_active": category.is_active,
-            "is_system": category.is_system,
-            "logo": category.logo,
+            "is_system": getattr(category, "is_system", False),
+            "logo": getattr(category, "logo", None),
             "created_at": category.created_at.isoformat() if category.created_at else None,
             "updated_at": category.updated_at.isoformat() if category.updated_at else None
         })
     
     return {
         "categories": categories_list,
-        "total": total
+        "total": result["total"]
     }
 
 
@@ -252,9 +270,11 @@ async def update_category(
     """更新模型分类"""
     # 处理LOGO上传
     logo_path = None
+    uploaded_logo = False
     if logo:
         logo_filename = await save_category_logo(logo)
         logo_path = f"/logos/categories/{logo_filename}"
+        uploaded_logo = True
     elif existing_logo:
         # 如果没有上传新LOGO，但提供了现有LOGO路径，使用现有路径
         logo_path = existing_logo
@@ -278,10 +298,24 @@ async def update_category(
         updated_category = model_category_service.update_category(
             db, category_id, update_data
         )
-        return updated_category
+        
+        # 手动构建响应，将datetime转换为ISO格式
+        return {
+            "id": updated_category.id,
+            "name": updated_category.name,
+            "display_name": updated_category.display_name,
+            "description": updated_category.description,
+            "category_type": updated_category.category_type,
+            "parent_id": updated_category.parent_id,
+            "is_active": updated_category.is_active,
+            "is_system": updated_category.is_system,
+            "logo": updated_category.logo,
+            "created_at": updated_category.created_at.isoformat() if updated_category.created_at is not None else None,
+            "updated_at": updated_category.updated_at.isoformat() if updated_category.updated_at is not None else None
+        }
     except HTTPException:
         # 如果更新失败，删除已上传的LOGO文件
-        if logo_path and logo:
+        if uploaded_logo and logo_path:
             try:
                 os.remove(os.path.join(UPLOAD_DIR, logo_path.split("/")[-1]))
             except:
@@ -300,6 +334,28 @@ async def delete_category(
     return None
 
 
+def serialize_category_with_children(category):
+    """递归序列化分类及其子分类，将datetime转换为ISO格式"""
+    serialized = {
+        "id": category.id,
+        "name": category.name,
+        "display_name": category.display_name,
+        "description": category.description,
+        "category_type": category.category_type,
+        "parent_id": category.parent_id,
+        "is_active": category.is_active,
+        "is_system": category.is_system,
+        "logo": category.logo,
+        "created_at": category.created_at.isoformat() if category.created_at else None,
+        "updated_at": category.updated_at.isoformat() if category.updated_at else None
+    }
+    
+    # 递归处理子分类
+    if hasattr(category, 'children') and category.children:
+        serialized["children"] = [serialize_category_with_children(child) for child in category.children]
+    
+    return serialized
+
 @router.get("/tree/all", response_model=List[ModelCategoryWithChildrenResponse])
 async def get_category_tree(
     db: Session = Depends(get_db),
@@ -307,7 +363,10 @@ async def get_category_tree(
 ):
     """获取模型分类的树形结构"""
     tree = model_category_service.get_category_tree(db)
-    return tree
+    
+    # 序列化树形结构，将datetime转换为ISO格式
+    serialized_tree = [serialize_category_with_children(category) for category in tree]
+    return serialized_tree
 
 
 @router.post("/associations", response_model=ModelCategoryAssociationResponse, status_code=status.HTTP_201_CREATED)
@@ -320,7 +379,17 @@ async def create_model_category_association(
     db_association = model_category_service.add_category_to_model(
         db, association.model_id, association.category_id
     )
-    return db_association
+    
+    # 手动构建响应，将datetime转换为ISO格式
+    serialized_association = {
+        "id": db_association.id,
+        "model_id": db_association.model_id,
+        "category_id": db_association.category_id,
+        "created_at": db_association.created_at.isoformat() if db_association.created_at is not None else None,
+        "updated_at": db_association.updated_at.isoformat() if db_association.updated_at is not None else None
+    }
+    
+    return serialized_association
 
 
 @router.delete("/associations/model/{model_id}/category/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -343,7 +412,43 @@ async def get_models_by_category(
 ):
     """获取指定分类下的所有模型"""
     models = model_category_service.get_models_by_category(db, category_id)
-    return models
+    
+    # 序列化模型列表，将datetime转换为ISO格式
+    serialized_models = []
+    for model in models:
+        # 序列化模型基本信息
+        serialized_model = {
+            "id": model.id,
+            "name": model.name,
+            "display_name": model.display_name,
+            "description": model.description,
+            "created_at": model.created_at.isoformat() if model.created_at is not None else None,
+            "updated_at": model.updated_at.isoformat() if model.updated_at is not None else None
+        }
+        
+        # 添加分类信息（如果有）
+        if hasattr(model, 'categories') and model.categories:
+            serialized_categories = []
+            for category in model.categories:
+                serialized_category = {
+                    "id": category.id,
+                    "name": category.name,
+                    "display_name": category.display_name,
+                    "description": category.description,
+                    "category_type": category.category_type,
+                    "parent_id": category.parent_id,
+                    "is_active": category.is_active,
+                    "is_system": getattr(category, 'is_system', False),
+                    "logo": getattr(category, 'logo', None),
+                    "created_at": category.created_at.isoformat() if category.created_at is not None else None,
+                    "updated_at": category.updated_at.isoformat() if category.updated_at is not None else None
+                }
+                serialized_categories.append(serialized_category)
+            serialized_model["categories"] = serialized_categories
+        
+        serialized_models.append(serialized_model)
+    
+    return serialized_models
 
 
 @router.get("/model/{model_id}/categories", response_model=List[ModelCategoryResponse])
@@ -354,4 +459,23 @@ async def get_categories_by_model(
 ):
     """获取指定模型的所有分类"""
     categories = model_category_service.get_categories_by_model(db, model_id)
-    return categories
+    
+    # 序列化分类列表，将datetime转换为ISO格式
+    serialized_categories = []
+    for category in categories:
+        serialized = {
+            "id": category.id,
+            "name": category.name,
+            "display_name": category.display_name,
+            "description": category.description,
+            "category_type": category.category_type,
+            "parent_id": category.parent_id,
+            "is_active": category.is_active,
+            "is_system": getattr(category, 'is_system', False),
+            "logo": getattr(category, 'logo', None),
+            "created_at": category.created_at.isoformat() if category.created_at is not None else None,
+            "updated_at": category.updated_at.isoformat() if category.updated_at is not None else None
+        }
+        serialized_categories.append(serialized)
+    
+    return serialized_categories

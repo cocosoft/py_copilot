@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getImageUrl } from '../../config/imageConfig';
 import { useSupplier } from '../contexts/SupplierContext';
 import { supplierApi } from '../../utils/api/supplierApi';
 
@@ -91,7 +92,7 @@ const SupplierList = () => {
                 {supplier.logo && !imageErrors[supplier.id] ? (
                   // 如果是完整URL直接使用，否则添加前缀路径
                   <img 
-                    src={supplier.logo.startsWith('http') ? supplier.logo : `/logos/providers/${supplier.logo}`} 
+                    src={supplier.logo.startsWith('http') ? supplier.logo : getImageUrl('providers', supplier.logo)} 
                     alt={`${supplier.name} logo`} 
                     onError={() => handleImageError(supplier.id)}
                   />

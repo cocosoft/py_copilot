@@ -59,6 +59,11 @@ LOGOS_DIR = "../../frontend/public/logos/providers"
 os.makedirs(LOGOS_DIR, exist_ok=True)
 app.mount("/logos/providers", StaticFiles(directory=LOGOS_DIR), name="logos")
 
+# 添加分类logo文件的静态文件服务
+CATEGORIES_LOGOS_DIR = "../../frontend/public/logos/categories"
+os.makedirs(CATEGORIES_LOGOS_DIR, exist_ok=True)
+app.mount("/logos/categories", StaticFiles(directory=CATEGORIES_LOGOS_DIR), name="category_logos")
+
 # 配置CORS
 app.add_middleware(
     CORSMiddleware,

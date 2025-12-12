@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getImageUrl, DEFAULT_IMAGES } from '../../config/imageConfig';
 import { supplierApi } from '../../utils/api/supplierApi';
 import { API_BASE_URL } from '../../utils/apiUtils';
 import SupplierModal from './SupplierModal';
@@ -193,19 +194,16 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
           // 使用后端代理端点处理外部URL，避免ORB安全限制
           const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(supplier.logo)}`;
           return proxyUrl;
-        } else if (supplier.logo.startsWith('/logos/providers/')) {
-          // 如果是/logo/providers/开头的相对路径，直接使用
-          return supplier.logo;
         } else {
-          // 兼容处理：如果是单独的文件名，添加路径前缀
-          return `/logos/providers/${supplier.logo}`;
+          // 使用配置的图片路径生成函数
+          return getImageUrl('providers', supplier.logo);
         }
       }
       // 没有logo时的默认路径
-      return '/logos/providers/default.png';
+      return DEFAULT_IMAGES.provider;
     } catch (error) {
       console.error('获取供应商logo失败:', error);
-      return '/logos/providers/default.png';
+      return DEFAULT_IMAGES.provider;
     }
   };
 
@@ -408,7 +406,7 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
             alt={`${selectedSupplier.name} Logo`}
             onError={(e) => {
               // 图片加载失败时显示默认占位
-              e.target.src = '/logos/providers/default.png';
+              e.target.src = DEFAULT_IMAGES.provider;
             }}
           />
           <h2>{selectedSupplier.name}</h2>

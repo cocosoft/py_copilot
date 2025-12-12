@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { getImageUrl } from '../config/imageConfig';
 import api from '../utils/api';
 
 const ApiKeyUpdater = () => {
@@ -37,7 +38,7 @@ const ApiKeyUpdater = () => {
                 id: 'deepseek',
                 name: 'DeepSeek',
                 key: 'deepseek',
-                logo: '/logos/providers/deepseek.png',
+                logo: getImageUrl('providers', 'deepseek.png'),
                 category: 'llm',
                 website: 'https://deepseek.com',
                 api_endpoint: 'https://api.deepseek.com/v1',

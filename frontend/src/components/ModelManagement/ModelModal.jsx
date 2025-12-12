@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getImageUrl } from '../../config/imageConfig';
 import categoryApi from '../../utils/api/categoryApi';
 import '../../styles/ModelModal.css';
 
@@ -122,8 +123,8 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
       });
       // 确保模型LOGO预览使用正确的路径
       let logoPath = model.logo || null;
-      if (logoPath && !logoPath.startsWith('http') && !logoPath.startsWith('/logos/models/')) {
-        logoPath = `/logos/models/${logoPath}`;
+      if (logoPath && !logoPath.startsWith('http')) {
+        logoPath = getImageUrl('models', logoPath);
       }
       setLogoPreview(logoPath);
       setLogo(null);

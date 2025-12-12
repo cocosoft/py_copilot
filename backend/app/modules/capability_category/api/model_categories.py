@@ -36,11 +36,6 @@ async def get_current_user():
 # 文件上传配置
 # 获取项目根目录
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # 当前文件目录
-BASE_DIR = os.path.dirname(BASE_DIR)  # api
-BASE_DIR = os.path.dirname(BASE_DIR)  # capability_category
-BASE_DIR = os.path.dirname(BASE_DIR)  # modules
-BASE_DIR = os.path.dirname(BASE_DIR)  # app
-BASE_DIR = os.path.dirname(BASE_DIR)  # backend
 BASE_DIR = os.path.dirname(BASE_DIR)  # 项目根目录
 UPLOAD_DIR = os.path.join(BASE_DIR, "frontend/public/logos/categories")
 UPLOAD_DIR = os.path.normpath(UPLOAD_DIR)  # 规范化路径
