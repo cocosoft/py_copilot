@@ -31,7 +31,7 @@ export const categoryApi = {
   // 获取所有分类
   getAll: async () => {
     try {
-      const result = await request('/categories', {
+      const result = await request('/v1/categories', {
         method: 'GET'
       });
       
@@ -58,7 +58,7 @@ export const categoryApi = {
   // 获取单个分类
   getById: async (categoryId) => {
     try {
-      return await request(`/categories/${categoryId}`, {
+      return await request(`/v1/categories/${categoryId}`, {
         method: 'GET'
       });
     } catch (error) {
@@ -73,7 +73,7 @@ export const categoryApi = {
       // 判断是否为FormData对象（用于文件上传）
       const isFormData = categoryData instanceof FormData;
       
-      return await request('/categories', {
+      return await request('/v1/categories', {
         method: 'POST',
         body: isFormData ? categoryData : JSON.stringify(categoryData),
         headers: isFormData ? {} : {
@@ -92,7 +92,7 @@ export const categoryApi = {
       // 判断是否为FormData对象（用于文件上传）
       const isFormData = updatedData instanceof FormData;
       
-      return await request(`/categories/${categoryId}`, {
+      return await request(`/v1/categories/${categoryId}`, {
         method: 'PUT',
         body: isFormData ? updatedData : JSON.stringify(updatedData),
         headers: isFormData ? {} : {
@@ -108,7 +108,7 @@ export const categoryApi = {
   // 删除分类
   delete: async (categoryId) => {
     try {
-      return await request(`/categories/${categoryId}`, {
+      return await request(`/v1/categories/${categoryId}`, {
         method: 'DELETE'
       });
     } catch (error) {
@@ -120,7 +120,7 @@ export const categoryApi = {
   // 获取分类树形结构
   getTree: async () => {
     try {
-      return await request('/categories/tree/all', {
+      return await request('/v1/categories/tree/all', {
         method: 'GET'
       });
     } catch (error) {
@@ -132,7 +132,7 @@ export const categoryApi = {
   // 添加模型分类关联
   addModelToCategory: async (modelId, categoryId) => {
     try {
-      return await request('/categories/associations', {
+      return await request('/v1/categories/associations', {
         method: 'POST',
         body: JSON.stringify({ model_id: modelId, category_id: categoryId }),
         headers: {
@@ -148,7 +148,7 @@ export const categoryApi = {
   // 移除模型分类关联
   removeModelFromCategory: async (modelId, categoryId) => {
     try {
-      return await request(`/categories/associations/model/${modelId}/category/${categoryId}`, {
+      return await request(`/v1/categories/associations/model/${modelId}/category/${categoryId}`, {
         method: 'DELETE'
       });
     } catch (error) {
@@ -160,7 +160,7 @@ export const categoryApi = {
   // 获取分类下的模型
   getModelsByCategory: async (categoryId) => {
     try {
-      return await request(`/categories/${categoryId}/models`, {
+      return await request(`/v1/categories/${categoryId}/models`, {
         method: 'GET'
       });
     } catch (error) {
@@ -172,11 +172,51 @@ export const categoryApi = {
   // 获取模型的分类
   getCategoriesByModel: async (modelId) => {
     try {
-      return await request(`/categories/model/${modelId}/categories`, {
+      return await request(`/v1/categories/model/${modelId}/categories`, {
         method: 'GET'
       });
     } catch (error) {
       console.error(`获取模型 ${modelId} 的分类失败:`, error);
+      throw error;
+    }
+  },
+
+  // 获取类型默认参数
+  getParameters: async (categoryId) => {
+    try {
+      return await request(`/v1/categories/${categoryId}/parameters`, {
+        method: 'GET'
+      });
+    } catch (error) {
+      console.error(`获取分类 ${categoryId} 的默认参数失败:`, error);
+      throw error;
+    }
+  },
+
+  // 设置类型默认参数
+  setParameters: async (categoryId, parameters) => {
+    try {
+      return await request(`/v1/categories/${categoryId}/parameters`, {
+        method: 'POST',
+        body: JSON.stringify(parameters),
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+    } catch (error) {
+      console.error(`设置分类 ${categoryId} 的默认参数失败:`, error);
+      throw error;
+    }
+  },
+
+  // 删除类型默认参数
+  deleteParameter: async (categoryId, paramName) => {
+    try {
+      return await request(`/v1/categories/${categoryId}/parameters/${paramName}`, {
+        method: 'DELETE'
+      });
+    } catch (error) {
+      console.error(`删除分类 ${categoryId} 的参数 ${paramName} 失败:`, error);
       throw error;
     }
   }

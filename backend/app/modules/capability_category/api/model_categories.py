@@ -234,16 +234,14 @@ async def get_categories(
     return result
 
 
-@router.put("/{category_id}", status_code=status.HTTP_200_OK, include_in_schema=False)
+@router.put("/{category_id}", status_code=status.HTTP_200_OK)
 async def update_category(
     category_id: int,
     request: Request,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
-    """更新模型分类信息，只支持JSON请求"""
-    # 验证用户身份（手动调用依赖）
-    current_user = await get_current_user()
-    
+    """更新模型分类信息，支持JSON请求"""
     # 检查分类是否存在
     existing_category = model_category_service.get_category_by_id(db, category_id)
     if not existing_category:
@@ -257,6 +255,7 @@ async def update_category(
     parent_id = None
     is_active = None
     logo_path = None
+    default_parameters = None
     
     try:
         # 获取Content-Type
@@ -273,17 +272,13 @@ async def update_category(
             parent_id = json_data.get("parent_id")
             is_active = json_data.get("is_active")
             logo_path = json_data.get("logo")
+            default_parameters = json_data.get("default_parameters")
         else:
             # 对于所有非JSON请求，直接返回错误
-            # 这是一个临时解决方案，用于避免UnicodeDecodeError
             raise HTTPException(status_code=415, detail="Unsupported media type")
     except Exception as e:
         # 如果解析失败，直接返回错误信息
         raise HTTPException(status_code=400, detail=f"请求解析失败: {str(e)}")
-    
-    # 验证必填字段
-    if not name or not display_name:
-        raise HTTPException(status_code=400, detail="name and display_name are required fields")
     
     # 构建更新数据
     update_data = {}
@@ -294,6 +289,7 @@ async def update_category(
     if parent_id is not None: update_data["parent_id"] = parent_id
     if is_active is not None: update_data["is_active"] = is_active
     if logo_path is not None: update_data["logo"] = logo_path
+    if default_parameters is not None: update_data["default_parameters"] = default_parameters
     
     # 更新分类
     updated_category = model_category_service.update_category(db, category_id, ModelCategoryUpdate(**update_data))
@@ -380,3 +376,79 @@ async def get_categories_by_model(
     """获取指定模型的所有分类"""
     categories = model_category_service.get_categories_by_model(db, model_id)
     return categories
+
+
+# 类型参数管理API
+@router.get("/{category_id}/parameters", response_model=Dict[str, Any])
+async def get_category_parameters(
+    category_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """获取分类默认参数"""
+    category = model_category_service.get_category(db, category_id)
+    # 返回default_parameters，确保总是返回字典类型
+    return category.default_parameters or {}
+
+
+@router.post("/{category_id}/parameters", response_model=Dict[str, Any])
+async def set_category_parameters(
+    category_id: int,
+    parameters: Dict[str, Any],
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """设置分类默认参数"""
+    # 获取现有分类
+    category = model_category_service.get_category(db, category_id)
+    
+    # 检查是否为系统分类
+    if category.is_system:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="系统分类不允许修改参数"
+        )
+    
+    # 更新参数
+    updated_category = model_category_service.update_category(
+        db, 
+        category_id, 
+        ModelCategoryUpdate(default_parameters=parameters)
+    )
+    
+    # 返回更新后的参数
+    return updated_category.default_parameters or {}
+
+
+@router.delete("/{category_id}/parameters/{param_name}", response_model=Dict[str, Any])
+async def delete_category_parameter(
+    category_id: int,
+    param_name: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """删除分类默认参数"""
+    # 获取现有分类
+    category = model_category_service.get_category(db, category_id)
+    
+    # 检查是否为系统分类
+    if category.is_system:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="系统分类不允许修改参数"
+        )
+    
+    # 删除指定参数
+    parameters = category.default_parameters or {}
+    if param_name in parameters:
+        del parameters[param_name]
+    
+    # 更新分类参数
+    updated_category = model_category_service.update_category(
+        db, 
+        category_id, 
+        ModelCategoryUpdate(default_parameters=parameters)
+    )
+    
+    # 返回更新后的参数
+    return updated_category.default_parameters or {}

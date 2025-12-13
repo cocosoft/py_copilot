@@ -15,7 +15,8 @@ const formatParameterData = (parameter) => {
     is_required: parameter.is_required || false,
     model_id: parameter.model_id,
     created_at: parameter.created_at,
-    updated_at: parameter.updated_at
+    updated_at: parameter.updated_at,
+    inherited: parameter.inherited || false // 添加继承参数标识
   };
 };
 
@@ -165,7 +166,7 @@ export const modelApi = {
   // 获取所有模型（通用）
   getAll: async () => {
     try {
-      const response = await request('/model-management/models', {
+      const response = await request('/v1/model-management/models', {
         method: 'GET'
       });
       
@@ -219,7 +220,7 @@ export const modelApi = {
     
     try {
       // 使用正确的路径格式：/model-management/suppliers/{supplier_id}/models
-      const result = await request(`/model-management/suppliers/${integerSupplierId}/models`, {
+      const result = await request(`/v1/model-management/suppliers/${integerSupplierId}/models`, {
         method: 'GET'
       });
       
@@ -270,7 +271,7 @@ export const modelApi = {
     
     try {
       // 使用正确的路径格式
-      const response = await request(`/model-management/suppliers/${integerSupplierId}/models/${integerModelId}`, {
+      const response = await request(`/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}`, {
         method: 'GET'
       });
       
@@ -321,7 +322,7 @@ export const modelApi = {
       }
       
       // 使用正确的路径格式
-      const response = await request(`/model-management/suppliers/${integerSupplierId}/models`, {
+      const response = await request(`/v1/model-management/suppliers/${integerSupplierId}/models`, {
         method: 'POST',
         body: formData,
         // 不需要设置Content-Type，浏览器会自动设置并添加边界
@@ -381,7 +382,7 @@ export const modelApi = {
       }
       
       // 使用正确的路径格式
-      const response = await request(`/model-management/suppliers/${integerSupplierId}/models/${integerModelId}`, {
+      const response = await request(`/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}`, {
         method: 'PUT',
         body: formData,
         // 不需要设置Content-Type，浏览器会自动设置并添加边界
@@ -421,7 +422,7 @@ export const modelApi = {
     
     try {
       // 使用正确的路径格式
-      const response = await request(`/model-management/suppliers/${integerSupplierId}/models/${integerModelId}`, {
+      const response = await request(`/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}`, {
         method: 'DELETE'
       });
       
@@ -456,7 +457,7 @@ export const modelApi = {
     
     try {
       // 使用正确的路径格式
-      const response = await request(`/model-management/suppliers/${integerSupplierId}/models/set-default/${integerModelId}`, {
+      const response = await request(`/v1/model-management/suppliers/${integerSupplierId}/models/set-default/${integerModelId}`, {
         method: 'POST'
       });
       
@@ -495,7 +496,7 @@ export const modelApi = {
     
     try {
       // 使用正确的路径格式
-      const response = await request(`/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters`, {
+      const response = await request(`/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters`, {
         method: 'GET'
       });
       
@@ -541,7 +542,7 @@ export const modelApi = {
       const formattedData = buildParameterDataForBackend(parameterData, integerModelId);
       
       // 使用正确的路径格式
-      const response = await request(`/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters`, {
+      const response = await request(`/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -585,7 +586,7 @@ export const modelApi = {
     
     try {
       // 使用正确的路径格式
-      const response = await request(`/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${integerParameterId}`, {
+      const response = await request(`/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${integerParameterId}`, {
         method: 'GET'
       });
       
@@ -635,7 +636,7 @@ export const modelApi = {
       };
       
       // 使用正确的路径格式
-      const response = await request(`/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${integerParameterId}`, {
+      const response = await request(`/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${integerParameterId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -679,7 +680,7 @@ export const modelApi = {
     
     try {
       // 使用正确的路径格式
-      const response = await request(`/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${integerParameterId}`, {
+      const response = await request(`/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${integerParameterId}`, {
         method: 'DELETE'
       });
       

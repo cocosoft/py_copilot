@@ -1,7 +1,7 @@
 """模型管理相关API接口"""
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Dict
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, status, UploadFile, File, Form, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -13,16 +13,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.models.supplier_db import ModelDB as Model, ModelParameter
 from app.models.model_category import ModelCategory
+from app.services.parameter_management.parameter_manager import ParameterManager
 
-# 创建直接连接到py_copilot.db的数据库会话
-def get_db():
-    engine = create_engine('sqlite:///./py_copilot.db')
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# 从core导入数据库依赖
+from app.core.dependencies import get_db
 from app.modules.supplier_model_management.schemas.model_management import (
     ModelCreate, ModelUpdate, ModelResponse,
     ModelListResponse,
@@ -108,6 +102,9 @@ def get_mock_user():
     return MockUser()
 
 router = APIRouter()
+
+# 为了与导入语句保持一致，创建一个别名
+model_management_v1_router = router
 
 
 
@@ -510,261 +507,145 @@ async def set_default_model(
 
 # 模型参数相关路由
 @router.get("/suppliers/{supplier_id}/models/{model_id}/parameters", response_model=ModelParameterListResponse)
-async def get_model_parameters(
+def get_model_parameters(
     supplier_id: int,
     model_id: int,
-    skip: int = 0,
-    limit: int = 100,
     db: Session = Depends(get_db),
     current_user: MockUser = Depends(get_mock_user)
-) -> Any:
-    """
-    获取指定模型的参数列表
-    
-    Args:
-        supplier_id: 供应商ID
-        model_id: 模型ID
-        skip: 跳过的记录数
-        limit: 返回的最大记录数
-        db: 数据库会话
-        current_user: 当前活跃的超级用户
-    
-    Returns:
-        模型参数列表
-    """
-    # 验证模型是否存在且属于指定供应商
+):
+    """获取模型参数"""
+    # 验证模型是否存在
     model = db.query(Model).filter(
         Model.id == model_id,
         Model.supplier_id == supplier_id
     ).first()
-    
     if not model:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="模型不存在"
-        )
+        raise HTTPException(status_code=404, detail="模型不存在")
     
-    # 查询指定模型的参数
-    parameters = db.query(ModelParameter).filter(
-        ModelParameter.model_id == model_id
-    ).offset(skip).limit(limit).all()
-    
-    total = db.query(ModelParameter).filter(
-        ModelParameter.model_id == model_id
-    ).count()
+    # 获取模型参数
+    parameters = ParameterManager.get_model_parameters(db, model_id)
     
     return ModelParameterListResponse(
-        parameters=parameters,
-        total=total
+        model_id=model_id,
+        supplier_id=supplier_id,
+        parameters=parameters
     )
 
 
-@router.post("/suppliers/{supplier_id}/models/{model_id}/parameters", response_model=ModelParameterResponse)
-async def create_model_parameter(
+@router.post("/suppliers/{supplier_id}/models/{model_id}/parameters", response_model=Dict[str, Any])
+def create_model_parameter(
     supplier_id: int,
     model_id: int,
-    parameter: ModelParameterCreate,
+    param_data: ModelParameterCreate,
     db: Session = Depends(get_db),
     current_user: MockUser = Depends(get_mock_user)
-) -> Any:
-    """
-    为指定模型创建新参数
-    
-    Args:
-        supplier_id: 供应商ID
-        model_id: 模型ID
-        parameter: 模型参数创建数据
-        db: 数据库会话
-        current_user: 当前活跃的超级用户
-    
-    Returns:
-        创建的模型参数信息
-    """
-    # 验证模型是否存在且属于指定供应商
+):
+    """创建模型参数"""
+    # 验证模型是否存在
     model = db.query(Model).filter(
         Model.id == model_id,
         Model.supplier_id == supplier_id
     ).first()
-    
     if not model:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="模型不存在"
-        )
-    
-    # 确保model_id一致
-    parameter_data = parameter.model_dump()
-    parameter_data['model_id'] = model_id
+        raise HTTPException(status_code=404, detail="模型不存在")
     
     try:
-        # 创建新参数
-        db_parameter = ModelParameter(**parameter_data)
-        db.add(db_parameter)
-        db.commit()
-        db.refresh(db_parameter)
-        return db_parameter
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="创建模型参数失败，请检查输入数据"
-        )
+        # 创建或更新参数
+        param = ParameterManager.create_or_update_model_parameter(db, model_id, param_data)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    # 获取完整参数并返回
+    model_params = ParameterManager.get_model_parameters(db, model_id)
+    return {
+        "model_id": model_id,
+        "supplier_id": supplier_id,
+        "parameters": model_params
+    }
 
 
-@router.get("/suppliers/{supplier_id}/models/{model_id}/parameters/{parameter_id}", response_model=ModelParameterResponse)
-async def get_model_parameter(
+@router.put("/suppliers/{supplier_id}/models/{model_id}/parameters/{parameter_name}", response_model=Dict[str, Any])
+def update_model_parameter(
     supplier_id: int,
     model_id: int,
-    parameter_id: int,
+    parameter_name: str,
+    param_data: ModelParameterUpdate,
     db: Session = Depends(get_db),
     current_user: MockUser = Depends(get_mock_user)
-) -> Any:
-    """
-    获取指定的模型参数
-    
-    Args:
-        supplier_id: 供应商ID
-        model_id: 模型ID
-        parameter_id: 参数ID
-        db: 数据库会话
-        current_user: 当前活跃的超级用户
-    
-    Returns:
-        模型参数信息
-    """
-    # 验证模型是否存在且属于指定供应商
+):
+    """更新模型参数"""
+    # 验证模型是否存在
     model = db.query(Model).filter(
         Model.id == model_id,
         Model.supplier_id == supplier_id
     ).first()
-    
     if not model:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="模型不存在"
-        )
+        raise HTTPException(status_code=404, detail="模型不存在")
     
-    # 查询指定参数
-    parameter = db.query(ModelParameter).filter(
-        ModelParameter.id == parameter_id,
-        ModelParameter.model_id == model_id
+    # 查找现有参数
+    param = db.query(ModelParameter).filter(
+        ModelParameter.model_id == model_id,
+        ModelParameter.parameter_name == parameter_name
     ).first()
     
-    if not parameter:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="模型参数不存在"
-        )
-    
-    return parameter
-
-
-@router.put("/suppliers/{supplier_id}/models/{model_id}/parameters/{parameter_id}", response_model=ModelParameterResponse)
-async def update_model_parameter(
-    supplier_id: int,
-    model_id: int,
-    parameter_id: int,
-    parameter_update: ModelParameterUpdate,
-    db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
-) -> Any:
-    """
-    更新模型参数
-    
-    Args:
-        supplier_id: 供应商ID
-        model_id: 模型ID
-        parameter_id: 参数ID
-        parameter_update: 更新数据
-        db: 数据库会话
-        current_user: 当前活跃的超级用户
-    
-    Returns:
-        更新后的模型参数信息
-    """
-    # 验证模型是否存在且属于指定供应商
-    model = db.query(Model).filter(
-        Model.id == model_id,
-        Model.supplier_id == supplier_id
-    ).first()
-    
-    if not model:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="模型不存在"
-        )
-    
-    # 查询指定参数
-    parameter = db.query(ModelParameter).filter(
-        ModelParameter.id == parameter_id,
-        ModelParameter.model_id == model_id
-    ).first()
-    
-    if not parameter:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="模型参数不存在"
-        )
-    
-    # 更新参数信息
-    update_data = parameter_update.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(parameter, field, value)
+    if not param:
+        raise HTTPException(status_code=404, detail="参数不存在")
     
     try:
-        db.commit()
-        db.refresh(parameter)
-        return parameter
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="更新模型参数失败，请检查输入数据"
-        )
+        # 更新参数字段
+        for field, value in param_data.model_dump(exclude_unset=True).items():
+            setattr(param, field, value)
+        
+        # 如果更新了参数值和类型，进行验证
+        if param_data.parameter_value is not None and param_data.parameter_type is not None:
+            ParameterManager._convert_parameter_value(param_data.parameter_value, param_data.parameter_type)
+        elif param_data.parameter_value is not None:
+            ParameterManager._convert_parameter_value(param_data.parameter_value, param.parameter_type)
+        elif param_data.parameter_type is not None:
+            ParameterManager._convert_parameter_value(param.parameter_value, param_data.parameter_type)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    db.commit()
+    db.refresh(param)
+    
+    # 获取完整参数并返回
+    model_params = ParameterManager.get_model_parameters(db, model_id)
+    return {
+        "model_id": model_id,
+        "supplier_id": supplier_id,
+        "parameters": model_params
+    }
 
 
-@router.delete("/suppliers/{supplier_id}/models/{model_id}/parameters/{parameter_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_model_parameter(
+@router.delete("/suppliers/{supplier_id}/models/{model_id}/parameters/{parameter_name}", response_model=Dict[str, Any])
+def delete_model_parameter(
     supplier_id: int,
     model_id: int,
-    parameter_id: int,
+    parameter_name: str,
     db: Session = Depends(get_db),
     current_user: MockUser = Depends(get_mock_user)
-) -> None:
-    """
-    删除模型参数
-    
-    Args:
-        supplier_id: 供应商ID
-        model_id: 模型ID
-        parameter_id: 参数ID
-        db: 数据库会话
-        current_user: 当前活跃的超级用户
-    """
-    # 验证模型是否存在且属于指定供应商
+):
+    """删除模型参数"""
+    # 验证模型是否存在
     model = db.query(Model).filter(
         Model.id == model_id,
         Model.supplier_id == supplier_id
     ).first()
-    
     if not model:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="模型不存在"
-        )
-    
-    # 查询指定参数
-    parameter = db.query(ModelParameter).filter(
-        ModelParameter.id == parameter_id,
-        ModelParameter.model_id == model_id
-    ).first()
-    
-    if not parameter:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="模型参数不存在"
-        )
+        raise HTTPException(status_code=404, detail="模型不存在")
     
     # 删除参数
-    db.delete(parameter)
-    db.commit()
+    deleted = ParameterManager.delete_model_parameter(db, model_id, parameter_name)
+    
+    if not deleted:
+        raise HTTPException(status_code=404, detail="参数不存在")
+    
+    # 返回更新后的所有参数
+    parameters = ParameterManager.get_model_parameters(db, model_id)
+    
+    return {
+        "model_id": model_id,
+        "supplier_id": supplier_id,
+        "parameters": parameters
+    }

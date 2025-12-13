@@ -6,6 +6,10 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 import os
+import json
+
+# 导入参数管理服务
+from app.services.parameter_management.parameter_manager import ParameterManager
 
 # 导入日志记录器
 from app.core.logging_config import logger
@@ -126,6 +130,12 @@ def get_mock_user():
     return MockUser()
 
 router = APIRouter()
+
+# 测试路由
+@router.get("/test")
+async def test_route():
+    """测试路由是否正常工作"""
+    return {"message": "Test route is working!"}
 
 
 # 模型供应商管理相关路由
@@ -1204,3 +1214,125 @@ async def get_all_models(
         models=model_responses,
         total=total
     )
+
+
+# 参数管理相关接口
+@router.get("/suppliers/{supplier_id}/models/{model_id}/parameters")
+async def get_model_parameters(
+    supplier_id: int,
+    model_id: int,
+    db: Session = Depends(get_db),
+    current_user: MockUser = Depends(get_mock_user)
+) -> Any:
+    """
+    获取模型的完整参数配置，包括继承的模型类型参数和模型自身的参数
+    
+    Args:
+        supplier_id: 供应商ID
+        model_id: 模型ID
+        db: 数据库会话
+        current_user: 当前活跃的超级用户
+    
+    Returns:
+        模型的完整参数配置
+    """
+    # 验证供应商和模型是否存在且关联
+    model = db.query(ModelDB).filter(
+        ModelDB.id == model_id,
+        ModelDB.supplier_id == supplier_id
+    ).first()
+    
+    if not model:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="模型不存在或不属于该供应商"
+        )
+    
+    # 使用参数管理服务获取完整参数配置
+    parameters = ParameterManager.get_model_parameters(db, model_id)
+    
+    return {
+        "model_id": model_id,
+        "supplier_id": supplier_id,
+        "parameters": parameters
+    }
+
+
+@router.put("/suppliers/{supplier_id}/models/{model_id}/parameters")
+async def update_model_parameters(
+    supplier_id: int,
+    model_id: int,
+    parameters: Dict[str, Any] = Body(...),
+    db: Session = Depends(get_db),
+    current_user: MockUser = Depends(get_mock_user)
+) -> Any:
+    """
+    更新模型的参数配置
+    
+    Args:
+        supplier_id: 供应商ID
+        model_id: 模型ID
+        parameters: 要更新的参数配置
+        db: 数据库会话
+        current_user: 当前活跃的超级用户
+    
+    Returns:
+        更新后的参数配置
+    """
+    # 验证供应商和模型是否存在且关联
+    model = db.query(ModelDB).filter(
+        ModelDB.id == model_id,
+        ModelDB.supplier_id == supplier_id
+    ).first()
+    
+    if not model:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="模型不存在或不属于该供应商"
+        )
+    
+    # 使用参数管理服务更新模型参数
+    updated_parameters = ParameterManager.update_model_parameters(db, model_id, parameters)
+    
+    return {
+        "model_id": model_id,
+        "supplier_id": supplier_id,
+        "parameters": updated_parameters,
+        "message": "参数更新成功"
+    }
+
+
+@router.get("/categories/{category_id}/default-parameters")
+async def get_model_type_default_parameters(
+    category_id: int,
+    db: Session = Depends(get_db),
+    current_user: MockUser = Depends(get_mock_user)
+) -> Any:
+    """
+    获取模型类型（分类）的默认参数配置
+    
+    Args:
+        category_id: 模型类型ID
+        db: 数据库会话
+        current_user: 当前活跃的超级用户
+    
+    Returns:
+        模型类型的默认参数配置
+    """
+    # 验证模型类型是否存在
+    category = db.query(ModelCategory).filter(ModelCategory.id == category_id).first()
+    
+    if not category:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="模型类型不存在"
+        )
+    
+    # 获取模型类型的默认参数
+    default_params = category.default_parameters or {}
+    
+    return {
+        "category_id": category_id,
+        "category_name": category.name,
+        "default_parameters": default_params
+    }

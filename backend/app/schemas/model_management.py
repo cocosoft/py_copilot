@@ -128,13 +128,14 @@ class ModelParameterBase(BaseModel):
     parameter_value: str = Field(..., min_length=1)
     parameter_type: str = Field(default="string", pattern="^(string|number|boolean|json)$")
     description: Optional[str] = None
-    is_required: bool = False
-    is_active: bool = True
+    parameter_source: str = Field(default="model", pattern="^(model_type|model)$")
+    is_override: bool = Field(default=False)
+    is_default: bool = Field(default=False)
 
 
 class ModelParameterCreate(ModelParameterBase):
     """创建模型参数请求模型"""
-    model_id: int
+    pass
 
 
 class ModelParameterUpdate(BaseModel):
@@ -143,8 +144,9 @@ class ModelParameterUpdate(BaseModel):
     parameter_value: Optional[str] = None
     parameter_type: Optional[str] = Field(None, pattern="^(string|number|boolean|json)$")
     description: Optional[str] = None
-    is_required: Optional[bool] = None
-    is_active: Optional[bool] = None
+    parameter_source: Optional[str] = Field(None, pattern="^(model_type|model)$")
+    is_override: Optional[bool] = None
+    is_default: Optional[bool] = None
 
 
 class ModelParameterResponse(ModelParameterBase):
@@ -153,11 +155,13 @@ class ModelParameterResponse(ModelParameterBase):
     model_id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
+    inherited: bool = Field(default=False)
     
     model_config = ConfigDict(from_attributes=True)
 
 
 class ModelParameterListResponse(BaseModel):
     """模型参数列表响应模型"""
+    model_id: int
+    supplier_id: int
     parameters: List[ModelParameterResponse]
-    total: int

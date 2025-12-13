@@ -14,7 +14,7 @@ export default defineConfig(({ mode }) => {
     server: {
       proxy: {
         '/api': {
-            target: apiBaseUrl,
+            target: 'http://localhost:8001',
             changeOrigin: true,
             secure: false
           }

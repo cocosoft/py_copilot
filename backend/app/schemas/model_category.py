@@ -16,6 +16,7 @@ class ModelCategoryBase(BaseModel):
     is_active: bool = True
     is_system: bool = False
     logo: Optional[str] = None
+    default_parameters: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
 
 class ModelCategoryCreate(ModelCategoryBase):
@@ -32,6 +33,7 @@ class ModelCategoryUpdate(BaseModel):
     parent_id: Optional[int] = None
     is_active: Optional[bool] = None
     logo: Optional[str] = None
+    default_parameters: Optional[Dict[str, Any]] = None
 
 
 class ModelCategoryResponse(ModelCategoryBase):

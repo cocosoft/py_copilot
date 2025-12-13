@@ -1069,6 +1069,33 @@ input:not(:checked) + .toggle-slider:before {
   font-size: 12px;
 }
 
+/* 参数表格样式 */
+.parameters-table-container {
+  margin-top: 20px;
+  overflow-x: auto;
+}
+
+/* 继承参数和自定义参数样式 */
+.inherited-parameter {
+  background-color: #f0f4f8;
+  opacity: 0.8;
+}
+
+.custom-parameter {
+  background-color: #ffffff;
+}
+
+.inherited-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 6px;
+  background-color: #28a745;
+  color: white;
+  font-size: 12px;
+  border-radius: 4px;
+  font-weight: normal;
+}
+
 /* 信息按钮样式 */
 .btn-info {
   background-color: #1976d2;

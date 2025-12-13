@@ -4,7 +4,7 @@ import { request } from '../apiUtils';
 export const supplierApi = {
   // 获取所有供应商
   getAll: async () => {
-    const response = await request('/model-management/suppliers', {
+    const response = await request('/v1/model-management/suppliers', {
       method: 'GET'
     });
        
@@ -40,7 +40,7 @@ export const supplierApi = {
   
   // 获取单个供应商
   getById: async (id) => {
-    const endpoint = `/model-management/suppliers/${id}`;
+    const endpoint = `/v1/model-management/suppliers/${id}`;
     
     // 调用API获取供应商详情
     const supplier = await request(endpoint, {
@@ -108,7 +108,7 @@ export const supplierApi = {
       };
     }
     
-    const response = await request('/model-management/suppliers', requestOptions);
+    const response = await request('/v1/model-management/suppliers', requestOptions);
     
     // 格式化响应以匹配前端需求
     return {
@@ -138,7 +138,7 @@ export const supplierApi = {
     const endpoint = `/model-management/suppliers/${numericId}/status`;
 
     // 发送PATCH请求，使用JSON格式
-    const response = await request(endpoint, {
+    const response = await request(`/v1${endpoint}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json'
@@ -194,8 +194,8 @@ export const supplierApi = {
     } else {
     }
     
-    // 修正endpoint，后端路由是/model-management/suppliers/{id}
-    const endpoint = `/model-management/suppliers/${numericId}`;
+    // 修正endpoint，后端路由是/v1/model-management/suppliers/{id}
+    const endpoint = `/v1/model-management/suppliers/${numericId}`;
 
     // 准备请求选项
     const requestOptions = {
@@ -233,7 +233,7 @@ export const supplierApi = {
   
   // 删除供应商
   delete: async (id) => {
-    const endpoint = `/model-management/suppliers/${id}`;
+    const endpoint = `/v1/model-management/suppliers/${id}`;
     return await request(endpoint, {
       method: 'DELETE'
     });
@@ -251,7 +251,7 @@ export const supplierApi = {
       api_key: apiConfig.apiKey
     });
     
-    const endpoint = `/model-management/suppliers/${numericId}/test-api`;
+    const endpoint = `/v1/model-management/suppliers/${numericId}/test-api`;
     const response = await request(endpoint, {
       method: 'POST',
       headers: {

@@ -57,36 +57,29 @@ const ModelCategoryManagement = () => {
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState('');
   
+  // 参数配置相关状态
+  const [selectedCategoryForParams, setSelectedCategoryForParams] = useState(null);
+  const [categoryParameters, setCategoryParameters] = useState({}); // 存储每个分类的参数
+  const [showParameterModal, setShowParameterModal] = useState(false);
+  const [parameterModalMode, setParameterModalMode] = useState('add'); // add or edit
+  const [editingParameter, setEditingParameter] = useState(null);
+  const [parameterFormData, setParameterFormData] = useState({
+    parameter_name: '',
+    parameter_value: '',
+    parameter_type: 'string',
+    description: ''
+  });
+  const [parameterLoading, setParameterLoading] = useState(false);
+  const [parameterError, setParameterError] = useState(null);
+  
   // 获取所有分类
   const loadCategories = async () => {
     try {
       setLoading(true);
       
-      // 直接调用API获取原始数据，避免在API层进行树形转换
-      const rawResponse = await fetch(`${API_BASE_URL}/categories`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+      // 使用categoryApi获取所有分类
+      const categoriesData = await categoryApi.getAll();
       
-      if (!rawResponse.ok) {
-        throw new Error(`HTTP error! Status: ${rawResponse.status}`);
-      }
-      
-      const response = await rawResponse.json();
-      
-      // 统一响应格式处理
-      let categoriesData = [];
-      if (Array.isArray(response)) {
-        categoriesData = response;
-      } else if (response?.categories) {
-        categoriesData = response.categories;
-      } else if (response?.data) {
-        categoriesData = response.data;
-      }      
-     
       // 标准化分类数据，确保每个分类都有必要的属性
       const normalizedCategories = categoriesData.map(category => ({
         id: category.id ?? `category_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -295,6 +288,12 @@ const ModelCategoryManagement = () => {
       try {
         const result = await categoryApi.delete(categoryId);
         loadCategories(); // 重新加载列表
+        // 清除该分类的参数数据
+        setCategoryParameters(prev => {
+          const newParams = { ...prev };
+          delete newParams[categoryId];
+          return newParams;
+        });
         setSuccess('分类删除成功');
         // 3秒后自动清除成功消息
         setTimeout(() => setSuccess(null), 3000);
@@ -305,6 +304,147 @@ const ModelCategoryManagement = () => {
       }
     }
   };
+  
+  // 加载分类参数
+  const loadCategoryParameters = async (categoryId) => {
+    try {
+      setParameterLoading(true);
+      const parameters = await categoryApi.getParameters(categoryId);
+      setCategoryParameters(prev => ({
+        ...prev,
+        [categoryId]: parameters
+      }));
+      setParameterError(null);
+    } catch (err) {
+      setParameterError('加载分类参数失败，请稍后重试');
+    } finally {
+      setParameterLoading(false);
+    }
+  };
+  
+  // 打开参数配置模态框
+  const handleOpenParameterModal = (category, mode, parameter = null) => {
+    setSelectedCategoryForParams(category);
+    setParameterModalMode(mode);
+    
+    if (mode === 'edit' && parameter) {
+      setEditingParameter(parameter);
+      setParameterFormData({
+        parameter_name: parameter.parameter_name,
+        parameter_value: parameter.parameter_value,
+        parameter_type: parameter.parameter_type || 'string',
+        description: parameter.description || ''
+      });
+    } else {
+      setEditingParameter(null);
+      setParameterFormData({
+        parameter_name: '',
+        parameter_value: '',
+        parameter_type: 'string',
+        description: ''
+      });
+    }
+    
+    setShowParameterModal(true);
+  };
+  
+  // 关闭参数配置模态框
+  const handleCloseParameterModal = () => {
+    setShowParameterModal(false);
+    setEditingParameter(null);
+    setParameterFormData({
+      parameter_name: '',
+      parameter_value: '',
+      parameter_type: 'string',
+      description: ''
+    });
+  };
+  
+  // 处理参数表单输入变化
+  const handleParameterInputChange = (e) => {
+    const { name, value } = e.target;
+    setParameterFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+  
+  // 提交参数表单
+  const handleParameterSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedCategoryForParams) return;
+    
+    try {
+      setParameterLoading(true);
+      
+      const parameterData = {
+        parameter_name: parameterFormData.parameter_name,
+        parameter_value: parameterFormData.parameter_value,
+        parameter_type: parameterFormData.parameter_type,
+        description: parameterFormData.description
+      };
+      
+      if (parameterModalMode === 'add') {
+        // 对于添加操作，我们需要获取当前参数列表并添加新参数
+        const currentParams = categoryParameters[selectedCategoryForParams.id] || [];
+        const updatedParams = [...currentParams, parameterData];
+        await categoryApi.setParameters(selectedCategoryForParams.id, updatedParams);
+      } else if (parameterModalMode === 'edit' && editingParameter) {
+        // 对于编辑操作，我们需要更新指定参数
+        const currentParams = categoryParameters[selectedCategoryForParams.id] || [];
+        const updatedParams = currentParams.map(p => 
+          p.parameter_name === editingParameter.parameter_name ? parameterData : p
+        );
+        await categoryApi.setParameters(selectedCategoryForParams.id, updatedParams);
+      }
+      
+      // 重新加载参数列表
+      await loadCategoryParameters(selectedCategoryForParams.id);
+      setShowParameterModal(false);
+      setSuccess('参数配置成功');
+      // 3秒后自动清除成功消息
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      console.error('❌ 参数配置失败:', err);
+      setParameterError('参数配置失败，请稍后重试');
+    } finally {
+      setParameterLoading(false);
+    }
+  };
+  
+  // 处理删除参数
+  const handleDeleteParameter = async (categoryId, parameterName) => {
+    if (window.confirm(`确定要删除参数 ${parameterName} 吗？`)) {
+      try {
+        setParameterLoading(true);
+        await categoryApi.deleteParameter(categoryId, parameterName);
+        // 重新加载参数列表
+        await loadCategoryParameters(categoryId);
+        setSuccess('参数删除成功');
+        // 3秒后自动清除成功消息
+        setTimeout(() => setSuccess(null), 3000);
+      } catch (err) {
+        console.error('❌ 删除参数失败:', err);
+        setParameterError('删除参数失败，请稍后重试');
+      } finally {
+        setParameterLoading(false);
+      }
+    }
+  };
+  
+  // 处理分类参数配置点击
+  const handleConfigureParameters = (category) => {
+    setSelectedCategoryForParams(category);
+    // 加载分类参数
+    loadCategoryParameters(category.id);
+  };
+
+  // 监听selectedCategoryForParams状态变化
+  useEffect(() => {
+    if (selectedCategoryForParams) {
+      // 参数加载逻辑已移至handleConfigureParameters中
+    }
+  }, [selectedCategoryForParams]);
   
   // 获取主分类列表（用于父分类选择）
   const mainCategories = categories.filter(cat => cat.category_type === 'main');
@@ -446,12 +586,23 @@ const ModelCategoryManagement = () => {
                     </td>
                     <td className="action-buttons">
                       <button 
+                          className={`btn btn-small btn-info ${category.is_system ? 'disabled' : ''}`}
+                          onClick={() => handleEditModalOpen(category)}
+                          disabled={category.is_system}
+                          title={category.is_system ? '系统分类不允许编辑' : '编辑分类'}
+                        >
+                          编辑
+                        </button>
+                      <button 
                         className={`btn btn-small btn-info ${category.is_system ? 'disabled' : ''}`}
-                        onClick={() => handleEditModalOpen(category)}
+                        onClick={(e) => {
+                          e.stopPropagation(); // 阻止事件冒泡
+                          handleConfigureParameters(category);
+                        }}
                         disabled={category.is_system}
-                        title={category.is_system ? '系统分类不允许编辑' : '编辑分类'}
+                        title={category.is_system ? '系统分类不允许配置参数' : '参数配置'}
                       >
-                        编辑
+                        参数配置
                       </button>
                       <button 
                         className={`btn btn-small btn-danger ${category.is_system ? 'disabled' : ''}`}
@@ -691,6 +842,144 @@ const ModelCategoryManagement = () => {
                 </button>
                 <button type="submit" className="btn btn-primary">
                   更新
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      
+      {/* 参数配置面板 */}
+      {selectedCategoryForParams && (
+        <div className="category-parameter-panel" style={{ border: '2px solid red', marginTop: '20px', padding: '20px' }}>
+          <div className="parameter-panel-header">
+            <h3>{selectedCategoryForParams.display_name} - 参数配置</h3>
+            <p>测试参数配置面板是否显示</p>
+            <button 
+              className="btn btn-primary btn-small"
+              onClick={() => handleOpenParameterModal(selectedCategoryForParams, 'add')}
+            >
+              添加参数
+            </button>
+          </div>
+          
+          {parameterLoading ? (
+            <div className="loading">加载中...</div>
+          ) : parameterError ? (
+            <div className="error-message">{parameterError}</div>
+          ) : (
+            <div className="parameter-table-container">
+              <table className="parameter-table">
+                <thead>
+                  <tr>
+                    <th>参数名称</th>
+                    <th>参数值</th>
+                    <th>参数类型</th>
+                    <th>描述</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {categoryParameters[selectedCategoryForParams.id]?.length > 0 ? (
+                    categoryParameters[selectedCategoryForParams.id].map((param, index) => (
+                      <tr key={index}>
+                        <td>{param.parameter_name}</td>
+                        <td>{param.parameter_value}</td>
+                        <td>{param.parameter_type}</td>
+                        <td>{param.description || '-'}</td>
+                        <td>
+                          <button 
+                            className="btn btn-small btn-warning mr-1"
+                            onClick={() => handleOpenParameterModal(selectedCategoryForParams, 'edit', param)}
+                          >
+                            编辑
+                          </button>
+                          <button 
+                            className="btn btn-small btn-danger"
+                            onClick={() => handleDeleteParameter(selectedCategoryForParams.id, param.parameter_name)}
+                          >
+                            删除
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="5" style={{ textAlign: 'center' }}>暂无参数配置</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* 参数配置模态框 */}
+      {showParameterModal && selectedCategoryForParams && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <div className="modal-header">
+              <h3>
+                {parameterModalMode === 'add' ? '添加参数' : '编辑参数'} - {selectedCategoryForParams.display_name}
+              </h3>
+              <button className="btn-close" onClick={handleCloseParameterModal}>×</button>
+            </div>
+            <form onSubmit={handleParameterSubmit} className="modal-form">
+              <div className="form-group">
+                <label>参数名称 *</label>
+                <input
+                  type="text"
+                  name="parameter_name"
+                  value={parameterFormData.parameter_name}
+                  onChange={handleParameterInputChange}
+                  required
+                  placeholder="输入参数名称"
+                  disabled={parameterModalMode === 'edit'}
+                />
+              </div>
+              <div className="form-group">
+                <label>参数值 *</label>
+                <input
+                  type="text"
+                  name="parameter_value"
+                  value={parameterFormData.parameter_value}
+                  onChange={handleParameterInputChange}
+                  required
+                  placeholder="输入参数值"
+                />
+              </div>
+              <div className="form-group">
+                <label>参数类型 *</label>
+                <select
+                  name="parameter_type"
+                  value={parameterFormData.parameter_type}
+                  onChange={handleParameterInputChange}
+                  required
+                >
+                  <option value="string">字符串 (string)</option>
+                  <option value="number">数字 (number)</option>
+                  <option value="boolean">布尔值 (boolean)</option>
+                  <option value="array">数组 (array)</option>
+                  <option value="object">对象 (object)</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>描述</label>
+                <textarea
+                  name="description"
+                  value={parameterFormData.description}
+                  onChange={handleParameterInputChange}
+                  placeholder="输入参数描述"
+                  rows="3"
+                />
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={handleCloseParameterModal}>
+                  取消
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  {parameterModalMode === 'add' ? '添加' : '更新'}
                 </button>
               </div>
             </form>

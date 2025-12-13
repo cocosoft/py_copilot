@@ -23,8 +23,8 @@ export const capabilityApi = {
       
       // 构建完整URL
       const url = queryParams.toString() 
-        ? `/capabilities?${queryParams.toString()}` 
-        : '/capabilities';
+        ? `/v1/capabilities?${queryParams.toString()}` 
+        : '/v1/capabilities';
       
       const response = await request(url, {
         method: 'GET'
@@ -44,7 +44,7 @@ export const capabilityApi = {
   // 获取单个能力
   getById: async (capabilityId) => {
     try {
-      return await request(`/capabilities/${capabilityId}`, {
+      return await request(`/v1/capabilities/${capabilityId}`, {
         method: 'GET'
       });
     } catch (error) {
@@ -56,7 +56,7 @@ export const capabilityApi = {
   // 创建能力
   create: async (capabilityData) => {
     try {
-      return await request('/capabilities', {
+      return await request('/v1/capabilities', {
         method: 'POST',
         body: JSON.stringify(capabilityData),
         headers: {
@@ -72,7 +72,7 @@ export const capabilityApi = {
   // 更新能力
   update: async (capabilityId, updatedData) => {
     try {
-      return await request(`/capabilities/${capabilityId}`, {
+      return await request(`/v1/capabilities/${capabilityId}`, {
         method: 'PUT',
         body: JSON.stringify(updatedData),
         headers: {
@@ -88,7 +88,7 @@ export const capabilityApi = {
   // 删除能力
   delete: async (capabilityId) => {
     try {
-      return await request(`/capabilities/${capabilityId}`, {
+      return await request(`/v1/capabilities/${capabilityId}`, {
         method: 'DELETE'
       });
     } catch (error) {
@@ -100,7 +100,7 @@ export const capabilityApi = {
   // 获取能力分类
   getTypes: async () => {
     try {
-      return await request('/capabilities/types', {
+      return await request('/v1/capabilities/types', {
         method: 'GET'
       });
     } catch (error) {
@@ -112,7 +112,7 @@ export const capabilityApi = {
   // 添加模型能力关联
   addModelCapability: async (modelId, capabilityId, value = null) => {
     try {
-      return await request('/capabilities/associations', {
+      return await request('/v1/capabilities/associations', {
         method: 'POST',
         body: JSON.stringify({ model_id: modelId, capability_id: capabilityId, value: value }),
         headers: {
@@ -139,7 +139,7 @@ export const capabilityApi = {
   // 移除模型能力关联
   removeModelCapability: async (modelId, capabilityId) => {
     try {
-      return await request(`/capabilities/associations/model/${modelId}/capability/${capabilityId}`, {
+      return await request(`/v1/capabilities/associations/model/${modelId}/capability/${capabilityId}`, {
         method: 'DELETE'
       });
     } catch (error) {
@@ -156,7 +156,7 @@ export const capabilityApi = {
   // 更新模型能力值
   updateModelCapabilityValue: async (modelId, capabilityId, value) => {
     try {
-      return await request(`/capabilities/associations/model/${modelId}/capability/${capabilityId}`, {
+      return await request(`/v1/capabilities/associations/model/${modelId}/capability/${capabilityId}`, {
         method: 'PUT',
         body: JSON.stringify({ value: value }),
         headers: {
@@ -172,7 +172,7 @@ export const capabilityApi = {
   // 获取模型的所有能力
   getModelCapabilities: async (modelId) => {
     try {
-      const response = await request(`/capabilities/model/${modelId}/capabilities`, {
+      const response = await request(`/v1/capabilities/model/${modelId}/capabilities`, {
         method: 'GET'
       });
       
@@ -201,7 +201,7 @@ export const capabilityApi = {
       }
       const queryString = params.toString() ? `?${params.toString()}` : '';
       
-      return await request(`/capabilities/${capabilityId}/models${queryString}`, {
+      return await request(`/v1/capabilities/${capabilityId}/models${queryString}`, {
         method: 'GET'
       });
     } catch (error) {

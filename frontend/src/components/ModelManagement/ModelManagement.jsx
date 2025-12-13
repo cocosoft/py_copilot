@@ -318,6 +318,12 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
   };
 
   const handleEditParameterClick = (parameter) => {
+    // 如果是继承参数，给出提示
+    if (parameter.inherited) {
+      setError('继承参数不能被编辑');
+      return;
+    }
+    
     setEditingParameter(parameter);
     setParameterModalMode('edit');
     setIsParameterModalOpen(true);
@@ -350,6 +356,15 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
   };
 
   const handleDeleteParameter = async (parameterId) => {
+    // 查找要删除的参数
+    const parameter = modelParameters.find(p => p.id === parameterId);
+    
+    // 如果是继承参数，不允许删除
+    if (parameter && parameter.inherited) {
+      setError('继承参数不能被删除');
+      return;
+    }
+    
     if (window.confirm('确定要删除这个参数吗？')) {
       try {
         setSaving(true);
@@ -422,8 +437,11 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
                 </thead>
                 <tbody>
                   {modelParameters.map((param) => (
-                    <tr key={param.id}>
-                      <td>{param.parameter_name}</td>
+                    <tr key={param.id} className={param.inherited ? 'inherited-parameter' : 'custom-parameter'}>
+                      <td>
+                        {param.parameter_name}
+                        {param.inherited && <span className="inherited-badge">继承</span>}
+                      </td>
                       <td>{param.parameter_value}</td>
                       <td>{param.parameter_type}</td>
                       <td>{param.default_value}</td>
@@ -434,14 +452,14 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
                           <button
                             className="btn btn-secondary btn-small"
                             onClick={() => handleEditParameterClick(param)}
-                            disabled={saving}
+                            disabled={saving || param.inherited}
                           >
                             编辑
                           </button>
                           <button
                             className="btn btn-danger btn-small"
                             onClick={() => handleDeleteParameter(param.id)}
-                            disabled={saving}
+                            disabled={saving || param.inherited}
                           >
                             删除
                           </button>

@@ -90,6 +90,8 @@ class ModelParameter(Base):
     parameter_value = Column(Text, nullable=False)  # 参数值，以文本形式存储
     is_default = Column(Boolean, default=False)  # 是否为默认参数
     description = Column(Text, nullable=True)  # 参数描述
+    parameter_source = Column(String(50), default="model")  # 参数来源：model_type或model
+    is_override = Column(Boolean, default=False)  # 是否覆盖类型默认参数
     
     # 时间戳
     created_at = Column(DateTime(timezone=True), server_default=func.now())

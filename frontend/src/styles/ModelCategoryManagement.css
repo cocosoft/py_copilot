@@ -200,6 +200,154 @@
   color: #e6a23c;
 }
 
+/* 参数配置面板样式 */
+.category-parameter-panel {
+  margin-top: 20px;
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+}
+
+.parameter-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.parameter-panel-header h3 {
+  margin: 0;
+  color: #303133;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* 参数表格样式 */
+.parameter-table-container {
+  overflow-x: auto;
+}
+
+.parameter-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.parameter-table th,
+.parameter-table td {
+  padding: 12px 8px;
+  text-align: left;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.parameter-table th {
+  font-weight: 600;
+  color: #606266;
+  background-color: #f5f7fa;
+}
+
+.parameter-table tr:hover {
+  background-color: #f5f7fa;
+}
+
+/* 加载和错误状态 */
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: #909399;
+}
+
+.error-message {
+  padding: 12px;
+  background-color: #fef0f0;
+  color: #f56c6c;
+  border-radius: 4px;
+  text-align: center;
+}
+
+/* 参数配置模态框样式 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: #303133;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.modal-form {
+  padding: 20px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: #606266;
+  font-weight: 500;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: border-color 0.3s;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #409eff;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px 20px;
+  border-top: 1px solid #ebeef5;
+}
+
+.modal-footer button {
+  margin-left: 12px;
+}
+
 /* LOGO样式 */
 .category-logo {
   width: 20px;
