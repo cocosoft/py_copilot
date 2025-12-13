@@ -310,9 +310,24 @@ const ModelCategoryManagement = () => {
     try {
       setParameterLoading(true);
       const parameters = await categoryApi.getParameters(categoryId);
+      // 确保parameters始终是数组，将后端返回的字典转换为数组
+      let safeParameters;
+      if (Array.isArray(parameters)) {
+        safeParameters = parameters;
+      } else if (parameters && typeof parameters === 'object') {
+        // 将后端返回的字典格式转换为前端需要的数组格式
+        safeParameters = Object.entries(parameters).map(([name, valueObj]) => ({
+          parameter_name: name,
+          parameter_value: valueObj.value,
+          parameter_type: valueObj.type,
+          description: valueObj.description
+        }));
+      } else {
+        safeParameters = [];
+      }
       setCategoryParameters(prev => ({
         ...prev,
-        [categoryId]: parameters
+        [categoryId]: safeParameters
       }));
       setParameterError(null);
     } catch (err) {
@@ -386,16 +401,34 @@ const ModelCategoryManagement = () => {
       
       if (parameterModalMode === 'add') {
         // 对于添加操作，我们需要获取当前参数列表并添加新参数
-        const currentParams = categoryParameters[selectedCategoryForParams.id] || [];
-        const updatedParams = [...currentParams, parameterData];
-        await categoryApi.setParameters(selectedCategoryForParams.id, updatedParams);
+        const currentParams = Array.isArray(categoryParameters[selectedCategoryForParams.id]) ? categoryParameters[selectedCategoryForParams.id] : [];
+        const updatedParamsArray = [...currentParams, parameterData];
+        // 将数组转换为后端期望的字典格式
+        const updatedParamsDict = updatedParamsArray.reduce((dict, param) => {
+          dict[param.parameter_name] = {
+            value: param.parameter_value,
+            type: param.parameter_type,
+            description: param.description
+          };
+          return dict;
+        }, {});
+        await categoryApi.setParameters(selectedCategoryForParams.id, updatedParamsDict);
       } else if (parameterModalMode === 'edit' && editingParameter) {
         // 对于编辑操作，我们需要更新指定参数
-        const currentParams = categoryParameters[selectedCategoryForParams.id] || [];
-        const updatedParams = currentParams.map(p => 
+        const currentParams = Array.isArray(categoryParameters[selectedCategoryForParams.id]) ? categoryParameters[selectedCategoryForParams.id] : [];
+        const updatedParamsArray = currentParams.map(p => 
           p.parameter_name === editingParameter.parameter_name ? parameterData : p
         );
-        await categoryApi.setParameters(selectedCategoryForParams.id, updatedParams);
+        // 将数组转换为后端期望的字典格式
+        const updatedParamsDict = updatedParamsArray.reduce((dict, param) => {
+          dict[param.parameter_name] = {
+            value: param.parameter_value,
+            type: param.parameter_type,
+            description: param.description
+          };
+          return dict;
+        }, {});
+        await categoryApi.setParameters(selectedCategoryForParams.id, updatedParamsDict);
       }
       
       // 重新加载参数列表

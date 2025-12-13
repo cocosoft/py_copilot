@@ -32,6 +32,7 @@ class ModelCategoryUpdate(BaseModel):
     parent_id: Optional[int] = None
     is_active: Optional[bool] = None
     logo: Optional[str] = None
+    default_parameters: Optional[Dict[str, Any]] = None
 
 
 class ModelCategoryResponse(ModelCategoryBase):
@@ -39,6 +40,7 @@ class ModelCategoryResponse(ModelCategoryBase):
     id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
+    default_parameters: Optional[Dict[str, Any]] = None
     
     model_config = ConfigDict(from_attributes=True)
 

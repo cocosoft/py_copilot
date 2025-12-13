@@ -1,5 +1,5 @@
 """模型分类相关数据模型"""
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean, func
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean, func, JSON
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -29,6 +29,9 @@ class ModelCategory(Base):
     
     # LOGO信息
     logo = Column(Text, nullable=True)  # SVG格式的logo数据
+    
+    # 默认参数配置
+    default_parameters = Column(JSON, nullable=True, default={})
     
     # 关系定义
     # 自引用关系，用于层级分类
