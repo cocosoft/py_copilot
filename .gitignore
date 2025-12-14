@@ -185,3 +185,14 @@ backend/py_copilot_12110436.zip
 frontend/public/logos/models/20251211_211433_860373.png
 frontend/public/logos/models/20251211_222952_453779.png
 frontend/public/logos/models/20251211_224626_358991.png
+frontend/src/components/ModelManagement/ModelParamsManagementDevPlan.md
+docs/ModelParamsManagementDevPlan.md
+.trae/documents/PROJECT_DEVELOPMENT_GUIDELINES.md
+backend/check_model.py
+backend/debug_router.py
+backend/tests/test_parameter_manager.py
+backend/check_db_tables.py
+backend/check_supplier_fields.py
+backend/test_db_connection.py
+backend/test_pydantic.py
+backend/fix_alembic.py

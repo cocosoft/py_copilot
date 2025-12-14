@@ -126,7 +126,7 @@ class ModelParameterBase(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
     parameter_name: str = Field(..., min_length=1, max_length=100)
     parameter_value: str = Field(..., min_length=1)
-    parameter_type: str = Field(default="string", pattern="^(string|number|boolean|json)$")
+    parameter_type: str = Field(default="string", pattern="^(string|number|float|integer|int|double|boolean|json)$")
     description: Optional[str] = None
     parameter_source: str = Field(default="model", pattern="^(model_type|model)$")
     is_override: bool = Field(default=False)
@@ -142,7 +142,7 @@ class ModelParameterUpdate(BaseModel):
     """更新模型参数请求模型"""
     parameter_name: Optional[str] = Field(None, min_length=1, max_length=100)
     parameter_value: Optional[str] = None
-    parameter_type: Optional[str] = Field(None, pattern="^(string|number|boolean|json)$")
+    parameter_type: Optional[str] = Field(None, pattern="^(string|number|float|integer|int|double|boolean|json)$")
     description: Optional[str] = None
     parameter_source: Optional[str] = Field(None, pattern="^(model_type|model)$")
     is_override: Optional[bool] = None

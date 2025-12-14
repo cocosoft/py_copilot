@@ -5,12 +5,44 @@ import { request } from '../apiUtils';
 const formatParameterData = (parameter) => {
   if (!parameter) return null;
   
-  return {
+  // Debug: Check what parameter looks like when received
+  console.log('Raw parameter data:', parameter);
+  
+  // Helper function to safely convert any value to a React-compatible primitive
+  const safeValue = (value) => {
+    if (value === null || value === undefined) {
+      return '';
+    }
+    if (typeof value === 'object') {
+      // Check if it's an array
+      if (Array.isArray(value)) {
+        return value.join(', ');
+      }
+      // Check if it has a value property (most common case)
+      if (value.value !== undefined) {
+        return safeValue(value.value); // Recursively handle nested objects
+      }
+      // For other objects, convert to string representation
+      return JSON.stringify(value);
+    }
+    // For primitive values, just return as is
+    return value;
+  };
+  
+  // Handle parameter_value with safeValue helper
+  let parameterValue = safeValue(parameter.parameter_value);
+  console.log('Processed parameter_value:', parameterValue, 'Type:', typeof parameterValue);
+  
+  // Handle default_value with safeValue helper
+  let defaultValue = safeValue(parameter.default_value);
+  console.log('Processed default_value:', defaultValue, 'Type:', typeof defaultValue);
+  
+  const formatted = {
     id: parameter.id,
     parameter_name: parameter.parameter_name || '',
-    parameter_value: parameter.parameter_value || '',
+    parameter_value: parameterValue,
     parameter_type: parameter.parameter_type || 'string',
-    default_value: parameter.default_value || '',
+    default_value: defaultValue,
     description: parameter.description || '',
     is_required: parameter.is_required || false,
     model_id: parameter.model_id,
@@ -18,6 +50,9 @@ const formatParameterData = (parameter) => {
     updated_at: parameter.updated_at,
     inherited: parameter.inherited || false // 添加继承参数标识
   };
+  
+  console.log('Formatted parameter:', formatted);
+  return formatted;
 };
 
 // 构建发送到后端的模型参数数据格式
@@ -476,27 +511,116 @@ export const modelApi = {
       throw new Error(errorObj.message);
     }
   },
-  
-  // 获取指定模型的所有参数
-  getParameters: async (supplierId, modelId) => {
+
+  // 同步模型参数与模板
+  syncModelParametersWithTemplate: async (supplierId, modelId, templateId) => {
     // 参数验证和类型转换
     const integerSupplierId = Number(supplierId);
     const integerModelId = Number(modelId);
+    const integerTemplateId = Number(templateId);
     
     // 参数验证
-    if (isNaN(integerSupplierId) || integerSupplierId <= 0) {
-      const validationError = handleApiError(new Error('无效的供应商ID'), 'getParameters');
-      throw new Error(validationError.message);
-    }
-    
-    if (isNaN(integerModelId) || integerModelId <= 0) {
-      const validationError = handleApiError(new Error('无效的模型ID'), 'getParameters');
+    if (isNaN(integerSupplierId) || integerSupplierId <= 0 || isNaN(integerModelId) || integerModelId <= 0 || isNaN(integerTemplateId) || integerTemplateId <= 0) {
+      const validationError = handleApiError(new Error('无效的供应商ID、模型ID或模板ID'), 'syncModelParametersWithTemplate');
       throw new Error(validationError.message);
     }
     
     try {
       // 使用正确的路径格式
-      const response = await request(`/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters`, {
+      const response = await request(`/v1/parameter-templates/sync-model-parameters`, {
+        method: 'POST',
+        body: JSON.stringify({
+          supplier_id: integerSupplierId,
+          model_id: integerModelId,
+          template_id: integerTemplateId
+        })
+      });
+      
+      return {
+        success: true,
+        message: response?.message || '模型参数与模板同步成功',
+        supplierId: integerSupplierId,
+        modelId: integerModelId,
+        templateId: integerTemplateId
+      };
+    } catch (error) {
+      const errorObj = handleApiError(
+        error, 
+        'syncModelParametersWithTemplate', 
+        `供应商ID: ${integerSupplierId}, 模型ID: ${integerModelId}, 模板ID: ${integerTemplateId}`
+      );
+      throw new Error(errorObj.message);
+    }
+  },
+
+  // 获取参数模板列表
+  getParameterTemplates: async () => {
+    try {
+      const response = await request(`/v1/parameter-templates`, {
+        method: 'GET'
+      });
+      
+      // 检查响应格式并转换数据
+      let templates = [];
+      if (Array.isArray(response)) {
+        templates = response;
+      } else if (response && Array.isArray(response.templates)) {
+        templates = response.templates;
+      }
+      
+      return templates;
+    } catch (error) {
+      const errorObj = handleApiError(error, 'getParameterTemplates');
+      throw new Error(errorObj.message);
+    }
+  },
+  
+  // 获取指定层级的参数
+  getParameters: async (supplierId, modelId, level = 'model') => {
+    try {
+      let endpoint;
+      
+      // 参数验证和类型转换 - 在需要时使用
+      let integerSupplierId;
+      let integerModelId;
+      
+      switch (level) {
+        case 'system':
+          endpoint = '/v1/model-management/system-parameters';
+          break;
+        case 'supplier':
+          integerSupplierId = Number(supplierId);
+          if (isNaN(integerSupplierId) || integerSupplierId <= 0) {
+            throw new Error('无效的供应商ID');
+          }
+          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/parameters`;
+          break;
+        case 'model_type':
+          endpoint = '/v1/model-management/model-types/parameters';
+          break;
+        case 'model_capability':
+          endpoint = '/v1/model-management/model-capabilities/parameters';
+          break;
+        case 'model':
+        default:
+          // 参数验证和类型转换
+          integerSupplierId = Number(supplierId);
+          integerModelId = Number(modelId);
+          
+          // 参数验证
+          if (isNaN(integerSupplierId) || integerSupplierId <= 0) {
+            throw new Error('无效的供应商ID');
+          }
+          
+          if (isNaN(integerModelId) || integerModelId <= 0) {
+            throw new Error('无效的模型ID');
+          }
+          
+          // 使用正确的路径格式
+          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters`;
+      }
+      
+      const response = await request(endpoint, {
         method: 'GET'
       });
       
@@ -514,35 +638,72 @@ export const modelApi = {
       const errorObj = handleApiError(
         error, 
         'getParameters', 
-        `供应商ID: ${integerSupplierId}, 模型ID: ${integerModelId}`
+        `层级: ${level}, 供应商ID: ${supplierId}, 模型ID: ${modelId}`
       );
       throw new Error(errorObj.message);
     }
   },
   
-  // 创建新的模型参数
-  createParameter: async (supplierId, modelId, parameterData) => {
-    // 参数验证和类型转换
-    const integerSupplierId = Number(supplierId);
-    const integerModelId = Number(modelId);
-    
-    // 参数验证
-    if (isNaN(integerSupplierId) || integerSupplierId <= 0) {
-      const validationError = handleApiError(new Error('无效的供应商ID'), 'createParameter');
-      throw new Error(validationError.message);
-    }
-    
-    if (isNaN(integerModelId) || integerModelId <= 0) {
-      const validationError = handleApiError(new Error('无效的模型ID'), 'createParameter');
-      throw new Error(validationError.message);
-    }
-    
+  // 创建新的参数
+  createParameter: async (supplierId, modelId, parameterData, level = 'model') => {
     try {
-      // 构建发送到后端的数据格式
-      const formattedData = buildParameterDataForBackend(parameterData, integerModelId);
+      let endpoint;
+      let formattedData;
       
-      // 使用正确的路径格式
-      const response = await request(`/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters`, {
+      // 参数验证和类型转换 - 在需要时使用
+      let integerSupplierId;
+      let integerModelId;
+      
+      switch (level) {
+        case 'system':
+          endpoint = '/v1/model-management/system-parameters';
+          formattedData = {
+            parameter_name: parameterData.parameter_name || '',
+            parameter_value: parameterData.parameter_value || '',
+            parameter_type: parameterData.parameter_type || 'string',
+            default_value: parameterData.default_value || '',
+            description: parameterData.description || '',
+            is_required: parameterData.is_required || false
+          };
+          break;
+        case 'supplier':
+          integerSupplierId = Number(supplierId);
+          if (isNaN(integerSupplierId) || integerSupplierId <= 0) {
+            throw new Error('无效的供应商ID');
+          }
+          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/parameters`;
+          formattedData = {
+            parameter_name: parameterData.parameter_name || '',
+            parameter_value: parameterData.parameter_value || '',
+            parameter_type: parameterData.parameter_type || 'string',
+            default_value: parameterData.default_value || '',
+            description: parameterData.description || '',
+            is_required: parameterData.is_required || false
+          };
+          break;
+        case 'model':
+        default:
+          // 参数验证和类型转换
+          integerSupplierId = Number(supplierId);
+          integerModelId = Number(modelId);
+          
+          // 参数验证
+          if (isNaN(integerSupplierId) || integerSupplierId <= 0) {
+            throw new Error('无效的供应商ID');
+          }
+          
+          if (isNaN(integerModelId) || integerModelId <= 0) {
+            throw new Error('无效的模型ID');
+          }
+          
+          // 构建发送到后端的数据格式
+          formattedData = buildParameterDataForBackend(parameterData, integerModelId);
+          
+          // 使用正确的路径格式
+          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters`;
+      }
+      
+      const response = await request(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -555,7 +716,7 @@ export const modelApi = {
       const errorObj = handleApiError(
         error, 
         'createParameter', 
-        `供应商ID: ${integerSupplierId}, 模型ID: ${integerModelId}, 参数数据: ${JSON.stringify(parameterData)}`
+        `层级: ${level}, 供应商ID: ${supplierId}, 模型ID: ${modelId}, 参数数据: ${JSON.stringify(parameterData)}`
       );
       throw new Error(errorObj.message);
     }
@@ -602,29 +763,54 @@ export const modelApi = {
   },
   
   // 更新模型参数
-  updateParameter: async (supplierId, modelId, parameterId, parameterData) => {
+  updateParameter: async (supplierId, modelId, parameterId, parameterData, level = 'model') => {
     // 参数验证和类型转换
-    const integerSupplierId = Number(supplierId);
-    const integerModelId = Number(modelId);
     const integerParameterId = Number(parameterId);
     
     // 参数验证
-    if (isNaN(integerSupplierId) || integerSupplierId <= 0) {
-      const validationError = handleApiError(new Error('无效的供应商ID'), 'updateParameter');
-      throw new Error(validationError.message);
-    }
-    
-    if (isNaN(integerModelId) || integerModelId <= 0) {
-      const validationError = handleApiError(new Error('无效的模型ID'), 'updateParameter');
-      throw new Error(validationError.message);
-    }
-    
     if (isNaN(integerParameterId) || integerParameterId <= 0) {
       const validationError = handleApiError(new Error('无效的参数ID'), 'updateParameter');
       throw new Error(validationError.message);
     }
     
     try {
+      let endpoint;
+      
+      // 参数验证和类型转换 - 在需要时使用
+      let integerSupplierId;
+      let integerModelId;
+      
+      // 根据层级选择不同的端点
+      switch (level) {
+        case 'system':
+          endpoint = `/v1/model-management/system-parameters/${integerParameterId}`;
+          break;
+        case 'supplier':
+          integerSupplierId = Number(supplierId);
+          if (isNaN(integerSupplierId) || integerSupplierId <= 0) {
+            throw new Error('无效的供应商ID');
+          }
+          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/parameters/${integerParameterId}`;
+          break;
+        case 'model':
+        default:
+          // 参数验证和类型转换
+          integerSupplierId = Number(supplierId);
+          integerModelId = Number(modelId);
+          
+          // 参数验证
+          if (isNaN(integerSupplierId) || integerSupplierId <= 0) {
+            throw new Error('无效的供应商ID');
+          }
+          
+          if (isNaN(integerModelId) || integerModelId <= 0) {
+            throw new Error('无效的模型ID');
+          }
+          
+          // 使用正确的路径格式
+          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${integerParameterId}`;
+      }
+      
       // 构建发送到后端的数据格式
       const formattedData = {
         parameter_name: parameterData.parameter_name || '',
@@ -635,8 +821,7 @@ export const modelApi = {
         is_required: parameterData.is_required || false
       };
       
-      // 使用正确的路径格式
-      const response = await request(`/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${integerParameterId}`, {
+      const response = await request(endpoint, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -649,38 +834,62 @@ export const modelApi = {
       const errorObj = handleApiError(
         error, 
         'updateParameter', 
-        `供应商ID: ${integerSupplierId}, 模型ID: ${integerModelId}, 参数ID: ${integerParameterId}, 参数数据: ${JSON.stringify(parameterData)}`
+        `层级: ${level}, 供应商ID: ${supplierId}, 模型ID: ${modelId}, 参数ID: ${parameterId}, 参数数据: ${JSON.stringify(parameterData)}`
       );
       throw new Error(errorObj.message);
     }
   },
   
   // 删除模型参数
-  deleteParameter: async (supplierId, modelId, parameterId) => {
+  deleteParameter: async (supplierId, modelId, parameterId, level = 'model') => {
     // 参数验证和类型转换
-    const integerSupplierId = Number(supplierId);
-    const integerModelId = Number(modelId);
     const integerParameterId = Number(parameterId);
     
     // 参数验证
-    if (isNaN(integerSupplierId) || integerSupplierId <= 0) {
-      const validationError = handleApiError(new Error('无效的供应商ID'), 'deleteParameter');
-      throw new Error(validationError.message);
-    }
-    
-    if (isNaN(integerModelId) || integerModelId <= 0) {
-      const validationError = handleApiError(new Error('无效的模型ID'), 'deleteParameter');
-      throw new Error(validationError.message);
-    }
-    
     if (isNaN(integerParameterId) || integerParameterId <= 0) {
       const validationError = handleApiError(new Error('无效的参数ID'), 'deleteParameter');
       throw new Error(validationError.message);
     }
     
     try {
-      // 使用正确的路径格式
-      const response = await request(`/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${integerParameterId}`, {
+      let endpoint;
+      
+      // 参数验证和类型转换 - 在需要时使用
+      let integerSupplierId;
+      let integerModelId;
+      
+      // 根据层级选择不同的端点
+      switch (level) {
+        case 'system':
+          endpoint = `/v1/model-management/system-parameters/${integerParameterId}`;
+          break;
+        case 'supplier':
+          integerSupplierId = Number(supplierId);
+          if (isNaN(integerSupplierId) || integerSupplierId <= 0) {
+            throw new Error('无效的供应商ID');
+          }
+          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/parameters/${integerParameterId}`;
+          break;
+        case 'model':
+        default:
+          // 参数验证和类型转换
+          integerSupplierId = Number(supplierId);
+          integerModelId = Number(modelId);
+          
+          // 参数验证
+          if (isNaN(integerSupplierId) || integerSupplierId <= 0) {
+            throw new Error('无效的供应商ID');
+          }
+          
+          if (isNaN(integerModelId) || integerModelId <= 0) {
+            throw new Error('无效的模型ID');
+          }
+          
+          // 使用正确的路径格式
+          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${integerParameterId}`;
+      }
+      
+      const response = await request(endpoint, {
         method: 'DELETE'
       });
       
@@ -693,7 +902,723 @@ export const modelApi = {
       const errorObj = handleApiError(
         error, 
         'deleteParameter', 
-        `供应商ID: ${integerSupplierId}, 模型ID: ${integerModelId}, 参数ID: ${integerParameterId}`
+        `层级: ${level}, 供应商ID: ${supplierId}, 模型ID: ${modelId}, 参数ID: ${parameterId}`
+      );
+      throw new Error(errorObj.message);
+    }
+  },
+
+  // 应用参数模板（系统级到供应商级）
+  applyParameterTemplate: async (supplierId, templateId, level = 'supplier') => {
+    // 参数验证和类型转换
+    const integerSupplierId = Number(supplierId);
+    const integerTemplateId = Number(templateId);
+    
+    // 参数验证
+    if (isNaN(integerSupplierId) || integerSupplierId <= 0) {
+      throw new Error('无效的供应商ID');
+    }
+    
+    if (isNaN(integerTemplateId) || integerTemplateId <= 0) {
+      throw new Error('无效的模板ID');
+    }
+    
+    try {
+      let endpoint;
+      
+      switch (level) {
+        case 'supplier':
+          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/apply-template`;
+          break;
+        default:
+          throw new Error('不支持的层级');
+      }
+      
+      const response = await request(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        data: {
+          template_id: integerTemplateId
+        }
+      });
+      
+      return {
+        success: true,
+        message: response?.message || '参数模板应用成功',
+        appliedParameters: response?.applied_parameters || []
+      };
+    } catch (error) {
+      const errorObj = handleApiError(
+        error, 
+        'applyParameterTemplate', 
+        `层级: ${level}, 供应商ID: ${supplierId}, 模板ID: ${templateId}`
+      );
+      throw new Error(errorObj.message);
+    }
+  },
+
+  // 获取参数模板列表
+  getParameterTemplates: async (level = 'system') => {
+    try {
+      let endpoint;
+      
+      switch (level) {
+        case 'system':
+          endpoint = `/v1/model-management/parameter-templates/system`;
+          break;
+        case 'supplier':
+          endpoint = `/v1/model-management/parameter-templates/supplier`;
+          break;
+        default:
+          endpoint = `/v1/model-management/parameter-templates`;
+      }
+      
+      const response = await request(endpoint, {
+        method: 'GET'
+      });
+      
+      // 检查响应格式并转换数据
+      let templates = [];
+      if (Array.isArray(response)) {
+        templates = response;
+      } else if (response && Array.isArray(response.templates)) {
+        templates = response.templates;
+      }
+      
+      return templates;
+    } catch (error) {
+      const errorObj = handleApiError(
+        error, 
+        'getParameterTemplates', 
+        `层级: ${level}`
+      );
+      throw new Error(errorObj.message);
+    }
+  },
+  
+  // 创建参数模板
+  createParameterTemplate: async (templateData, level = 'system') => {
+    try {
+      let endpoint;
+      
+      switch (level) {
+        case 'system':
+          endpoint = `/v1/model-management/parameter-templates/system`;
+          break;
+        case 'supplier':
+          endpoint = `/v1/model-management/parameter-templates/supplier`;
+          break;
+        case 'model_type':
+          endpoint = `/v1/model-management/parameter-templates/model-type`;
+          break;
+        case 'model_capability':
+          endpoint = `/v1/model-management/parameter-templates/model-capability`;
+          break;
+        case 'model':
+          endpoint = `/v1/model-management/parameter-templates/model`;
+          break;
+        case 'agent':
+          endpoint = `/v1/model-management/parameter-templates/agent`;
+          break;
+        default:
+          endpoint = `/v1/model-management/parameter-templates`;
+      }
+      
+      const response = await request(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        data: templateData
+      });
+      
+      return response;
+    } catch (error) {
+      const errorObj = handleApiError(
+        error, 
+        'createParameterTemplate', 
+        `层级: ${level}, 模板数据: ${JSON.stringify(templateData)}`
+      );
+      throw new Error(errorObj.message);
+    }
+  },
+  
+  // 获取单个参数模板详情
+  getParameterTemplate: async (templateId, level = 'system') => {
+    try {
+      const integerTemplateId = Number(templateId);
+      
+      let endpoint;
+      
+      switch (level) {
+        case 'system':
+          endpoint = `/v1/model-management/parameter-templates/system/${integerTemplateId}`;
+          break;
+        case 'supplier':
+          endpoint = `/v1/model-management/parameter-templates/supplier/${integerTemplateId}`;
+          break;
+        case 'model_type':
+          endpoint = `/v1/model-management/parameter-templates/model-type/${integerTemplateId}`;
+          break;
+        case 'model_capability':
+          endpoint = `/v1/model-management/parameter-templates/model-capability/${integerTemplateId}`;
+          break;
+        case 'model':
+          endpoint = `/v1/model-management/parameter-templates/model/${integerTemplateId}`;
+          break;
+        case 'agent':
+          endpoint = `/v1/model-management/parameter-templates/agent/${integerTemplateId}`;
+          break;
+        default:
+          endpoint = `/v1/model-management/parameter-templates/${integerTemplateId}`;
+      }
+      
+      const response = await request(endpoint, {
+        method: 'GET'
+      });
+      
+      return response;
+    } catch (error) {
+      const errorObj = handleApiError(
+        error, 
+        'getParameterTemplate', 
+        `层级: ${level}, 模板ID: ${templateId}`
+      );
+      throw new Error(errorObj.message);
+    }
+  },
+  
+  // 更新参数模板
+  updateParameterTemplate: async (templateId, templateData, level = 'system') => {
+    try {
+      const integerTemplateId = Number(templateId);
+      
+      let endpoint;
+      
+      switch (level) {
+        case 'system':
+          endpoint = `/v1/model-management/parameter-templates/system/${integerTemplateId}`;
+          break;
+        case 'supplier':
+          endpoint = `/v1/model-management/parameter-templates/supplier/${integerTemplateId}`;
+          break;
+        case 'model_type':
+          endpoint = `/v1/model-management/parameter-templates/model-type/${integerTemplateId}`;
+          break;
+        case 'model_capability':
+          endpoint = `/v1/model-management/parameter-templates/model-capability/${integerTemplateId}`;
+          break;
+        case 'model':
+          endpoint = `/v1/model-management/parameter-templates/model/${integerTemplateId}`;
+          break;
+        case 'agent':
+          endpoint = `/v1/model-management/parameter-templates/agent/${integerTemplateId}`;
+          break;
+        default:
+          endpoint = `/v1/model-management/parameter-templates/${integerTemplateId}`;
+      }
+      
+      const response = await request(endpoint, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        data: templateData
+      });
+      
+      return response;
+    } catch (error) {
+      const errorObj = handleApiError(
+        error, 
+        'updateParameterTemplate', 
+        `层级: ${level}, 模板ID: ${templateId}, 模板数据: ${JSON.stringify(templateData)}`
+      );
+      throw new Error(errorObj.message);
+    }
+  },
+  
+  // 删除参数模板
+  deleteParameterTemplate: async (templateId, level = 'system') => {
+    try {
+      const integerTemplateId = Number(templateId);
+      
+      let endpoint;
+      
+      switch (level) {
+        case 'system':
+          endpoint = `/v1/model-management/parameter-templates/system/${integerTemplateId}`;
+          break;
+        case 'supplier':
+          endpoint = `/v1/model-management/parameter-templates/supplier/${integerTemplateId}`;
+          break;
+        case 'model_type':
+          endpoint = `/v1/model-management/parameter-templates/model-type/${integerTemplateId}`;
+          break;
+        case 'model_capability':
+          endpoint = `/v1/model-management/parameter-templates/model-capability/${integerTemplateId}`;
+          break;
+        case 'model':
+          endpoint = `/v1/model-management/parameter-templates/model/${integerTemplateId}`;
+          break;
+        case 'agent':
+          endpoint = `/v1/model-management/parameter-templates/agent/${integerTemplateId}`;
+          break;
+        default:
+          endpoint = `/v1/model-management/parameter-templates/${integerTemplateId}`;
+      }
+      
+      const response = await request(endpoint, {
+        method: 'DELETE'
+      });
+      
+      return {
+        success: true,
+        message: response?.message || '参数模板删除成功',
+        templateId: integerTemplateId
+      };
+    } catch (error) {
+      const errorObj = handleApiError(
+        error, 
+        'deleteParameterTemplate', 
+        `层级: ${level}, 模板ID: ${templateId}`
+      );
+      throw new Error(errorObj.message);
+    }
+  },
+
+  // 获取参数版本历史
+  getParameterVersions: async (supplierId, modelId, parameterId, level = 'model') => {
+    try {
+      let endpoint;
+      const integerSupplierId = supplierId ? Number(supplierId) : null;
+      const integerModelId = modelId ? Number(modelId) : null;
+      const integerParameterId = Number(parameterId);
+
+      switch (level) {
+        case 'system':
+          endpoint = `/v1/model-management/system-parameters/${integerParameterId}/versions`;
+          break;
+        case 'supplier':
+          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/parameters/${integerParameterId}/versions`;
+          break;
+        case 'model_type':
+          endpoint = `/v1/model-management/model-types/parameters/${integerParameterId}/versions`;
+          break;
+        case 'model_capability':
+          endpoint = `/v1/model-management/model-capabilities/parameters/${integerParameterId}/versions`;
+          break;
+        default:
+          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${integerParameterId}/versions`;
+      }
+
+      const response = await request(endpoint, {
+        method: 'GET'
+      });
+
+      // 检查响应格式并转换数据
+      let versions = [];
+      if (Array.isArray(response)) {
+        versions = response;
+      } else if (response && Array.isArray(response.versions)) {
+        versions = response.versions;
+      }
+
+      return versions;
+    } catch (error) {
+      const errorObj = handleApiError(
+        error, 
+        'getParameterVersions', 
+        `层级: ${level}, 供应商ID: ${supplierId}, 模型ID: ${modelId}, 参数ID: ${parameterId}`
+      );
+      throw new Error(errorObj.message);
+    }
+  },
+
+  // 回滚参数到特定版本
+  revertParameterToVersion: async (supplierId, modelId, parameterId, versionId, level = 'model') => {
+    try {
+      let endpoint;
+      const integerSupplierId = supplierId ? Number(supplierId) : null;
+      const integerModelId = modelId ? Number(modelId) : null;
+      const integerParameterId = Number(parameterId);
+      const integerVersionId = Number(versionId);
+
+      switch (level) {
+        case 'system':
+          endpoint = `/v1/model-management/system-parameters/${integerParameterId}/versions/${integerVersionId}/revert`;
+          break;
+        case 'supplier':
+          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/parameters/${integerParameterId}/versions/${integerVersionId}/revert`;
+          break;
+        case 'model_type':
+          endpoint = `/v1/model-management/model-types/parameters/${integerParameterId}/versions/${integerVersionId}/revert`;
+          break;
+        case 'model_capability':
+          endpoint = `/v1/model-management/model-capabilities/parameters/${integerParameterId}/versions/${integerVersionId}/revert`;
+          break;
+        default:
+          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${integerParameterId}/versions/${integerVersionId}/revert`;
+      }
+
+      const response = await request(endpoint, {
+        method: 'POST'
+      });
+
+      return {
+        success: true,
+        message: response?.message || '参数版本回滚成功',
+        parameter: response?.parameter ? formatParameterData(response.parameter) : null
+      };
+    } catch (error) {
+      const errorObj = handleApiError(
+        error, 
+        'revertParameterToVersion', 
+        `层级: ${level}, 供应商ID: ${supplierId}, 模型ID: ${modelId}, 参数ID: ${parameterId}, 版本ID: ${versionId}`
+      );
+      throw new Error(errorObj.message);
+    }
+  },
+
+  // 获取所有参数的版本历史记录
+  getAllParameterVersions: async (supplierId, modelId, level = 'model') => {
+    try {
+      let endpoint;
+      const integerSupplierId = supplierId ? Number(supplierId) : null;
+      const integerModelId = modelId ? Number(modelId) : null;
+
+      switch (level) {
+        case 'system':
+          endpoint = `/v1/model-management/system-parameters/versions`;
+          break;
+        case 'supplier':
+          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/parameters/versions`;
+          break;
+        case 'model_type':
+          endpoint = `/v1/model-management/model-types/parameters/versions`;
+          break;
+        case 'model_capability':
+          endpoint = `/v1/model-management/model-capabilities/parameters/versions`;
+          break;
+        default:
+          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/versions`;
+      }
+
+      const response = await request(endpoint, {
+        method: 'GET'
+      });
+
+      // 检查响应格式并转换数据
+      let versionHistory = [];
+      if (Array.isArray(response)) {
+        versionHistory = response;
+      } else if (response && Array.isArray(response.version_history)) {
+        versionHistory = response.version_history;
+      }
+
+      return versionHistory;
+    } catch (error) {
+      const errorObj = handleApiError(
+        error, 
+        'getAllParameterVersions', 
+        `层级: ${level}, 供应商ID: ${supplierId}, 模型ID: ${modelId}`
+      );
+      throw new Error(errorObj.message);
+    }
+  },
+
+  // 获取参数审计日志
+  getParameterAuditLogs: async (supplierId, modelId, parameterId, level = 'model', filters = {}) => {
+    try {
+      let endpoint;
+      const integerSupplierId = supplierId ? Number(supplierId) : null;
+      const integerModelId = modelId ? Number(modelId) : null;
+      const integerParameterId = parameterId ? Number(parameterId) : null;
+
+      // 构建查询参数
+      const queryParams = new URLSearchParams();
+      if (filters.startDate) queryParams.append('start_date', filters.startDate);
+      if (filters.endDate) queryParams.append('end_date', filters.endDate);
+      if (filters.operationType) queryParams.append('operation_type', filters.operationType);
+      if (filters.username) queryParams.append('username', filters.username);
+      if (filters.limit) queryParams.append('limit', filters.limit);
+      if (filters.offset) queryParams.append('offset', filters.offset);
+
+      const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
+
+      switch (level) {
+        case 'system':
+          if (integerParameterId) {
+            endpoint = `/v1/model-management/system-parameters/${integerParameterId}/audit-logs${queryString}`;
+          } else {
+            endpoint = `/v1/model-management/system-parameters/audit-logs${queryString}`;
+          }
+          break;
+        case 'supplier':
+          if (integerParameterId) {
+            endpoint = `/v1/model-management/suppliers/${integerSupplierId}/parameters/${integerParameterId}/audit-logs${queryString}`;
+          } else {
+            endpoint = `/v1/model-management/suppliers/${integerSupplierId}/parameters/audit-logs${queryString}`;
+          }
+          break;
+        case 'model_type':
+          if (integerParameterId) {
+            endpoint = `/v1/model-management/model-types/parameters/${integerParameterId}/audit-logs${queryString}`;
+          } else {
+            endpoint = `/v1/model-management/model-types/parameters/audit-logs${queryString}`;
+          }
+          break;
+        case 'model_capability':
+          if (integerParameterId) {
+            endpoint = `/v1/model-management/model-capabilities/parameters/${integerParameterId}/audit-logs${queryString}`;
+          } else {
+            endpoint = `/v1/model-management/model-capabilities/parameters/audit-logs${queryString}`;
+          }
+          break;
+        default:
+          if (integerParameterId) {
+            endpoint = `/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${integerParameterId}/audit-logs${queryString}`;
+          } else {
+            endpoint = `/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/audit-logs${queryString}`;
+          }
+      }
+
+      const response = await request(endpoint, {
+        method: 'GET'
+      });
+
+      // 检查响应格式并转换数据
+      let auditLogs = [];
+      if (Array.isArray(response)) {
+        auditLogs = response;
+      } else if (response && Array.isArray(response.audit_logs)) {
+        auditLogs = response.audit_logs;
+      }
+
+      // 处理分页信息
+      const pagination = response && response.pagination ? response.pagination : {};
+
+      return {
+        auditLogs,
+        pagination
+      };
+    } catch (error) {
+      const errorObj = handleApiError(
+        error, 
+        'getParameterAuditLogs', 
+        `层级: ${level}, 供应商ID: ${supplierId}, 模型ID: ${modelId}, 参数ID: ${parameterId}, 筛选条件: ${JSON.stringify(filters)}`
+      );
+      throw new Error(errorObj.message);
+    }
+  },
+
+  // 获取审计日志的操作类型列表
+  getAuditLogOperationTypes: async () => {
+    try {
+      const response = await request(`/v1/model-management/audit-log-operation-types`, {
+        method: 'GET'
+      });
+
+      // 检查响应格式并转换数据
+      let operationTypes = [];
+      if (Array.isArray(response)) {
+        operationTypes = response;
+      } else if (response && Array.isArray(response.operation_types)) {
+        operationTypes = response.operation_types;
+      }
+
+      return operationTypes;
+    } catch (error) {
+      const errorObj = handleApiError(
+        error, 
+        'getAuditLogOperationTypes'
+      );
+      throw new Error(errorObj.message);
+    }
+  },
+
+  // 导出参数
+  exportParameters: async (supplierId, modelId, level = 'model', format = 'json', filters = {}) => {
+    try {
+      let endpoint;
+      const integerSupplierId = supplierId ? Number(supplierId) : null;
+      const integerModelId = modelId ? Number(modelId) : null;
+
+      // 构建查询参数
+      const queryParams = new URLSearchParams();
+      queryParams.append('format', format);
+      if (filters.parameterNames) {
+        filters.parameterNames.forEach(name => queryParams.append('parameter_names', name));
+      }
+      if (filters.includeInherited) queryParams.append('include_inherited', filters.includeInherited);
+      if (filters.includeOverridden) queryParams.append('include_overridden', filters.includeOverridden);
+      if (filters.parameterType) queryParams.append('parameter_type', filters.parameterType);
+
+      const queryString = `?${queryParams.toString()}`;
+
+      switch (level) {
+        case 'system':
+          endpoint = `/v1/model-management/system-parameters/export${queryString}`;
+          break;
+        case 'supplier':
+          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/parameters/export${queryString}`;
+          break;
+        case 'model_type':
+          endpoint = `/v1/model-management/model-types/parameters/export${queryString}`;
+          break;
+        case 'model_capability':
+          endpoint = `/v1/model-management/model-capabilities/parameters/export${queryString}`;
+          break;
+        default:
+          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/export${queryString}`;
+      }
+
+      // 导出文件需要特殊处理，使用responseType: 'blob'
+      const response = await request(endpoint, {
+        method: 'GET',
+        responseType: 'blob'
+      });
+
+      // 从响应头中获取文件名
+      const contentDisposition = response.headers.get('content-disposition');
+      let fileName = 'parameters';
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+        if (filenameMatch && filenameMatch[1]) {
+          fileName = filenameMatch[1];
+        }
+      } else {
+        // 如果没有响应头，使用默认文件名
+        fileName += `.${format}`;
+      }
+
+      return {
+        blob: response,
+        fileName
+      };
+    } catch (error) {
+      const errorObj = handleApiError(
+        error, 
+        'exportParameters', 
+        `层级: ${level}, 供应商ID: ${supplierId}, 模型ID: ${modelId}, 格式: ${format}, 筛选条件: ${JSON.stringify(filters)}`
+      );
+      throw new Error(errorObj.message);
+    }
+  },
+
+  // 导入参数
+  importParameters: async (supplierId, modelId, file, level = 'model', options = {}) => {
+    try {
+      let endpoint;
+      const integerSupplierId = supplierId ? Number(supplierId) : null;
+      const integerModelId = modelId ? Number(modelId) : null;
+
+      switch (level) {
+        case 'system':
+          endpoint = `/v1/model-management/system-parameters/import`;
+          break;
+        case 'supplier':
+          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/parameters/import`;
+          break;
+        case 'model_type':
+          endpoint = `/v1/model-management/model-types/parameters/import`;
+          break;
+        case 'model_capability':
+          endpoint = `/v1/model-management/model-capabilities/parameters/import`;
+          break;
+        default:
+          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/import`;
+      }
+
+      // 创建FormData对象来上传文件
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      // 添加导入选项
+      if (options.mergeStrategy) formData.append('merge_strategy', options.mergeStrategy);
+      if (options.overwriteExisting) formData.append('overwrite_existing', options.overwriteExisting);
+      if (options.validateOnly) formData.append('validate_only', options.validateOnly);
+      if (options.includeInherited) formData.append('include_inherited', options.includeInherited);
+
+      const response = await request(endpoint, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          // 不要设置Content-Type，让浏览器自动设置
+        }
+      });
+
+      return {
+        success: response?.success || true,
+        message: response?.message || '参数导入成功',
+        importedCount: response?.imported_count || 0,
+        updatedCount: response?.updated_count || 0,
+        skippedCount: response?.skipped_count || 0,
+        errors: response?.errors || []
+      };
+    } catch (error) {
+      const errorObj = handleApiError(
+        error, 
+        'importParameters', 
+        `层级: ${level}, 供应商ID: ${supplierId}, 模型ID: ${modelId}, 选项: ${JSON.stringify(options)}`
+      );
+      throw new Error(errorObj.message);
+    }
+  },
+
+  // 验证导入的参数文件
+  validateImportParameters: async (file) => {
+    try {
+      const endpoint = `/v1/model-management/parameters/validate-import`;
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await request(endpoint, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          // 不要设置Content-Type，让浏览器自动设置
+        }
+      });
+
+      return {
+        valid: response?.valid || false,
+        message: response?.message || '',
+        errors: response?.errors || [],
+        warnings: response?.warnings || [],
+        parameterCount: response?.parameter_count || 0
+      };
+    } catch (error) {
+      const errorObj = handleApiError(
+        error, 
+        'validateImportParameters'
+      );
+      throw new Error(errorObj.message);
+    }
+  },
+
+  // 获取支持的导出格式列表
+  getExportFormats: async () => {
+    try {
+      const response = await request(`/v1/model-management/parameter-export-formats`, {
+        method: 'GET'
+      });
+
+      // 检查响应格式并转换数据
+      let formats = [];
+      if (Array.isArray(response)) {
+        formats = response;
+      } else if (response && Array.isArray(response.formats)) {
+        formats = response.formats;
+      }
+
+      return formats;
+    } catch (error) {
+      const errorObj = handleApiError(
+        error, 
+        'getExportFormats'
       );
       throw new Error(errorObj.message);
     }

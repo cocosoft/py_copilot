@@ -17,15 +17,20 @@ class SupplierCreate(SupplierBase):
 class SupplierResponse(BaseModel):
     id: int
     name: str
+    display_name: Optional[str] = None
     description: Optional[str] = None
     logo: Optional[str] = None
     website: Optional[str] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    api_key_required: Optional[bool] = False
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     is_active: bool = True
     
     class Config:
         from_attributes = True
+        json_encoders = {
+            datetime: lambda v: v.isoformat() if v else None
+        }
 
 # 模型相关Pydantic模型
 class ModelBase(BaseModel):

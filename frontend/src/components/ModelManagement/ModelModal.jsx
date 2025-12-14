@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getImageUrl } from '../../config/imageConfig';
 import categoryApi from '../../utils/api/categoryApi';
+import api from '../../utils/api';
 import '../../styles/ModelModal.css';
 
 const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFirstModel = false }) => {
@@ -11,6 +12,7 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
     contextWindow: 8000,
     max_tokens: 1000,
     model_type: '',
+    parameter_template_id: '',
     isDefault: false,
     is_active: true
   });
@@ -19,11 +21,14 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
   const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
+  const [parameterTemplates, setParameterTemplates] = useState([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
 
   // 获取模型分类树形结构
   useEffect(() => {
     if (isOpen) {
       fetchCategories();
+      fetchParameterTemplates();
     }
   }, [isOpen]);
 
@@ -90,6 +95,20 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
     }
   };
 
+  // 获取参数模板列表
+  const fetchParameterTemplates = async () => {
+    try {
+      setLoadingTemplates(true);
+      const templates = await api.modelApi.getParameterTemplates();
+      setParameterTemplates(templates);
+    } catch (error) {
+      console.error('获取参数模板失败:', error);
+      setParameterTemplates([]);
+    } finally {
+      setLoadingTemplates(false);
+    }
+  };
+
   // 递归渲染分类树形结构（包含所有层级）
   const renderCategoryTree = (categoryList, level = 0) => {
     return categoryList.map(category => (
@@ -118,6 +137,7 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
         contextWindow: model.contextWindow || model.context_window || 8000,
         max_tokens: model.max_tokens || 1000,
         model_type: model.modelType?.toString() || model.model_type?.toString() || '',
+        parameter_template_id: model.parameter_template_id?.toString() || '',
         isDefault: model.isDefault || model.is_default || false,
         is_active: model.is_active || true
       });
@@ -137,6 +157,7 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
         contextWindow: 8000,
         max_tokens: 1000,
         model_type: '',
+        parameter_template_id: '',
         isDefault: isFirstModel, // 如果是第一个模型，默认设为默认模型
         is_active: true
       });
@@ -194,6 +215,7 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
         contextWindow: parseInt(formData.contextWindow) || 8000,
         maxTokens: parseInt(formData.max_tokens) || 1000,
         modelType: formData.model_type || 'chat',
+        parameterTemplateId: formData.parameter_template_id || '',
         isDefault: formData.isDefault || false,
         isActive: formData.is_active || true
       };
@@ -296,6 +318,27 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
                 {renderCategoryTree(categories)}
               </select>
               {loadingCategories && <span className="loading">加载中...</span>}
+            </div>
+            <div className="form-group">
+              <label htmlFor="parameter_template_id">参数模板</label>
+              <select 
+                id="parameter_template_id"
+                name="parameter_template_id"
+                value={formData.parameter_template_id}
+                onChange={handleChange}
+                disabled={loadingTemplates || saving}
+              >
+                <option value="">请选择参数模板</option>
+                {parameterTemplates.map(template => (
+                  <option key={template.id} value={template.id}>
+                    {template.name || `模板 ${template.id}`}
+                  </option>
+                ))}
+              </select>
+              {loadingTemplates && <span className="loading">加载中...</span>}
+              <div className="field-hint">
+                选择一个参数模板，系统将自动为模型应用模板中的参数
+              </div>
             </div>
           </div>
           

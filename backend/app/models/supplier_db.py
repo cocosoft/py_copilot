@@ -76,6 +76,9 @@ class ModelDB(Base):
     supplier = relationship("SupplierDB", back_populates="models")
     parameters = relationship("ModelParameter", back_populates="model", cascade="all, delete-orphan")
     model_type = relationship("ModelCategory", backref="model_db")
+    
+    # 参数模板关联
+    parameter_template_id = Column(Integer, ForeignKey("parameter_templates.id", ondelete="SET NULL"), nullable=True)
 
 
 class ModelParameter(Base):

@@ -3,6 +3,7 @@ import SupplierManagement from '../SupplierManagement/SupplierManagement';
 import ModelManagement from './ModelManagement';
 import ModelCategoryManagement from '../CapabilityManagement/ModelCategoryManagement';
 import CapabilityManagementTabs from '../CapabilityManagement/CapabilityManagementTabs';
+import ParameterManagementMain from './ParameterManagementMain';
 import { useSupplier } from '../../contexts/SupplierContext';
 import api from '../../utils/api';
 import '../../styles/IntegratedModelManagement.css';
@@ -10,7 +11,7 @@ import '../../styles/IntegratedModelManagement.css';
 const IntegratedModelManagement = () => {
   const supplierContext = useSupplier();
   const { selectedSupplier, selectSupplier, suppliers: contextSuppliers, loading: contextLoading } = supplierContext;
-  const [activeTab, setActiveTab] = useState('models'); // 'models', 'categories', 'capabilities'
+  const [activeTab, setActiveTab] = useState('models'); // 'models', 'categories', 'capabilities', 'params'
   // 直接使用context中的suppliers，不再维护自己的状态
   const [loading, setLoading] = useState(true);
 
@@ -84,6 +85,12 @@ const IntegratedModelManagement = () => {
               >
                 能力
               </button>
+              <button 
+                className={`tab-button ${activeTab === 'params' ? 'active' : ''}`}
+                onClick={() => setActiveTab('params')}
+              >
+                参数
+              </button>
             </div>
             <div className="tab-content">
               {activeTab === 'models' && (
@@ -123,6 +130,14 @@ const IntegratedModelManagement = () => {
               {activeTab === 'capabilities' && (
                 <div className="capabilities-content">
                   <CapabilityManagementTabs />
+                </div>
+              )}
+              {activeTab === 'params' && (
+                <div className="params-content">
+                  <ParameterManagementMain 
+                    selectedSupplier={selectedSupplier} 
+                    onBack={() => {}} 
+                  />
                 </div>
               )}
             </div>

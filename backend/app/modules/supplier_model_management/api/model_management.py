@@ -132,6 +132,9 @@ def get_mock_user():
 router = APIRouter()
 
 # 测试路由
+@router.get("/test-route")
+async def test_route():
+    return {"message": "Test route is working"}
 @router.get("/test")
 async def test_route():
     """测试路由是否正常工作"""
@@ -295,44 +298,64 @@ async def get_suppliers(
     # 查询所有供应商，包括非激活的
     suppliers = db.query(SupplierDB).offset(skip).limit(limit).all()
     total = db.query(SupplierDB).count()
+
+
+# 重命名路由以避免与参数化路由冲突
+@router.get("/suppliers-list")
+async def get_all_suppliers(
+    db: Session = Depends(get_db),
+    current_user: MockUser = Depends(get_mock_user)
+) -> Any:
+    """
+    获取所有模型供应商
     
-    # 为每个供应商添加display_name字段，使用name作为默认值
-    suppliers_with_display_name = []
-    for supplier in suppliers:
-        # 解密API密钥（如果有）
-        decrypted_api_key = None
-        if supplier.api_key:
-            try:
-                from app.core.encryption import decrypt_string
-                decrypted_api_key = decrypt_string(supplier.api_key)
-            except Exception as e:
-                # 如果解密失败，记录错误但不中断请求
-                import logging
-                logging.error(f"解密供应商 {supplier.id} 的API密钥失败: {str(e)}")
+    Args:
+        db: 数据库会话
+        current_user: 当前活跃的超级用户
+    
+    Returns:
+        所有模型供应商列表
+    """
+    try:
+        # 查询所有供应商，包括非激活的
+        suppliers = db.query(SupplierDB).all()
+        total = len(suppliers)
         
-        # 创建一个带有display_name属性的对象
-        supplier_dict = {
-            "id": supplier.id,
-            "name": supplier.name,
-            "display_name": supplier.name,  # 使用name作为display_name
-            "description": supplier.description,
-            "api_endpoint": supplier.api_endpoint,
-            "api_key_required": supplier.api_key_required,
-            "is_active": supplier.is_active,
-            "logo": supplier.logo,
-            "category": supplier.category,
-            "website": supplier.website,
-            "api_docs": supplier.api_docs,
-            "api_key": decrypted_api_key,
-            "created_at": supplier.created_at.isoformat() if supplier.created_at else None,
-            "updated_at": supplier.updated_at.isoformat() if supplier.updated_at else None
+        # 构建响应数据
+        supplier_responses = []
+        for supplier in suppliers:
+            # 安全地获取API密钥（如果解密失败，返回None）
+            api_key_required = False
+            try:
+                api_key_required = supplier.api_key_required if supplier.api_key_required is not None else False
+            except Exception as e:
+                print(f"Error accessing api_key_required for supplier {supplier.id}: {e}")
+                api_key_required = False
+            
+            supplier_responses.append({
+                "id": supplier.id,
+                "name": supplier.name,
+                "display_name": supplier.display_name if supplier.display_name is not None else supplier.name,
+                "description": supplier.description,
+                "logo": supplier.logo,
+                "website": supplier.website,
+                "api_key_required": api_key_required,
+                "is_active": supplier.is_active
+            })
+        
+        return {
+            "suppliers": supplier_responses,
+            "total": total
         }
-        suppliers_with_display_name.append(supplier_dict)
-    
-    return ModelSupplierListResponse(
-        suppliers=suppliers_with_display_name,
-        total=total
-    )
+    except Exception as e:
+        # 添加详细的错误日志
+        print(f"Error in get_all_suppliers: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取供应商列表失败: {str(e)}"
+        )
 
 
 @router.get("/suppliers/{supplier_id}", response_model=ModelSupplierResponse)
@@ -1236,6 +1259,7 @@ async def get_model_parameters(
     Returns:
         模型的完整参数配置
     """
+    print(f"[模块] 调用get_model_parameters: supplier_id={supplier_id}, model_id={model_id}")
     # 验证供应商和模型是否存在且关联
     model = db.query(ModelDB).filter(
         ModelDB.id == model_id,
@@ -1243,6 +1267,7 @@ async def get_model_parameters(
     ).first()
     
     if not model:
+        print(f"[模块] 模型不存在或不属于该供应商: supplier_id={supplier_id}, model_id={model_id}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="模型不存在或不属于该供应商"

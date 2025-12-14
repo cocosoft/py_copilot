@@ -86,16 +86,16 @@ async def unicode_decode_error_handler(request: Request, exc: UnicodeDecodeError
     )
 
 # 自定义请求验证异常处理器 - 覆盖默认处理器
-@app.exception_handler(RequestValidationError)
-async def custom_request_validation_exception_handler(request: Request, exc: RequestValidationError):
-    """
-    自定义请求验证异常处理器，避免在处理multipart/form-data时出现UnicodeDecodeError
-    """
-    # 直接构建响应，完全避免使用jsonable_encoder
-    return JSONResponse(
-        status_code=422,
-        content={"detail": "请求验证错误"},
-    )
+# @app.exception_handler(RequestValidationError)
+# async def custom_request_validation_exception_handler(request: Request, exc: RequestValidationError):
+#     """
+#     自定义请求验证异常处理器，避免在处理multipart/form-data时出现UnicodeDecodeError
+#     """
+#     # 直接构建响应，完全避免使用jsonable_encoder
+#     return JSONResponse(
+#         status_code=422,
+#         content={"detail": "请求验证错误"},
+#     )
 
 # 请求日志中间件
 @app.middleware("http")
@@ -210,11 +210,13 @@ async def proxy_image(url: str = Query(..., description="要代理的外部图�
 from app.api import api_router
 app.include_router(api_router)
 
-# 创建数据库表
-from app.models.base import Base
+# 创建数据库表 - 已通过init_db.py初始化，此处注释避免重复创建
+# from app.core.database import Base
 # 在创建表之前导入所有模型类，确保它们被注册
-from app.models.supplier_db import SupplierDB, ModelDB
-from app.models.model_capability import ModelCapability, ModelCapabilityAssociation
-from app.modules.capability_category.models.category_db import ModelCategoryDB
+# from app.models.supplier_db import SupplierDB, ModelDB
+# from app.models.model_capability import ModelCapability, ModelCapabilityAssociation
+# from app.modules.capability_category.models.category_db import ModelCategoryDB
+# from app.models.parameter_template import ParameterTemplate
+# from app.models.supplier_db import ModelParameter
 # User模型暂时不导入，避免重复定义
-Base.metadata.create_all(bind=engine)
+# Base.metadata.create_all(bind=engine)

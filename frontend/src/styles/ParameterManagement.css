@@ -1,0 +1,460 @@
+/* 参数管理主界面样式 */
+.parameter-management-main {
+  padding: 20px;
+  background-color: #f5f7fa;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* 头部样式 */
+.parameter-management-main .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #e1e8ed;
+}
+
+.parameter-management-main .header-left {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.parameter-management-main .header-left h2 {
+  margin: 0;
+  font-size: 24px;
+  color: #2c3e50;
+}
+
+.parameter-management-main .header-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+/* 层级选择器样式 */
+.parameter-management-main .level-selector {
+  padding: 8px 12px;
+  border: 1px solid #dfe3e6;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: white;
+  cursor: pointer;
+  transition: border-color 0.3s;
+}
+
+.parameter-management-main .level-selector:hover {
+  border-color: #3498db;
+}
+
+.parameter-management-main .level-selector:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 状态消息样式 */
+.parameter-management-main .success-message {
+  background-color: #d4edda;
+  color: #155724;
+  padding: 10px 15px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  border: 1px solid #c3e6cb;
+}
+
+.parameter-management-main .error-message {
+  background-color: #f8d7da;
+  color: #721c24;
+  padding: 10px 15px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  border: 1px solid #f5c6cb;
+}
+
+/* 参数模板部分样式 */
+.parameter-management-main .parameter-templates-section {
+  margin-bottom: 30px;
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.parameter-management-main .section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.parameter-management-main .section-title h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #2c3e50;
+}
+
+/* 加载和空状态样式 */
+.parameter-management-main .loading-state {
+  text-align: center;
+  padding: 40px 0;
+  color: #6c757d;
+  font-style: italic;
+}
+
+.parameter-management-main .empty-state {
+  text-align: center;
+  padding: 40px 0;
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* 参数表格样式 */
+.parameter-management-main .parameters-table-container {
+  overflow-x: auto;
+}
+
+.parameter-management-main .parameters-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+}
+
+.parameter-management-main .parameters-table th,
+.parameter-management-main .parameters-table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #e1e8ed;
+}
+
+.parameter-management-main .parameters-table th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 14px;
+}
+
+.parameter-management-main .parameters-table tr:hover {
+  background-color: #f8f9fa;
+}
+
+/* 继承参数样式 */
+.parameter-management-main .inherited-parameter {
+  background-color: #f8f9fa;
+  opacity: 0.8;
+}
+
+.parameter-management-main .inherited-badge {
+  background-color: #e9ecef;
+  color: #6c757d;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 12px;
+  margin-left: 8px;
+  font-weight: 500;
+}
+
+/* 操作按钮样式 */
+.parameter-management-main .parameter-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.parameter-management-main .btn-small {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+/* 继承关系可视化部分样式 */
+.parameter-management-main .inheritance-visualization-section {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.parameter-management-main .inheritance-visualization-section h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 18px;
+  color: #2c3e50;
+}
+
+.parameter-management-main .inheritance-diagram {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.parameter-management-main .inheritance-node {
+  flex: 1;
+  text-align: center;
+  padding: 10px;
+  background-color: white;
+  border: 2px solid #3498db;
+  border-radius: 4px;
+  font-weight: 500;
+  color: #2c3e50;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.parameter-management-main .inheritance-node.system-node {
+  border-color: #27ae60;
+}
+
+.parameter-management-main .inheritance-node.supplier-node {
+  border-color: #3498db;
+}
+
+.parameter-management-main .inheritance-node.model-type-node {
+  border-color: #f39c12;
+}
+
+.parameter-management-main .inheritance-node.model-capability-node {
+  border-color: #9b59b6;
+}
+
+.parameter-management-main .inheritance-node.model-node {
+  border-color: #e74c3c;
+}
+
+.parameter-management-main .inheritance-node.agent-node {
+  border-color: #1abc9c;
+}
+
+.parameter-management-main .inheritance-arrow {
+  font-size: 24px;
+  color: #6c757d;
+  margin: 0 10px;
+}
+
+.parameter-management-main .inheritance-description {
+  background-color: #f8f9fa;
+  padding: 15px;
+  border-radius: 4px;
+}
+
+.parameter-management-main .inheritance-description p {
+  margin: 0 0 10px 0;
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.parameter-management-main .inheritance-description ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #6c757d;
+}
+
+.parameter-management-main .inheritance-description li {
+  margin-bottom: 5px;
+}
+
+/* 参数继承树样式 */
+.parameter-management-main .inheritance-tree-container {
+  display: flex;
+  gap: 30px;
+  margin-bottom: 20px;
+}
+
+.parameter-management-main .inheritance-tree {
+  flex: 1;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.parameter-management-main .inheritance-tree-node {
+  margin-bottom: 15px;
+}
+
+.parameter-management-main .inheritance-tree-node-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  background-color: white;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.parameter-management-main .inheritance-tree-node-header:hover {
+  background-color: #f0f0f0;
+}
+
+.parameter-management-main .inheritance-tree-node-title {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 15px;
+}
+
+.parameter-management-main .node-level-badge {
+  background-color: #e9ecef;
+  color: #6c757d;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  margin-left: 8px;
+}
+
+.parameter-management-main .inheritance-tree-parameters {
+  margin-left: 20px;
+}
+
+.parameter-management-main .inheritance-tree-parameter {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 8px 12px;
+  margin-bottom: 5px;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: background-color 0.3s;
+}
+
+.parameter-management-main .inheritance-tree-parameter:hover {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+/* 参数类型样式 */
+.parameter-management-main .inheritance-tree-parameter.custom {
+  border-left: 4px solid #3498db;
+  background-color: rgba(52, 152, 219, 0.05);
+}
+
+.parameter-management-main .inheritance-tree-parameter.inherited {
+  border-left: 4px solid #6c757d;
+  background-color: rgba(108, 117, 125, 0.05);
+  opacity: 0.8;
+}
+
+.parameter-management-main .inheritance-tree-parameter.override {
+  border-left: 4px solid #f39c12;
+  background-color: rgba(243, 156, 18, 0.05);
+  opacity: 1;
+}
+
+.parameter-management-main .inheritance-tree-parameter .parameter-name {
+  flex: 1;
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.parameter-management-main .inheritance-tree-parameter .parameter-value {
+  flex: 1;
+  color: #34495e;
+  word-break: break-all;
+}
+
+.parameter-management-main .inheritance-tree-parameter .parameter-type {
+  flex: 0 0 80px;
+  color: #6c757d;
+  font-size: 12px;
+  text-align: right;
+}
+
+.parameter-management-main .inheritance-badge {
+  background-color: #e9ecef;
+  color: #6c757d;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 11px;
+  margin-left: 8px;
+}
+
+.parameter-management-main .inheritance-tree-parameter.override .inheritance-badge {
+  background-color: #f39c12;
+  color: white;
+}
+
+/* 图例样式 */
+.parameter-management-main .inheritance-legend {
+  flex: 0 0 200px;
+  padding: 20px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.parameter-management-main .inheritance-legend h4 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 16px;
+  color: #2c3e50;
+}
+
+.parameter-management-main .legend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: #34495e;
+}
+
+.parameter-management-main .legend-color {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+}
+
+.parameter-management-main .legend-color.custom {
+  background-color: rgba(52, 152, 219, 0.2);
+  border-left: 4px solid #3498db;
+}
+
+.parameter-management-main .legend-color.inherited {
+  background-color: rgba(108, 117, 125, 0.2);
+  border-left: 4px solid #6c757d;
+}
+
+.parameter-management-main .legend-color.override {
+  background-color: rgba(243, 156, 18, 0.2);
+  border-left: 4px solid #f39c12;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .parameter-management-main .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+
+  .parameter-management-main .header-right {
+    width: 100%;
+  }
+
+  .parameter-management-main .level-selector {
+    flex: 1;
+  }
+
+  .parameter-management-main .inheritance-diagram {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .parameter-management-main .inheritance-arrow {
+    transform: rotate(90deg);
+  }
+
+  .parameter-management-main .parameter-actions {
+    flex-direction: column;
+  }
+  
+  .parameter-management-main .inheritance-tree-container {
+    flex-direction: column;
+  }
+  
+  .parameter-management-main .inheritance-legend {
+    flex: none;
+  }
+}

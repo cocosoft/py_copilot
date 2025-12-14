@@ -2,6 +2,10 @@
 from typing import Optional
 from pydantic_settings import BaseSettings
 from pydantic import Field
+import os
+
+# 获取当前文件所在目录
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 class Settings(BaseSettings):
@@ -15,7 +19,7 @@ class Settings(BaseSettings):
     
     # 数据库配置
     database_url: str = Field(
-        default="sqlite:///./py_copilot.db", 
+        default=f"sqlite:///{os.path.join(BASE_DIR, 'py_copilot.db')}", 
         env="DATABASE_URL"
     )
     

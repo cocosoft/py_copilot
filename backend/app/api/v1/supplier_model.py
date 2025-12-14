@@ -102,11 +102,32 @@ async def create_supplier(
     }
 
 # 供应商相关路由
-@router.get("/suppliers/all", response_model=List[SupplierResponse])
+@router.get("/suppliers-list", response_model=List[SupplierResponse])
 def get_all_suppliers(db: Session = Depends(get_db)):
     """获取所有供应商"""
-    return db.query(SupplierDB).all()
+    suppliers = db.query(SupplierDB).all()
+    
+    # 构建响应数据列表，确保所有字段都有合适的值
+    supplier_responses = []
+    for supplier in suppliers:
+        # 创建响应字典
+        supplier_dict = {
+            "id": supplier.id,
+            "name": supplier.name,
+            "display_name": supplier.display_name if supplier.display_name is not None else supplier.name,
+            "description": supplier.description,
+            "logo": supplier.logo,
+            "website": supplier.website,
+            "api_key_required": supplier.api_key_required if supplier.api_key_required is not None else False,
+            "created_at": supplier.created_at,
+            "updated_at": supplier.updated_at,
+            "is_active": supplier.is_active
+        }
+        supplier_responses.append(supplier_dict)
+    
+    return supplier_responses
 
+# 将获取单个供应商的路由移到获取所有供应商路由之后
 @router.get("/suppliers/{supplier_id}", response_model=SupplierResponse)
 def get_supplier(supplier_id: int, db: Session = Depends(get_db)):
     """获取单个供应商"""

@@ -10,6 +10,10 @@ from app.modules.supplier_model_management.api.supplier_model import router as s
 from app.api.v1.model_capabilities import router as model_capabilities_router
 from app.api.v1.capability import router as capability_router
 from app.api.v1.model_management import router as model_management_v1_router
+from app.api.v1.parameter_templates import router as parameter_templates_router
+from app.api.v1.parameter_normalization_rules import router as parameter_normalization_rules_router
+from app.api.v1.parameter_mappings import router as parameter_mappings_router
+from app.api.v1.system_parameters import router as system_parameters_router
 from app.modules.capability_category.api.category import router as category_router
 from app.modules.capability_category.api.model_categories import router as model_categories_router
 from app.api.v1.agents import router as agents_router
@@ -21,11 +25,19 @@ api_router = APIRouter()
 api_router.include_router(auth_router, prefix="/auth", tags=["auth"])
 api_router.include_router(conversation_router, prefix="/conversations", tags=["conversations"])
 api_router.include_router(llm_router, prefix="/llm", tags=["llm"])
-# 先注册参数管理相关路由，确保优先匹配
-api_router.include_router(model_management_v1_router, prefix="/model-management", tags=["model-parameters"])
-# 再注册其他模型管理路由
+# 先注册包含suppliers-list的模型管理路由
 api_router.include_router(model_management_router, prefix="/model-management", tags=["model-management"])
+# 再注册其他model-management前缀的路由
 api_router.include_router(supplier_model_router, prefix="/model-management", tags=["supplier-model"])
+api_router.include_router(model_management_v1_router, prefix="/model-management", tags=["model-parameters"])
+# 注册参数模板路由（不添加前缀，因为路由定义中已经包含）
+api_router.include_router(parameter_templates_router, tags=["parameter-templates"])
+# 注册参数归一化规则路由
+api_router.include_router(parameter_normalization_rules_router, tags=["parameter-normalization-rules"])
+# 注册参数映射路由
+api_router.include_router(parameter_mappings_router, tags=["parameter-mappings"])
+# 注册系统参数管理路由
+api_router.include_router(system_parameters_router, tags=["system-parameters"])
 api_router.include_router(model_capabilities_router, tags=["model_capabilities"])
 api_router.include_router(capability_router, tags=["capability"])
 # 先注册支持文件上传的model_categories_router

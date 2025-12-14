@@ -88,6 +88,32 @@
   font-weight: 600;
 }
 
+/* 参数管理页面样式 */
+.params-content {
+  padding: 20px;
+}
+
+.params-container {
+  background-color: #ffffff;
+  border: 1px solid #e1e5e9;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.params-container h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #1f2937;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.placeholder-text {
+  color: #6b7280;
+  font-style: italic;
+  margin: 20px 0;
+}
+
 /* 响应式布局 - 小屏幕上堆叠显示 */
 @media (max-width: 768px) {
   .models-content {

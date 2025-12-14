@@ -4,6 +4,7 @@ import ModelModal from './ModelModal';
 import ModelParameterModal from './ModelParameterModal';
 import SupplierDetail from '../SupplierManagement/SupplierDetail';
 import ModelCapabilityAssociation from '../CapabilityManagement/ModelCapabilityAssociation';
+import ParameterManagementMain from './ParameterManagementMain';
 import '../../styles/ModelManagement.css';
 import api from '../../utils/api';
 import capabilityApi from '../../utils/api/capabilityApi';
@@ -71,6 +72,9 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
   const [modelCapabilities, setModelCapabilities] = useState({}); // 存储每个模型的能力信息
   const [isCapabilityModalOpen, setIsCapabilityModalOpen] = useState(false);
   const [currentCapabilitiesModel, setCurrentCapabilitiesModel] = useState(null);
+  
+  // 参数管理相关状态
+  const [isParameterManagementView, setIsParameterManagementView] = useState(false);
   
   // 描述展开状态管理
   const [expandedDescriptions, setExpandedDescriptions] = useState({});
@@ -198,13 +202,27 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
   const handleSaveModelData = async (modelData, logo) => {
     try {
       setSaving(true);
+      let savedModel;
+      
+      // 保存模型基本信息
       if (modelModalMode === 'add') {
-        await api.modelApi.create(selectedSupplier.id, { ...modelData, logo });
+        savedModel = await api.modelApi.create(selectedSupplier.id, { ...modelData, logo });
         setSuccess('模型添加成功');
       } else {
-        await api.modelApi.update(selectedSupplier.id, editingModel.id, { ...modelData, logo });
+        savedModel = await api.modelApi.update(selectedSupplier.id, editingModel.id, { ...modelData, logo });
         setSuccess('模型更新成功');
       }
+      
+      // 如果选择了参数模板，同步模型参数与模板
+      if (modelData.parameterTemplateId) {
+        await api.modelApi.syncModelParametersWithTemplate(
+          selectedSupplier.id, 
+          savedModel.id || (modelModalMode === 'edit' ? editingModel.id : null), 
+          modelData.parameterTemplateId
+        );
+        setSuccess('模型保存成功并与参数模板同步');
+      }
+      
       await loadModels();
     } catch (err) {
       const errorMessage = err.message || '保存模型失败';
@@ -271,6 +289,16 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
       ...prev,
       [modelId]: !prev[modelId]
     }));
+  };
+  
+  // 导航到参数管理主界面
+  const handleNavigateToParameterManagement = () => {
+    setIsParameterManagementView(true);
+  };
+  
+  // 从参数管理主界面返回
+  const handleBackFromParameterManagement = () => {
+    setIsParameterManagementView(false);
   };
   
   // 截断描述文本
@@ -392,8 +420,13 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
         />
       </div>
 
-      {/* 供应商选择和模型管理界面 */}
-      {selectedModel ? (
+      {/* 参数管理主界面 */}
+      {isParameterManagementView ? (
+        <ParameterManagementMain
+          selectedSupplier={selectedSupplier}
+          onBack={handleBackFromParameterManagement}
+        />
+      ) : selectedModel ? (
         <div className="model-parameters-section">
           <div className="section-header">
             <h2>{selectedModel.modelName ? `${selectedModel.modelName} (${selectedModel.modelId})` : selectedModel.modelId} - 参数管理</h2>
@@ -436,18 +469,19 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
                   </tr>
                 </thead>
                 <tbody>
-                  {modelParameters.map((param) => (
-                    <tr key={param.id} className={param.inherited ? 'inherited-parameter' : 'custom-parameter'}>
-                      <td>
-                        {param.parameter_name}
-                        {param.inherited && <span className="inherited-badge">继承</span>}
-                      </td>
-                      <td>{param.parameter_value}</td>
-                      <td>{param.parameter_type}</td>
-                      <td>{param.default_value}</td>
-                      <td>{param.description}</td>
-                      <td>{param.is_required ? '是' : '否'}</td>
-                      <td>
+                  {modelParameters.map((param) => {
+                    return (
+                      <tr key={param.id} className={param.inherited ? 'inherited-parameter' : 'custom-parameter'}>
+                        <td>
+                          {param.parameter_name}
+                          {param.inherited && <span className="inherited-badge">继承</span>}
+                        </td>
+                        <td>{typeof param.parameter_value === 'object' ? JSON.stringify(param.parameter_value) : param.parameter_value}</td>
+                        <td>{param.parameter_type}</td>
+                        <td>{typeof param.default_value === 'object' ? JSON.stringify(param.default_value) : param.default_value}</td>
+                        <td>{param.description}</td>
+                        <td>{param.is_required ? '是' : '否'}</td>
+                        <td>
                         <div className="parameter-actions">
                           <button
                             className="btn btn-secondary btn-small"
@@ -464,9 +498,10 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
                             删除
                           </button>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -478,13 +513,22 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
           <div className="model-section">
             <div className="section-header">
               <h2>模型卡片</h2>
-              <button
-                className="btn btn-primary"
-                onClick={() => handleAddModelClick()}
-                disabled={saving || !selectedSupplier}
-              >
-                添加模型
-              </button>
+              <div className="section-actions">
+                <button
+                  className="btn btn-primary"
+                  onClick={() => handleAddModelClick()}
+                  disabled={saving || !selectedSupplier}
+                >
+                  添加模型
+                </button>
+                <button
+                  className="btn btn-secondary"
+                  onClick={handleNavigateToParameterManagement}
+                  disabled={saving || !selectedSupplier}
+                >
+                  参数管理主界面
+                </button>
+              </div>
             </div>
 
             {loading ? (

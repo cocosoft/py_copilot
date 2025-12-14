@@ -4,7 +4,10 @@ from sqlalchemy.orm import Session
 import sqlalchemy
 
 # 数据库配置
-SQLALCHEMY_DATABASE_URL = "sqlite:///./py_copilot.db"
+import os
+# 使用与初始化脚本一致的数据库文件路径
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+SQLALCHEMY_DATABASE_URL = f"sqlite:///{os.path.join(BASE_DIR, 'py_copilot.db')}"
 DATABASE_CONNECT_ARGS = {"check_same_thread": False}
 
 # 创建数据库引擎

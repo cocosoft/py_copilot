@@ -4,7 +4,7 @@ import { request } from '../apiUtils';
 export const supplierApi = {
   // 获取所有供应商
   getAll: async () => {
-    const response = await request('/v1/model-management/suppliers', {
+    const response = await request('/v1/model-management/suppliers-list', {
       method: 'GET'
     });
        

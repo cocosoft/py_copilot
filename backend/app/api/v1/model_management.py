@@ -11,7 +11,7 @@ from datetime import datetime
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.models.supplier_db import ModelDB as Model, ModelParameter
+from app.models.supplier_db import ModelDB, ModelParameter
 from app.models.model_category import ModelCategory
 from app.services.parameter_management.parameter_manager import ParameterManager
 
@@ -147,8 +147,8 @@ async def get_all_models(
     
     # 查询数据库获取所有模型数据，包括供应商信息
     from sqlalchemy.orm import joinedload
-    models = db.query(Model).options(joinedload(Model.supplier)).offset(skip).limit(limit).all()
-    total = db.query(Model).count()
+    models = db.query(ModelDB).options(joinedload(ModelDB.supplier)).offset(skip).limit(limit).all()
+    total = db.query(ModelDB).count()
     
     # 确保logo字段包含完整路径
     for model in models:
@@ -217,16 +217,16 @@ async def create_model(
             del model_dict['model_type']
         
         # 创建新模型
-        db_model = Model(**model_dict)
+        db_model = ModelDB(**model_dict)
         db.add(db_model)
         
         # 如果是第一个模型或者设置为默认模型，将其他模型的is_default设置为False
         if db_model.is_default is True:
-            db.query(Model).filter(
-                Model.supplier_id == supplier_id,
-                Model.id != db_model.id
-            ).update({Model.is_default: False})
-        elif db.query(Model).filter(Model.supplier_id == supplier_id).count() == 0:
+            db.query(ModelDB).filter(
+                ModelDB.supplier_id == supplier_id,
+                ModelDB.id != db_model.id
+            ).update({ModelDB.is_default: False})
+        elif db.query(ModelDB).filter(ModelDB.supplier_id == supplier_id).count() == 0:
             # 如果是第一个模型，自动设为默认
             setattr(db_model, 'is_default', True)
         
@@ -265,8 +265,8 @@ async def get_models(
     print(f"收到获取供应商 {supplier_id} 模型列表的请求")
     
     # 查询数据库获取模型数据
-    models = db.query(Model).filter(Model.supplier_id == supplier_id).offset(skip).limit(limit).all()
-    total = db.query(Model).filter(Model.supplier_id == supplier_id).count()
+    models = db.query(ModelDB).filter(ModelDB.supplier_id == supplier_id).offset(skip).limit(limit).all()
+    total = db.query(ModelDB).filter(ModelDB.supplier_id == supplier_id).count()
     
     print(f"返回 {len(models)} 个模型，总计 {total} 个模型")
     
@@ -296,9 +296,9 @@ async def get_model(
     Returns:
         模型信息
     """
-    model = db.query(Model).filter(
-        Model.id == model_id,
-        Model.supplier_id == supplier_id
+    model = db.query(ModelDB).filter(
+        ModelDB.id == model_id,
+        ModelDB.supplier_id == supplier_id
     ).first()
     
     if not model:
@@ -341,9 +341,9 @@ async def update_model(
     import json
     from fastapi import Request
     
-    model = db.query(Model).filter(
-        Model.id == model_id,
-        Model.supplier_id == supplier_id
+    model = db.query(ModelDB).filter(
+        ModelDB.id == model_id,
+        ModelDB.supplier_id == supplier_id
     ).first()
     
     if not model:
@@ -383,10 +383,10 @@ async def update_model(
     
     # 如果更新了is_default为True，需要将其他模型的is_default设置为False
     if 'is_default' in update_data and update_data['is_default']:
-        db.query(Model).filter(
-            Model.supplier_id == supplier_id,
-            Model.id != model_id
-        ).update({Model.is_default: False})
+        db.query(ModelDB).filter(
+            ModelDB.supplier_id == supplier_id,
+            ModelDB.id != model_id
+        ).update({ModelDB.is_default: False})
     
     for field, value in update_data.items():
         setattr(model, field, value)
@@ -454,8 +454,8 @@ async def delete_model(
     
     # 如果删除的是默认模型，将第一个可用的模型设为默认
     if was_default is True:
-        first_model = db.query(Model).filter(
-            Model.supplier_id == supplier_id
+        first_model = db.query(ModelDB).filter(
+            ModelDB.supplier_id == supplier_id
         ).first()
         if first_model:
             setattr(first_model, 'is_default', True)
@@ -483,9 +483,9 @@ async def set_default_model(
         设置为默认的模型信息
     """
     # 验证模型是否存在且属于指定供应商
-    model = db.query(Model).filter(
-        Model.id == model_id,
-        Model.supplier_id == supplier_id
+    model = db.query(ModelDB).filter(
+        ModelDB.id == model_id,
+        ModelDB.supplier_id == supplier_id
     ).first()
     
     if not model:
@@ -495,7 +495,7 @@ async def set_default_model(
         )
     
     # 将所有模型的is_default设置为False
-    db.query(Model).filter(Model.supplier_id == supplier_id).update({Model.is_default: False})
+    db.query(ModelDB).filter(ModelDB.supplier_id == supplier_id).update({ModelDB.is_default: False})
     
     # 将指定模型设为默认
     setattr(model, 'is_default', True)
@@ -514,16 +514,32 @@ def get_model_parameters(
     current_user: MockUser = Depends(get_mock_user)
 ):
     """获取模型参数"""
+    print(f"[API V1] 调用get_model_parameters: supplier_id={supplier_id}, model_id={model_id}")
     # 验证模型是否存在
-    model = db.query(Model).filter(
-        Model.id == model_id,
-        Model.supplier_id == supplier_id
-    ).first()
-    if not model:
-        raise HTTPException(status_code=404, detail="模型不存在")
+    try:
+        # 直接使用SQL语句测试
+        from sqlalchemy import text
+        result = db.execute(text("SELECT * FROM models WHERE id=:model_id AND supplier_id=:supplier_id"), 
+                          {"model_id": model_id, "supplier_id": supplier_id})
+        sql_result = result.fetchone()
+        print(f"[API V1] SQL直接查询结果: {sql_result}")
+        
+        # 使用ORM查询
+        model = db.query(ModelDB).filter(
+            ModelDB.id == model_id,
+            ModelDB.supplier_id == supplier_id
+        ).first()
+        print(f"[API V1] ORM查询结果: {model}")
+        
+        if not model:
+            print(f"[API V1] 模型不存在: supplier_id={supplier_id}, model_id={model_id}")
+            raise HTTPException(status_code=404, detail="模型不存在")
+    except Exception as e:
+        print(f"[API V1] 查询异常: {str(e)}")
+        raise HTTPException(status_code=500, detail="查询异常")
     
-    # 获取模型参数
-    parameters = ParameterManager.get_model_parameters(db, model_id)
+    # 获取模型参数，包括参数模板的继承
+    parameters = ParameterManager.get_model_parameters_with_templates(db, model_id)
     
     return ModelParameterListResponse(
         model_id=model_id,
@@ -542,9 +558,9 @@ def create_model_parameter(
 ):
     """创建模型参数"""
     # 验证模型是否存在
-    model = db.query(Model).filter(
-        Model.id == model_id,
-        Model.supplier_id == supplier_id
+    model = db.query(ModelDB).filter(
+        ModelDB.id == model_id,
+        ModelDB.supplier_id == supplier_id
     ).first()
     if not model:
         raise HTTPException(status_code=404, detail="模型不存在")
@@ -575,9 +591,9 @@ def update_model_parameter(
 ):
     """更新模型参数"""
     # 验证模型是否存在
-    model = db.query(Model).filter(
-        Model.id == model_id,
-        Model.supplier_id == supplier_id
+    model = db.query(ModelDB).filter(
+        ModelDB.id == model_id,
+        ModelDB.supplier_id == supplier_id
     ).first()
     if not model:
         raise HTTPException(status_code=404, detail="模型不存在")
