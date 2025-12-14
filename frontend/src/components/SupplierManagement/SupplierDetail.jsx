@@ -5,7 +5,7 @@ import { API_BASE_URL } from '../../utils/apiUtils';
 import SupplierModal from './SupplierModal';
 import './SupplierDetail.css';
 
-const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }) => {
+const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, onNavigateToParameterManagement }) => {
   const [currentSupplier, setCurrentSupplier] = useState(null);
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
   const [supplierModalMode, setSupplierModalMode] = useState('edit');
@@ -444,6 +444,15 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }
           >
             🗑️
           </button>
+          {onNavigateToParameterManagement && (
+            <button
+              className="btn-param-management"
+              onClick={onNavigateToParameterManagement}
+              title="参数管理主界面"
+            >
+              ⚙️
+            </button>
+          )}
         </div>
         <div className="supplier-actions">
           <label className="toggle-switch" title={selectedSupplier.is_active ? '当前已启用，点击停用' : '当前已停用，点击启用'}>

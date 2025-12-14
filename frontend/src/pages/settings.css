@@ -40,6 +40,8 @@
   flex-shrink: 0;
   transition: all 0.3s ease;
   overflow: hidden;
+  height: 100%;
+  overflow-y: auto;
 }
 
 /* 侧边栏展开状态 */
@@ -412,21 +414,25 @@
 }
 
 /* 滚动条样式 */
-.settings-main::-webkit-scrollbar {
+.settings-main::-webkit-scrollbar,
+.settings-sidebar::-webkit-scrollbar {
   width: 6px;
 }
 
-.settings-main::-webkit-scrollbar-track {
+.settings-main::-webkit-scrollbar-track,
+.settings-sidebar::-webkit-scrollbar-track {
   background: #f1f1f1;
   border-radius: 3px;
 }
 
-.settings-main::-webkit-scrollbar-thumb {
+.settings-main::-webkit-scrollbar-thumb,
+.settings-sidebar::-webkit-scrollbar-thumb {
   background: #c1c1c1;
   border-radius: 3px;
 }
 
-.settings-main::-webkit-scrollbar-thumb:hover {
+.settings-main::-webkit-scrollbar-thumb:hover,
+.settings-sidebar::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
 }
 

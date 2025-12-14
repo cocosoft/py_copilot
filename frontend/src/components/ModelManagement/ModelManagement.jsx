@@ -417,6 +417,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
           selectedSupplier={selectedSupplier}
           onSupplierSelect={onSupplierSelect}
           onSupplierUpdate={onSupplierUpdate}
+          onNavigateToParameterManagement={handleNavigateToParameterManagement}
         />
       </div>
 
@@ -514,19 +515,11 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
             <div className="section-header">
               <h2>模型卡片</h2>
               <div className="section-actions">
-                <button
-                  className="btn btn-primary"
+                <button className="btn btn-primary"
                   onClick={() => handleAddModelClick()}
                   disabled={saving || !selectedSupplier}
                 >
                   添加模型
-                </button>
-                <button
-                  className="btn btn-secondary"
-                  onClick={handleNavigateToParameterManagement}
-                  disabled={saving || !selectedSupplier}
-                >
-                  参数管理主界面
                 </button>
               </div>
             </div>

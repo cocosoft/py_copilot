@@ -85,12 +85,6 @@ const IntegratedModelManagement = () => {
               >
                 能力
               </button>
-              <button 
-                className={`tab-button ${activeTab === 'params' ? 'active' : ''}`}
-                onClick={() => setActiveTab('params')}
-              >
-                参数
-              </button>
             </div>
             <div className="tab-content">
               {activeTab === 'models' && (
@@ -130,14 +124,6 @@ const IntegratedModelManagement = () => {
               {activeTab === 'capabilities' && (
                 <div className="capabilities-content">
                   <CapabilityManagementTabs />
-                </div>
-              )}
-              {activeTab === 'params' && (
-                <div className="params-content">
-                  <ParameterManagementMain 
-                    selectedSupplier={selectedSupplier} 
-                    onBack={() => {}} 
-                  />
                 </div>
               )}
             </div>
