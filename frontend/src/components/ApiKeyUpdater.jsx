@@ -19,7 +19,7 @@ const ApiKeyUpdater = () => {
         const suppliersKey = `${STORAGE_PREFIX}suppliers`;
         localStorage.setItem(suppliersKey, JSON.stringify(suppliersArray));
       } catch (error) {
-        console.error('获取供应商数据时出错:', error);
+        console.error('获取供应商数据时出错:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
         // API调用失败时，确保localStorage中有基本的供应商数据结构
         const STORAGE_PREFIX = 'model_management_';
         const suppliersKey = `${STORAGE_PREFIX}suppliers`;
@@ -51,7 +51,7 @@ const ApiKeyUpdater = () => {
             localStorage.setItem(suppliersKey, JSON.stringify(suppliers));
           }
         } catch (localError) {
-          console.error('localStorage操作失败:', localError);
+          console.error('localStorage操作失败:', JSON.stringify({ message: localError.message, stack: localError.stack }, null, 2));
         }
       }
     };

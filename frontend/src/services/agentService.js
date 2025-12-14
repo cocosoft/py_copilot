@@ -16,7 +16,7 @@ export const createAgent = async (agentData) => {
     });
     return response;
   } catch (error) {
-    console.error('创建智能体失败:', error);
+    console.error('创建智能体失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
     throw error;
   }
 };
@@ -27,7 +27,7 @@ export const getAgent = async (agentId) => {
     const response = await request(`${AGENT_API_BASE}/${agentId}`);
     return response;
   } catch (error) {
-    console.error('获取智能体详情失败:', error);
+    console.error('获取智能体详情失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
     throw error;
   }
 };
@@ -43,7 +43,7 @@ export const getAgents = async (page = 1, limit = 10, categoryId = null) => {
     const response = await request(url);
     return response;
   } catch (error) {
-    console.error('获取智能体列表失败:', error);
+    console.error('获取智能体列表失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
     throw error;
   }
 };
@@ -55,7 +55,7 @@ export const getPublicAgents = async (page = 1, limit = 10) => {
     const response = await request(`${AGENT_API_BASE}/public/list?skip=${skip}&limit=${limit}`);
     return response;
   } catch (error) {
-    console.error('获取公开智能体列表失败:', error);
+    console.error('获取公开智能体列表失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
     throw error;
   }
 };
@@ -67,7 +67,7 @@ export const getRecommendedAgents = async (page = 1, limit = 10) => {
     const response = await request(`${AGENT_API_BASE}/recommended/list?skip=${skip}&limit=${limit}`);
     return response;
   } catch (error) {
-    console.error('获取推荐智能体列表失败:', error);
+    console.error('获取推荐智能体列表失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
     throw error;
   }
 };
@@ -84,7 +84,7 @@ export const updateAgent = async (agentId, agentData) => {
     });
     return response;
   } catch (error) {
-    console.error('更新智能体失败:', error);
+    console.error('更新智能体失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
     throw error;
   }
 };
@@ -97,7 +97,7 @@ export const deleteAgent = async (agentId) => {
     });
     return true;
   } catch (error) {
-    console.error('删除智能体失败:', error);
+    console.error('删除智能体失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
     throw error;
   }
 };

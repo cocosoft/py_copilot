@@ -20,12 +20,12 @@ const ModelCapabilityAssociation = () => {
       const modelsData = Array.isArray(response.models) ? response.models : [];
       
       // 添加调试信息，查看模型数据结构
-      console.log('获取的模型列表:', modelsData);
-      console.log('第一个模型的供应商信息:', modelsData[0]?.supplier);
+      console.log('获取的模型列表:', JSON.stringify(modelsData, null, 2));
+      console.log('第一个模型的供应商信息:', JSON.stringify(modelsData[0]?.supplier, null, 2));
       
       setModels(modelsData);
     } catch (error) {
-      console.error('获取模型列表失败:', error);
+      console.error('获取模型列表失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       setError('获取模型列表失败');
       // 出错时设置为空数组，避免map错误
       setModels([]);
@@ -39,7 +39,7 @@ const ModelCapabilityAssociation = () => {
       // 直接使用capabilityApi返回的已经处理好的数据
       setCapabilities(Array.isArray(capabilitiesData) ? capabilitiesData : []);
     } catch (error) {
-      console.error('获取能力列表失败:', error);
+      console.error('获取能力列表失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       setError('获取能力列表失败');
       // 出错时设置为空数组，避免map错误
       setCapabilities([]);
@@ -56,7 +56,7 @@ const ModelCapabilityAssociation = () => {
       // 直接使用capabilityApi返回的已经处理好的数据
       setModelCapabilities(Array.isArray(modelCapabilitiesData) ? modelCapabilitiesData : []);
     } catch (error) {
-      console.error('获取模型能力关联失败:', error);
+      console.error('获取模型能力关联失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       setError('获取模型能力关联失败');
     } finally {
       setLoading(false);
@@ -92,7 +92,7 @@ const ModelCapabilityAssociation = () => {
       setTimeout(() => setError(null), 3000);
       fetchModelCapabilities(selectedModel.id);
     } catch (error) {
-      console.error('添加能力失败:', error);
+      console.error('添加能力失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       setError('添加失败：' + (error.message || '未知错误'));
     } finally {
       setUpdateLoading(false);
@@ -115,7 +115,7 @@ const ModelCapabilityAssociation = () => {
       setTimeout(() => setError(null), 3000);
       fetchModelCapabilities(selectedModel.id);
     } catch (error) {
-      console.error('移除能力失败:', error);
+      console.error('移除能力失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       setError('移除失败：' + (error.message || '未知错误'));
     } finally {
       setUpdateLoading(false);
@@ -131,7 +131,7 @@ const ModelCapabilityAssociation = () => {
       setError('配置更新功能暂未实现');
       setTimeout(() => setError(null), 3000);
     } catch (error) {
-      console.error('更新配置失败:', error);
+      console.error('更新配置失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       setError('更新失败：' + (error.message || '未知错误'));
     } finally {
       setUpdateLoading(false);

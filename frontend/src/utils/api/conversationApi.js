@@ -10,7 +10,7 @@ export const conversationApi = {
         method: 'GET'
       });
     } catch (error) {
-      console.error('获取对话列表失败:', error);
+      console.error('获取对话列表失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -22,7 +22,7 @@ export const conversationApi = {
         method: 'GET'
       });
     } catch (error) {
-      console.error(`获取对话 ${conversationId} 失败:`, error);
+      console.error(`获取对话 ${conversationId} 失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -38,7 +38,7 @@ export const conversationApi = {
         body: JSON.stringify(conversationData)
       });
     } catch (error) {
-      console.error('创建对话失败:', error);
+      console.error('创建对话失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -54,7 +54,7 @@ export const conversationApi = {
         body: JSON.stringify(updatedData)
       });
     } catch (error) {
-      console.error(`更新对话 ${conversationId} 失败:`, error);
+      console.error(`更新对话 ${conversationId} 失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -66,7 +66,7 @@ export const conversationApi = {
         method: 'DELETE'
       });
     } catch (error) {
-      console.error(`删除对话 ${conversationId} 失败:`, error);
+      console.error(`删除对话 ${conversationId} 失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -82,7 +82,7 @@ export const conversationApi = {
         body: JSON.stringify({ ids: conversationIds })
       });
     } catch (error) {
-      console.error('批量删除对话失败:', error);
+      console.error('批量删除对话失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -99,7 +99,7 @@ export const conversationApi = {
         method: 'GET'
       });
     } catch (error) {
-      console.error(`获取对话 ${conversationId} 的消息失败:`, error);
+      console.error(`获取对话 ${conversationId} 的消息失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -116,7 +116,7 @@ export const conversationApi = {
         body: JSON.stringify(messageData)
       });
     } catch (error) {
-      console.error(`在对话 ${conversationId} 中发送消息失败:`, error);
+      console.error(`在对话 ${conversationId} 中发送消息失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -128,7 +128,7 @@ export const conversationApi = {
         method: 'DELETE'
       });
     } catch (error) {
-      console.error(`删除消息 ${messageId} 失败:`, error);
+      console.error(`删除消息 ${messageId} 失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -140,7 +140,7 @@ export const conversationApi = {
         method: 'GET'
       });
     } catch (error) {
-      console.error('获取对话统计失败:', error);
+      console.error('获取对话统计失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -152,7 +152,7 @@ export const conversationApi = {
         method: 'GET'
       });
     } catch (error) {
-      console.error(`导出对话 ${conversationId} 失败:`, error);
+      console.error(`导出对话 ${conversationId} 失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -164,7 +164,7 @@ export const conversationApi = {
         method: 'DELETE'
       });
     } catch (error) {
-      console.error('清除所有对话失败:', error);
+      console.error('清除所有对话失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   }

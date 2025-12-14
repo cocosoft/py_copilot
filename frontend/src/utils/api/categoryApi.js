@@ -50,7 +50,7 @@ export const categoryApi = {
       // 构建分类树
       return buildCategoryTree(categoriesData);
     } catch (error) {
-      console.error('❌ categoryApi.getAll - API调用失败:', error);
+      console.error('❌ categoryApi.getAll - API调用失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -62,7 +62,7 @@ export const categoryApi = {
         method: 'GET'
       });
     } catch (error) {
-      console.error(`获取分类 ${categoryId} 失败:`, error);
+      console.error(`获取分类 ${categoryId} 失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -81,7 +81,7 @@ export const categoryApi = {
         }
       });
     } catch (error) {
-      console.error('创建分类失败:', error);
+      console.error('创建分类失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -100,7 +100,7 @@ export const categoryApi = {
         }
       });
     } catch (error) {
-      console.error(`更新分类 ${categoryId} 失败:`, error);
+      console.error(`更新分类 ${categoryId} 失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -112,7 +112,7 @@ export const categoryApi = {
         method: 'DELETE'
       });
     } catch (error) {
-      console.error(`删除分类 ${categoryId} 失败:`, error);
+      console.error(`删除分类 ${categoryId} 失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -124,7 +124,7 @@ export const categoryApi = {
         method: 'GET'
       });
     } catch (error) {
-      console.error('获取分类树失败:', error);
+      console.error('获取分类树失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -140,7 +140,7 @@ export const categoryApi = {
         }
       });
     } catch (error) {
-      console.error('添加模型分类关联失败:', error);
+      console.error('添加模型分类关联失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -152,7 +152,7 @@ export const categoryApi = {
         method: 'DELETE'
       });
     } catch (error) {
-      console.error('移除模型分类关联失败:', error);
+      console.error('移除模型分类关联失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -164,7 +164,7 @@ export const categoryApi = {
         method: 'GET'
       });
     } catch (error) {
-      console.error(`获取分类 ${categoryId} 下的模型失败:`, error);
+      console.error(`获取分类 ${categoryId} 下的模型失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -176,7 +176,7 @@ export const categoryApi = {
         method: 'GET'
       });
     } catch (error) {
-      console.error(`获取模型 ${modelId} 的分类失败:`, error);
+      console.error(`获取模型 ${modelId} 的分类失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -188,7 +188,7 @@ export const categoryApi = {
         method: 'GET'
       });
     } catch (error) {
-      console.error(`获取分类 ${categoryId} 的默认参数失败:`, error);
+      console.error(`获取分类 ${categoryId} 的默认参数失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -204,7 +204,7 @@ export const categoryApi = {
         }
       });
     } catch (error) {
-      console.error(`设置分类 ${categoryId} 的默认参数失败:`, error);
+      console.error(`设置分类 ${categoryId} 的默认参数失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -216,7 +216,7 @@ export const categoryApi = {
         method: 'DELETE'
       });
     } catch (error) {
-      console.error(`删除分类 ${categoryId} 的参数 ${paramName} 失败:`, error);
+      console.error(`删除分类 ${categoryId} 的参数 ${paramName} 失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   }

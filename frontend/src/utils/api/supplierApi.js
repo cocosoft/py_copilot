@@ -245,11 +245,11 @@ export const supplierApi = {
     const numericId = Number(id);
     
     // 添加调试信息
-    console.log('调用testApiConfig，传递的apiConfig:', apiConfig);
-    console.log('要发送到后端的请求体:', {
+    console.log('调用testApiConfig，传递的apiConfig:', JSON.stringify(apiConfig, null, 2));
+    console.log('要发送到后端的请求体:', JSON.stringify({
       api_endpoint: apiConfig.apiUrl,
       api_key: apiConfig.apiKey
-    });
+    }, null, 2));
     
     const endpoint = `/v1/model-management/suppliers/${numericId}/test-api`;
     const response = await request(endpoint, {

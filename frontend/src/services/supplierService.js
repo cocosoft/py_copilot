@@ -7,7 +7,7 @@ export const supplierService = {
       const data = await api.supplierApi.getAll();
       return Array.isArray(data) ? data : [];
     } catch (err) {
-      console.error('获取供应商列表失败:', err);
+      console.error('获取供应商列表失败:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
       return [];
     }
   },
@@ -17,7 +17,7 @@ export const supplierService = {
     try {
       return await api.supplierApi.getById(id);
     } catch (err) {
-      console.error(`获取供应商 ${id} 失败:`, err);
+      console.error(`获取供应商 ${id} 失败:`, JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
       return null;
     }
   },
@@ -27,7 +27,7 @@ export const supplierService = {
     try {
       return await api.supplierApi.create(supplierData);
     } catch (err) {
-      console.error('创建供应商失败:', err);
+      console.error('创建供应商失败:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
       throw err;
     }
   },
@@ -37,7 +37,7 @@ export const supplierService = {
     try {
       return await api.supplierApi.update(id, supplierData);
     } catch (err) {
-      console.error(`更新供应商 ${id} 失败:`, err);
+      console.error(`更新供应商 ${id} 失败:`, JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
       throw err;
     }
   },
@@ -47,7 +47,7 @@ export const supplierService = {
     try {
       return await api.supplierApi.delete(id);
     } catch (err) {
-      console.error(`删除供应商 ${id} 失败:`, err);
+      console.error(`删除供应商 ${id} 失败:`, JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
       throw err;
     }
   }

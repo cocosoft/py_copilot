@@ -138,7 +138,7 @@ const SupplierModal = ({ isOpen, onClose, onSave, supplier = null, mode = 'add' 
       await onSave(formDataToSubmit);
       onClose();
     } catch (error) {
-      console.error('SupplierModal: 保存供应商失败:', error);
+      console.error('SupplierModal: 保存供应商失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       alert('保存失败，请重试');
     } finally {
       setSaving(false);

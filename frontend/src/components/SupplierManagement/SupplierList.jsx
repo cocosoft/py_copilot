@@ -68,7 +68,7 @@ const SupplierList = () => {
       // 重新加载供应商数据以更新UI
       loadSuppliers();
     } catch (error) {
-      console.error('切换供应商状态失败:', error);
+      console.error('切换供应商状态失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       alert(`切换供应商状态失败: ${error.message}`);
     }
   };

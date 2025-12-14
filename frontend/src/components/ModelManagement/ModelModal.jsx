@@ -86,7 +86,7 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
       setCategories(categoryTree);
       
     } catch (error) {
-      console.error('ModelModal: 获取模型分类失败:', error);
+      console.error('ModelModal: 获取模型分类失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       console.error('❌ 错误详情:', error.message);
       console.error('❌ 错误栈:', error.stack);
       
@@ -102,7 +102,7 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
       const templates = await api.modelApi.getParameterTemplates();
       setParameterTemplates(templates);
     } catch (error) {
-      console.error('获取参数模板失败:', error);
+      console.error('获取参数模板失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       setParameterTemplates([]);
     } finally {
       setLoadingTemplates(false);
@@ -224,7 +224,7 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
       await onSave(modelData, logo);
       onClose();
     } catch (error) {
-      console.error('ModelModal: 保存模型失败:', error);
+      console.error('ModelModal: 保存模型失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       alert('保存失败：' + (error.message || '未知错误'));
     } finally {
       setSaving(false);

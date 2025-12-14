@@ -20,7 +20,7 @@ const IntegratedModelManagement = () => {
     try {
       const response = await api.categoryApi.getAll();
     } catch (error) {
-      console.error('❌ 加载模型分类失败:', error);
+      console.error('❌ 加载模型分类失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
     }
   };
   
@@ -29,7 +29,7 @@ const IntegratedModelManagement = () => {
     try {
       const response = await api.capabilityApi.getAll();
     } catch (error) {
-      console.error('❌ 加载能力信息失败:', error);
+      console.error('❌ 加载能力信息失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
     }
   };
 
@@ -45,7 +45,7 @@ const IntegratedModelManagement = () => {
     ]).then(() => {
       setLoading(false);
     }).catch(err => {
-      console.error('❌ 数据加载过程中发生错误:', err);
+      console.error('❌ 数据加载过程中发生错误:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
       setLoading(false);
     });
   }, []);

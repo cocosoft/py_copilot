@@ -49,7 +49,7 @@ const ModelCapabilityManagement = () => {
       setCapabilities(normalizedCapabilities);
       setError(null);
     } catch (err) {
-      console.error('❌ 获取能力失败:', err);
+      console.error('❌ 获取能力失败:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
       setError('获取能力列表失败，请稍后重试');
 
     } finally {
@@ -120,7 +120,7 @@ const ModelCapabilityManagement = () => {
       // 3秒后自动清除成功消息
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      console.error('创建能力失败:', err);
+      console.error('创建能力失败:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
       setError('创建能力失败，请检查输入并重试');
     }
   };
@@ -138,7 +138,7 @@ const ModelCapabilityManagement = () => {
       // 3秒后自动清除成功消息
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      console.error('更新能力失败:', err);
+      console.error('更新能力失败:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
       setError('更新能力失败，请检查输入并重试');
     }
   };
@@ -153,7 +153,7 @@ const ModelCapabilityManagement = () => {
         // 3秒后自动清除成功消息
         setTimeout(() => setSuccess(null), 3000);
       } catch (err) {
-        console.error('删除能力失败:', err);
+        console.error('删除能力失败:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
         setError('删除能力失败，可能是因为该能力与模型存在关联');
       }
     }

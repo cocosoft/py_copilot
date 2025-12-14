@@ -86,7 +86,7 @@ const SupplierForm = ({ formData, setFormData, onSubmit, saving, mode = 'add' })
       // 调用父组件的提交函数
       await onSubmit(formDataToSubmit);
     } catch (error) {
-      console.error('保存供应商失败:', error);
+      console.error('保存供应商失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       alert('保存失败，请重试');
     }
   };

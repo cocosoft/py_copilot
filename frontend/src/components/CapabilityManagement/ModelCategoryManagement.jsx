@@ -101,8 +101,7 @@ const ModelCategoryManagement = () => {
       setCategories(flattenedCategories);
       setError(null);
     } catch (err) {
-      console.error('❌ 获取分类失败:', err);
-      console.error('❌ 错误详情:', err.message, err.stack);
+      console.error('❌ 获取分类失败:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
       setError('获取分类列表失败，请稍后重试');
       
     } finally {
@@ -240,7 +239,7 @@ const ModelCategoryManagement = () => {
       // 3秒后自动清除成功消息
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      console.error('创建分类失败:', err);
+      console.error('创建分类失败:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
       setError('创建分类失败，请检查输入并重试');
     }
   };
@@ -277,7 +276,7 @@ const ModelCategoryManagement = () => {
       // 3秒后自动清除成功消息
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      console.error('更新分类失败:', err);
+      console.error('更新分类失败:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
       setError('更新分类失败，请检查输入并重试');
     }
   };
@@ -298,8 +297,7 @@ const ModelCategoryManagement = () => {
         // 3秒后自动清除成功消息
         setTimeout(() => setSuccess(null), 3000);
       } catch (err) {
-        console.error('❌ 删除分类失败:', err);
-        console.error('❌ 错误详情:', err.message, err.stack);
+        console.error('❌ 删除分类失败:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
         setError('删除分类失败，可能是因为该分类下有子分类或关联的模型');
       }
     }
@@ -438,7 +436,7 @@ const ModelCategoryManagement = () => {
       // 3秒后自动清除成功消息
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      console.error('❌ 参数配置失败:', err);
+      console.error('❌ 参数配置失败:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
       setParameterError('参数配置失败，请稍后重试');
     } finally {
       setParameterLoading(false);
@@ -457,7 +455,7 @@ const ModelCategoryManagement = () => {
         // 3秒后自动清除成功消息
         setTimeout(() => setSuccess(null), 3000);
       } catch (err) {
-        console.error('❌ 删除参数失败:', err);
+        console.error('❌ 删除参数失败:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
         setParameterError('删除参数失败，请稍后重试');
       } finally {
         setParameterLoading(false);

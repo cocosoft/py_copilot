@@ -62,8 +62,8 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
       }
 
     } catch (err) {
-      console.error('Failed to toggle supplier status:', err);
-    }
+        console.error('Failed to toggle supplier status:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
+      }
   };
 
   const handleEditSupplier = (supplier) => {
@@ -175,10 +175,10 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
       handleCloseSupplierModal();
 
     } catch (error) {
-      console.error('保存供应商失败:', error);
-      const errorMessage = `${supplierModalMode === 'add' ? '添加' : '更新'}供应商失败`;
-      throw new Error(errorMessage);
-    } finally {
+        console.error('保存供应商失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+        const errorMessage = `${supplierModalMode === 'add' ? '添加' : '更新'}供应商失败`;
+        throw new Error(errorMessage);
+      } finally {
       setSaving(false);
     }
   };
@@ -202,7 +202,7 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
       // 没有logo时的默认路径
       return DEFAULT_IMAGES.provider;
     } catch (error) {
-      console.error('获取供应商logo失败:', error);
+      console.error('获取供应商logo失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       return DEFAULT_IMAGES.provider;
     }
   };
@@ -242,7 +242,7 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
       }, 100);
 
     } catch (err) {
-      console.error('❌ Failed to delete supplier:', err);
+      console.error('❌ Failed to delete supplier:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
       console.error('❌ 错误详情:', JSON.stringify(err, null, 2));
       alert('删除供应商失败，请稍后重试');
     } finally {
@@ -262,11 +262,11 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
         api_key: localApiConfig.apiKey
       };
 
-      console.log('保存API配置：', updateData);
+      console.log('保存API配置：', JSON.stringify(updateData, null, 2));
       
       // 更新供应商信息
       const response = await supplierApi.update(selectedSupplier.id, updateData);
-      console.log('保存API配置响应：', response);
+      console.log('保存API配置响应：', JSON.stringify(response, null, 2));
 
       // 显示保存成功
       setSaveStatus({
@@ -325,13 +325,13 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
       }
 
       // 测试API配置
-      console.log('即将调用testApiConfig，传递的参数:', {
+      console.log('即将调用testApiConfig，传递的参数:', JSON.stringify({
         id: selectedSupplier.id,
         apiConfig: {
           apiUrl: localApiConfig.apiUrl,
           apiKey: localApiConfig.apiKey
         }
-      });
+      }, null, 2));
       const result = await supplierApi.testApiConfig(selectedSupplier.id, {
         apiUrl: localApiConfig.apiUrl,
         apiKey: localApiConfig.apiKey
@@ -352,9 +352,9 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
         });
       }
     } catch (error) {
-        console.error('测试API失败:', error);
+        console.error('测试API失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
         console.error('错误消息:', error.message);
-        console.error('错误对象:', error);
+        console.error('错误对象:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
         
         // 解析错误信息，优先使用error.message（apiUtils.js已处理）
         let errorDetails = '无法连接到API';
@@ -448,7 +448,7 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
             <button
               className="btn-param-management"
               onClick={onNavigateToParameterManagement}
-              title="参数管理主界面"
+              title="参数管理"
             >
               ⚙️
             </button>
@@ -473,8 +473,8 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
                       }
                     })
                     .catch(err => {
-                      console.error('Failed to toggle supplier status:', err);
-                    });
+                    console.error('Failed to toggle supplier status:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
+                  });
                 }
               }}
             />

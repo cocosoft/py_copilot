@@ -36,7 +36,7 @@ export const capabilityApi = {
       }
       return response;
     } catch (error) {
-      console.error('获取能力列表失败:', error);
+      console.error('获取能力列表失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -48,7 +48,7 @@ export const capabilityApi = {
         method: 'GET'
       });
     } catch (error) {
-      console.error(`获取能力 ${capabilityId} 失败:`, error);
+      console.error(`获取能力 ${capabilityId} 失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -64,7 +64,7 @@ export const capabilityApi = {
         }
       });
     } catch (error) {
-      console.error('创建能力失败:', error);
+      console.error('创建能力失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -80,7 +80,7 @@ export const capabilityApi = {
         }
       });
     } catch (error) {
-      console.error(`更新能力 ${capabilityId} 失败:`, error);
+      console.error(`更新能力 ${capabilityId} 失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -92,7 +92,7 @@ export const capabilityApi = {
         method: 'DELETE'
       });
     } catch (error) {
-      console.error(`删除能力 ${capabilityId} 失败:`, error);
+      console.error(`删除能力 ${capabilityId} 失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -104,7 +104,7 @@ export const capabilityApi = {
         method: 'GET'
       });
     } catch (error) {
-      console.error('获取能力分类失败:', error);
+      console.error('获取能力分类失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -120,7 +120,7 @@ export const capabilityApi = {
         }
       });
     } catch (error) {
-      console.error('添加模型能力关联失败:', error);
+      console.error('添加模型能力关联失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -131,7 +131,7 @@ export const capabilityApi = {
       const { model_id, capability_id, config, value } = associationData;
       return await capabilityApi.addModelCapability(model_id, capability_id, value || config);
     } catch (error) {
-      console.error('添加能力到模型失败:', error);
+      console.error('添加能力到模型失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -143,7 +143,7 @@ export const capabilityApi = {
         method: 'DELETE'
       });
     } catch (error) {
-      console.error('移除模型能力关联失败:', error);
+      console.error('移除模型能力关联失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -164,7 +164,7 @@ export const capabilityApi = {
         }
       });
     } catch (error) {
-      console.error('更新模型能力值失败:', error);
+      console.error('更新模型能力值失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -182,7 +182,7 @@ export const capabilityApi = {
       }
       return response;
     } catch (error) {
-      console.error(`获取模型 ${modelId} 的能力失败:`, error);
+      console.error(`获取模型 ${modelId} 的能力失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -205,7 +205,7 @@ export const capabilityApi = {
         method: 'GET'
       });
     } catch (error) {
-      console.error(`获取具备能力 ${capabilityId} 的模型失败:`, error);
+      console.error(`获取具备能力 ${capabilityId} 的模型失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
@@ -217,7 +217,7 @@ export const capabilityApi = {
       // 暂时返回一个空对象
       return { success: true, message: '批量更新功能尚未实现' };
     } catch (error) {
-      console.error(`批量更新模型 ${modelId} 的能力失败:`, error);
+      console.error(`批量更新模型 ${modelId} 的能力失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   }

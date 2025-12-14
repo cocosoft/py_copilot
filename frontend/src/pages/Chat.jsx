@@ -88,9 +88,7 @@ const Chat = () => {
       setMessages(prevMessages => [...prevMessages, newBotMessage]);
     } catch (error) {
       // 添加更详细的错误日志
-      console.error('发送消息时出错:', error);
-      console.error('错误名称:', error.name);
-      console.error('错误消息:', error.message);
+      console.error('发送消息时出错:', JSON.stringify({ message: error.message, stack: error.stack, name: error.name }, null, 2));
       
       // 显示后端返回的具体错误信息或默认错误消息
       const errorMessageText = error.response?.data?.detail || error.message || '抱歉，我暂时无法处理你的请求。请稍后再试。';

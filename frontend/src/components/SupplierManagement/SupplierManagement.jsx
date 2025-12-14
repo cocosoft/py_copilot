@@ -57,7 +57,7 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
       setSuppliers(processedSuppliers);
       setError(null); // 清除错误状态
     } catch (err) {
-      console.error('Failed to load suppliers:', err);
+      console.error('Failed to load suppliers:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
       // 即使出错，也要设置空数组，避免页面空白
       setSuppliers([]);
       // 暂时注释掉错误显示，避免页面显示错误
@@ -93,7 +93,7 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
       // 没有logo时的默认路径
       return DEFAULT_IMAGES.provider;
     } catch (error) {
-      console.error('获取供应商logo失败:', error);
+      console.error('获取供应商logo失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       return DEFAULT_IMAGES.provider;
     }
   };
@@ -163,7 +163,7 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
       
     } catch (err) {
       setError(modalMode === 'add' ? '添加供应商失败' : '更新供应商失败');
-      console.error(`${modalMode === 'add' ? '添加' : '更新'}供应商失败:`, err);
+      console.error(`${modalMode === 'add' ? '添加' : '更新'}供应商失败:`, JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
       // 重新加载供应商数据以确保UI显示正确
       setTimeout(() => loadSuppliers(), 100);
       throw err; // 抛出错误让模态窗口处理
@@ -188,7 +188,7 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
       }
     } catch (err) {
       setError('删除供应商失败');
-      console.error('Failed to delete supplier:', err);
+      console.error('Failed to delete supplier:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
     } finally {
       setSaving(false);
     }

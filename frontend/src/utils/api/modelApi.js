@@ -6,7 +6,7 @@ const formatParameterData = (parameter) => {
   if (!parameter) return null;
   
   // Debug: Check what parameter looks like when received
-  console.log('Raw parameter data:', parameter);
+  console.log('Raw parameter data:', JSON.stringify(parameter, null, 2));
   
   // Helper function to safely convert any value to a React-compatible primitive
   const safeValue = (value) => {
@@ -31,11 +31,11 @@ const formatParameterData = (parameter) => {
   
   // Handle parameter_value with safeValue helper
   let parameterValue = safeValue(parameter.parameter_value);
-  console.log('Processed parameter_value:', parameterValue, 'Type:', typeof parameterValue);
+  console.log('Processed parameter_value:', JSON.stringify(parameterValue, null, 2), 'Type:', typeof parameterValue);
   
   // Handle default_value with safeValue helper
   let defaultValue = safeValue(parameter.default_value);
-  console.log('Processed default_value:', defaultValue, 'Type:', typeof defaultValue);
+  console.log('Processed default_value:', JSON.stringify(defaultValue, null, 2), 'Type:', typeof defaultValue);
   
   const formatted = {
     id: parameter.id,
@@ -51,7 +51,7 @@ const formatParameterData = (parameter) => {
     inherited: parameter.inherited || false // 添加继承参数标识
   };
   
-  console.log('Formatted parameter:', formatted);
+  console.log('Formatted parameter:', JSON.stringify(formatted, null, 2));
   return formatted;
 };
 
@@ -77,7 +77,7 @@ const handleApiError = (error, operation, additionalInfo = '') => {
   // 详细的错误日志
   console.error(`❌ modelApi.${operation} - API调用失败 [${statusCode}]:`, errorMessage);
   if (additionalInfo) {
-    console.error('  附加信息:', additionalInfo);
+    console.error('  附加信息:', JSON.stringify(additionalInfo, null, 2));
   }
   
   // 返回结构化错误对象
@@ -94,7 +94,7 @@ const formatModelData = (model) => {
   if (!model) return null;
   
   // 添加调试信息，查看原始模型数据结构
-  console.log('原始模型数据:', model);
+  console.log('原始模型数据:', JSON.stringify(model, null, 2));
   
   // 处理供应商信息 - 检查不同的可能路径
   let supplierName = '';
@@ -109,7 +109,7 @@ const formatModelData = (model) => {
   else if (model.supplier_id) {
     // 如果只有supplier_id而没有supplier对象，我们需要通过API获取供应商信息
     // 这里暂时设置为空，实际项目中可能需要额外的API调用
-    console.log('模型有supplier_id但没有supplier对象:', model.supplier_id);
+    console.log('模型有supplier_id但没有supplier对象:', JSON.stringify(model.supplier_id, null, 2));
   }
   
   // 处理分类信息
@@ -131,8 +131,8 @@ const formatModelData = (model) => {
   const modelTypeDisplayName = model.model_type_display_name || '';
   const modelTypeLogo = model.model_type_logo || '';
   
-  console.log('处理后的供应商信息:', { supplierName, supplierDisplayName });
-  console.log('处理后的分类信息:', categories);
+  console.log('处理后的供应商信息:', JSON.stringify({ supplierName, supplierDisplayName }, null, 2));
+  console.log('处理后的分类信息:', JSON.stringify(categories, null, 2));
   
   return {
     id: model.id,
@@ -244,7 +244,7 @@ export const modelApi = {
         statusCode: 400,
         operation: 'getBySupplier'
       };
-      console.error('❌ modelApi.getBySupplier - 参数验证失败:', validationError);
+      console.error('❌ modelApi.getBySupplier - 参数验证失败:', JSON.stringify(validationError, null, 2));
       return {
         models: [],
         total: 0,

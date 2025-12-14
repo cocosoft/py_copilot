@@ -31,7 +31,7 @@ export const SupplierProvider = ({ children }) => {
       setError(null);
       return finalSuppliers;
     } catch (err) {
-      console.error('❌ 加载供应商失败:', err.message, err.stack);
+      console.error('❌ 加载供应商失败:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
       setError('加载供应商失败');
       setSuppliers([]);
       return [];

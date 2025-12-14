@@ -51,7 +51,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
       // 没有logo时的默认路径
       return DEFAULT_IMAGES.provider;
     } catch (error) {
-      console.error('获取模型logo失败:', error);
+      console.error('获取模型logo失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       return DEFAULT_IMAGES.provider;
     }
   };
@@ -120,7 +120,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
           await api.modelApi.create(selectedSupplier.id, defaultModel);
           await loadModels();
         } catch (error) {
-          console.error('Failed to add default model:', error);
+          console.error('Failed to add default model:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
           // 降级处理：直接添加到本地状态
           setCurrentModels([defaultModel]);
         } finally {
@@ -169,7 +169,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
         [modelId]: capabilities
       }));
     } catch (err) {
-      console.error(`加载模型 ${modelId} 的能力失败:`, err);
+      console.error(`加载模型 ${modelId} 的能力失败:`, JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
       // 即使加载失败，也设置为空数组，避免显示错误
       setModelCapabilities(prev => ({
         ...prev,
@@ -332,7 +332,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
       const parameters = await api.modelApi.getParameters(selectedSupplier.id, modelId);
       setModelParameters(parameters);
     } catch (err) {
-      console.error('加载模型参数失败:', err);
+      console.error('加载模型参数失败:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
       setError('加载模型参数失败');
     } finally {
       setLoading(false);
@@ -374,7 +374,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
       }
       loadModelParameters(selectedModel.id);
     } catch (err) {
-      console.error('保存参数失败:', err);
+      console.error('保存参数失败:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
       setError('保存参数失败');
     } finally {
       setSaving(false);
@@ -400,9 +400,9 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
         setSuccess('参数删除成功');
         loadModelParameters(selectedModel.id);
       } catch (err) {
-        console.error('删除参数失败:', err);
-        setError('删除参数失败');
-      } finally {
+      console.error('删除参数失败:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
+      setError('删除参数失败');
+    } finally {
         setSaving(false);
         setSuccess(null);
       }

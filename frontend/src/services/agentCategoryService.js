@@ -16,7 +16,7 @@ export const createAgentCategory = async (categoryData) => {
     });
     return response;
   } catch (error) {
-    console.error('创建智能体分类失败:', error);
+    console.error('创建智能体分类失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
     throw error;
   }
 };
@@ -27,7 +27,7 @@ export const getAgentCategory = async (categoryId) => {
     const response = await request(`${AGENT_CATEGORY_API_BASE}/${categoryId}`);
     return response;
   } catch (error) {
-    console.error('获取智能体分类详情失败:', error);
+    console.error('获取智能体分类详情失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
     throw error;
   }
 };
@@ -38,7 +38,7 @@ export const getAgentCategories = async () => {
     const response = await request(`${AGENT_CATEGORY_API_BASE}/`);
     return response;
   } catch (error) {
-    console.error('获取智能体分类列表失败:', error);
+    console.error('获取智能体分类列表失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
     throw error;
   }
 };
@@ -55,7 +55,7 @@ export const updateAgentCategory = async (categoryId, categoryData) => {
     });
     return response;
   } catch (error) {
-    console.error('更新智能体分类失败:', error);
+    console.error('更新智能体分类失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
     throw error;
   }
 };
@@ -68,7 +68,7 @@ export const deleteAgentCategory = async (categoryId) => {
     });
     return true;
   } catch (error) {
-    console.error('删除智能体分类失败:', error);
+    console.error('删除智能体分类失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
     throw error;
   }
 };

@@ -33,7 +33,7 @@ const withDebugLog = (apiModule, moduleName) => {
           const result = await apiModule[key](...args);
           return result;
         } catch (error) {
-          console.error(`❌ ${moduleName}.${key} 调用失败:`, error);
+          console.error(`❌ ${moduleName}.${key} 调用失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
           throw error;
         }
       };
@@ -50,7 +50,7 @@ export const getDefaultModel = async () => {
     const models = await modelApi.getAll();
     return models.find(model => model.is_default) || models[0] || null;
   } catch (error) {
-    console.error('获取默认模型失败:', error);
+    console.error('获取默认模型失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
     return null;
   }
 };

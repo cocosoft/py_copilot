@@ -58,7 +58,7 @@ const Agent = () => {
       setTotalAgents(result.total);
     } catch (err) {
       setError('获取智能体列表失败，请重试');
-      console.error('Error fetching agents:', err);
+      console.error('Error fetching agents:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
     } finally {
       setLoading(false);
     }
@@ -96,7 +96,7 @@ const Agent = () => {
       fetchAgents();
     } catch (err) {
       setError(editingAgent ? '更新智能体失败，请重试' : '创建智能体失败，请重试');
-      console.error('Error creating/updating agent:', err);
+      console.error('Error creating/updating agent:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
     } finally {
       setLoading(false);
     }
@@ -165,7 +165,7 @@ const Agent = () => {
       setAgentCategories(response.categories);
     } catch (err) {
       setError('获取分类列表失败，请重试');
-      console.error('Error fetching categories:', err);
+      console.error('Error fetching categories:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
     } finally {
       setLoading(false);
     }
@@ -199,7 +199,7 @@ const Agent = () => {
       fetchCategories();
     } catch (err) {
       setError(editingCategory ? '更新分类失败，请重试' : '创建分类失败，请重试');
-      console.error('Error creating/updating category:', err);
+      console.error('Error creating/updating category:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
     } finally {
       setLoading(false);
     }
@@ -232,7 +232,7 @@ const Agent = () => {
         alert('分类删除成功！');
       } catch (err) {
         setError('删除分类失败，请重试');
-        console.error('Error deleting category:', err);
+        console.error('Error deleting category:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
       } finally {
         setLoading(false);
       }
