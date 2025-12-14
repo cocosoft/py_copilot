@@ -38,7 +38,18 @@ class ModelCategory(Base):
     # 自引用关系，用于层级分类
     parent = relationship("ModelCategory", remote_side=[id], backref="children")
     
-    # 与模型的多对多关系将在后续的关联表中定义
+    # 与模型的关系
+    model_db = relationship("ModelDB", back_populates="model_type")
+    
+    # 与模型的多对多关系
+    models = relationship(
+        "ModelDB",
+        secondary="model_category_associations",
+        back_populates="categories"
+    )
+    
+    # 与旧模型的关系（已废弃）
+    legacy_models = relationship("LegacyModel", back_populates="model_type")
     
     def __repr__(self):
         return f"<ModelCategory(id={self.id}, name='{self.name}', display_name='{self.display_name}')>"

@@ -20,7 +20,7 @@ from sqlalchemy import create_engine, text
 from app.core.encryption import encrypt_string, decrypt_string
 from sqlalchemy.orm import sessionmaker
 from app.models.supplier_db import SupplierDB, ModelDB
-from app.models.model_management import Model
+
 from app.models.model_category import ModelCategory
 from sqlalchemy import inspect
 
@@ -884,11 +884,11 @@ async def create_model(
         
         # 如果是第一个模型或者设置为默认模型，将其他模型的is_default设置为False
         if db_model.is_default is True:
-            db.query(Model).filter(
-                Model.supplier_id == supplier_id,
-                Model.id != db_model.id
-            ).update({Model.is_default: False})
-        elif db.query(Model).filter(Model.supplier_id == supplier_id).count() == 0:
+            db.query(ModelDB).filter(
+                ModelDB.supplier_id == supplier_id,
+                ModelDB.id != db_model.id
+            ).update({ModelDB.is_default: False})
+        elif db.query(ModelDB).filter(ModelDB.supplier_id == supplier_id).count() == 0:
             # 如果是第一个模型，自动设为默认
             setattr(db_model, 'is_default', True)
         
@@ -931,11 +931,11 @@ async def get_models(
     """
     # 从数据库中查询指定供应商的模型，预加载categories和model_type关系
     from sqlalchemy.orm import joinedload
-    models = db.query(Model).options(
-        joinedload(Model.categories),
-        joinedload(Model.model_type)
-    ).filter(Model.supplier_id == supplier_id).offset(skip).limit(limit).all()
-    total = db.query(Model).filter(Model.supplier_id == supplier_id).count()
+    models = db.query(ModelDB).options(
+        joinedload(ModelDB.categories),
+        joinedload(ModelDB.model_type)
+    ).filter(ModelDB.supplier_id == supplier_id).offset(skip).limit(limit).all()
+    total = db.query(ModelDB).filter(ModelDB.supplier_id == supplier_id).count()
     
     # 手动构建模型响应数据，填充完整的模型分类信息
     model_responses = []
@@ -977,9 +977,9 @@ async def get_model(
     """
     # 预加载model_type关系
     from sqlalchemy.orm import joinedload
-    model = db.query(Model).options(joinedload(Model.model_type)).filter(
-        Model.id == model_id,
-        Model.supplier_id == supplier_id
+    model = db.query(ModelDB).options(joinedload(ModelDB.model_type)).filter(
+        ModelDB.id == model_id,
+        ModelDB.supplier_id == supplier_id
     ).first()
     
     if not model:
@@ -1033,9 +1033,9 @@ async def update_model(
         )
     
     # 验证模型是否存在且属于该供应商
-    model = db.query(Model).filter(
-        Model.id == model_id,
-        Model.supplier_id == supplier_id
+    model = db.query(ModelDB).filter(
+        ModelDB.id == model_id,
+        ModelDB.supplier_id == supplier_id
     ).first()
     if not model:
         raise HTTPException(
@@ -1075,10 +1075,10 @@ async def update_model(
         
         # 如果设置了is_default为True，将其他模型的is_default设置为False
         if 'is_default' in update_data and update_data['is_default'] is True:
-            db.query(Model).filter(
-                Model.supplier_id == supplier_id,
-                Model.id != model_id
-            ).update({Model.is_default: False})
+            db.query(ModelDB).filter(
+                ModelDB.supplier_id == supplier_id,
+                ModelDB.id != model_id
+            ).update({ModelDB.is_default: False})
         
         # 处理模型类型字段
         if 'model_type' in update_data:
@@ -1137,9 +1137,9 @@ async def delete_model(
         db: 数据库会话
         current_user: 当前活跃的超级用户
     """
-    model = db.query(Model).filter(
-        Model.id == model_id,
-        Model.supplier_id == supplier_id
+    model = db.query(ModelDB).filter(
+        ModelDB.id == model_id,
+        ModelDB.supplier_id == supplier_id
     ).first()
     
     if not model:
@@ -1155,8 +1155,8 @@ async def delete_model(
     
     # 如果删除的是默认模型，将第一个可用的模型设为默认
     if was_default is True:
-        first_model = db.query(Model).filter(
-            Model.supplier_id == supplier_id
+        first_model = db.query(ModelDB).filter(
+            ModelDB.supplier_id == supplier_id
         ).first()
         if first_model:
             setattr(first_model, 'is_default', True)
@@ -1184,9 +1184,9 @@ async def set_default_model(
         设置为默认的模型信息
     """
     # 验证模型是否存在且属于指定供应商
-    model = db.query(Model).filter(
-        Model.id == model_id,
-        Model.supplier_id == supplier_id
+    model = db.query(ModelDB).filter(
+        ModelDB.id == model_id,
+        ModelDB.supplier_id == supplier_id
     ).first()
     
     if not model:
@@ -1196,7 +1196,7 @@ async def set_default_model(
         )
     
     # 将所有模型的is_default设置为False
-    db.query(Model).filter(Model.supplier_id == supplier_id).update({Model.is_default: False})
+    db.query(ModelDB).filter(ModelDB.supplier_id == supplier_id).update({ModelDB.is_default: False})
     
     # 将指定模型设为默认
     setattr(model, 'is_default', True)

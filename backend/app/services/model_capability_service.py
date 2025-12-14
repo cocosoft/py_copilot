@@ -259,11 +259,14 @@ class ModelCapabilityService:
         # 检查能力是否存在
         ModelCapabilityService.get_capability(db, capability_id)
         
-        # 查询关联的模型
+        # 查询关联的模型，并预加载capabilities关系
+        from sqlalchemy.orm import joinedload
         models = db.query(Model).join(
             ModelCapabilityAssociation
         ).filter(
             ModelCapabilityAssociation.capability_id == capability_id
+        ).options(
+            joinedload(Model.capabilities)
         ).all()
         
         return models

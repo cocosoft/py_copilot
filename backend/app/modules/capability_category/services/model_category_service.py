@@ -5,7 +5,7 @@ from sqlalchemy import and_
 from fastapi import HTTPException, status
 
 from app.models.model_category import ModelCategory, ModelCategoryAssociation
-from app.models.model_management import Model
+from app.models.supplier_db import ModelDB
 from app.schemas.model_category import ModelCategoryCreate, ModelCategoryUpdate
 
 
@@ -239,7 +239,7 @@ class ModelCategoryService:
     def add_category_to_model(db: Session, model_id: int, category_id: int) -> ModelCategoryAssociation:
         """为模型添加分类"""
         # 检查模型是否存在
-        model = db.query(Model).filter(Model.id == model_id).first()
+        model = db.query(ModelDB).filter(ModelDB.id == model_id).first()
         if not model:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -296,13 +296,13 @@ class ModelCategoryService:
         return True
     
     @staticmethod
-    def get_models_by_category(db: Session, category_id: int) -> List[Model]:
+    def get_models_by_category(db: Session, category_id: int) -> List[ModelDB]:
         """获取指定分类下的所有模型"""
         # 检查分类是否存在
         category = ModelCategoryService.get_category(db, category_id)
         
         # 查询关联的模型
-        models = db.query(Model).join(ModelCategoryAssociation).filter(
+        models = db.query(ModelDB).join(ModelCategoryAssociation).filter(
             ModelCategoryAssociation.category_id == category_id
         ).all()
         

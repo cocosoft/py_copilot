@@ -6,7 +6,8 @@ import time
 import logging
 import inspect
 from app.core.config import settings
-from app.models.model_management import Model, ModelSupplier
+from app.models.supplier_db import ModelDB
+from app.models.model_management import ModelSupplier
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -243,13 +244,13 @@ class LLMService:
         try:
             if db:
                 # 查询所有模型
-                all_models = db.query(Model).all()
+                all_models = db.query(ModelDB).all()
                 print(f"DEBUG: 从数据库获取到的所有模型数: {len(all_models)}")
                 
                 # 查询指定模型
-                model_info = db.query(Model).filter(
-                    Model.model_id == model_name,
-                    Model.is_active == True
+                model_info = db.query(ModelDB).filter(
+                    ModelDB.model_id == model_name,
+                    ModelDB.is_active == True
                 ).first()
                 print(f"DEBUG: 查询到的模型信息: {model_info}")
                 

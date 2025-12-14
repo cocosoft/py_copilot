@@ -75,10 +75,13 @@ class ModelDB(Base):
     # 添加关系定义
     supplier = relationship("SupplierDB", back_populates="models")
     parameters = relationship("ModelParameter", back_populates="model", cascade="all, delete-orphan")
-    model_type = relationship("ModelCategory", backref="model_db")
+    model_type = relationship("ModelCategory", back_populates="model_db")
+    categories = relationship("ModelCategory", secondary="model_category_associations", back_populates="models")
+    capabilities = relationship("ModelCapability", secondary="model_capability_associations", back_populates="models")
     
     # 参数模板关联
     parameter_template_id = Column(Integer, ForeignKey("parameter_templates.id", ondelete="SET NULL"), nullable=True)
+    parameter_template = relationship("ParameterTemplate", back_populates="models")
 
 
 class ModelParameter(Base):

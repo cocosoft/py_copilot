@@ -5,7 +5,7 @@ from datetime import datetime
 import time
 from app.core.config import settings
 from app.services.model_query_service import model_query_service
-from app.models.model_management import Model, ModelSupplier
+from app.models.model_management import ModelSupplier
 
 # 导入自定义日志配置
 from app.core.logging_config import logger

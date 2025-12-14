@@ -436,9 +436,9 @@ async def delete_model(
         db: 数据库会话
         current_user: 当前活跃的超级用户
     """
-    model = db.query(Model).filter(
-        Model.id == model_id,
-        Model.supplier_id == supplier_id
+    model = db.query(ModelDB).filter(
+        ModelDB.id == model_id,
+        ModelDB.supplier_id == supplier_id
     ).first()
     
     if not model:
@@ -644,9 +644,9 @@ def delete_model_parameter(
 ):
     """删除模型参数"""
     # 验证模型是否存在
-    model = db.query(Model).filter(
-        Model.id == model_id,
-        Model.supplier_id == supplier_id
+    model = db.query(ModelDB).filter(
+        ModelDB.id == model_id,
+        ModelDB.supplier_id == supplier_id
     ).first()
     if not model:
         raise HTTPException(status_code=404, detail="模型不存在")

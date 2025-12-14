@@ -5,7 +5,7 @@ from sqlalchemy import and_
 from fastapi import HTTPException, status
 
 from app.models.model_capability import ModelCapability, ModelCapabilityAssociation
-from app.models.model_management import Model
+from app.models.supplier_db import ModelDB
 from app.schemas.model_capability import ModelCapabilityCreate, ModelCapabilityUpdate, ModelCapabilityAssociationCreate, ModelCapabilityAssociationUpdate
 
 
@@ -149,8 +149,8 @@ class ModelCapabilityService:
     ) -> ModelCapabilityAssociation:
         """为模型添加能力关联"""
         # 检查模型是否存在
-        model = db.query(Model).filter(
-            Model.id == association_data.model_id
+        model = db.query(ModelDB).filter(
+            ModelDB.id == association_data.model_id
         ).first()
         
         if not model:
@@ -245,11 +245,14 @@ class ModelCapabilityService:
         # 检查能力是否存在
         ModelCapabilityService.get_capability(db, capability_id)
         
-        # 查询关联的模型
-        models = db.query(Model).join(
+        # 查询关联的模型，并预加载capabilities关系
+        from sqlalchemy.orm import joinedload
+        models = db.query(ModelDB).join(
             ModelCapabilityAssociation
         ).filter(
             ModelCapabilityAssociation.capability_id == capability_id
+        ).options(
+            joinedload(ModelDB.capabilities)
         ).all()
         
         return models
@@ -258,7 +261,7 @@ class ModelCapabilityService:
     def get_capabilities_by_model(db: Session, model_id: int) -> List[ModelCapability]:
         """获取模型的所有能力"""
         # 检查模型是否存在
-        model = db.query(Model).filter(Model.id == model_id).first()
+        model = db.query(ModelDB).filter(ModelDB.id == model_id).first()
         if not model:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

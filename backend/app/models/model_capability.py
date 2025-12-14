@@ -40,7 +40,8 @@ class ModelCapability(Base):
     logo = Column(Text, nullable=True)  # SVG格式的logo数据
     
     # 关系定义
-    # 与模型的多对多关系将通过关联表定义
+    # 与模型的多对多关系
+    models = relationship("ModelDB", secondary="model_capability_associations", back_populates="capabilities")
     
     def __repr__(self):
         return f"<ModelCapability(id={self.id}, name='{self.name}', display_name='{self.display_name}')>"

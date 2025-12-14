@@ -61,7 +61,7 @@ class ModelBase(BaseModel):
     model_type_id: Optional[int] = None  # 模型类型ID，关联到model_categories表
     context_window: Optional[int] = None
     max_tokens: Optional[int] = None
-    is_default: bool = False
+    is_default: Optional[bool] = False
     is_active: bool = True
     logo: Optional[str] = None
 
@@ -98,7 +98,7 @@ class ModelResponse(BaseModel):
     model_type_display_name: Optional[str] = None  # 模型类型显示名称（中文）
     context_window: Optional[int] = None
     max_tokens: Optional[int] = None
-    is_default: bool
+    is_default: Optional[bool] = False
     is_active: bool
     logo: Optional[str] = None
     created_at: datetime

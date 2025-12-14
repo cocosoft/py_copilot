@@ -28,4 +28,4 @@ class ParameterTemplate(Base):
     parent = relationship("ParameterTemplate", remote_side=[id], backref="children")
     
     # 与模型的关系，一个模板可以应用于多个模型
-    # models = relationship("ModelDB", backref="parameter_template")
+    models = relationship("ModelDB", back_populates="parameter_template")

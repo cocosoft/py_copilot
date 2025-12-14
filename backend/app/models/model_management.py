@@ -26,15 +26,17 @@ class ModelSupplier(Base):
     updated_at = Column(DateTime)
     
     # 定义关系
-    models = relationship("Model", back_populates="supplier")
+    legacy_models = relationship("LegacyModel", back_populates="supplier")
     
     def __repr__(self):
         return f"<ModelSupplier(id={self.id}, name='{self.name}')>"
 
 
-class Model(Base):
-    """模型表模型"""
-    __tablename__ = "models"
+# This old Model class has been replaced by ModelDB in supplier_db.py
+# It's kept here temporarily for backward compatibility but renamed to avoid conflicts
+class LegacyModel(Base):
+    """旧模型表模型 - 已被ModelDB替代"""
+    __tablename__ = "models_legacy"  # Changed table name to avoid conflict
     __table_args__ = {'extend_existing': True}
     
     id = Column(Integer, primary_key=True, index=True)
@@ -52,14 +54,8 @@ class Model(Base):
     logo = Column(String(255), nullable=True)  # 模型LOGO存储路径或URL
     
     # 添加模型类型关系
-    model_type = relationship("ModelCategory", backref="models")
+    model_type = relationship("ModelCategory", back_populates="legacy_models")
     
     # 添加关系定义
-    supplier = relationship("ModelSupplier", back_populates="models")
+    supplier = relationship("ModelSupplier", back_populates="legacy_models")
     
-    # 与模型分类的多对多关系（保留现有功能）
-    categories = relationship(
-        "ModelCategory",
-        secondary="model_category_associations",
-        backref="model_categories"
-    )
