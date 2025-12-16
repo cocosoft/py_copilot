@@ -54,7 +54,7 @@ class LegacyModel(Base):
     logo = Column(String(255), nullable=True)  # 模型LOGO存储路径或URL
     
     # 添加模型类型关系
-    model_type = relationship("ModelCategory", back_populates="legacy_models")
+    model_type = relationship("ModelCategory")
     
     # 添加关系定义
     supplier = relationship("ModelSupplier", back_populates="legacy_models")

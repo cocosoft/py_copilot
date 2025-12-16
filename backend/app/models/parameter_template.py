@@ -2,7 +2,6 @@
 from sqlalchemy import Column, Integer, String, Boolean, Text, ForeignKey, DateTime, func, JSON
 from sqlalchemy.orm import relationship
 from app.core.database import Base
-from app.models.supplier_db import ModelDB
 
 
 class ParameterTemplate(Base):

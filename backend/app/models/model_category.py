@@ -48,8 +48,8 @@ class ModelCategory(Base):
         back_populates="categories"
     )
     
-    # 与旧模型的关系（已废弃）
-    legacy_models = relationship("LegacyModel", back_populates="model_type")
+    # 与旧模型的关系（已废弃，已移除LegacyModel依赖）
+    # legacy_models = relationship("LegacyModel", back_populates="model_type")
     
     def __repr__(self):
         return f"<ModelCategory(id={self.id}, name='{self.name}', display_name='{self.display_name}')>"

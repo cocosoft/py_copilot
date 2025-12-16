@@ -196,3 +196,11 @@ export const searchDocumentsByTag = async (tagId, knowledgeBaseId = null) => {
     });
     return response;
 };
+
+// Document Vectorization API
+export const vectorizeDocument = async (documentId) => {
+    const response = await request(`/v1/knowledge/documents/${documentId}/vectorize`, {
+        method: 'POST'
+    });
+    return response;
+};

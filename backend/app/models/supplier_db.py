@@ -4,6 +4,7 @@ from sqlalchemy.orm import relationship
 from app.core.database import Base
 from app.core.encryption import encrypt_string, decrypt_string
 from app.models.model_category import ModelCategory
+from app.models.parameter_template import ParameterTemplate
 
 
 class SupplierDB(Base):

@@ -212,6 +212,117 @@ class KnowledgeService:
         """根据ID获取文档详情"""
         return db.query(KnowledgeDocument).filter(KnowledgeDocument.id == document_id).first()
     
+    def vectorize_document(self, document_id: int, db: Session) -> bool:
+        """对文档进行向量化处理"""
+        # 获取文档信息
+        document = self.get_document_by_id(document_id, db)
+        if not document:
+            print(f"文档向量化失败: 文档ID {document_id} 不存在")
+            return False
+        
+        try:
+            # 检查文件是否存在，支持多种路径格式
+            file_path = document.file_path
+            
+            # 如果文件不存在，尝试从不同目录查找
+            if not os.path.exists(file_path):
+                # 获取当前文件所在目录
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                # 构建backend目录路径
+                backend_dir = os.path.abspath(os.path.join(current_dir, "..", "..", "..", ".."))
+                
+                # 情况1: 相对路径 temp_uploads/... 或 temp_uploads\... → 尝试绝对路径
+                if file_path.startswith(("temp_uploads", "temp_uploads\\")):
+                    # 尝试1: 在backend目录下查找
+                    temp_path = os.path.join(backend_dir, file_path)
+                    if os.path.exists(temp_path):
+                        file_path = temp_path
+                        print(f"找到文件: {file_path}")
+                    else:
+                        # 尝试2: 在backend/uploads目录下查找（文件名不变）
+                        upload_dir = os.path.join(backend_dir, "uploads")
+                        filename = os.path.basename(file_path)
+                        temp_path = os.path.join(upload_dir, filename)
+                        if os.path.exists(temp_path):
+                            file_path = temp_path
+                            print(f"找到文件: {file_path}")
+                        else:
+                            print(f"文档向量化失败: 文件 {document.file_path} 不存在")
+                            return False
+                # 情况2: 相对路径 uploads/... 或 uploads\... → 尝试绝对路径
+                elif file_path.startswith(("uploads", "uploads\\")):
+                    # 尝试1: 在backend目录下查找
+                    temp_path = os.path.join(backend_dir, file_path)
+                    if os.path.exists(temp_path):
+                        file_path = temp_path
+                        print(f"找到文件: {file_path}")
+                    else:
+                        # 尝试2: 在backend/app/uploads目录下查找
+                        app_upload_dir = os.path.join(backend_dir, "app", "uploads")
+                        filename = os.path.basename(file_path)
+                        temp_path = os.path.join(app_upload_dir, filename)
+                        if os.path.exists(temp_path):
+                            file_path = temp_path
+                            print(f"找到文件: {file_path}")
+                        else:
+                            print(f"文档向量化失败: 文件 {document.file_path} 不存在")
+                            return False
+                # 情况3: 其他相对路径 → 尝试在backend/app/uploads目录下查找
+                else:
+                    # 尝试在backend/app/uploads目录下查找
+                    app_upload_dir = os.path.join(backend_dir, "app", "uploads")
+                    filename = os.path.basename(file_path)
+                    temp_path = os.path.join(app_upload_dir, filename)
+                    if os.path.exists(temp_path):
+                        file_path = temp_path
+                        print(f"找到文件: {file_path}")
+                    else:
+                        # 尝试在backend/uploads目录下查找
+                        upload_dir = os.path.join(backend_dir, "uploads")
+                        temp_path = os.path.join(upload_dir, filename)
+                        if os.path.exists(temp_path):
+                            file_path = temp_path
+                            print(f"找到文件: {file_path}")
+                        else:
+                            print(f"文档向量化失败: 文件 {document.file_path} 不存在")
+                            return False
+            
+            print(f"开始向量化文档: {document.title} (ID: {document_id})")
+            print(f"文件路径: {file_path}")
+            
+            # 重新解析文档
+            text_content = self.document_parser.parse_document(file_path)
+            print(f"文档解析成功，内容长度: {len(text_content)}")
+            
+            # 处理文本为chunks
+            chunks = self.text_processor.process_document_text(text_content)
+            print(f"文本处理成功，生成 {len(chunks)} 个chunks")
+            
+            # 添加到向量索引
+            for i, chunk in enumerate(chunks):
+                chunk_id = f"{document.id}_chunk_{i}"
+                metadata = {
+                    "title": document.title,
+                    "document_id": document.id,
+                    "chunk_index": i,
+                    "total_chunks": len(chunks)
+                }
+                print(f"添加chunk {i+1}/{len(chunks)} 到向量索引")
+                self.retrieval_service.add_document_to_index(chunk_id, chunk, metadata)
+            
+            # 更新文档信息
+            document.vector_id = f"doc_{document.id}"
+            document.is_vectorized = 1
+            db.commit()
+            print(f"文档向量化成功: {document.title} (ID: {document_id})")
+            
+            return True
+        except Exception as e:
+            print(f"文档向量化失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return False
+    
     def download_document(self, db: Session, document_id: int) -> tuple[str, str]:
         """下载文档"""
         # 获取文档信息
@@ -219,12 +330,50 @@ class KnowledgeService:
         if not document:
             return None, None
         
-        # 检查文件是否存在
-        if not os.path.exists(document.file_path):
-            return None, None
+        # 检查文件是否存在，支持多种路径格式
+        file_path = document.file_path
+        
+        # 如果文件不存在，尝试从不同目录查找
+        if not os.path.exists(file_path):
+            # 情况1: 相对路径 temp_uploads/... → 尝试绝对路径
+            if file_path.startswith("temp_uploads"):
+                # 获取当前文件所在目录
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                # 构建backend目录路径
+                backend_dir = os.path.abspath(os.path.join(current_dir, "..", "..", "..", ".."))
+                # 尝试在backend目录下查找
+                temp_path = os.path.join(backend_dir, file_path)
+                if os.path.exists(temp_path):
+                    file_path = temp_path
+                    print(f"找到文件: {file_path}")
+                else:
+                    # 尝试在backend/uploads目录下查找（文件名不变）
+                    upload_dir = os.path.join(backend_dir, "uploads")
+                    filename = os.path.basename(file_path)
+                    temp_path = os.path.join(upload_dir, filename)
+                    if os.path.exists(temp_path):
+                        file_path = temp_path
+                        print(f"找到文件: {file_path}")
+                    else:
+                        return None, None
+            # 情况2: 相对路径 uploads/... → 尝试绝对路径
+            elif file_path.startswith("uploads"):
+                # 获取当前文件所在目录
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                # 构建backend目录路径
+                backend_dir = os.path.abspath(os.path.join(current_dir, "..", "..", "..", ".."))
+                # 尝试在backend目录下查找
+                temp_path = os.path.join(backend_dir, file_path)
+                if os.path.exists(temp_path):
+                    file_path = temp_path
+                    print(f"找到文件: {file_path}")
+                else:
+                    return None, None
+            else:
+                return None, None
         
         # 返回文件路径和原始文件名
-        return document.file_path, document.title
+        return file_path, document.title
     
     def get_all_tags(self, db: Session, knowledge_base_id: Optional[int] = None) -> List[Dict[str, Any]]:
         """获取所有标签，可选按知识库过滤"""

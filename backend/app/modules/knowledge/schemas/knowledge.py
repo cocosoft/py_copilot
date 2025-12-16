@@ -45,6 +45,7 @@ class KnowledgeDocument(KnowledgeDocumentBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
     vector_id: Optional[str] = None
+    is_vectorized: int
     
     class Config:
         from_attributes = True

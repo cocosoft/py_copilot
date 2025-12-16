@@ -22,7 +22,8 @@ import {
   addDocumentTag,
   removeDocumentTag,
   getAllTags,
-  searchDocumentsByTag
+  searchDocumentsByTag,
+  vectorizeDocument
 } from '../utils/api/knowledgeApi';
 
 // 设置PDF.js工作路径
@@ -725,6 +726,18 @@ const Knowledge = () => {
     setPreviewError('');
   };
 
+  // 处理文档向量化
+  const handleVectorizeDocument = async (documentId) => {
+    try {
+      const response = await vectorizeDocument(documentId);
+      setSuccess('文档向量化成功');
+      // 重新加载文档列表以更新向量化状态
+      loadDocuments();
+    } catch (error) {
+      setError(`向量化失败: ${error.response?.data?.detail || error.message}`);
+    }
+  };
+
   const displayResults = searchQuery ? searchResults : documents;
 
   return (
@@ -1166,6 +1179,9 @@ const Knowledge = () => {
                         <span className="last-updated">
                           {new Date(document.created_at).toLocaleDateString()}
                         </span>
+                        <span className={`vector-status ${document.is_vectorized ? 'vectorized' : 'not-vectorized'}`}>
+                          {document.is_vectorized ? '已向量化' : '未向量化'}
+                        </span>
                       </div>
                     </div>
                     <div className="knowledge-actions">
@@ -1176,6 +1192,15 @@ const Knowledge = () => {
                       >
                         👁️
                       </button>
+                      {!document.is_vectorized && (
+                        <button 
+                          className="action-btn vectorize-btn" 
+                          title="向量量化"
+                          onClick={() => handleVectorizeDocument(document.id)}
+                        >
+                          ⚡
+                        </button>
+                      )}
                       <button 
                         className="action-btn" 
                         title="删除"
@@ -1492,6 +1517,9 @@ const Knowledge = () => {
                   <div className="document-detail-meta">
                     <span>文件类型: {selectedDocument.file_type.toUpperCase()}</span>
                     <span>创建时间: {new Date(selectedDocument.created_at).toLocaleString()}</span>
+                    <span className={`vector-status ${selectedDocument.is_vectorized ? 'vectorized' : 'not-vectorized'}`}>
+                      向量化状态: {selectedDocument.is_vectorized ? '已向量化' : '未向量化'}
+                    </span>
                   </div>
                 </div>
                 <div className="document-detail-content">
@@ -1574,6 +1602,11 @@ const Knowledge = () => {
               <button className="btn-primary" onClick={handleDownloadDocument} disabled={previewLoading || updatingDocument}>
                 {previewLoading ? '下载中...' : '下载文档'}
               </button>
+              {!selectedDocument.is_vectorized && (
+                <button className="btn-vectorize" onClick={() => handleVectorizeDocument(selectedDocument.id)} disabled={updatingDocument || previewLoading}>
+                  启动向量化
+                </button>
+              )}
               <button className="btn-secondary" onClick={closeAllModals}>关闭</button>
             </div>
           </div>

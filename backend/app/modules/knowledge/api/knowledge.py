@@ -172,7 +172,8 @@ async def list_documents(
                 document_metadata=doc.document_metadata,
                 created_at=doc.created_at,
                 updated_at=doc.updated_at,
-                vector_id=doc.vector_id
+                vector_id=doc.vector_id,
+                is_vectorized=doc.is_vectorized
             ) for doc in documents
         ]
         
@@ -209,7 +210,8 @@ async def get_document_detail(
             document_metadata=document.document_metadata,
             created_at=document.created_at,
             updated_at=document.updated_at,
-            vector_id=document.vector_id
+            vector_id=document.vector_id,
+            is_vectorized=document.is_vectorized
         )
     except HTTPException:
         raise
@@ -301,6 +303,33 @@ async def get_document_tags(
     except Exception as e:
         raise HTTPException(status_code=500, detail="获取文档标签失败")
 
+@router.post("/documents/{document_id}/vectorize")
+async def vectorize_document(
+    document_id: int,
+    db: Session = Depends(get_db)
+):
+    """启动文档向量化处理"""
+    try:
+        # 检查文档是否存在
+        document = knowledge_service.get_document_by_id(document_id, db)
+        if not document:
+            raise HTTPException(status_code=404, detail="文档不存在")
+        
+        # 检查文档是否已向量化
+        if document.is_vectorized == 1:
+            return {"message": "文档已向量化", "document_id": document_id, "is_vectorized": True}
+        
+        # 启动向量化
+        success = knowledge_service.vectorize_document(document_id, db)
+        if success:
+            return {"message": "文档向量化成功", "document_id": document_id, "is_vectorized": True}
+        else:
+            raise HTTPException(status_code=500, detail="文档向量化失败")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"文档向量化失败: {str(e)}")
+
 @router.post("/documents/{document_id}/tags", response_model=KnowledgeTag)
 async def add_document_tag(
     document_id: int,
@@ -360,7 +389,8 @@ async def search_documents_by_tag(
                 document_metadata=doc.document_metadata,
                 created_at=doc.created_at,
                 updated_at=doc.updated_at,
-                vector_id=doc.vector_id
+                vector_id=doc.vector_id,
+                is_vectorized=doc.is_vectorized
             ) for doc in paginated_documents
         ]
         

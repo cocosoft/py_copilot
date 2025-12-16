@@ -39,6 +39,7 @@ class KnowledgeDocument(Base):
     created_at = Column(DateTime, nullable=False, default=func.now())
     updated_at = Column(DateTime, nullable=True, onupdate=func.now())
     vector_id = Column(String(100), nullable=True)
+    is_vectorized = Column(Integer, nullable=False, default=0)  # 0: 未向量化, 1: 已向量化
     
     # 关系：一个文档属于一个知识库
     knowledge_base = relationship("KnowledgeBase", back_populates="documents")

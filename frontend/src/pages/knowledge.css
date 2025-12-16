@@ -1260,6 +1260,40 @@
   border-color: #adb5bd;
 }
 
+/* 向量化状态样式 */
+.vector-status {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.vector-status.vectorized {
+  background-color: #e6fff0;
+  color: #27ae60;
+}
+
+.vector-status.not-vectorized {
+  background-color: #ffe6e6;
+  color: #e74c3c;
+}
+
+/* 向量化按钮样式 */
+.btn-vectorize {
+  padding: 10px 20px;
+  background-color: #f39c12;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-vectorize:hover {
+  background-color: #e67e22;
+}
+
 /* 加载状态样式 */
 .loading-container {
   display: flex;
