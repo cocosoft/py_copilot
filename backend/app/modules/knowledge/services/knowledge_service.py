@@ -4,7 +4,7 @@ from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from fastapi import UploadFile, HTTPException
 
-from app.modules.knowledge.models.knowledge_document import KnowledgeBase, KnowledgeDocument
+from app.modules.knowledge.models.knowledge_document import KnowledgeBase, KnowledgeDocument, KnowledgeTag
 from app.services.knowledge.document_parser import DocumentParser
 from app.services.knowledge.text_processor import KnowledgeTextProcessor
 from app.services.knowledge.retrieval_service import RetrievalService
@@ -79,19 +79,24 @@ class KnowledgeService:
         if not knowledge_base:
             raise HTTPException(status_code=404, detail="知识库不存在")
         
-        # 保存临时文件
-        temp_dir = "temp_uploads"
-        os.makedirs(temp_dir, exist_ok=True)
-        temp_file_path = os.path.join(temp_dir, f"{uuid.uuid4()}_{file.filename}")
+        # 保存文件到永久存储
+        # 获取当前文件所在目录
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        # 构建backend目录下的uploads目录路径
+        # 从knowledge_service.py向上走4层：services → knowledge → modules → app → backend
+        backend_dir = os.path.abspath(os.path.join(current_dir, "..", "..", "..", ".."))
+        upload_dir = os.path.join(backend_dir, "uploads")
+        os.makedirs(upload_dir, exist_ok=True)
+        file_path = os.path.join(upload_dir, f"{uuid.uuid4()}_{file.filename}")
         
         try:
             # 保存文件
             content = await file.read()
-            with open(temp_file_path, 'wb') as f:
+            with open(file_path, 'wb') as f:
                 f.write(content)
             
             # 解析文档
-            text_content = self.document_parser.parse_document(temp_file_path)
+            text_content = self.document_parser.parse_document(file_path)
             
             # 处理文本
             chunks = self.text_processor.process_document_text(text_content)
@@ -100,7 +105,7 @@ class KnowledgeService:
             document = KnowledgeDocument(
                 title=file.filename,
                 knowledge_base_id=knowledge_base_id,
-                file_path=temp_file_path,
+                file_path=file_path,
                 file_type=os.path.splitext(file.filename)[1].lower(),
                 content=text_content[:1000],  # 保存前1000字符用于预览
                 document_metadata={
@@ -140,15 +145,14 @@ class KnowledgeService:
             return document
             
         except Exception as e:
-            # 清理临时文件
-            if os.path.exists(temp_file_path):
-                os.remove(temp_file_path)
+            # 清理文件
+            if os.path.exists(file_path):
+                os.remove(file_path)
             raise HTTPException(status_code=500, detail=f"文档处理失败: {str(e)}")
         finally:
-            # 清理临时文件
-            if os.path.exists(temp_file_path):
-                os.remove(temp_file_path)
-    
+            # 不需要清理文件，因为已经保存到永久存储
+            pass
+
     def search_documents(self, query: str, limit: int = 10, knowledge_base_id: Optional[int] = None) -> List[Dict[str, Any]]:
         """搜索知识库文档"""
         try:
@@ -193,6 +197,13 @@ class KnowledgeService:
             except Exception as e:
                 print(f"向量索引删除失败: {str(e)}")
         
+        # 删除实际文件
+        if document.file_path and os.path.exists(document.file_path):
+            try:
+                os.remove(document.file_path)
+            except Exception as e:
+                print(f"文件删除失败: {str(e)}")
+        
         db.delete(document)
         db.commit()
         return True
@@ -200,3 +211,126 @@ class KnowledgeService:
     def get_document_by_id(self, document_id: int, db: Session) -> Optional[KnowledgeDocument]:
         """根据ID获取文档详情"""
         return db.query(KnowledgeDocument).filter(KnowledgeDocument.id == document_id).first()
+    
+    def download_document(self, db: Session, document_id: int) -> tuple[str, str]:
+        """下载文档"""
+        # 获取文档信息
+        document = self.get_document_by_id(document_id, db)
+        if not document:
+            return None, None
+        
+        # 检查文件是否存在
+        if not os.path.exists(document.file_path):
+            return None, None
+        
+        # 返回文件路径和原始文件名
+        return document.file_path, document.title
+    
+    def get_all_tags(self, db: Session, knowledge_base_id: Optional[int] = None) -> List[Dict[str, Any]]:
+        """获取所有标签，可选按知识库过滤"""
+        query = db.query(KnowledgeTag)
+        
+        if knowledge_base_id:
+            # 如果指定了知识库ID，获取该知识库下所有文档的标签
+            query = query.join(KnowledgeTag.documents).filter(
+                KnowledgeDocument.knowledge_base_id == knowledge_base_id
+            ).distinct()
+        
+        tags = query.all()
+        
+        # 计算每个标签的文档数量
+        tag_list = []
+        for tag in tags:
+            if knowledge_base_id:
+                doc_count = db.query(KnowledgeDocument).join(KnowledgeDocument.tags).filter(
+                    KnowledgeDocument.knowledge_base_id == knowledge_base_id,
+                    KnowledgeTag.id == tag.id
+                ).count()
+            else:
+                doc_count = len(tag.documents)
+            
+            tag_list.append({
+                "id": tag.id,
+                "name": tag.name,
+                "created_at": tag.created_at,
+                "document_count": doc_count
+            })
+        
+        return tag_list
+    
+    def add_tag(self, tag_name: str, db: Session) -> KnowledgeTag:
+        """添加新标签，如果标签已存在则返回现有标签"""
+        tag = db.query(KnowledgeTag).filter(KnowledgeTag.name == tag_name).first()
+        if tag:
+            return tag
+        
+        tag = KnowledgeTag(name=tag_name)
+        db.add(tag)
+        db.commit()
+        db.refresh(tag)
+        return tag
+    
+    def get_document_tags(self, document_id: int, db: Session) -> List[KnowledgeTag]:
+        """获取文档的所有标签"""
+        document = self.get_document_by_id(document_id, db)
+        if not document:
+            return []
+        return document.tags
+    
+    def add_document_tag(self, document_id: int, tag_name: str, db: Session) -> KnowledgeTag:
+        """为文档添加标签"""
+        document = self.get_document_by_id(document_id, db)
+        if not document:
+            raise HTTPException(status_code=404, detail="文档不存在")
+        
+        # 获取或创建标签
+        tag = self.add_tag(tag_name, db)
+        
+        # 如果文档已有该标签，则直接返回
+        if tag in document.tags:
+            return tag
+        
+        # 添加标签到文档
+        document.tags.append(tag)
+        db.commit()
+        db.refresh(document)
+        return tag
+    
+    def remove_document_tag(self, document_id: int, tag_id: int, db: Session) -> bool:
+        """从文档中移除标签"""
+        document = self.get_document_by_id(document_id, db)
+        if not document:
+            return False
+        
+        tag = db.query(KnowledgeTag).filter(KnowledgeTag.id == tag_id).first()
+        if not tag:
+            return False
+        
+        if tag in document.tags:
+            document.tags.remove(tag)
+            db.commit()
+            db.refresh(document)
+            return True
+        
+        return False
+    
+    def search_documents_by_tag(self, tag_id: int, db: Session, knowledge_base_id: Optional[int] = None) -> List[KnowledgeDocument]:
+        """根据标签搜索文档"""
+        query = db.query(KnowledgeDocument).join(KnowledgeDocument.tags).filter(
+            KnowledgeTag.id == tag_id
+        )
+        
+        if knowledge_base_id:
+            query = query.filter(KnowledgeDocument.knowledge_base_id == knowledge_base_id)
+        
+        return query.all()
+    
+    def delete_tag(self, tag_id: int, db: Session) -> bool:
+        """删除标签"""
+        tag = db.query(KnowledgeTag).filter(KnowledgeTag.id == tag_id).first()
+        if not tag:
+            return False
+        
+        db.delete(tag)
+        db.commit()
+        return True

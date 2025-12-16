@@ -2,18 +2,27 @@ import React, { useState, useEffect } from 'react';
 import './knowledge.css';
 import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
-import {
-  uploadDocument,
-  searchDocuments,
-  listDocuments,
-  deleteDocument,
+import {  
+  uploadDocument, 
+  searchDocuments, 
+  listDocuments, 
+  deleteDocument, 
   getKnowledgeStats,
   createKnowledgeBase,
   getKnowledgeBases,
   updateKnowledgeBase,
   deleteKnowledgeBase,
   getDocument,
-  downloadDocument
+  downloadDocument,
+  updateDocument,
+  getKnowledgeBasePermissions,
+  addKnowledgeBasePermission,
+  removeKnowledgeBasePermission,
+  getDocumentTags,
+  addDocumentTag,
+  removeDocumentTag,
+  getAllTags,
+  searchDocumentsByTag
 } from '../utils/api/knowledgeApi';
 
 // 设置PDF.js工作路径
@@ -66,9 +75,32 @@ const Knowledge = () => {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState('');
   
+  // 更新文档相关状态
+  const [updatingDocument, setUpdatingDocument] = useState(false);
+  const [updateProgress, setUpdateProgress] = useState(0);
+  
   // 搜索排序相关状态
   const [sortBy, setSortBy] = useState('relevance');
   const [sortOrder, setSortOrder] = useState('desc');
+  
+  // 搜索过滤相关状态
+  const [fileTypes, setFileTypes] = useState([]);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  
+  // 权限管理相关状态
+  const [permissions, setPermissions] = useState([]);
+  const [loadingPermissions, setLoadingPermissions] = useState(false);
+  const [newPermission, setNewPermission] = useState({ userId: '', role: 'viewer' });
+  const [activeTab, setActiveTab] = useState('basic'); // 'basic' 或 'permissions'
+  
+  // 标签管理相关状态
+  const [tags, setTags] = useState([]);
+  const [documentTags, setDocumentTags] = useState([]);
+  const [loadingTags, setLoadingTags] = useState(false);
+  const [newTagName, setNewTagName] = useState('');
+  const [showTagsCloud, setShowTagsCloud] = useState(true);
   
   // 初始化加载
   useEffect(() => {
@@ -76,12 +108,14 @@ const Knowledge = () => {
     loadStats();
   }, []);
   
-  // 当选择的知识库变化时，加载对应的文档
+  // 当选择的知识库变化时，加载对应的文档和标签
   useEffect(() => {
     if (selectedKnowledgeBase) {
       loadDocuments();
+      loadAllTags();
     } else {
       setDocuments([]);
+      setTags([]);
     }
   }, [selectedKnowledgeBase]);
 
@@ -136,6 +170,96 @@ const Knowledge = () => {
       console.error('加载统计信息失败:', error);
       // 可以考虑向用户显示错误
       // setError(`加载统计信息失败: ${error.response?.data?.detail || error.message}`);
+    }
+  };
+  
+  // 加载所有标签
+  const loadAllTags = async () => {
+    if (!selectedKnowledgeBase) return;
+    
+    setLoadingTags(true);
+    try {
+      const tagsData = await getAllTags(selectedKnowledgeBase.id);
+      setTags(tagsData.tags || []);
+    } catch (error) {
+      console.error('加载标签失败:', error);
+      setTags([]);
+    } finally {
+      setLoadingTags(false);
+    }
+  };
+  
+  // 加载文档标签
+  const loadDocumentTags = async (documentId) => {
+    if (!documentId) return;
+    
+    setLoadingTags(true);
+    try {
+      const tagsData = await getDocumentTags(documentId);
+      setDocumentTags(tagsData.tags || []);
+    } catch (error) {
+      console.error('加载文档标签失败:', error);
+      setDocumentTags([]);
+    } finally {
+      setLoadingTags(false);
+    }
+  };
+  
+  // 添加标签到文档
+  const handleAddDocumentTag = async () => {
+    if (!selectedDocument || !newTagName.trim()) return;
+    
+    try {
+      await addDocumentTag(selectedDocument.id, newTagName.trim());
+      // 重新加载文档标签
+      await loadDocumentTags(selectedDocument.id);
+      // 重新加载所有标签
+      await loadAllTags();
+      setNewTagName('');
+      setSuccess('标签添加成功');
+    } catch (error) {
+      setError(`添加标签失败: ${error.response?.data?.detail || error.message}`);
+    }
+  };
+  
+  // 从文档中删除标签
+  const handleRemoveDocumentTag = async (tagId) => {
+    if (!selectedDocument) return;
+    
+    try {
+      await removeDocumentTag(selectedDocument.id, tagId);
+      // 重新加载文档标签
+      await loadDocumentTags(selectedDocument.id);
+      // 重新加载所有标签
+      await loadAllTags();
+      setSuccess('标签删除成功');
+    } catch (error) {
+      setError(`删除标签失败: ${error.response?.data?.detail || error.message}`);
+    }
+  };
+  
+  // 按标签搜索文档
+  const handleSearchByTag = async (tagId) => {
+    if (!selectedKnowledgeBase) {
+      setError('请先选择知识库');
+      return;
+    }
+    
+    setSearching(true);
+    try {
+      const results = await searchDocumentsByTag(tagId, selectedKnowledgeBase.id);
+      setSearchResults(results.documents || []);
+      setSearchQuery(''); // 清空搜索框
+      if (results.documents && results.documents.length > 0) {
+        setError('');
+      } else {
+        setError('该标签下没有文档');
+      }
+    } catch (error) {
+      setError(`按标签搜索失败: ${error.response?.data?.detail || error.message}`);
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
     }
   };
   
@@ -202,11 +326,28 @@ const Knowledge = () => {
     }
   };
   
+  // 加载知识库权限
+  const loadPermissions = async (knowledgeBaseId) => {
+    setLoadingPermissions(true);
+    try {
+      const response = await getKnowledgeBasePermissions(knowledgeBaseId);
+      setPermissions(response.permissions || []);
+    } catch (error) {
+      setError(`加载权限失败: ${error.response?.data?.detail || error.message}`);
+      setPermissions([]);
+    } finally {
+      setLoadingPermissions(false);
+    }
+  };
+  
   // 打开编辑模态框
   const openEditModal = (kb) => {
     setEditingKnowledgeBase(kb);
     setFormData({ name: kb.name, description: kb.description });
+    setActiveTab('basic'); // 默认选中基本信息标签
+    setNewPermission({ userId: '', role: 'viewer' }); // 重置新权限表单
     setShowEditModal(true);
+    loadPermissions(kb.id); // 加载权限信息
   };
   
   // 打开删除确认模态框
@@ -224,6 +365,9 @@ const Knowledge = () => {
       
       const doc = await getDocument(documentId);
       setSelectedDocument(doc);
+      
+      // 加载文档标签
+      await loadDocumentTags(documentId);
       
       // 根据文件类型生成预览内容
       if (doc.file_type === '.pdf') {
@@ -398,7 +542,10 @@ const Knowledge = () => {
         10,
         selectedKnowledgeBase?.id || null,
         sortBy,
-        sortOrder
+        sortOrder,
+        fileTypes,
+        startDate || null,
+        endDate || null
       );
       setSearchResults(results);
       if (results.length === 0) {
@@ -411,6 +558,27 @@ const Knowledge = () => {
       setSearchResults([]);
     } finally {
       setSearching(false);
+    }
+  };
+  
+  // 处理文件类型过滤
+  const handleFileTypeChange = (fileType) => {
+    setFileTypes(prev => {
+      if (prev.includes(fileType)) {
+        return prev.filter(ft => ft !== fileType);
+      } else {
+        return [...prev, fileType];
+      }
+    });
+  };
+  
+  // 重置过滤条件
+  const resetFilters = () => {
+    setFileTypes([]);
+    setStartDate('');
+    setEndDate('');
+    if (searchQuery) {
+      handleSearch(searchQuery);
     }
   };
 
@@ -456,6 +624,86 @@ const Knowledge = () => {
     }
   };
 
+  // 处理文档更新
+  const handleDocumentUpdate = async (event) => {
+    const file = event.target.files[0];
+    if (!file || !selectedDocument) return;
+    
+    try {
+      setUpdatingDocument(true);
+      setUpdateProgress(0);
+      
+      // 检查文件格式
+      const supportedFormats = ['.pdf', '.docx', '.doc', '.txt'];
+      const fileExt = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
+      if (!supportedFormats.includes(fileExt)) {
+        throw new Error('不支持的文件格式');
+      }
+      
+      // 模拟进度更新
+      const progressInterval = setInterval(() => {
+        setUpdateProgress(prev => Math.min(prev + 10, 90));
+      }, 300);
+      
+      // 更新文档
+      await updateDocument(selectedDocument.id, file);
+      
+      clearInterval(progressInterval);
+      setUpdateProgress(100);
+      
+      // 短暂显示100%进度后重置
+      setTimeout(() => {
+        setUpdateProgress(0);
+      }, 500);
+      
+      setSuccess('文档更新成功');
+      // 重新加载文档信息
+      const updatedDoc = await getDocument(selectedDocument.id);
+      setSelectedDocument(updatedDoc);
+      // 重新生成预览
+      openDocumentDetail(updatedDoc.id);
+      // 重新加载文档列表
+      loadDocuments();
+      loadStats();
+    } catch (error) {
+      setError(`更新失败: ${error.response?.data?.detail || error.message}`);
+      setUpdateProgress(0);
+    } finally {
+      setUpdatingDocument(false);
+    }
+  };
+
+  // 添加权限
+  const handleAddPermission = async () => {
+    if (!newPermission.userId.trim() || !editingKnowledgeBase) return;
+    
+    try {
+      const addedPermission = await addKnowledgeBasePermission(
+        editingKnowledgeBase.id,
+        newPermission.userId,
+        newPermission.role
+      );
+      setPermissions([...permissions, addedPermission]);
+      setNewPermission({ userId: '', role: 'viewer' });
+      setSuccess('权限添加成功');
+    } catch (error) {
+      setError(`添加权限失败: ${error.response?.data?.detail || error.message}`);
+    }
+  };
+  
+  // 删除权限
+  const handleRemovePermission = async (permissionId) => {
+    if (!editingKnowledgeBase) return;
+    
+    try {
+      await removeKnowledgeBasePermission(editingKnowledgeBase.id, permissionId);
+      setPermissions(permissions.filter(p => p.id !== permissionId));
+      setSuccess('权限删除成功');
+    } catch (error) {
+      setError(`删除权限失败: ${error.response?.data?.detail || error.message}`);
+    }
+  };
+  
   // 关闭所有模态框
   const closeAllModals = () => {
     setShowCreateModal(false);
@@ -467,6 +715,10 @@ const Knowledge = () => {
     setSelectedDocument(null);
     setFormData({ name: '', description: '' });
     setError('');
+    // 重置权限相关状态
+    setPermissions([]);
+    setNewPermission({ userId: '', role: 'viewer' });
+    setActiveTab('basic');
     // 重置预览状态
     setPreviewContent(null);
     setPreviewLoading(false);
@@ -614,6 +866,22 @@ const Knowledge = () => {
           </div>
         )}
         
+        {/* 更新进度显示 */}
+        {updatingDocument && updateProgress > 0 && (
+          <div className="notification warning">
+            <span className="notification-icon">🔄</span>
+            <div className="notification-text">
+              <div>更新进度: {Math.round(updateProgress)}%</div>
+              <div className="progress-bar">
+                <div 
+                  className="progress-fill" 
+                  style={{ width: `${updateProgress}%` }}
+                ></div>
+              </div>
+            </div>
+          </div>
+        )}
+        
         {/* 工具栏区域 */}
         <div className="knowledge-toolbar">
           <div className="search-container">
@@ -646,7 +914,7 @@ const Knowledge = () => {
               {uploading ? '上传中...' : !selectedKnowledgeBase ? '请选择知识库' : '选择文档'}
             </label>
             
-
+            
             
             {selectedKnowledgeBase && (
               <button 
@@ -660,6 +928,59 @@ const Knowledge = () => {
           </div>
         </div>
         
+        {/* 标签云区域 */}
+        {selectedKnowledgeBase && !searchQuery && (
+          <div className="tags-cloud-section">
+            <div className="tags-cloud-header">
+              <h3>标签云</h3>
+              <button 
+                className="toggle-tags-btn"
+                onClick={() => setShowTagsCloud(!showTagsCloud)}
+              >
+                {showTagsCloud ? '收起' : '展开'} 🏷️
+              </button>
+            </div>
+            
+            {showTagsCloud && (
+              <div className="tags-cloud">
+                {loadingTags ? (
+                  <div className="loading-container">
+                    <div className="loading-spinner"></div>
+                    <span>加载标签云...</span>
+                  </div>
+                ) : tags.length > 0 ? (
+                  tags.map(tag => {
+                    // 根据文档数量计算标签大小级别 (1-5)
+                    const getTagSizeClass = () => {
+                      const count = tag.document_count || 0;
+                      if (count >= 20) return 'tag-size-5';
+                      if (count >= 15) return 'tag-size-4';
+                      if (count >= 10) return 'tag-size-3';
+                      if (count >= 5) return 'tag-size-2';
+                      return 'tag-size-1';
+                    };
+                    
+                    return (
+                      <div 
+                        key={tag.id} 
+                        className={`cloud-tag ${getTagSizeClass()}`}
+                        onClick={() => handleSearchByTag(tag.id)}
+                      >
+                        {tag.name}
+                        <span className="tag-count">({tag.document_count || 0})</span>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="empty-tags-cloud">
+                    <span>当前知识库没有标签</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+        
         {/* 搜索结果展示 */}
         {searchQuery && (
           <div className="search-results">
@@ -672,7 +993,98 @@ const Knowledge = () => {
               <>
                 {searchResults.length > 0 && (
                   <div className="search-results-header">
-                    <p className="results-count">找到 {searchResults.length} 个相关文档</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <p className="results-count">找到 {searchResults.length} 个相关文档</p>
+                      <button 
+                        className="filter-btn"
+                        onClick={() => setShowFilters(!showFilters)}
+                      >
+                        {showFilters ? '收起过滤' : '展开过滤'} 🔍
+                      </button>
+                    </div>
+                    
+                    {/* 过滤条件面板 */}
+                    {showFilters && (
+                      <div className="search-filter-panel">
+                        <div className="filter-section">
+                          <h4>文件类型</h4>
+                          <div className="filter-options">
+                            <label className="filter-option">
+                              <input 
+                                type="checkbox" 
+                                value=".pdf" 
+                                checked={fileTypes.includes('.pdf')}
+                                onChange={(e) => {
+                                  handleFileTypeChange(e.target.value);
+                                  handleSearch(searchQuery);
+                                }}
+                              />
+                              PDF (.pdf)
+                            </label>
+                            <label className="filter-option">
+                              <input 
+                                type="checkbox" 
+                                value=".docx" 
+                                checked={fileTypes.includes('.docx') || fileTypes.includes('.doc')}
+                                onChange={(e) => {
+                                  if (fileTypes.includes('.doc')) {
+                                    handleFileTypeChange('.doc');
+                                  }
+                                  handleFileTypeChange('.docx');
+                                  handleSearch(searchQuery);
+                                }}
+                              />
+                              Word (.docx/.doc)
+                            </label>
+                            <label className="filter-option">
+                              <input 
+                                type="checkbox" 
+                                value=".txt" 
+                                checked={fileTypes.includes('.txt')}
+                                onChange={(e) => {
+                                  handleFileTypeChange(e.target.value);
+                                  handleSearch(searchQuery);
+                                }}
+                              />
+                              文本 (.txt)
+                            </label>
+                          </div>
+                        </div>
+                        
+                        <div className="filter-section">
+                          <h4>创建时间</h4>
+                          <div className="date-filter">
+                            <div className="date-filter-item">
+                              <label>开始日期:</label>
+                              <input 
+                                type="date" 
+                                value={startDate}
+                                onChange={(e) => {
+                                  setStartDate(e.target.value);
+                                  handleSearch(searchQuery);
+                                }}
+                              />
+                            </div>
+                            <div className="date-filter-item">
+                              <label>结束日期:</label>
+                              <input 
+                                type="date" 
+                                value={endDate}
+                                onChange={(e) => {
+                                  setEndDate(e.target.value);
+                                  handleSearch(searchQuery);
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <button className="reset-filter-btn" onClick={resetFilters}>
+                          重置过滤条件
+                        </button>
+                      </div>
+                    )}
+                    
                     <div className="search-sort-controls">
                       <div className="sort-control">
                         <label htmlFor="sortBy">排序方式:</label>
@@ -904,31 +1316,128 @@ const Knowledge = () => {
               <h3 className="modal-title">编辑知识库</h3>
               <button className="modal-close" onClick={closeAllModals}>×</button>
             </div>
-            <div className="modal-body">
-              <div className="form-group">
-                <label className="form-label">知识库名称</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="请输入知识库名称"
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label">描述</label>
-                <textarea
-                  className="form-textarea"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="请输入知识库描述（可选）"
-                  rows={3}
-                />
-              </div>
+            
+            {/* 标签页导航 */}
+            <div className="modal-tabs">
+              <button 
+                className={`tab-btn ${activeTab === 'basic' ? 'active' : ''}`}
+                onClick={() => setActiveTab('basic')}
+              >
+                基本信息
+              </button>
+              <button 
+                className={`tab-btn ${activeTab === 'permissions' ? 'active' : ''}`}
+                onClick={() => setActiveTab('permissions')}
+              >
+                权限管理
+              </button>
             </div>
+            
+            {/* 标签页内容 */}
+            <div className="modal-body">
+              {/* 基本信息标签页 */}
+              {activeTab === 'basic' && (
+                <div className="basic-info-tab">
+                  <div className="form-group">
+                    <label className="form-label">知识库名称</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="请输入知识库名称"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">描述</label>
+                    <textarea
+                      className="form-textarea"
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      placeholder="请输入知识库描述（可选）"
+                      rows={3}
+                    />
+                  </div>
+                </div>
+              )}
+              
+              {/* 权限管理标签页 */}
+              {activeTab === 'permissions' && (
+                <div className="permissions-tab">
+                  <h4>当前权限列表</h4>
+                  
+                  {loadingPermissions ? (
+                    <div className="loading-container">
+                      <div className="loading-spinner"></div>
+                      <span>加载权限...</span>
+                    </div>
+                  ) : permissions.length > 0 ? (
+                    <div className="permissions-list">
+                      {permissions.map(permission => (
+                        <div key={permission.id} className="permission-item">
+                          <div className="permission-info">
+                            <span className="permission-user">用户: {permission.user_id}</span>
+                            <span className="permission-role">角色: {permission.role}</span>
+                          </div>
+                          <button 
+                            className="btn-delete" 
+                            onClick={() => handleRemovePermission(permission.id)}
+                            title="删除权限"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="empty-state">
+                      <p>当前没有设置任何权限</p>
+                    </div>
+                  )}
+                  
+                  <div className="add-permission-form">
+                    <h4>添加新权限</h4>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label className="form-label">用户ID</label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={newPermission.userId}
+                          onChange={(e) => setNewPermission({ ...newPermission, userId: e.target.value })}
+                          placeholder="请输入用户ID"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">角色</label>
+                        <select
+                          className="form-select"
+                          value={newPermission.role}
+                          onChange={(e) => setNewPermission({ ...newPermission, role: e.target.value })}
+                        >
+                          <option value="admin">管理员</option>
+                          <option value="editor">编辑者</option>
+                          <option value="viewer">查看者</option>
+                        </select>
+                      </div>
+                    </div>
+                    <button 
+                      className="btn-primary" 
+                      onClick={handleAddPermission}
+                      disabled={!newPermission.userId.trim()}
+                    >
+                      添加权限
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            
             <div className="modal-footer">
               <button className="btn-secondary" onClick={closeAllModals}>取消</button>
-              <button className="btn-primary" onClick={handleUpdateKnowledgeBase}>保存</button>
+              {activeTab === 'basic' && (
+                <button className="btn-primary" onClick={handleUpdateKnowledgeBase}>保存</button>
+              )}
             </div>
           </div>
         </div>
@@ -957,6 +1466,16 @@ const Knowledge = () => {
           </div>
         </div>
       )}
+      
+      {/* 更新文档的隐藏文件输入 */}
+      <input 
+        type="file" 
+        id="update-file-upload"
+        onChange={handleDocumentUpdate} 
+        disabled={updatingDocument || !selectedDocument}
+        accept=".pdf,.docx,.doc,.txt"
+        style={{ display: 'none' }}
+      />
       
       {/* 文档详情模态框 */}
       {showDocumentDetail && selectedDocument && (
@@ -993,10 +1512,66 @@ const Knowledge = () => {
                     </>
                   )}
                 </div>
+                
+                {/* 标签管理区域 */}
+                <div className="document-tags-section">
+                  <h3>文档标签</h3>
+                  
+                  {/* 当前标签列表 */}
+                  <div className="current-tags">
+                    {loadingTags ? (
+                      <div className="loading-container">
+                        <div className="loading-spinner"></div>
+                        <span>加载标签...</span>
+                      </div>
+                    ) : documentTags.length > 0 ? (
+                      <div className="tags-list">
+                        {documentTags.map(tag => (
+                          <div key={tag.id} className="tag-item">
+                            <span className="tag-name">{tag.name}</span>
+                            <button 
+                              className="tag-remove-btn"
+                              onClick={() => handleRemoveDocumentTag(tag.id)}
+                              title="删除标签"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="empty-tags">
+                        <span>当前文档没有标签</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* 添加新标签 */}
+                  <div className="add-tag-form">
+                    <input
+                      type="text"
+                      className="tag-input"
+                      placeholder="添加新标签..."
+                      value={newTagName}
+                      onChange={(e) => setNewTagName(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleAddDocumentTag()}
+                    />
+                    <button 
+                      className="btn-primary tag-add-btn"
+                      onClick={handleAddDocumentTag}
+                      disabled={!newTagName.trim()}
+                    >
+                      添加
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
             <div className="modal-footer">
-              <button className="btn-primary" onClick={handleDownloadDocument} disabled={previewLoading}>
+              <button className="btn-primary" onClick={() => document.getElementById('update-file-upload').click()} disabled={updatingDocument || previewLoading}>
+                {updatingDocument ? '更新中...' : '更新文档'}
+              </button>
+              <button className="btn-primary" onClick={handleDownloadDocument} disabled={previewLoading || updatingDocument}>
                 {previewLoading ? '下载中...' : '下载文档'}
               </button>
               <button className="btn-secondary" onClick={closeAllModals}>关闭</button>

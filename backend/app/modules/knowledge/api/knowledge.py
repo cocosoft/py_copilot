@@ -1,4 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Query, Depends
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
@@ -7,7 +8,8 @@ from app.modules.knowledge.services.knowledge_service import KnowledgeService
 from app.modules.knowledge.models.knowledge_document import KnowledgeBase as KnowledgeBaseModel
 from app.modules.knowledge.schemas.knowledge import (
     KnowledgeDocument, SearchResponse, DocumentListResponse,
-    KnowledgeBase, KnowledgeBaseCreate, KnowledgeBaseUpdate
+    KnowledgeBase, KnowledgeBaseCreate, KnowledgeBaseUpdate,
+    KnowledgeTag, DocumentTagRequest, DocumentTagsResponse, TagListResponse
 )
 
 router = APIRouter()
@@ -105,6 +107,7 @@ async def delete_knowledge_base(
 
 # Knowledge Document API Endpoints
 @router.post("/documents", response_model=dict)
+@router.post("/documents/upload")
 async def upload_document(
     knowledge_base_id: int = Query(..., description="目标知识库ID"),
     file: UploadFile = File(...),
@@ -229,6 +232,27 @@ async def delete_document(
     except Exception as e:
         raise HTTPException(status_code=500, detail="删除失败")
 
+@router.get("/documents/{document_id}/download")
+async def download_document(
+    document_id: int,
+    db: Session = Depends(get_db)
+):
+    """下载文档"""
+    try:
+        file_path, filename = knowledge_service.download_document(db, document_id)
+        if not file_path:
+            raise HTTPException(status_code=404, detail="文档不存在或文件已丢失")
+        
+        return FileResponse(
+            path=file_path,
+            filename=filename,
+            media_type="application/octet-stream"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"下载失败: {str(e)}")
+
 @router.get("/stats")
 async def get_knowledge_stats(db: Session = Depends(get_db)):
     """获取知识库统计信息"""
@@ -251,3 +275,100 @@ async def get_knowledge_stats(db: Session = Depends(get_db)):
         print(f"获取统计信息错误: {str(e)}")
         print(f"详细堆栈: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"获取统计信息失败: {str(e)}")
+
+# Knowledge Tag API Endpoints
+@router.get("/tags", response_model=TagListResponse)
+async def get_all_tags(
+    knowledge_base_id: Optional[int] = Query(None, description="指定知识库ID过滤标签"),
+    db: Session = Depends(get_db)
+):
+    """获取所有标签，可选按知识库过滤"""
+    try:
+        tags = knowledge_service.get_all_tags(db, knowledge_base_id)
+        return {"tags": tags, "total": len(tags)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="获取标签失败")
+
+@router.get("/documents/{document_id}/tags", response_model=DocumentTagsResponse)
+async def get_document_tags(
+    document_id: int,
+    db: Session = Depends(get_db)
+):
+    """获取文档的所有标签"""
+    try:
+        tags = knowledge_service.get_document_tags(document_id, db)
+        return {"document_id": document_id, "tags": tags}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="获取文档标签失败")
+
+@router.post("/documents/{document_id}/tags", response_model=KnowledgeTag)
+async def add_document_tag(
+    document_id: int,
+    tag_request: DocumentTagRequest,
+    db: Session = Depends(get_db)
+):
+    """为文档添加标签"""
+    try:
+        tag = knowledge_service.add_document_tag(document_id, tag_request.tag_name, db)
+        return tag
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="添加标签失败")
+
+@router.delete("/documents/{document_id}/tags/{tag_id}")
+async def remove_document_tag(
+    document_id: int,
+    tag_id: int,
+    db: Session = Depends(get_db)
+):
+    """从文档中移除标签"""
+    try:
+        success = knowledge_service.remove_document_tag(document_id, tag_id, db)
+        if not success:
+            raise HTTPException(status_code=404, detail="标签或文档不存在")
+        return {"message": "标签移除成功"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="移除标签失败")
+
+@router.get("/tags/{tag_id}/documents", response_model=DocumentListResponse)
+async def search_documents_by_tag(
+    tag_id: int,
+    knowledge_base_id: Optional[int] = Query(None, description="指定知识库ID过滤文档"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(10, ge=1, le=50),
+    db: Session = Depends(get_db)
+):
+    """根据标签搜索文档"""
+    try:
+        documents = knowledge_service.search_documents_by_tag(tag_id, db, knowledge_base_id)
+        
+        # 应用分页
+        paginated_documents = documents[skip:skip+limit]
+        
+        # 转换为Pydantic模型
+        document_models = [
+            KnowledgeDocument(
+                id=doc.id,
+                title=doc.title,
+                knowledge_base_id=doc.knowledge_base_id,
+                file_path=doc.file_path,
+                file_type=doc.file_type,
+                content=doc.content,
+                document_metadata=doc.document_metadata,
+                created_at=doc.created_at,
+                updated_at=doc.updated_at,
+                vector_id=doc.vector_id
+            ) for doc in paginated_documents
+        ]
+        
+        return {
+            "documents": document_models,
+            "skip": skip,
+            "limit": limit,
+            "total": len(documents)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="按标签搜索文档失败")

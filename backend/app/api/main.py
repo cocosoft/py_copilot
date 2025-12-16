@@ -226,7 +226,7 @@ async def proxy_image(url: str = Query(..., description="要代理的外部图�
 
 # 导入路由 - 使用动态导入避免循环导入
 from app.api import api_router
-app.include_router(api_router)
+app.include_router(api_router, prefix="/api")
 
 # 创建数据库表 - 已通过init_db.py初始化，此处注释避免重复创建
 # from app.core.database import Base

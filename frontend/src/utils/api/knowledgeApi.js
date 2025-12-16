@@ -56,10 +56,19 @@ export const uploadDocument = async (file, knowledgeBaseId) => {
     return response;
 };
 
-export const searchDocuments = async (query, limit = 10, knowledgeBaseId = null, sortBy = 'relevance', sortOrder = 'desc') => {
+export const searchDocuments = async (query, limit = 10, knowledgeBaseId = null, sortBy = 'relevance', sortOrder = 'desc', fileTypes = [], startDate = null, endDate = null) => {
     const response = await request('/v1/knowledge/search', {
         method: 'GET',
-        params: { query, limit, knowledge_base_id: knowledgeBaseId, sort_by: sortBy, sort_order: sortOrder }
+        params: {
+            query,
+            limit,
+            knowledge_base_id: knowledgeBaseId,
+            sort_by: sortBy,
+            sort_order: sortOrder,
+            file_types: fileTypes.join(','),
+            start_date: startDate,
+            end_date: endDate
+        }
     });
     
     return response.results;
@@ -88,6 +97,21 @@ export const deleteDocument = async (documentId) => {
     return response;
 };
 
+export const updateDocument = async (documentId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await request(`/v1/knowledge/documents/${documentId}`, {
+        method: 'PUT',
+        body: formData,
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+    });
+    
+    return response;
+};
+
 export const downloadDocument = async (documentId) => {
     const response = await request(`/v1/knowledge/documents/${documentId}/download`, {
         method: 'GET',
@@ -99,6 +123,76 @@ export const downloadDocument = async (documentId) => {
 export const getKnowledgeStats = async () => {
     const response = await request('/v1/knowledge/stats', {
         method: 'GET'
+    });
+    return response;
+};
+
+// Knowledge Base Permission API
+export const getKnowledgeBasePermissions = async (knowledgeBaseId) => {
+    const response = await request(`/v1/knowledge/knowledge-bases/${knowledgeBaseId}/permissions`, {
+        method: 'GET'
+    });
+    return response;
+};
+
+export const updateKnowledgeBasePermissions = async (knowledgeBaseId, permissions) => {
+    const response = await request(`/v1/knowledge/knowledge-bases/${knowledgeBaseId}/permissions`, {
+        method: 'PUT',
+        data: { permissions }
+    });
+    return response;
+};
+
+export const addKnowledgeBasePermission = async (knowledgeBaseId, userId, role) => {
+    const response = await request(`/v1/knowledge/knowledge-bases/${knowledgeBaseId}/permissions`, {
+        method: 'POST',
+        data: { user_id: userId, role }
+    });
+    return response;
+};
+
+export const removeKnowledgeBasePermission = async (knowledgeBaseId, permissionId) => {
+    const response = await request(`/v1/knowledge/knowledge-bases/${knowledgeBaseId}/permissions/${permissionId}`, {
+        method: 'DELETE'
+    });
+    return response;
+};
+
+// Document Tag API
+export const getDocumentTags = async (documentId) => {
+    const response = await request(`/v1/knowledge/documents/${documentId}/tags`, {
+        method: 'GET'
+    });
+    return response;
+};
+
+export const addDocumentTag = async (documentId, tagName) => {
+    const response = await request(`/v1/knowledge/documents/${documentId}/tags`, {
+        method: 'POST',
+        data: { tag_name: tagName }
+    });
+    return response;
+};
+
+export const removeDocumentTag = async (documentId, tagId) => {
+    const response = await request(`/v1/knowledge/documents/${documentId}/tags/${tagId}`, {
+        method: 'DELETE'
+    });
+    return response;
+};
+
+export const getAllTags = async (knowledgeBaseId = null) => {
+    const response = await request('/v1/knowledge/tags', {
+        method: 'GET',
+        params: { knowledge_base_id: knowledgeBaseId }
+    });
+    return response;
+};
+
+export const searchDocumentsByTag = async (tagId, knowledgeBaseId = null) => {
+    const response = await request(`/v1/knowledge/tags/${tagId}/documents`, {
+        method: 'GET',
+        params: { knowledge_base_id: knowledgeBaseId }
     });
     return response;
 };

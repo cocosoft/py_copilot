@@ -68,3 +68,32 @@ class DocumentListResponse(BaseModel):
     skip: int
     limit: int
     total: int
+
+# Knowledge Tag Schemas
+class KnowledgeTagBase(BaseModel):
+    name: str
+
+class KnowledgeTagCreate(KnowledgeTagBase):
+    pass
+
+class KnowledgeTag(KnowledgeTagBase):
+    id: int
+    created_at: datetime
+    document_count: Optional[int] = 0
+    
+    class Config:
+        from_attributes = True
+
+class KnowledgeTagWithCount(KnowledgeTag):
+    document_count: int
+
+class TagListResponse(BaseModel):
+    tags: List[KnowledgeTag]
+    total: int
+
+class DocumentTagRequest(BaseModel):
+    tag_name: str
+
+class DocumentTagsResponse(BaseModel):
+    document_id: int
+    tags: List[KnowledgeTag]
