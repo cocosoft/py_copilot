@@ -98,3 +98,15 @@ class DocumentTagRequest(BaseModel):
 class DocumentTagsResponse(BaseModel):
     document_id: int
     tags: List[KnowledgeTag]
+
+# Knowledge Document Chunk Schemas
+class KnowledgeDocumentChunk(BaseModel):
+    """知识库文档向量片段模型"""
+    id: str
+    title: str
+    content: str
+    chunk_index: int
+    total_chunks: int
+    
+    class Config:
+        from_attributes = True

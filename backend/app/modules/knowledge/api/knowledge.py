@@ -9,7 +9,8 @@ from app.modules.knowledge.models.knowledge_document import KnowledgeBase as Kno
 from app.modules.knowledge.schemas.knowledge import (
     KnowledgeDocument, SearchResponse, DocumentListResponse,
     KnowledgeBase, KnowledgeBaseCreate, KnowledgeBaseUpdate,
-    KnowledgeTag, DocumentTagRequest, DocumentTagsResponse, TagListResponse
+    KnowledgeTag, DocumentTagRequest, DocumentTagsResponse, TagListResponse,
+    KnowledgeDocumentChunk
 )
 
 router = APIRouter()
@@ -254,6 +255,20 @@ async def download_document(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"下载失败: {str(e)}")
+
+@router.get("/documents/{document_id}/chunks", response_model=List[KnowledgeDocumentChunk])
+async def get_document_chunks(
+    document_id: int,
+    db: Session = Depends(get_db)
+):
+    """获取文档的向量片段列表"""
+    try:
+        chunks = knowledge_service.get_document_chunks(document_id, db)
+        return chunks
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="获取文档向量片段失败")
 
 @router.get("/stats")
 async def get_knowledge_stats(db: Session = Depends(get_db)):

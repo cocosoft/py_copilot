@@ -483,3 +483,20 @@ class KnowledgeService:
         db.delete(tag)
         db.commit()
         return True
+    
+    def get_document_chunks(self, document_id: int, db: Session) -> List[Dict[str, Any]]:
+        """获取指定文档的所有向量片段"""
+        try:
+            # 检查文档是否存在
+            document = self.get_document_by_id(document_id, db)
+            if not document:
+                raise HTTPException(status_code=404, detail="文档不存在")
+            
+            # 获取向量片段
+            chunks = self.retrieval_service.get_document_chunks(document_id)
+            return chunks
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"获取文档向量片段失败: {str(e)}")
+            raise HTTPException(status_code=500, detail="获取文档向量片段失败")

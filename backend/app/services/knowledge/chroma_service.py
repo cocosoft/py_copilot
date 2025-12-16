@@ -135,3 +135,16 @@ class ChromaService:
             self.collection.delete(where=where_filter)
         except Exception as e:
             logger.error(f"根据元数据删除文档失败: {str(e)}")
+    
+    def search_documents_by_metadata(self, where_filter: Dict[str, Any], limit: int = 100) -> Dict[str, Any]:
+        """根据元数据查询文档"""
+        if not self.available or self.collection is None:
+            logger.warning("ChromaDB不可用，返回空搜索结果")
+            return {"ids": [[]], "documents": [[]], "metadatas": [[]]}
+        
+        try:
+            results = self.collection.get(where=where_filter, limit=limit)
+            return results
+        except Exception as e:
+            logger.error(f"根据元数据查询文档失败: {str(e)}")
+            return {"ids": [[]], "documents": [[]], "metadatas": [[]]}

@@ -204,3 +204,11 @@ export const vectorizeDocument = async (documentId) => {
     });
     return response;
 };
+
+// Document Chunks API
+export const getDocumentChunks = async (documentId) => {
+    const response = await request(`/v1/knowledge/documents/${documentId}/chunks`, {
+        method: 'GET'
+    });
+    return response;
+};

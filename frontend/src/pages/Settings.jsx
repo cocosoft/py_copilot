@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './settings.css';
 import IntegratedModelManagement from '../components/ModelManagement/IntegratedModelManagement';
 import ParameterManagementMain from '../components/ModelManagement/ParameterManagementMain';
@@ -14,6 +14,33 @@ const Settings = () => {
   
   // 新增：控制侧边栏是否展开的状态
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
+  
+  // 监听URL的hash变化，当hash为"#personal"或"#help"时，自动设置对应的activeSection
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash === '#personal') {
+      setActiveSection('personal');
+    } else if (hash === '#help') {
+      setActiveSection('help');
+    }
+    
+    // 监听hash变化事件
+    const handleHashChange = () => {
+      const newHash = window.location.hash;
+      if (newHash === '#personal') {
+        setActiveSection('personal');
+      } else if (newHash === '#help') {
+        setActiveSection('help');
+      }
+    };
+    
+    window.addEventListener('hashchange', handleHashChange);
+    
+    // 清理事件监听器
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+    };
+  }, []);
   
   // 搜索设置的状态
   const [searchEngine, setSearchEngine] = useState('google');
@@ -188,47 +215,42 @@ const Settings = () => {
           </div>
         );
       
-      case 'account':
+      case 'personal':
         return (
           <div className="settings-content">
             <div className="content-header">
-              <h2>账户设置</h2>
-              <p>管理您的个人信息和账户安全</p>
+              <h2>个人中心</h2>
+              <p>管理您的账户、通知、隐私和账单设置</p>
             </div>
-            <p className="placeholder-text">账户设置内容将在这里显示...</p>
+            <div className="personal-center-container">
+              <div className="personal-section">
+                <h3>账户设置</h3>
+                <p className="placeholder-text">账户设置内容将在这里显示...</p>
+              </div>
+              <div className="personal-section">
+                <h3>通知设置</h3>
+                <p className="placeholder-text">通知设置内容将在这里显示...</p>
+              </div>
+              <div className="personal-section">
+                <h3>隐私设置</h3>
+                <p className="placeholder-text">隐私设置内容将在这里显示...</p>
+              </div>
+              <div className="personal-section">
+                <h3>账单管理</h3>
+                <p className="placeholder-text">账单管理内容将在这里显示...</p>
+              </div>
+            </div>
           </div>
         );
-      
-      case 'notifications':
+        
+      case 'help':
         return (
           <div className="settings-content">
             <div className="content-header">
-              <h2>通知设置</h2>
-              <p>配置应用通知的偏好</p>
+              <h2>帮助中心</h2>
+              <p>获取Py Copilot的使用帮助和常见问题解答</p>
             </div>
-            <p className="placeholder-text">通知设置内容将在这里显示...</p>
-          </div>
-        );
-      
-      case 'privacy':
-        return (
-          <div className="settings-content">
-            <div className="content-header">
-              <h2>隐私设置</h2>
-              <p>管理您的数据隐私和使用条款</p>
-            </div>
-            <p className="placeholder-text">隐私设置内容将在这里显示...</p>
-          </div>
-        );
-      
-      case 'billing':
-        return (
-          <div className="settings-content">
-            <div className="content-header">
-              <h2>账单管理</h2>
-              <p>查看和管理您的订阅和支付方式</p>
-            </div>
-            <p className="placeholder-text">账单管理内容将在这里显示...</p>
+            <p className="placeholder-text">帮助中心内容将在这里显示...</p>
           </div>
         );
         
@@ -316,37 +338,9 @@ const Settings = () => {
               <span className="nav-text">搜索管理</span>
             </button>
             
-            <button 
-              className={`nav-item ${activeSection === 'account' ? 'active' : ''}`}
-              onClick={() => setActiveSection('account')}
-            >
-              <span className="nav-icon">👤</span>
-              <span className="nav-text">账户设置</span>
-            </button>
             
-            <button 
-              className={`nav-item ${activeSection === 'notifications' ? 'active' : ''}`}
-              onClick={() => setActiveSection('notifications')}
-            >
-              <span className="nav-icon">🔔</span>
-              <span className="nav-text">通知设置</span>
-            </button>
             
-            <button 
-              className={`nav-item ${activeSection === 'privacy' ? 'active' : ''}`}
-              onClick={() => setActiveSection('privacy')}
-            >
-              <span className="nav-icon">🔒</span>
-              <span className="nav-text">隐私设置</span>
-            </button>
             
-            <button 
-              className={`nav-item ${activeSection === 'billing' ? 'active' : ''}`}
-              onClick={() => setActiveSection('billing')}
-            >
-              <span className="nav-icon">💳</span>
-              <span className="nav-text">账单管理</span>
-            </button>
             
             <button 
               className={`nav-item ${activeSection === 'about' ? 'active' : ''}`}

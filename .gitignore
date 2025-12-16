@@ -232,12 +232,12 @@ backend/test_vectorize_api.py
 backend/test_vectorize_fix.py
 backend/test_vectorize.py
 backend/alembic/versions/add_agent_id_to_conversations_.py
+backend/py_copilot_202512162100.zip
+backend/uploads/
+backend/app/uploads/
+向量文档片段查看功能开发计划.md
 uploads/4bbb61a3-59ec-416a-a228-d52abd63b3d3_test_upload_new.txt
 uploads/b7d22fed-5538-4040-afbf-6d5645f1135b_test_upload_new.txt
 uploads/be55f755-ecf2-4a20-867b-e57531b058e2_test_upload_new.txt
 uploads/ebc4697d-7f67-4023-b050-886c6b9977bd_test_upload.txt
 uploads/fb63ee0d-bda0-4295-8d51-82bb1909f130_test_upload_new.txt
-backend/app/uploads/82fbd3f1-d34b-4ea7-abe7-27ec02fa1508_test_upload_new.txt
-backend/uploads/ebc4697d-7f67-4023-b050-886c6b9977bd_test_upload.txt
-backend/uploads/ecf2a73c-6944-4c46-9c0a-7fb50b609846_test_upload_new.txt
-backend/uploads/downloaded_test.txt

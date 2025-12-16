@@ -51,3 +51,29 @@ class RetrievalService:
     def delete_documents_by_metadata(self, metadata_filter: Dict[str, Any]) -> None:
         """根据元数据删除文档"""
         self.chroma_service.delete_documents_by_metadata(metadata_filter)
+    
+    def get_document_chunks(self, document_id: int) -> List[Dict[str, Any]]:
+        """获取指定文档的所有向量片段"""
+        where_filter = {"document_id": document_id}
+        results = self.chroma_service.search_documents_by_metadata(where_filter)
+        return self.format_chunks(results)
+    
+    def format_chunks(self, results: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """格式化向量片段结果"""
+        formatted = []
+        
+        if not results or not results.get('ids'):
+            return formatted
+        
+        for i, chunk_id in enumerate(results['ids']):
+            formatted.append({
+                'id': chunk_id,
+                'title': results['metadatas'][i].get('title', '无标题'),
+                'content': results['documents'][i],
+                'chunk_index': results['metadatas'][i].get('chunk_index', 0),
+                'total_chunks': results['metadatas'][i].get('total_chunks', 0)
+            })
+        
+        # 按片段索引排序
+        formatted.sort(key=lambda x: x['chunk_index'])
+        return formatted

@@ -23,7 +23,8 @@ import {
   removeDocumentTag,
   getAllTags,
   searchDocumentsByTag,
-  vectorizeDocument
+  vectorizeDocument,
+  getDocumentChunks
 } from '../utils/api/knowledgeApi';
 
 // 设置PDF.js工作路径
@@ -102,6 +103,14 @@ const Knowledge = () => {
   const [loadingTags, setLoadingTags] = useState(false);
   const [newTagName, setNewTagName] = useState('');
   const [showTagsCloud, setShowTagsCloud] = useState(true);
+  
+  // 向量片段相关状态
+  const [documentChunks, setDocumentChunks] = useState([]);
+  const [loadingChunks, setLoadingChunks] = useState(false);
+  const [documentDetailActiveTab, setDocumentDetailActiveTab] = useState('document'); // 'document' 或 'chunks'
+  const [currentChunkPage, setCurrentChunkPage] = useState(1);
+  const [chunksPerPage, setChunksPerPage] = useState(10);
+  const [totalChunks, setTotalChunks] = useState(0);
   
   // 初始化加载
   useEffect(() => {
@@ -369,6 +378,11 @@ const Knowledge = () => {
       
       // 加载文档标签
       await loadDocumentTags(documentId);
+      
+      // 加载文档向量片段
+      if (doc.is_vectorized) {
+        await loadDocumentChunks(documentId);
+      }
       
       // 根据文件类型生成预览内容
       if (doc.file_type === '.pdf') {
@@ -724,6 +738,29 @@ const Knowledge = () => {
     setPreviewContent(null);
     setPreviewLoading(false);
     setPreviewError('');
+    // 重置向量片段状态
+    setDocumentChunks([]);
+    setLoadingChunks(false);
+    setDocumentDetailActiveTab('document');
+    setCurrentChunkPage(1);
+  };
+  
+  // 加载文档向量片段
+  const loadDocumentChunks = async (documentId) => {
+    if (!documentId) return;
+    
+    setLoadingChunks(true);
+    try {
+      const chunks = await getDocumentChunks(documentId);
+      setDocumentChunks(chunks);
+      setTotalChunks(chunks.length);
+    } catch (error) {
+      console.error('加载文档向量片段失败:', error);
+      setError(`加载向量片段失败: ${error.response?.data?.detail || error.message}`);
+      setDocumentChunks([]);
+    } finally {
+      setLoadingChunks(false);
+    }
   };
 
   // 处理文档向量化
@@ -995,7 +1032,7 @@ const Knowledge = () => {
         )}
         
         {/* 搜索结果展示 */}
-        {searchQuery && (
+        {searchQuery || searchResults.length > 0 && (
           <div className="search-results">
             {searching ? (
               <div className="loading-container">
@@ -1155,7 +1192,8 @@ const Knowledge = () => {
         {!searchQuery && (
           <>
             <div className="knowledge-grid">
-              {selectedKnowledgeBase ? (
+              {/* 只在没有搜索结果时显示正常文档列表 */}
+              {selectedKnowledgeBase && (!searchQuery && searchResults.length === 0) ? (
                 loadingDocuments ? (
                   <div className="loading-container">
                     <div className="loading-spinner"></div>
@@ -1522,76 +1560,186 @@ const Knowledge = () => {
                     </span>
                   </div>
                 </div>
-                <div className="document-detail-content">
-                  {previewLoading ? (
-                    <div className="loading-container">
-                      <div className="loading-spinner"></div>
-                      <span>加载文档预览...</span>
-                    </div>
-                  ) : (
-                    <>
-                      {previewError && (
-                        <div className="preview-error">
-                          <span className="error-icon">⚠️</span>
-                          <span>{previewError}</span>
-                        </div>
-                      )}
-                      {previewContent}
-                    </>
+                
+                {/* 标签页导航 */}
+                <div className="document-detail-tabs">
+                  <button 
+                    className={`tab-btn ${documentDetailActiveTab === 'document' ? 'active' : ''}`}
+                    onClick={() => setDocumentDetailActiveTab('document')}
+                  >
+                    文档内容
+                  </button>
+                  {selectedDocument.is_vectorized && (
+                    <button 
+                      className={`tab-btn ${documentDetailActiveTab === 'chunks' ? 'active' : ''}`}
+                      onClick={() => setDocumentDetailActiveTab('chunks')}
+                    >
+                      向量片段
+                    </button>
                   )}
                 </div>
                 
-                {/* 标签管理区域 */}
-                <div className="document-tags-section">
-                  <h3>文档标签</h3>
-                  
-                  {/* 当前标签列表 */}
-                  <div className="current-tags">
-                    {loadingTags ? (
-                      <div className="loading-container">
-                        <div className="loading-spinner"></div>
-                        <span>加载标签...</span>
-                      </div>
-                    ) : documentTags.length > 0 ? (
-                      <div className="tags-list">
-                        {documentTags.map(tag => (
-                          <div key={tag.id} className="tag-item">
-                            <span className="tag-name">{tag.name}</span>
-                            <button 
-                              className="tag-remove-btn"
-                              onClick={() => handleRemoveDocumentTag(tag.id)}
-                              title="删除标签"
-                            >
-                              ×
-                            </button>
+                {/* 标签页内容 */}
+                <div className="tab-content">
+                  {/* 文档内容标签页 */}
+                  {documentDetailActiveTab === 'document' && (
+                    <div>
+                      <div className="document-detail-content">
+                        {previewLoading ? (
+                          <div className="loading-container">
+                            <div className="loading-spinner"></div>
+                            <span>加载文档预览...</span>
                           </div>
-                        ))}
+                        ) : (
+                          <>
+                            {previewError && (
+                              <div className="preview-error">
+                                <span className="error-icon">⚠️</span>
+                                <span>{previewError}</span>
+                              </div>
+                            )}
+                            {previewContent}
+                          </>
+                        )}
                       </div>
-                    ) : (
-                      <div className="empty-tags">
-                        <span>当前文档没有标签</span>
+                      
+                      {/* 标签管理区域 */}
+                      <div className="document-tags-section">
+                        <h3>文档标签</h3>
+                        
+                        {/* 当前标签列表 */}
+                        <div className="current-tags">
+                          {loadingTags ? (
+                            <div className="loading-container">
+                              <div className="loading-spinner"></div>
+                              <span>加载标签...</span>
+                            </div>
+                          ) : documentTags.length > 0 ? (
+                            <div className="tags-list">
+                              {documentTags.map(tag => (
+                                <div key={tag.id} className="tag-item">
+                                  <span className="tag-name">{tag.name}</span>
+                                  <button 
+                                    className="tag-remove-btn"
+                                    onClick={() => handleRemoveDocumentTag(tag.id)}
+                                    title="删除标签"
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="empty-tags">
+                              <span>当前文档没有标签</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* 添加新标签 */}
+                        <div className="add-tag-form">
+                          <input
+                            type="text"
+                            className="tag-input"
+                            placeholder="添加新标签..."
+                            value={newTagName}
+                            onChange={(e) => setNewTagName(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && handleAddDocumentTag()}
+                          />
+                          <button 
+                            className="btn-primary tag-add-btn"
+                            onClick={handleAddDocumentTag}
+                            disabled={!newTagName.trim()}
+                          >
+                            添加
+                          </button>
+                        </div>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                   
-                  {/* 添加新标签 */}
-                  <div className="add-tag-form">
-                    <input
-                      type="text"
-                      className="tag-input"
-                      placeholder="添加新标签..."
-                      value={newTagName}
-                      onChange={(e) => setNewTagName(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleAddDocumentTag()}
-                    />
-                    <button 
-                      className="btn-primary tag-add-btn"
-                      onClick={handleAddDocumentTag}
-                      disabled={!newTagName.trim()}
-                    >
-                      添加
-                    </button>
-                  </div>
+                  {/* 向量片段标签页 */}
+                  {documentDetailActiveTab === 'chunks' && (
+                    <div className="document-chunks-section">
+                      <h3>向量片段 ({totalChunks} 个)</h3>
+                      
+                      {loadingChunks ? (
+                        <div className="loading-container">
+                          <div className="loading-spinner"></div>
+                          <span>加载向量片段...</span>
+                        </div>
+                      ) : documentChunks.length > 0 ? (
+                        <>
+                          {/* 向量片段列表 */}
+                          <div className="chunks-list">
+                            {documentChunks.slice((currentChunkPage - 1) * chunksPerPage, currentChunkPage * chunksPerPage).map((chunk, index) => (
+                              <div key={chunk.id} className="chunk-item">
+                                <div className="chunk-header">
+                                  <span className="chunk-index">片段 {chunk.chunk_index + 1}/{chunk.total_chunks}</span>
+                                  <span className="chunk-title">{chunk.title}</span>
+                                </div>
+                                <div className="chunk-content">
+                                  <p>{chunk.content}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          
+                          {/* 分页控件 */}
+                          {totalChunks > chunksPerPage && (
+                            <div className="chunks-pagination">
+                              <div className="pagination-controls">
+                                <button 
+                                  className="pagination-btn" 
+                                  onClick={() => setCurrentChunkPage(1)}
+                                  disabled={currentChunkPage === 1}
+                                >
+                                  首页
+                                </button>
+                                <button 
+                                  className="pagination-btn" 
+                                  onClick={() => setCurrentChunkPage(prev => Math.max(1, prev - 1))}
+                                  disabled={currentChunkPage === 1}
+                                >
+                                  上一页
+                                </button>
+                                
+                                {/* 页码按钮 */}
+                                {Array.from({ length: Math.ceil(totalChunks / chunksPerPage) }, (_, i) => i + 1).map(page => (
+                                  <button 
+                                    key={page}
+                                    className={`pagination-btn ${currentChunkPage === page ? 'active' : ''}`} 
+                                    onClick={() => setCurrentChunkPage(page)}
+                                  >
+                                    {page}
+                                  </button>
+                                ))}
+                                
+                                <button 
+                                  className="pagination-btn" 
+                                  onClick={() => setCurrentChunkPage(prev => Math.min(Math.ceil(totalChunks / chunksPerPage), prev + 1))}
+                                  disabled={currentChunkPage === Math.ceil(totalChunks / chunksPerPage)}
+                                >
+                                  下一页
+                                </button>
+                                <button 
+                                  className="pagination-btn" 
+                                  onClick={() => setCurrentChunkPage(Math.ceil(totalChunks / chunksPerPage))}
+                                  disabled={currentChunkPage === Math.ceil(totalChunks / chunksPerPage)}
+                                >
+                                  末页
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="empty-chunks">
+                          <span>当前文档没有向量片段</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
