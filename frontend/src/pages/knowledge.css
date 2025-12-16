@@ -6,21 +6,30 @@
 }
 
 /* 页面头部 */
-.knowledge-header {
+.content-header {
   margin-bottom: 20px;
 }
 
-.knowledge-header h1 {
+.content-header h2 {
   font-size: 28px;
   font-weight: 600;
   color: #2c3e50;
   margin-bottom: 8px;
 }
 
-.knowledge-header p {
+.content-header p {
   font-size: 14px;
   color: #7f8c8d;
-  margin: 0;
+  margin: 0 0 8px 0;
+}
+
+.stats-info {
+  font-size: 14px;
+  color: #3498db;
+  background-color: #ecf0f1;
+  padding: 8px 12px;
+  border-radius: 4px;
+  display: inline-block;
 }
 
 /* 主要内容区域 */
@@ -116,6 +125,84 @@
 
 .create-btn:hover {
   background-color: #27ae60;
+}
+
+/* 消息提示 */
+.error-message {
+  background-color: #ffe6e6;
+  color: #e74c3c;
+  padding: 12px 16px;
+  border-radius: 6px;
+  border-left: 4px solid #e74c3c;
+  margin-bottom: 16px;
+}
+
+.success-message {
+  background-color: #e6ffe6;
+  color: #27ae60;
+  padding: 12px 16px;
+  border-radius: 6px;
+  border-left: 4px solid #27ae60;
+  margin-bottom: 16px;
+}
+
+/* 搜索结果区域 */
+.search-results {
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.results-count {
+  font-size: 14px;
+  color: #7f8c8d;
+  margin-bottom: 16px;
+}
+
+.search-result {
+  border-bottom: 1px solid #ecf0f1;
+  padding: 16px 0;
+}
+
+.search-result:last-child {
+  border-bottom: none;
+}
+
+.search-result h5 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0 0 8px 0;
+}
+
+.result-content {
+  font-size: 14px;
+  color: #7f8c8d;
+  line-height: 1.4;
+  margin: 0 0 8px 0;
+}
+
+.similarity-score {
+  font-size: 12px;
+  color: #3498db;
+  background-color: #ecf0f1;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+/* 空状态 */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #7f8c8d;
+}
+
+.empty-state p {
+  font-size: 16px;
+  margin: 0;
 }
 
 /* 视图控制 */

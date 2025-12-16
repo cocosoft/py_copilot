@@ -18,6 +18,7 @@ from app.modules.capability_category.api.category import router as category_rout
 from app.modules.capability_category.api.model_categories import router as model_categories_router
 from app.api.v1.agents import router as agents_router
 from app.api.v1.agent_categories import router as agent_categories_router
+from app.modules.knowledge.api.knowledge import router as knowledge_router
 
 api_router = APIRouter()
 
@@ -46,3 +47,4 @@ api_router.include_router(model_categories_router, tags=["model-categories"])
 api_router.include_router(category_router, tags=["category"])
 api_router.include_router(agents_router, prefix="/agents", tags=["agents"])
 api_router.include_router(agent_categories_router, prefix="/agent-categories", tags=["agent-categories"])
+api_router.include_router(knowledge_router, prefix="/knowledge", tags=["knowledge"])

@@ -197,3 +197,15 @@ backend/test_db_connection.py
 backend/test_pydantic.py
 backend/fix_alembic.py
 backend/py_copilot_202512142345.zip
+系统功能管理开发计划.md
+知识库开发计划.md
+知识库开发计划-优化版.md
+知识库开发实施指南.md
+backend/py_copilot_202512150400.zip
+backend/alembic/versions/002_add_knowledge_tables.py
+test_document.txt
+test_knowledge_api.py
+debug_knowledge_api.py
+test_chromadb.py
+test_fix.py
+test_upload.py
