@@ -29,6 +29,12 @@ body {
   top: 0;
   z-index: 1000;
   display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.app-header-left {
+  display: flex;
   align-items: center;
 }
 
@@ -37,6 +43,49 @@ body {
   font-weight: 600;
   color: #2c3e50;
   margin: 0;
+  margin-left: 10px;
+}
+
+.app-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* 标题栏按钮样式 */
+.header-user-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background-color: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #34495e;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.header-user-button:hover {
+  background-color: rgba(52, 152, 219, 0.1);
+  color: #3498db;
+}
+
+.header-user-button.active {
+  background-color: rgba(52, 152, 219, 0.15);
+  color: #3498db;
+  font-weight: 600;
+}
+
+.user-icon {
+  font-size: 16px;
+}
+
+.user-text {
+  font-size: 13px;
 }
 
 /* 应用主体内容，包含导航栏和主内容区域 */

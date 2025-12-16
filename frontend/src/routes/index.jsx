@@ -10,6 +10,8 @@ import Knowledge from '../pages/Knowledge';
 import Workflow from '../pages/Workflow';
 import Tool from '../pages/Tool';
 import Settings from '../pages/Settings';
+import PersonalCenter from '../pages/PersonalCenter';
+import HelpCenter from '../pages/HelpCenter';
 import ModelCapabilityManagement from '../components/CapabilityManagement/ModelCapabilityManagement';
 import ModelCapabilityAssociation from '../components/CapabilityManagement/ModelCapabilityAssociation';
 
@@ -27,6 +29,8 @@ const AppRoutes = () => {
       <Route path="/workflow" element={<Workflow />} />
       <Route path="/tool" element={<Tool />} />
       <Route path="/settings" element={<Settings />} />
+      <Route path="/personal" element={<PersonalCenter />} />
+      <Route path="/help" element={<HelpCenter />} />
       <Route path="/model-capabilities" element={<ModelCapabilityManagement />} />
       <Route path="/model-capability-association" element={<ModelCapabilityAssociation />} />
     </Routes>
