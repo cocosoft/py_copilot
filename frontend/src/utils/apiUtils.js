@@ -7,8 +7,14 @@ export const STORAGE_PREFIX = 'llm_admin_';
 // 通用请求函数
 export const request = async (endpoint, options = {}) => {
   
+  // 处理data属性，将其转换为body
+  let body = options.body;
+  if (options.data && !body) {
+    body = JSON.stringify(options.data);
+  }
+  
   // 对于FormData，不设置默认的Content-Type，让浏览器自动处理
-  const isFormData = options.body instanceof FormData;
+  const isFormData = body instanceof FormData;
   
   // 准备默认选项
   let defaultHeaders = {};
@@ -24,6 +30,7 @@ export const request = async (endpoint, options = {}) => {
   const mergedOptions = {
     ...defaultOptions,
     ...options,
+    body, // 使用处理后的body
     credentials: 'include', // 包含cookies
   };
   

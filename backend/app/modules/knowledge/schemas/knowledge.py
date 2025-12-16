@@ -2,9 +2,31 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
+# Knowledge Base Schemas
+class KnowledgeBaseBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+class KnowledgeBaseCreate(KnowledgeBaseBase):
+    pass
+
+class KnowledgeBaseUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+class KnowledgeBase(KnowledgeBaseBase):
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
+# Knowledge Document Schemas
 class KnowledgeDocumentBase(BaseModel):
     title: str
     file_type: str
+    knowledge_base_id: int
     file_path: Optional[str] = None
     content: Optional[str] = None
     document_metadata: Optional[Dict[str, Any]] = None
@@ -16,6 +38,7 @@ class KnowledgeDocumentUpdate(BaseModel):
     title: Optional[str] = None
     content: Optional[str] = None
     document_metadata: Optional[Dict[str, Any]] = None
+    knowledge_base_id: Optional[int] = None
 
 class KnowledgeDocument(KnowledgeDocumentBase):
     id: int

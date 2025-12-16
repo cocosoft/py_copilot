@@ -48,17 +48,22 @@ class ChromaService:
         except Exception as e:
             logger.error(f"添加文档到向量数据库失败: {str(e)}")
     
-    def search_similar(self, query: str, n_results: int = 5) -> Dict[str, Any]:
+    def search_similar(self, query: str, n_results: int = 5, where_filter: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """相似性搜索"""
         if not self.available or self.collection is None:
             logger.warning("ChromaDB不可用，返回空搜索结果")
             return {"ids": [[]], "documents": [[]], "metadatas": [[]], "distances": [[]]}
         
         try:
-            results = self.collection.query(
-                query_texts=[query],
-                n_results=n_results
-            )
+            query_params = {
+                "query_texts": [query],
+                "n_results": n_results
+            }
+            
+            if where_filter:
+                query_params["where"] = where_filter
+            
+            results = self.collection.query(**query_params)
             return results
         except Exception as e:
             logger.error(f"向量搜索失败: {str(e)}")
@@ -119,3 +124,14 @@ class ChromaService:
         except Exception as e:
             logger.error(f"列出向量数据库文档失败: {str(e)}")
             return []
+    
+    def delete_documents_by_metadata(self, where_filter: Dict[str, Any]) -> None:
+        """根据元数据删除文档"""
+        if not self.available or self.collection is None:
+            logger.warning("ChromaDB不可用，跳过文档删除")
+            return
+        
+        try:
+            self.collection.delete(where=where_filter)
+        except Exception as e:
+            logger.error(f"根据元数据删除文档失败: {str(e)}")

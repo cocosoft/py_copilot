@@ -3,6 +3,8 @@
   padding: 0;
   height: auto;
   overflow-y: visible;
+  display: flex;
+  flex-direction: column;
 }
 
 /* 页面头部 */
@@ -38,6 +40,68 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+/* 知识库导航栏 */
+.knowledge-nav {
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.knowledge-nav-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.knowledge-nav-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.knowledge-nav-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.knowledge-nav-item {
+  background-color: #f8f9fa;
+  border: 1px solid #e1e8ed;
+  border-radius: 20px;
+  padding: 6px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.knowledge-nav-item.active {
+  background-color: #3498db;
+  color: white;
+  border-color: #3498db;
+}
+
+.knowledge-nav-item:hover:not(.active) {
+  background-color: #e9ecef;
+}
+
+.knowledge-nav-item .close-btn {
+  font-size: 12px;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.knowledge-nav-item:hover .close-btn {
+  opacity: 1;
 }
 
 /* 工具栏区域 */
@@ -367,6 +431,169 @@
 
 .action-btn:hover {
   background-color: #f8f9fa;
+}
+
+/* 模态框样式 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: white;
+  border-radius: 8px;
+  padding: 24px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #7f8c8d;
+  padding: 0;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  color: #2c3e50;
+}
+
+.modal-body {
+  margin-bottom: 24px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #2c3e50;
+  margin-bottom: 8px;
+}
+
+.form-input,
+.form-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e1e8ed;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.form-input:focus,
+.form-textarea:focus {
+  border-color: #3498db;
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.btn-secondary {
+  padding: 10px 20px;
+  background-color: #f8f9fa;
+  color: #2c3e50;
+  border: 1px solid #e1e8ed;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  background-color: #e9ecef;
+}
+
+.btn-primary {
+  padding: 10px 20px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-primary:hover {
+  background-color: #2980b9;
+}
+
+/* 文档详情页面样式 */
+.document-detail {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 24px;
+  margin-top: 16px;
+}
+
+.document-detail-header {
+  margin-bottom: 20px;
+}
+
+.document-detail-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0 0 8px 0;
+}
+
+.document-detail-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 14px;
+  color: #7f8c8d;
+}
+
+.document-detail-content {
+  border-top: 1px solid #ecf0f1;
+  padding-top: 20px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #2c3e50;
+  white-space: pre-wrap;
+  word-wrap: break-word;
 }
 
 /* 滚动条样式 */

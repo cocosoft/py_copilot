@@ -8,10 +8,13 @@ class RetrievalService:
     def __init__(self):
         self.chroma_service = ChromaService()
     
-    def search_documents(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+    def search_documents(self, query: str, limit: int = 10, knowledge_base_id: int = None) -> List[Dict[str, Any]]:
         """基础向量检索"""
         # 纯向量检索，适合桌面应用
-        results = self.chroma_service.search_similar(query, limit)
+        where_filter = None
+        if knowledge_base_id:
+            where_filter = {"knowledge_base_id": knowledge_base_id}
+        results = self.chroma_service.search_similar(query, limit, where_filter)
         return self.format_results(results)
     
     def format_results(self, results: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -44,3 +47,7 @@ class RetrievalService:
     def get_document_count(self) -> int:
         """获取索引中的文档数量"""
         return self.chroma_service.get_document_count()
+    
+    def delete_documents_by_metadata(self, metadata_filter: Dict[str, Any]) -> None:
+        """根据元数据删除文档"""
+        self.chroma_service.delete_documents_by_metadata(metadata_filter)

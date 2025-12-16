@@ -4,7 +4,7 @@ from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from fastapi import UploadFile, HTTPException
 
-from app.modules.knowledge.models.knowledge_document import KnowledgeDocument
+from app.modules.knowledge.models.knowledge_document import KnowledgeBase, KnowledgeDocument
 from app.services.knowledge.document_parser import DocumentParser
 from app.services.knowledge.text_processor import KnowledgeTextProcessor
 from app.services.knowledge.retrieval_service import RetrievalService
@@ -19,7 +19,52 @@ class KnowledgeService:
         """检查文件格式是否支持"""
         return self.document_parser.is_supported_format(filename)
     
-    async def process_uploaded_file(self, file: UploadFile, db: Session) -> KnowledgeDocument:
+    def create_knowledge_base(self, name: str, description: str, db: Session) -> KnowledgeBase:
+        """创建新的知识库"""
+        knowledge_base = KnowledgeBase(
+            name=name,
+            description=description
+        )
+        db.add(knowledge_base)
+        db.commit()
+        db.refresh(knowledge_base)
+        return knowledge_base
+    
+    def get_knowledge_base(self, knowledge_base_id: int, db: Session) -> Optional[KnowledgeBase]:
+        """获取知识库详情"""
+        return db.query(KnowledgeBase).filter(KnowledgeBase.id == knowledge_base_id).first()
+    
+    def list_knowledge_bases(self, db: Session, skip: int = 0, limit: int = 10) -> List[KnowledgeBase]:
+        """获取知识库列表"""
+        return db.query(KnowledgeBase).offset(skip).limit(limit).all()
+    
+    def update_knowledge_base(self, knowledge_base_id: int, name: Optional[str], description: Optional[str], db: Session) -> Optional[KnowledgeBase]:
+        """更新知识库信息"""
+        knowledge_base = self.get_knowledge_base(knowledge_base_id, db)
+        if not knowledge_base:
+            return None
+        
+        if name is not None:
+            knowledge_base.name = name
+        if description is not None:
+            knowledge_base.description = description
+        
+        db.commit()
+        db.refresh(knowledge_base)
+        return knowledge_base
+    
+    def delete_knowledge_base(self, knowledge_base_id: int, db: Session) -> bool:
+        """删除知识库"""
+        knowledge_base = self.get_knowledge_base(knowledge_base_id, db)
+        if not knowledge_base:
+            return False
+        
+        # 删除知识库时会自动删除所有关联的文档（通过cascade设置）
+        db.delete(knowledge_base)
+        db.commit()
+        return True
+    
+    async def process_uploaded_file(self, file: UploadFile, knowledge_base_id: int, db: Session) -> KnowledgeDocument:
         """处理上传的文件"""
         # 检查文件格式
         if not self.is_supported_format(file.filename):
@@ -28,6 +73,11 @@ class KnowledgeService:
         # 检查文件大小（限制10MB）
         if file.size > 10 * 1024 * 1024:
             raise HTTPException(status_code=400, detail="文件大小超过10MB限制")
+        
+        # 检查知识库是否存在
+        knowledge_base = self.get_knowledge_base(knowledge_base_id, db)
+        if not knowledge_base:
+            raise HTTPException(status_code=404, detail="知识库不存在")
         
         # 保存临时文件
         temp_dir = "temp_uploads"
@@ -49,13 +99,16 @@ class KnowledgeService:
             # 创建数据库记录
             document = KnowledgeDocument(
                 title=file.filename,
+                knowledge_base_id=knowledge_base_id,
                 file_path=temp_file_path,
                 file_type=os.path.splitext(file.filename)[1].lower(),
                 content=text_content[:1000],  # 保存前1000字符用于预览
                 document_metadata={
                     "original_filename": file.filename,
                     "file_size": file.size,
-                    "chunks_count": len(chunks)
+                    "chunks_count": len(chunks),
+                    "knowledge_base_id": knowledge_base_id,
+                    "knowledge_base_name": knowledge_base.name
                 }
             )
             
@@ -96,11 +149,11 @@ class KnowledgeService:
             if os.path.exists(temp_file_path):
                 os.remove(temp_file_path)
     
-    def search_documents(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+    def search_documents(self, query: str, limit: int = 10, knowledge_base_id: Optional[int] = None) -> List[Dict[str, Any]]:
         """搜索知识库文档"""
         try:
             # 首先尝试向量检索
-            vector_results = self.retrieval_service.search_documents(query, limit)
+            vector_results = self.retrieval_service.search_documents(query, limit, knowledge_base_id)
             if vector_results and len(vector_results) > 0:
                 return vector_results
         except Exception as e:
@@ -109,13 +162,19 @@ class KnowledgeService:
         # 降级方案：基于数据库的文本搜索
         return []  # 暂时返回空结果，后续可以添加文本搜索实现
     
-    def list_documents(self, db: Session, skip: int = 0, limit: int = 10) -> List[KnowledgeDocument]:
+    def list_documents(self, db: Session, skip: int = 0, limit: int = 10, knowledge_base_id: Optional[int] = None) -> List[KnowledgeDocument]:
         """获取知识库文档列表"""
-        return db.query(KnowledgeDocument).offset(skip).limit(limit).all()
+        query = db.query(KnowledgeDocument)
+        if knowledge_base_id is not None:
+            query = query.filter(KnowledgeDocument.knowledge_base_id == knowledge_base_id)
+        return query.offset(skip).limit(limit).all()
     
-    def get_document_count(self, db: Session) -> int:
+    def get_document_count(self, db: Session, knowledge_base_id: Optional[int] = None) -> int:
         """获取文档总数"""
-        return db.query(KnowledgeDocument).count()
+        query = db.query(KnowledgeDocument)
+        if knowledge_base_id is not None:
+            query = query.filter(KnowledgeDocument.knowledge_base_id == knowledge_base_id)
+        return query.count()
     
     def delete_document(self, db: Session, document_id: int) -> bool:
         """删除文档"""
@@ -125,12 +184,19 @@ class KnowledgeService:
         
         # 从向量索引中删除
         if document.vector_id:
-            # 删除所有相关的chunk
-            document_count = self.retrieval_service.get_document_count()
-            # 这里简化处理，实际应该根据document_id删除所有相关chunk
-            # 由于ChromaDB的限制，需要更复杂的逻辑来批量删除
-            pass
+            # 根据document_id删除所有相关chunk
+            try:
+                # 使用元数据过滤器删除该文档的所有chunk
+                self.retrieval_service.delete_documents_by_metadata({
+                    "document_id": document.id
+                })
+            except Exception as e:
+                print(f"向量索引删除失败: {str(e)}")
         
         db.delete(document)
         db.commit()
         return True
+    
+    def get_document_by_id(self, document_id: int, db: Session) -> Optional[KnowledgeDocument]:
+        """根据ID获取文档详情"""
+        return db.query(KnowledgeDocument).filter(KnowledgeDocument.id == document_id).first()
