@@ -150,6 +150,12 @@ const Agent = () => {
       }
     }
   };
+  
+  // 测试智能体
+  const handleTestAgent = async (agent) => {
+    alert(`测试智能体: ${agent.name}`);
+    // 这里可以添加实际的测试逻辑，例如打开测试窗口或导航到测试页面
+  };
 
   // 处理分类切换
   const handleCategoryChange = (category) => {

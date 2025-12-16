@@ -136,6 +136,18 @@ const Knowledge = () => {
     }
   }, [sortBy, sortOrder]);
   
+  // 当文档列表分页参数变化时，重新加载文档
+  useEffect(() => {
+    if (selectedKnowledgeBase) {
+      loadDocuments();
+    }
+  }, [currentPage, documentsPerPage]);
+  
+  // 当知识库列表分页参数变化时，重新加载知识库
+  useEffect(() => {
+    loadKnowledgeBases();
+  }, [kbCurrentPage, kbPerPage]);
+  
   // 加载知识库列表
   const loadKnowledgeBases = async () => {
     setLoadingKnowledgeBases(true);

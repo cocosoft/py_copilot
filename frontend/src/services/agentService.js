@@ -2,7 +2,7 @@
 import { API_BASE_URL, request } from '../utils/apiUtils';
 
 // 智能体API的基本路径
-const AGENT_API_BASE = '/agents'
+const AGENT_API_BASE = '/v1/agents'
 
 // 创建智能体
 export const createAgent = async (agentData) => {

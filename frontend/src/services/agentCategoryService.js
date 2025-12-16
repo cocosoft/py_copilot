@@ -2,7 +2,7 @@
 import { API_BASE_URL, request } from '../utils/apiUtils';
 
 // 智能体分类API的基本路径
-const AGENT_CATEGORY_API_BASE = '/agent-categories'
+const AGENT_CATEGORY_API_BASE = '/v1/agent-categories'
 
 // 创建智能体分类
 export const createAgentCategory = async (categoryData) => {
