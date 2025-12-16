@@ -70,9 +70,9 @@ class KnowledgeService:
         if not self.is_supported_format(file.filename):
             raise HTTPException(status_code=400, detail="不支持的文件格式")
         
-        # 检查文件大小（限制10MB）
-        if file.size > 10 * 1024 * 1024:
-            raise HTTPException(status_code=400, detail="文件大小超过10MB限制")
+        # 检查文件大小（限制50MB）
+        if file.size > 50 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="文件大小超过50MB限制")
         
         # 检查知识库是否存在
         knowledge_base = self.get_knowledge_base(knowledge_base_id, db)

@@ -49,6 +49,24 @@ app = FastAPI(
     docs_url="/docs",
 )
 
+# 设置请求体大小限制为60MB，以支持50MB的文件上传
+from fastapi import Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+
+@app.middleware("http")
+async def limit_request_size(request: Request, call_next):
+    if "content-length" in request.headers:
+        content_length = int(request.headers["content-length"])
+        max_size = 60 * 1024 * 1024  # 60MB
+        if content_length > max_size:
+            return JSONResponse(
+                status_code=413,
+                content={"detail": "请求体过大，文件大小不能超过50MB"},
+            )
+    response = await call_next(request)
+    return response
+
 # 添加静态文件服务，提供上传的图片访问
 UPLOAD_DIR = "E:/PY/CODES/py copilot IV/frontend/public/logos/agents"
 os.makedirs(UPLOAD_DIR, exist_ok=True)

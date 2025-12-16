@@ -216,3 +216,5 @@ test_fix.py
 test_upload.py
 backend/alembic/versions/001_create_knowledge_tables.py
 backend/add_missing_column.py
+frontend/knowledge_optimization.md
+backend/py_copilot_202512160951.zip

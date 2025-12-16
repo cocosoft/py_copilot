@@ -56,10 +56,10 @@ export const uploadDocument = async (file, knowledgeBaseId) => {
     return response;
 };
 
-export const searchDocuments = async (query, limit = 10, knowledgeBaseId = null) => {
+export const searchDocuments = async (query, limit = 10, knowledgeBaseId = null, sortBy = 'relevance', sortOrder = 'desc') => {
     const response = await request('/v1/knowledge/search', {
         method: 'GET',
-        params: { query, limit, knowledge_base_id: knowledgeBaseId }
+        params: { query, limit, knowledge_base_id: knowledgeBaseId, sort_by: sortBy, sort_order: sortOrder }
     });
     
     return response.results;
@@ -71,7 +71,7 @@ export const listDocuments = async (skip = 0, limit = 10, knowledgeBaseId = null
         params: { skip, limit, knowledge_base_id: knowledgeBaseId }
     });
     
-    return response.documents;
+    return response;
 };
 
 export const getDocument = async (documentId) => {
@@ -84,6 +84,14 @@ export const getDocument = async (documentId) => {
 export const deleteDocument = async (documentId) => {
     const response = await request(`/v1/knowledge/documents/${documentId}`, {
         method: 'DELETE'
+    });
+    return response;
+};
+
+export const downloadDocument = async (documentId) => {
+    const response = await request(`/v1/knowledge/documents/${documentId}/download`, {
+        method: 'GET',
+        responseType: 'blob'
     });
     return response;
 };

@@ -13,6 +13,21 @@ export const request = async (endpoint, options = {}) => {
     body = JSON.stringify(options.data);
   }
   
+  // 处理params参数，将其添加到URL中
+  let url = `${API_BASE_URL}${endpoint}`;
+  if (options.params) {
+    const params = new URLSearchParams();
+    Object.entries(options.params).forEach(([key, value]) => {
+      if (value !== null && value !== undefined) {
+        params.append(key, value);
+      }
+    });
+    const paramsString = params.toString();
+    if (paramsString) {
+      url += `?${paramsString}`;
+    }
+  }
+  
   // 对于FormData，不设置默认的Content-Type，让浏览器自动处理
   const isFormData = body instanceof FormData;
   
@@ -47,9 +62,6 @@ export const request = async (endpoint, options = {}) => {
   }
   
   try {
-    // 构建完整URL
-    const url = `${API_BASE_URL}${endpoint}`;
-    
     // 添加调试信息
     console.log('即将发送请求:', JSON.stringify({
       url: url,
