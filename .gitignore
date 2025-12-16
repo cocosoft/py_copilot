@@ -61,6 +61,11 @@ test_model_crud.py
 test_model_management.py
 test_supplier_model_api.py
 test_supplier_status.py
+
+# 向量数据库文件
+frontend/public/knowledge/chromadb/
+*.bin
+*.sqlite3
 backend/add_association_fields.py
 backend/add_missing_columns.py
 backend/add_missing_fields.py
