@@ -646,30 +646,7 @@ const Knowledge = () => {
               {uploading ? '上传中...' : !selectedKnowledgeBase ? '请选择知识库' : '选择文档'}
             </label>
             
-            {/* 拖拽上传区域 */}
-            <div 
-              className={`drag-drop-area ${!selectedKnowledgeBase ? 'disabled' : ''}`}
-              onDragOver={(e) => {
-                e.preventDefault();
-                if (selectedKnowledgeBase && !uploading) {
-                  e.currentTarget.classList.add('dragover');
-                }
-              }}
-              onDragLeave={(e) => {
-                e.preventDefault();
-                e.currentTarget.classList.remove('dragover');
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                e.currentTarget.classList.remove('dragover');
-                if (selectedKnowledgeBase && !uploading) {
-                  handleFileUpload({ target: { files: e.dataTransfer.files } });
-                }
-              }}
-            >
-              <span>📁</span>
-              <span>拖拽文件到此处上传</span>
-            </div>
+
             
             {selectedKnowledgeBase && (
               <button 

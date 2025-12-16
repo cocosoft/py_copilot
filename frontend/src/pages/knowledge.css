@@ -161,41 +161,7 @@
   flex-wrap: wrap;
 }
 
-/* 拖拽上传区域 */
-.drag-drop-area {
-  border: 2px dashed #3498db;
-  border-radius: 6px;
-  padding: 12px 16px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.3s;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background-color: #f8f9fa;
-}
 
-.drag-drop-area:hover:not(.disabled) {
-  background-color: #e3f2fd;
-  border-color: #2980b9;
-}
-
-.drag-drop-area.dragover:not(.disabled) {
-  background-color: #bbdefb;
-  border-color: #1976d2;
-  transform: scale(1.02);
-}
-
-.drag-drop-area.disabled {
-  border-color: #bdc3c7;
-  color: #95a5a6;
-  cursor: not-allowed;
-  background-color: #ecf0f1;
-}
-
-.drag-drop-area span:first-child {
-  font-size: 18px;
-}
 
 .import-btn {
   padding: 10px 20px;
