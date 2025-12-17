@@ -128,6 +128,12 @@ export const request = async (endpoint, options = {}) => {
       return null; // 204响应没有内容，返回null
     }
     
+    // 特别处理responseType为blob的情况
+    if (options.responseType === 'blob') {
+      const blob = await response.blob();
+      return blob;
+    }
+    
     // 检查响应内容类型
     const contentType = response.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {

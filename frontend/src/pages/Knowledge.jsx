@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import './knowledge.css';
 import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
+import { FaDownload } from 'react-icons/fa';
 import {  
   uploadDocument, 
   searchDocuments, 
@@ -827,6 +828,32 @@ const Knowledge = () => {
     }
   };
 
+  // 处理文档卡片直接下载
+  const handleCardDownloadDocument = async (documentId, title) => {
+    try {
+      setPreviewLoading(true);
+      const blob = await downloadDocument(documentId);
+      
+      // 创建下载链接
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = title;
+      document.body.appendChild(a);
+      a.click();
+      
+      // 清理
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      setSuccess('文件下载成功');
+    } catch (error) {
+      setError(`下载失败: ${error.response?.data?.detail || error.message}`);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
   // 处理文档更新
   const handleDocumentUpdate = async (event) => {
     const file = event.target.files[0];
@@ -1012,6 +1039,7 @@ const Knowledge = () => {
                     }}
                     title="导出知识库"
                   >
+                    <FaDownload style={{ marginRight: '2px' }} />
                     导出
                   </button>
                   <button
@@ -1435,6 +1463,13 @@ const Knowledge = () => {
                         onClick={() => openDocumentDetail(document.id)}
                       >
                         👁️
+                      </button>
+                      <button 
+                        className="action-btn" 
+                        title="下载文档"
+                        onClick={() => handleCardDownloadDocument(document.id, document.title)}
+                      >
+                        📥
                       </button>
                       {!document.is_vectorized && (
                         <button 

@@ -104,6 +104,28 @@
   opacity: 1;
 }
 
+.knowledge-nav-item .export-btn {
+  font-size: 12px;
+  padding: 2px 6px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  opacity: 0.7;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.knowledge-nav-item:hover .export-btn {
+  opacity: 1;
+  background-color: #2980b9;
+}
+
+.kb-actions {
+  display: flex;
+  gap: 4px;
+}
+
 /* 工具栏区域 */
 .knowledge-toolbar {
   display: flex;
