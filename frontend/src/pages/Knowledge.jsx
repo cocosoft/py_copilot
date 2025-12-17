@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './knowledge.css';
 import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
@@ -24,7 +24,9 @@ import {
   getAllTags,
   searchDocumentsByTag,
   vectorizeDocument,
-  getDocumentChunks
+  getDocumentChunks,
+  exportKnowledgeBase,
+  importKnowledgeBase
 } from '../utils/api/knowledgeApi';
 
 // 设置PDF.js工作路径
@@ -56,7 +58,7 @@ const Knowledge = () => {
   
   // 知识库分页相关状态
   const [kbCurrentPage, setKbCurrentPage] = useState(1);
-  const [kbPerPage, setKbPerPage] = useState(10);
+  const [kbPerPage] = useState(10);
   const [totalKbs, setTotalKbs] = useState(0);
   const [totalKbPages, setTotalKbPages] = useState(1);
   
@@ -109,8 +111,21 @@ const Knowledge = () => {
   const [loadingChunks, setLoadingChunks] = useState(false);
   const [documentDetailActiveTab, setDocumentDetailActiveTab] = useState('document'); // 'document' 或 'chunks'
   const [currentChunkPage, setCurrentChunkPage] = useState(1);
-  const [chunksPerPage, setChunksPerPage] = useState(10);
+  const [chunksPerPage] = useState(10);
   const [totalChunks, setTotalChunks] = useState(0);
+  
+  // 导入导出相关状态
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importFile, setImportFile] = useState(null);
+  
+  // 懒加载相关状态
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const knowledgeGridRef = useRef(null);
+  
+  // 搜索结果缓存
+  const [searchCache, setSearchCache] = useState(new Map());
   
   // 初始化加载
   useEffect(() => {
@@ -118,30 +133,84 @@ const Knowledge = () => {
     loadStats();
   }, []);
   
-  // 当选择的知识库变化时，加载对应的文档和标签
+  // 加载文档列表（支持追加模式）
+  const loadDocuments = async (append = false) => {
+    setLoadingDocuments(true);
+    try {
+      const skip = append ? documents.length : (currentPage - 1) * documentsPerPage;
+      const response = await listDocuments(skip, documentsPerPage, selectedKnowledgeBase?.id || null);
+      
+      if (append) {
+        // 追加模式，只在现有文档列表基础上添加新文档
+        setDocuments(prev => [...prev, ...response.documents]);
+        setHasMore(response.documents.length === documentsPerPage);
+      } else {
+        // 替换模式，重置文档列表
+        setDocuments(response.documents);
+        setHasMore(response.documents.length === documentsPerPage);
+      }
+      
+      setTotalDocuments(response.total || response.documents.length);
+      setTotalPages(Math.ceil((response.total || response.documents.length) / documentsPerPage));
+    } catch (error) {
+      setError(`加载文档列表失败: ${error.response?.data?.detail || error.message}`);
+    } finally {
+      setLoadingDocuments(false);
+    }
+  };
+
+  // 加载更多文档（懒加载）
+  const loadMoreDocuments = async () => {
+    if (loadingMore || !hasMore || !selectedKnowledgeBase) return;
+    
+    setLoadingMore(true);
+    try {
+      await loadDocuments(true);
+    } catch (error) {
+      setError(`加载更多文档失败: ${error.response?.data?.detail || error.message}`);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  // 监听滚动事件，实现懒加载
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!knowledgeGridRef.current || loadingMore || !hasMore) return;
+      
+      const { scrollTop, scrollHeight, clientHeight } = knowledgeGridRef.current;
+      
+      // 当滚动到距离底部200px时加载更多
+      if (scrollHeight - scrollTop - clientHeight < 200) {
+        loadMoreDocuments();
+      }
+    };
+
+    const gridElement = knowledgeGridRef.current;
+    if (gridElement) {
+      gridElement.addEventListener('scroll', handleScroll);
+    }
+
+    return () => {
+      if (gridElement) {
+        gridElement.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, [loadingMore, hasMore, selectedKnowledgeBase]);
+
+  // 当选择的知识库变化或每页显示数量变化时，重新加载文档
   useEffect(() => {
     if (selectedKnowledgeBase) {
+      setDocuments([]);
+      setHasMore(true);
+      setCurrentPage(1);
       loadDocuments();
       loadAllTags();
     } else {
       setDocuments([]);
       setTags([]);
     }
-  }, [selectedKnowledgeBase]);
-
-  // 当排序方式或顺序变化时，重新执行搜索
-  useEffect(() => {
-    if (searchQuery) {
-      handleSearch(searchQuery);
-    }
-  }, [sortBy, sortOrder]);
-  
-  // 当文档列表分页参数变化时，重新加载文档
-  useEffect(() => {
-    if (selectedKnowledgeBase) {
-      loadDocuments();
-    }
-  }, [currentPage, documentsPerPage]);
+  }, [selectedKnowledgeBase, documentsPerPage]);
   
   // 当知识库列表分页参数变化时，重新加载知识库
   useEffect(() => {
@@ -154,11 +223,12 @@ const Knowledge = () => {
     try {
       const skip = (kbCurrentPage - 1) * kbPerPage;
       const response = await getKnowledgeBases(skip, kbPerPage);
-      setKnowledgeBases(response.knowledge_bases || response);
-      setTotalKbs(response.total || (response.knowledge_bases ? response.knowledge_bases.length : response.length));
-      setTotalKbPages(Math.ceil((response.total || (response.knowledge_bases ? response.knowledge_bases.length : response.length)) / kbPerPage));
-      if ((response.knowledge_bases ? response.knowledge_bases.length : response.length) > 0 && !selectedKnowledgeBase) {
-        setSelectedKnowledgeBase(response.knowledge_bases ? response.knowledge_bases[0] : response[0]);
+      const knowledgeBasesList = response.knowledge_bases || response;
+      setKnowledgeBases(knowledgeBasesList);
+      setTotalKbs(response.total || knowledgeBasesList.length);
+      setTotalKbPages(Math.ceil((response.total || knowledgeBasesList.length) / kbPerPage));
+      if (knowledgeBasesList.length > 0 && !selectedKnowledgeBase) {
+        setSelectedKnowledgeBase(knowledgeBasesList[0]);
       }
     } catch (error) {
       setError(`加载知识库列表失败: ${error.response?.data?.detail || error.message}`);
@@ -167,21 +237,7 @@ const Knowledge = () => {
     }
   };
 
-  // 加载文档列表
-  const loadDocuments = async () => {
-    setLoadingDocuments(true);
-    try {
-      const skip = (currentPage - 1) * documentsPerPage;
-      const response = await listDocuments(skip, documentsPerPage, selectedKnowledgeBase?.id || null);
-      setDocuments(response.documents);
-      setTotalDocuments(response.total || response.documents.length);
-      setTotalPages(Math.ceil((response.total || response.documents.length) / documentsPerPage));
-    } catch (error) {
-      setError(`加载文档列表失败: ${error.response?.data?.detail || error.message}`);
-    } finally {
-      setLoadingDocuments(false);
-    }
-  };
+
 
   // 加载统计信息
   const loadStats = async () => {
@@ -378,6 +434,70 @@ const Knowledge = () => {
     setShowDeleteModal(true);
   };
   
+  // 导出知识库
+  const handleExportKnowledgeBase = async (kbId) => {
+    try {
+      const exportData = await exportKnowledgeBase(kbId);
+      // 创建并下载JSON文件
+      const jsonStr = JSON.stringify(exportData, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `knowledge-base-${kbId}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setSuccess('知识库导出成功');
+    } catch (error) {
+      setError(`导出失败: ${error.response?.data?.detail || error.message}`);
+    }
+  };
+  
+  // 打开导入模态框
+  const openImportModal = () => {
+    setShowImportModal(true);
+    setImportFile(null);
+  };
+  
+  // 处理导入文件选择
+  const handleImportFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImportFile(file);
+    }
+  };
+  
+  // 导入知识库
+  const handleImportKnowledgeBase = async () => {
+    if (!importFile) {
+      setError('请选择要导入的JSON文件');
+      return;
+    }
+    
+    setImporting(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const jsonData = JSON.parse(e.target.result);
+          await importKnowledgeBase(jsonData);
+          setSuccess('知识库导入成功');
+          loadKnowledgeBases(); // 重新加载知识库列表
+          setShowImportModal(false);
+        } catch (parseError) {
+          setError('JSON文件格式错误，请检查文件内容');
+        }
+      };
+      reader.readAsText(importFile);
+    } catch (error) {
+      setError(`导入失败: ${error.response?.data?.detail || error.message}`);
+    } finally {
+      setImporting(false);
+    }
+  };
+  
   // 打开文档详情
   const openDocumentDetail = async (documentId) => {
     try {
@@ -555,10 +675,25 @@ const Knowledge = () => {
     }
   };
 
+  // 生成搜索缓存键
+  const generateCacheKey = (query, sortBy, sortOrder, fileTypes, startDate, endDate) => {
+    return `${query}-${sortBy}-${sortOrder}-${JSON.stringify(fileTypes)}-${startDate || ''}-${endDate || ''}`;
+  };
+
   // 搜索文档
   const handleSearch = async (query) => {
     if (!query.trim()) {
       setSearchResults([]);
+      return;
+    }
+    
+    // 生成缓存键
+    const cacheKey = generateCacheKey(query, sortBy, sortOrder, fileTypes, startDate, endDate);
+    
+    // 检查缓存中是否存在相同的搜索结果
+    if (searchCache.has(cacheKey)) {
+      setSearchResults(searchCache.get(cacheKey));
+      setError('');
       return;
     }
     
@@ -575,19 +710,60 @@ const Knowledge = () => {
         endDate || null
       );
       setSearchResults(results);
+      
+      // 将搜索结果存储到缓存中
+      setSearchCache(prev => {
+        const newCache = new Map(prev);
+        newCache.set(cacheKey, results);
+        // 限制缓存大小为10
+        if (newCache.size > 10) {
+          const firstKey = newCache.keys().next().value;
+          newCache.delete(firstKey);
+        }
+        return newCache;
+      });
+      
       if (results.length === 0) {
         setError('未找到相关文档，请尝试其他关键词');
       } else {
         setError('');
       }
     } catch (error) {
-      setError('搜索失败，请检查网络连接或稍后重试');
+      setError(`搜索失败: ${error.response?.data?.detail || error.message}`);
       setSearchResults([]);
     } finally {
       setSearching(false);
     }
   };
-  
+
+  // 防抖函数
+  const debounce = (func, delay) => {
+    let timeoutId;
+    return (...args) => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => func.apply(null, args), delay);
+    };
+  };
+
+  // 防抖搜索
+  const debouncedSearch = debounce(handleSearch, 300);
+
+  // 当排序方式或顺序变化时，重新执行搜索
+  useEffect(() => {
+    if (searchQuery) {
+      handleSearch(searchQuery);
+    }
+  }, [sortBy, sortOrder]);
+
+  // 当搜索查询变化时，执行防抖搜索
+  useEffect(() => {
+    if (searchQuery) {
+      debouncedSearch(searchQuery);
+    } else {
+      setSearchResults([]);
+    }
+  }, [searchQuery]);
+
   // 处理文件类型过滤
   const handleFileTypeChange = (fileType) => {
     setFileTypes(prev => {
@@ -778,7 +954,7 @@ const Knowledge = () => {
   // 处理文档向量化
   const handleVectorizeDocument = async (documentId) => {
     try {
-      const response = await vectorizeDocument(documentId);
+      await vectorizeDocument(documentId);
       setSuccess('文档向量化成功');
       // 重新加载文档列表以更新向量化状态
       loadDocuments();
@@ -786,8 +962,6 @@ const Knowledge = () => {
       setError(`向量化失败: ${error.response?.data?.detail || error.message}`);
     }
   };
-
-  const displayResults = searchQuery ? searchResults : documents;
 
   return (
     <div className="knowledge-container">
@@ -803,12 +977,17 @@ const Knowledge = () => {
       
       {/* 知识库导航栏 */}
       <div className="knowledge-nav">
-        <div className="knowledge-nav-header">
-          <div className="knowledge-nav-title">知识库</div>
-          <button className="create-btn" onClick={() => setShowCreateModal(true)}>
-            + 新建知识库
-          </button>
-        </div>
+          <div className="knowledge-nav-header">
+            <div className="knowledge-nav-title">知识库</div>
+            <div className="kb-management-actions">
+              <button className="create-btn" onClick={() => setShowCreateModal(true)}>
+                + 新建知识库
+              </button>
+              <button className="import-btn" onClick={openImportModal}>
+                导入知识库
+              </button>
+            </div>
+          </div>
         
         <div className="knowledge-nav-list">
           {loadingKnowledgeBases ? (
@@ -824,16 +1003,28 @@ const Knowledge = () => {
                 onClick={() => setSelectedKnowledgeBase(kb)}
               >
                 <span>{kb.name}</span>
-                <button
-                  className="close-btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openDeleteModal(kb);
-                  }}
-                  title="删除知识库"
-                >
-                  ×
-                </button>
+                <div className="kb-actions">
+                  <button
+                    className="export-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleExportKnowledgeBase(kb.id);
+                    }}
+                    title="导出知识库"
+                  >
+                    导出
+                  </button>
+                  <button
+                    className="close-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openDeleteModal(kb);
+                    }}
+                    title="删除知识库"
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
             ))
           ) : (
@@ -954,7 +1145,6 @@ const Knowledge = () => {
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
-                handleSearch(e.target.value);
               }}
             />
             <button className="search-btn">
@@ -1044,7 +1234,7 @@ const Knowledge = () => {
         )}
         
         {/* 搜索结果展示 */}
-        {searchQuery || searchResults.length > 0 && (
+        {(searchQuery || searchResults.length > 0) && (
           <div className="search-results">
             {searching ? (
               <div className="loading-container">
@@ -1088,7 +1278,7 @@ const Knowledge = () => {
                                 type="checkbox" 
                                 value=".docx" 
                                 checked={fileTypes.includes('.docx') || fileTypes.includes('.doc')}
-                                onChange={(e) => {
+                                onChange={() => {
                                   if (fileTypes.includes('.doc')) {
                                     handleFileTypeChange('.doc');
                                   }
@@ -1203,15 +1393,19 @@ const Knowledge = () => {
         {/* 文档列表 */}
         {!searchQuery && (
           <>
-            <div className="knowledge-grid">
+            <div className="knowledge-grid" ref={knowledgeGridRef}>
               {/* 只在没有搜索结果时显示正常文档列表 */}
-              {selectedKnowledgeBase && (!searchQuery && searchResults.length === 0) ? (
-                loadingDocuments ? (
-                  <div className="loading-container">
-                    <div className="loading-spinner"></div>
-                    <span>加载文档列表...</span>
-                  </div>
-                ) : documents.map(document => (
+              {!selectedKnowledgeBase ? (
+                <div className="empty-state">
+                  <p>请选择或创建一个知识库</p>
+                </div>
+              ) : loadingDocuments ? (
+                <div className="loading-container">
+                  <div className="loading-spinner"></div>
+                  <span>加载文档列表...</span>
+                </div>
+              ) : documents.length > 0 ? (
+                documents.map(document => (
                   <div key={document.id} className="knowledge-item">
                     <div className="knowledge-icon">
                       {document.file_type === '.pdf' ? '📄' : 
@@ -1263,13 +1457,15 @@ const Knowledge = () => {
                 ))
               ) : (
                 <div className="empty-state">
-                  <p>请选择或创建一个知识库</p>
+                  <p>当前知识库暂无文档，请点击&quot;导入文档&quot;开始使用</p>
                 </div>
               )}
               
-              {selectedKnowledgeBase && documents.length === 0 && (
-                <div className="empty-state">
-                  <p>当前知识库暂无文档，请点击"导入文档"开始使用</p>
+              {/* 加载更多指示器 */}
+              {loadingMore && (
+                <div className="loading-more">
+                  <div className="loading-spinner small"></div>
+                  <span>加载更多文档...</span>
                 </div>
               )}
             </div>
@@ -1527,7 +1723,7 @@ const Knowledge = () => {
               <button className="modal-close" onClick={closeAllModals}>×</button>
             </div>
             <div className="modal-body">
-              <p>确定要删除知识库 "{deletingKnowledgeBase.name}" 吗？</p>
+              <p>确定要删除知识库 &quot;{deletingKnowledgeBase.name}&quot; 吗？</p>
               <p style={{ color: '#e74c3c', fontSize: '14px', marginTop: '8px' }}>
                 注意：删除知识库将同时删除其中的所有文档。
               </p>
@@ -1536,6 +1732,45 @@ const Knowledge = () => {
               <button className="btn-secondary" onClick={closeAllModals}>取消</button>
               <button className="btn-primary" onClick={handleDeleteKnowledgeBase} style={{ backgroundColor: '#e74c3c' }}>
                 删除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* 导入知识库模态框 */}
+      {showImportModal && (
+        <div className="modal-overlay" onClick={closeAllModals}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">导入知识库</h3>
+              <button className="modal-close" onClick={closeAllModals}>×</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label className="form-label">选择JSON文件</label>
+                <input
+                  type="file"
+                  className="form-input"
+                  accept=".json"
+                  onChange={handleImportFileChange}
+                />
+                {importFile && (
+                  <div className="file-info" style={{ marginTop: '8px' }}>
+                    已选择: {importFile.name}
+                  </div>
+                )}
+              </div>
+              <div className="form-note" style={{ marginTop: '16px', fontSize: '14px', color: '#666' }}>
+                注意：请确保JSON文件格式正确，符合知识库导入规范。
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={closeAllModals} disabled={importing}>
+                取消
+              </button>
+              <button className="btn-primary" onClick={handleImportKnowledgeBase} disabled={importing || !importFile}>
+                {importing ? '导入中...' : '导入'}
               </button>
             </div>
           </div>
@@ -1684,7 +1919,7 @@ const Knowledge = () => {
                         <>
                           {/* 向量片段列表 */}
                           <div className="chunks-list">
-                            {documentChunks.slice((currentChunkPage - 1) * chunksPerPage, currentChunkPage * chunksPerPage).map((chunk, index) => (
+                            {documentChunks.slice((currentChunkPage - 1) * chunksPerPage, currentChunkPage * chunksPerPage).map((chunk) => (
                               <div key={chunk.id} className="chunk-item">
                                 <div className="chunk-header">
                                   <span className="chunk-index">片段 {chunk.chunk_index + 1}/{chunk.total_chunks}</span>

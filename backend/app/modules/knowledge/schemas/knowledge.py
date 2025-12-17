@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 from datetime import datetime
 
 # Knowledge Base Schemas
@@ -51,7 +51,7 @@ class KnowledgeDocument(KnowledgeDocumentBase):
         from_attributes = True
 
 class SearchResult(BaseModel):
-    id: str
+    id: Union[int, str]
     title: str
     content: str
     score: float

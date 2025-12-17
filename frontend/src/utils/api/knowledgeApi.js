@@ -212,3 +212,20 @@ export const getDocumentChunks = async (documentId) => {
     });
     return response;
 };
+
+// Knowledge Base Import/Export API
+export const exportKnowledgeBase = async (knowledgeBaseId) => {
+    const response = await request(`/v1/knowledge/knowledge-bases/${knowledgeBaseId}/export`, {
+        method: 'GET',
+        responseType: 'json'
+    });
+    return response;
+};
+
+export const importKnowledgeBase = async (knowledgeBaseData) => {
+    const response = await request('/v1/knowledge/knowledge-bases/import', {
+        method: 'POST',
+        data: knowledgeBaseData
+    });
+    return response;
+};

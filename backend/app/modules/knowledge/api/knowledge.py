@@ -140,11 +140,12 @@ async def upload_document(
 async def search_documents(
     query: str = Query(..., min_length=1),
     limit: int = Query(10, ge=1, le=20),
-    knowledge_base_id: Optional[int] = Query(None, description="指定知识库ID进行搜索")
+    knowledge_base_id: Optional[int] = Query(None, description="指定知识库ID进行搜索"),
+    db: Session = Depends(get_db)
 ):
     """搜索知识库文档"""
     try:
-        results = knowledge_service.search_documents(query, limit, knowledge_base_id)
+        results = knowledge_service.search_documents(query, limit, knowledge_base_id, db)
         return {"query": query, "results": results, "count": len(results)}
     except Exception as e:
         raise HTTPException(status_code=500, detail="搜索失败")

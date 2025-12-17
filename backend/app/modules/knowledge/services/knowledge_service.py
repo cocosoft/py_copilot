@@ -153,7 +153,7 @@ class KnowledgeService:
             # 不需要清理文件，因为已经保存到永久存储
             pass
 
-    def search_documents(self, query: str, limit: int = 10, knowledge_base_id: Optional[int] = None) -> List[Dict[str, Any]]:
+    def search_documents(self, query: str, limit: int = 10, knowledge_base_id: Optional[int] = None, db: Session = None) -> List[Dict[str, Any]]:
         """搜索知识库文档"""
         try:
             # 首先尝试向量检索
@@ -161,10 +161,48 @@ class KnowledgeService:
             if vector_results and len(vector_results) > 0:
                 return vector_results
         except Exception as e:
+            # 向量搜索失败，使用文本搜索
             print(f"向量搜索失败，使用文本搜索: {str(e)}")
         
         # 降级方案：基于数据库的文本搜索
-        return []  # 暂时返回空结果，后续可以添加文本搜索实现
+        if not db:
+            return []
+            
+        from app.modules.knowledge.models.knowledge_document import KnowledgeDocument
+        
+        # 构建查询
+        db_query = db.query(KnowledgeDocument)
+        
+        # 过滤知识库
+        if knowledge_base_id:
+            db_query = db_query.filter(KnowledgeDocument.knowledge_base_id == knowledge_base_id)
+        
+        # 文本搜索（标题或内容包含查询词）
+        db_query = db_query.filter(
+            (KnowledgeDocument.title.ilike(f"%{query}%") | 
+             KnowledgeDocument.content.ilike(f"%{query}%"))
+        )
+        
+        # 限制结果数量
+        db_results = db_query.limit(limit).all()
+        
+        # 转换为与向量搜索结果格式一致的字典列表
+        text_results = []
+        for doc in db_results:
+            text_results.append({
+                "id": doc.id,
+                "title": doc.title,
+                "content": doc.content or "",
+                "file_path": doc.file_path,
+                "file_type": doc.file_type,
+                "knowledge_base_id": doc.knowledge_base_id,
+                "created_at": doc.created_at,
+                "updated_at": doc.updated_at,
+                "score": 1.0,  # 文本搜索默认分数
+                "source": "text_search"  # 标记为文本搜索结果
+            })
+        
+        return text_results
     
     def list_documents(self, db: Session, skip: int = 0, limit: int = 10, knowledge_base_id: Optional[int] = None) -> List[KnowledgeDocument]:
         """获取知识库文档列表"""

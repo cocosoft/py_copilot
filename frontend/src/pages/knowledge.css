@@ -784,6 +784,125 @@
   100% { transform: rotate(360deg); }
 }
 
+/* 向量片段标签页样式 */
+.document-chunks-section {
+  padding: 16px 0;
+}
+
+.document-chunks-section h3 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  color: #2c3e50;
+}
+
+.chunks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 500px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.chunk-item {
+  background-color: #ffffff;
+  border: 1px solid #e1e8ed;
+  border-radius: 8px;
+  padding: 16px;
+  transition: all 0.2s ease;
+}
+
+.chunk-item:hover {
+  border-color: #3498db;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.chunk-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.chunk-index {
+  font-size: 12px;
+  font-weight: 500;
+  color: #3498db;
+  background-color: #e3f2fd;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.chunk-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #7f8c8d;
+}
+
+.chunk-content {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #2c3e50;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.chunk-content p {
+  margin: 0;
+}
+
+.chunks-pagination {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+  padding: 16px 0;
+  border-top: 1px solid #e1e8ed;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pagination-btn {
+  padding: 6px 12px;
+  border: 1px solid #e1e8ed;
+  border-radius: 4px;
+  background-color: #ffffff;
+  font-size: 14px;
+  color: #2c3e50;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background-color: #3498db;
+  color: white;
+  border-color: #3498db;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-btn.active {
+  background-color: #3498db;
+  color: white;
+  border-color: #3498db;
+}
+
+.empty-chunks {
+  text-align: center;
+  padding: 60px 20px;
+  color: #7f8c8d;
+  font-size: 16px;
+  background-color: #f8f9fa;
+  border: 2px dashed #dee2e6;
+  border-radius: 8px;
+}
+
 /* 滚动条样式 */
 .knowledge-grid::-webkit-scrollbar {
   width: 6px;
