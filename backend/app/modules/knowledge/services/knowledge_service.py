@@ -538,3 +538,113 @@ class KnowledgeService:
         except Exception as e:
             print(f"获取文档向量片段失败: {str(e)}")
             raise HTTPException(status_code=500, detail="获取文档向量片段失败")
+
+    # Document Version Control Methods
+    def get_document_versions(self, document_id: int, db: Session) -> List[KnowledgeDocument]:
+        """获取文档的所有版本"""
+        # 获取所有具有相同知识库ID和标题的文档（同一文档的不同版本）
+        current_doc = self.get_document_by_id(document_id, db)
+        if not current_doc:
+            return []
+        
+        # 查找所有具有相同知识库ID和相似标题的文档
+        # 这里我们假设同一文档的不同版本具有相同的知识库ID和相似的文件名
+        versions = db.query(KnowledgeDocument).filter(
+            KnowledgeDocument.knowledge_base_id == current_doc.knowledge_base_id,
+            KnowledgeDocument.title.like(f"%{current_doc.title.split('.')[0]}%")
+        ).order_by(KnowledgeDocument.version.desc()).all()
+        
+        return versions
+
+    def update_document_with_version(self, document_id: int, update_data: dict, db: Session) -> Optional[KnowledgeDocument]:
+        """更新文档并创建新版本"""
+        # 获取当前文档
+        current_doc = self.get_document_by_id(document_id, db)
+        if not current_doc:
+            return None
+        
+        # 标记当前版本为历史版本
+        current_doc.is_current = False
+        db.commit()
+        
+        # 创建新版本文档
+        new_version = KnowledgeDocument(
+            title=update_data.get("title", current_doc.title),
+            file_path=update_data.get("file_path", current_doc.file_path),
+            file_type=current_doc.file_type,
+            content=update_data.get("content", current_doc.content),
+            knowledge_base_id=current_doc.knowledge_base_id,
+            version=current_doc.version + 1,
+            is_current=True,
+            is_vectorized=0,  # 新版本需要重新向量化
+            vector_id=None,   # 清空向量ID
+            document_metadata=current_doc.document_metadata
+        )
+        
+        # 复制标签
+        new_version.tags = current_doc.tags
+        
+        db.add(new_version)
+        db.commit()
+        db.refresh(new_version)
+        
+        return new_version
+
+    def get_document_version(self, document_id: int, version_id: int, db: Session) -> Optional[KnowledgeDocument]:
+        """获取特定版本的文档"""
+        # 首先获取当前文档以确定知识库ID
+        current_doc = self.get_document_by_id(document_id, db)
+        if not current_doc:
+            return None
+        
+        # 查找指定版本的文档
+        version_doc = db.query(KnowledgeDocument).filter(
+            KnowledgeDocument.knowledge_base_id == current_doc.knowledge_base_id,
+            KnowledgeDocument.version == version_id,
+            KnowledgeDocument.title.like(f"%{current_doc.title.split('.')[0]}%")
+        ).first()
+        
+        return version_doc
+
+    def restore_document_version(self, document_id: int, version_id: int, db: Session) -> Optional[KnowledgeDocument]:
+        """恢复文档到指定版本"""
+        # 获取要恢复的版本
+        target_version = self.get_document_version(document_id, version_id, db)
+        if not target_version:
+            return None
+        
+        # 获取当前文档
+        current_doc = self.get_document_by_id(document_id, db)
+        if not current_doc:
+            return None
+        
+        # 获取该文档的所有版本以确定最大版本号
+        all_versions = self.get_document_versions(document_id, db)
+        max_version = max([v.version for v in all_versions]) if all_versions else 0
+        
+        # 标记当前版本为历史版本
+        current_doc.is_current = False
+        db.commit()
+        
+        # 创建恢复版本（基于目标版本创建新版本）
+        restored_version = KnowledgeDocument(
+            title=target_version.title,
+            file_path=target_version.file_path,
+            file_type=target_version.file_type,
+            content=target_version.content,
+            knowledge_base_id=target_version.knowledge_base_id,
+            version=max_version + 1,  # 新版本号，基于最大版本号+1
+            is_current=True,
+            is_vectorized=0,  # 需要重新向量化
+            vector_id=None,   # 清空向量ID
+            document_metadata=target_version.document_metadata
+        )
+        
+        # 复制标签
+        restored_version.tags = target_version.tags
+        
+        db.add(restored_version)
+        db.commit()
+        db.refresh(restored_version)
+        
+        return restored_version

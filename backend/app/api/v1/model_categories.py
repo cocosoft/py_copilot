@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile
 from sqlalchemy.orm import Session
 import os
 import uuid
+import json
 from datetime import datetime
 from sqlalchemy import text
 
@@ -20,6 +21,7 @@ from app.schemas.model_category import (
     CategoryWithModelsResponse
 )
 from app.services.model_category_service import model_category_service
+from app.services.parameter_management.parameter_manager import ParameterManager
 
 # 创建分类LOGO的上传目录
 # 使用绝对路径定义UPLOAD_DIR
@@ -479,3 +481,93 @@ async def get_categories_by_model(
         serialized_categories.append(serialized)
     
     return serialized_categories
+
+
+@router.post("/{category_id}/parameters", response_model=Dict[str, Any])
+async def set_model_category_parameters(
+    category_id: int,
+    parameters: Dict[str, Any],
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """设置模型类型的默认参数"""
+    # 验证参数是否为空
+    if not parameters:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="参数不能为空"
+        )
+    
+    # 更新模型类型的默认参数
+    updated_category = ParameterManager.update_model_type_default_parameters(db, category_id, parameters)
+    if not updated_category:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"模型类型ID {category_id} 不存在"
+        )
+    
+    # 返回更新后的默认参数
+    default_params = updated_category.default_parameters or {}
+    if isinstance(default_params, str):
+        default_params = json.loads(default_params)
+    
+    return default_params
+
+
+@router.get("/{category_id}/parameters", response_model=Dict[str, Any])
+async def get_model_category_parameters(
+    category_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """获取模型类型的默认参数"""
+    model_type = db.query(ModelCategory).filter(ModelCategory.id == category_id).first()
+    if not model_type:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"模型类型ID {category_id} 不存在"
+        )
+    
+    default_params = model_type.default_parameters or {}
+    if isinstance(default_params, str):
+        default_params = json.loads(default_params)
+    
+    return default_params
+
+
+@router.delete("/{category_id}/parameters/{param_name}", response_model=Dict[str, Any])
+async def delete_model_category_parameter(
+    category_id: int,
+    param_name: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """删除模型类型的默认参数"""
+    # 获取模型类型
+    model_type = db.query(ModelCategory).filter(ModelCategory.id == category_id).first()
+    if not model_type:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"模型类型ID {category_id} 不存在"
+        )
+    
+    # 获取当前默认参数
+    default_params = model_type.default_parameters or {}
+    if isinstance(default_params, str):
+        default_params = json.loads(default_params)
+    
+    # 检查参数是否存在
+    if param_name not in default_params:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"参数 {param_name} 不存在"
+        )
+    
+    # 删除参数
+    del default_params[param_name]
+    
+    # 更新模型类型的默认参数
+    updated_category = ParameterManager.update_model_type_default_parameters(db, category_id, default_params)
+    
+    # 返回更新后的默认参数
+    return updated_category.default_parameters or {}

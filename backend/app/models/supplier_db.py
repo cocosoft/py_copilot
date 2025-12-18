@@ -91,21 +91,43 @@ class ModelParameter(Base):
     __table_args__ = {'extend_existing': True}
     
     id = Column(Integer, primary_key=True, index=True)
-    model_id = Column(Integer, ForeignKey("models.id", ondelete="CASCADE"), nullable=False)
+    model_id = Column(Integer, ForeignKey("models.id", ondelete="CASCADE"), nullable=True)  # 模型ID，类型级参数可为空
+    model_type_id = Column(Integer, ForeignKey("model_categories.id", ondelete="CASCADE"), nullable=True)  # 模型类型ID，用于类型级参数
     parameter_name = Column(String(100), nullable=False)  # 参数名称
     parameter_type = Column(String(50), nullable=False)  # 参数类型: int, float, bool, string, json等
     parameter_value = Column(Text, nullable=False)  # 参数值，以文本形式存储
     is_default = Column(Boolean, default=False)  # 是否为默认参数
     description = Column(Text, nullable=True)  # 参数描述
     parameter_source = Column(String(50), default="model")  # 参数来源：model_type或model
-    is_override = Column(Boolean, default=False)  # 是否覆盖类型默认参数
-    
-    # 时间戳
+    is_override = Column(Boolean, default=False)  # 是否覆盖父参数
+    parent_parameter_id = Column(Integer, ForeignKey("model_parameters.id", ondelete="SET NULL"), nullable=True)  # 父参数ID
+    parameter_level = Column(Integer, default=0)  # 参数层级
+    inherit_from = Column(String(100), nullable=True)  # 继承来源，如"model_type:123"
+    is_inherited = Column(Boolean, default=False)  # 是否为继承参数
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # 添加关系定义
+    parent_parameter = relationship("ModelParameter", remote_side=[id], backref="child_parameters")
     model = relationship("ModelDB", back_populates="parameters")
+    model_type = relationship("ModelCategory")
+    parameter_versions = relationship("ParameterVersion", back_populates="parameter", cascade="all, delete-orphan")
     
     # 可以添加复合唯一约束，确保同一个模型不会有同名参数
     # __table_args__ = (UniqueConstraint('model_id', 'parameter_name', name='_model_parameter_uc'),)
+
+
+class ParameterVersion(Base):
+    """参数版本表，用于存储参数的历史版本记录"""
+    __tablename__ = "parameter_versions"
+    __table_args__ = {'extend_existing': True}
+    
+    id = Column(Integer, primary_key=True, index=True)
+    parameter_id = Column(Integer, ForeignKey("model_parameters.id", ondelete="CASCADE"), nullable=False)  # 关联的参数ID
+    version_number = Column(Integer, nullable=False)  # 版本号
+    parameter_value = Column(Text, nullable=False)  # 该版本的参数值
+    updated_at = Column(DateTime(timezone=True), server_default=func.now())  # 更新时间
+    updated_by = Column(String(100), nullable=True)  # 更新人，可为空
+    
+    # 添加关系定义
+    parameter = relationship("ModelParameter", back_populates="parameter_versions")

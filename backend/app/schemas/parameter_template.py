@@ -1,5 +1,5 @@
 """参数模板相关的数据校验模型"""
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union
 from datetime import datetime
 from pydantic import BaseModel, Field, ConfigDict
 
@@ -12,7 +12,7 @@ class ParameterTemplateBase(BaseModel):
     level: str = Field(..., pattern="^(system|supplier|model_type|model_capability|model|agent)$", description="模板层级")
     parent_id: Optional[int] = Field(None, description="父模板ID")
     level_id: Optional[int] = Field(None, description="层级特定ID")
-    parameters: List[Dict[str, Any]] = Field(default_factory=list, description="参数配置")
+    parameters: Union[List[Dict[str, Any]], Dict[str, Any]] = Field(default_factory=list, description="参数配置")
     version: str = Field(default="1.0.0", description="模板版本")
     is_active: bool = Field(default=True, description="是否激活")
 
@@ -29,7 +29,7 @@ class ParameterTemplateUpdate(BaseModel):
     level: Optional[str] = Field(None, pattern="^(system|supplier|model_type|model_capability|model|agent)$", description="模板层级")
     parent_id: Optional[int] = Field(None, description="父模板ID")
     level_id: Optional[int] = Field(None, description="层级特定ID")
-    parameters: Optional[List[Dict[str, Any]]] = Field(None, description="参数配置")
+    parameters: Optional[Union[List[Dict[str, Any]], Dict[str, Any]]] = Field(None, description="参数配置")
     version: Optional[str] = Field(None, description="模板版本")
     is_active: Optional[bool] = Field(None, description="是否激活")
 

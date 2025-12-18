@@ -19,14 +19,14 @@ class TokenPayload(BaseModel):
 class UserLogin(BaseModel):
     """用户登录请求模型"""
     email: EmailStr
-    password: str = Field(..., min_length=6)
+    password: str = Field(..., min_length=8)
 
 
 class UserRegister(BaseModel):
     """用户注册请求模型"""
     username: str = Field(..., min_length=3, max_length=50)
     email: EmailStr
-    password: str = Field(..., min_length=6)
+    password: str = Field(..., min_length=8)
 
 
 class UserResponse(BaseModel):

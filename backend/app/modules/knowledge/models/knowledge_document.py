@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, JSON, ForeignKey, Table
+from sqlalchemy import Column, Integer, String, DateTime, Text, JSON, ForeignKey, Table, Boolean
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -40,6 +40,8 @@ class KnowledgeDocument(Base):
     updated_at = Column(DateTime, nullable=True, onupdate=func.now())
     vector_id = Column(String(100), nullable=True)
     is_vectorized = Column(Integer, nullable=False, default=0)  # 0: 未向量化, 1: 已向量化
+    version = Column(Integer, default=1)  # 文档版本
+    is_current = Column(Boolean, nullable=False, default=True)  # 是否为当前版本 (True: 是, False: 历史版本)
     
     # 关系：一个文档属于一个知识库
     knowledge_base = relationship("KnowledgeBase", back_populates="documents")

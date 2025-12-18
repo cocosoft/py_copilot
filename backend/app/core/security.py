@@ -65,6 +65,46 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 
+def validate_password_complexity(password: str) -> bool:
+    """
+    验证密码复杂度
+    - 长度至少为8个字符
+    - 包含至少一个大写字母
+    - 包含至少一个小写字母
+    - 包含至少一个数字
+    - 包含至少一个特殊字符
+
+    Args:
+        password: 明文密码
+
+    Returns:
+        密码是否符合复杂度要求
+    """
+    import re
+    
+    # 检查长度
+    if len(password) < 8:
+        return False
+    
+    # 检查是否包含大写字母
+    if not re.search(r'[A-Z]', password):
+        return False
+    
+    # 检查是否包含小写字母
+    if not re.search(r'[a-z]', password):
+        return False
+    
+    # 检查是否包含数字
+    if not re.search(r'[0-9]', password):
+        return False
+    
+    # 检查是否包含特殊字符
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+        return False
+    
+    return True
+
+
 def decode_token(token: str) -> Optional[Dict[str, Any]]:
     """
     解码JWT令牌

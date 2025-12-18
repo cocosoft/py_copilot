@@ -131,11 +131,15 @@ class ModelParameterBase(BaseModel):
     parameter_source: str = Field(default="model", pattern="^(model_type|model)$")
     is_override: bool = Field(default=False)
     is_default: bool = Field(default=False)
+    parent_parameter_id: Optional[int] = None  # 父参数ID，用于参数继承链
+    parameter_level: int = Field(default=0)  # 参数层级，0表示基础层级，数字越大层级越高
+    inherit_from: Optional[str] = None  # 继承来源，如"model_type:123"
+    is_inherited: bool = Field(default=False)  # 是否为继承参数
 
 
 class ModelParameterCreate(ModelParameterBase):
     """创建模型参数请求模型"""
-    pass
+    model_type_id: Optional[int] = None  # 可选的模型类型ID，用于类型级参数
 
 
 class ModelParameterUpdate(BaseModel):
@@ -147,15 +151,19 @@ class ModelParameterUpdate(BaseModel):
     parameter_source: Optional[str] = Field(None, pattern="^(model_type|model)$")
     is_override: Optional[bool] = None
     is_default: Optional[bool] = None
+    parent_parameter_id: Optional[int] = None
+    parameter_level: Optional[int] = None
+    inherit_from: Optional[str] = None
+    is_inherited: Optional[bool] = None
 
 
 class ModelParameterResponse(ModelParameterBase):
     """模型参数响应模型"""
     id: int
-    model_id: int
+    model_id: Optional[int] = None  # 模型ID，类型级参数可能为空
+    model_type_id: Optional[int] = None  # 模型类型ID，用于类型级参数
     created_at: datetime
     updated_at: Optional[datetime] = None
-    inherited: bool = Field(default=False)
     
     model_config = ConfigDict(from_attributes=True)
 

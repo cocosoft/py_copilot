@@ -380,3 +380,168 @@ class ParameterNormalizer:
                         return False
         
         return True
+    
+    @staticmethod
+    def get_parameter_with_priority(
+        db: Session, 
+        model_id: int,
+        param_name: str
+    ) -> Dict[str, Any]:
+        """
+        根据参数优先级获取最终参数值（模型级>类型级>系统级）
+        
+        Args:
+            db: 数据库会话
+            model_id: 模型ID
+            param_name: 参数名称
+            
+        Returns:
+            参数信息字典，包含最终值和来源信息
+        """
+        from app.models.supplier_db import ModelDB, ModelParameter
+        from app.models.model_category import ModelCategory
+        from app.services.parameter_management.system_parameter_manager import SystemParameterManager
+        
+        # 1. 获取模型信息
+        model = db.query(ModelDB).filter(ModelDB.id == model_id).first()
+        if not model:
+            raise ValueError(f"模型ID {model_id} 不存在")
+        
+        # 2. 获取系统级参数（最低优先级）
+        system_param = None
+        active_system_template = SystemParameterManager.get_active_system_parameter_template(db)
+        if active_system_template and active_system_template.parameters:
+            system_param = next((p for p in active_system_template.parameters 
+                              if p.get('name') == param_name), None)
+        
+        # 3. 获取类型级参数（中等优先级）
+        type_param = None
+        if model.model_type_id:
+            model_type = db.query(ModelCategory).filter(ModelCategory.id == model.model_type_id).first()
+            if model_type and model_type.default_parameters:
+                # 处理默认参数
+                default_params = model_type.default_parameters
+                if isinstance(default_params, str):
+                    import json
+                    default_params = json.loads(default_params)
+                
+                if isinstance(default_params, dict) and param_name in default_params:
+                    type_param = {
+                        'name': param_name,
+                        'value': default_params[param_name],
+                        'source': 'model_type',
+                        'model_type_id': model.model_type_id
+                    }
+        
+        # 4. 获取模型级参数（最高优先级）
+        model_param = db.query(ModelParameter).filter(
+            ModelParameter.model_id == model_id,
+            ModelParameter.parameter_name == param_name
+        ).first()
+        
+        # 5. 确定最终参数（优先级：模型级>类型级>系统级）
+        final_param = {
+            'name': param_name,
+            'value': None,
+            'source': 'none',
+            'parameter_id': None,
+            'is_override': False
+        }
+        
+        if model_param:
+            # 模型级参数优先
+            final_param['value'] = ParameterNormalizer._convert_value(
+                model_param.parameter_value, model_param.parameter_type
+            )
+            final_param['source'] = 'model'
+            final_param['parameter_id'] = model_param.id
+            final_param['is_override'] = model_param.is_override
+        elif type_param:
+            # 类型级参数次之
+            final_param['value'] = type_param['value']
+            final_param['source'] = type_param['source']
+            final_param['model_type_id'] = type_param['model_type_id']
+        elif system_param:
+            # 系统级参数最后
+            final_param['value'] = system_param.get('default_value')
+            final_param['source'] = 'system'
+        
+        return final_param
+    
+    @staticmethod
+    def get_all_parameters_with_priority(
+        db: Session, 
+        model_id: int
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        获取模型的所有参数，考虑优先级（模型级>类型级>系统级）
+        
+        Args:
+            db: 数据库会话
+            model_id: 模型ID
+            
+        Returns:
+            参数字典，键为参数名，值为包含最终值和来源信息的参数对象
+        """
+        from app.models.supplier_db import ModelDB, ModelParameter
+        from app.models.model_category import ModelCategory
+        from app.services.parameter_management.system_parameter_manager import SystemParameterManager
+        from app.services.parameter_management.parameter_manager import ParameterManager
+        
+        # 获取所有参数源
+        all_params = {}
+        
+        # 1. 获取系统级参数（最低优先级）
+        active_system_template = SystemParameterManager.get_active_system_parameter_template(db)
+        if active_system_template and active_system_template.parameters:
+            for param in active_system_template.parameters:
+                param_name = param.get('name')
+                if param_name:
+                    all_params[param_name] = {
+                        'name': param_name,
+                        'value': param.get('default_value'),
+                        'source': 'system',
+                        'parameter_id': None,
+                        'is_override': False,
+                        'type': param.get('type', 'string')
+                    }
+        
+        # 2. 获取类型级参数（中等优先级，覆盖系统级）
+        model = db.query(ModelDB).filter(ModelDB.id == model_id).first()
+        if model and model.model_type_id:
+            model_type = db.query(ModelCategory).filter(ModelCategory.id == model.model_type_id).first()
+            if model_type and model_type.default_parameters:
+                default_params = model_type.default_parameters
+                if isinstance(default_params, str):
+                    import json
+                    default_params = json.loads(default_params)
+                
+                if isinstance(default_params, dict):
+                    for param_name, param_value in default_params.items():
+                        all_params[param_name] = {
+                            'name': param_name,
+                            'value': param_value,
+                            'source': 'model_type',
+                            'model_type_id': model.model_type_id,
+                            'parameter_id': None,
+                            'is_override': False,
+                            'type': type(param_value).__name__
+                        }
+        
+        # 3. 获取模型级参数（最高优先级，覆盖类型级和系统级）
+        model_params = db.query(ModelParameter).filter(ModelParameter.model_id == model_id).all()
+        for param in model_params:
+            param_name = param.parameter_name
+            param_value = ParameterNormalizer._convert_value(
+                param.parameter_value, param.parameter_type
+            )
+            all_params[param_name] = {
+                'name': param_name,
+                'value': param_value,
+                'source': 'model',
+                'parameter_id': param.id,
+                'is_override': param.is_override,
+                'type': param.parameter_type
+            }
+        
+        return all_params

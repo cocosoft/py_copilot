@@ -41,7 +41,15 @@ print(f"文件上传目录: {UPLOAD_DIR}")  # 添加日志以便调试
 # 支持的图片扩展名
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 
-# 模拟用户相关定义已在其他地方声明
+# 创建模拟用户类用于测试
+class MockUser:
+    def __init__(self):
+        self.id = 1
+        self.is_active = True
+        self.is_superuser = True
+
+def get_mock_user():
+    return MockUser()
 
 def allowed_file(filename):
     """检查文件扩展名是否允许"""
@@ -87,19 +95,9 @@ async def save_upload_file(upload_file: UploadFile) -> Optional[str]:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"文件保存失败: {str(e)}"
         )
-# 临时注释掉认证依赖以方便测试
-# from app.api.deps import get_current_active_superuser
-# from app.models.user import User
-
-# 创建一个模拟用户类用于测试
-class MockUser:
-    def __init__(self):
-        self.id = 1
-        self.is_active = True
-        self.is_superuser = True
-
-def get_mock_user():
-    return MockUser()
+# 导入认证依赖
+from app.api.deps import get_current_active_superuser
+from app.models.user import User
 
 router = APIRouter()
 
@@ -129,7 +127,7 @@ async def get_all_models(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
+    current_user: User = Depends(get_current_active_superuser)
 ) -> Any:
     """
     获取所有模型列表
@@ -168,7 +166,7 @@ async def create_model(
     supplier_id: int,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user),
+    current_user: User = Depends(get_current_active_superuser),
     model_data: str = Form(None),
     logo: UploadFile = File(None)
 ) -> Any:
@@ -247,7 +245,7 @@ async def get_models(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
+    current_user: User = Depends(get_current_active_superuser)
 ) -> Any:
     """
     获取指定供应商的模型列表
@@ -358,6 +356,9 @@ async def update_model(
     else:
         # 保留对JSON格式请求的兼容性支持
         update_data = await request.json()
+    
+    # 调试：打印接收到的更新数据
+    print(f"Received update data: {update_data}")
     
     # 确保supplier_id和model_id一致
     update_data['supplier_id'] = supplier_id
@@ -608,6 +609,9 @@ def update_model_parameter(
         raise HTTPException(status_code=404, detail="参数不存在")
     
     try:
+        # 在更新前创建版本记录
+        ParameterManager._create_parameter_version(db, param, "system")
+        
         # 更新参数字段
         for field, value in param_data.model_dump(exclude_unset=True).items():
             setattr(param, field, value)
@@ -665,3 +669,179 @@ def delete_model_parameter(
         "supplier_id": supplier_id,
         "parameters": parameters
     }
+
+
+# 参数版本控制相关路由
+@router.get("/suppliers/{supplier_id}/models/{model_id}/parameters/{parameter_id}/versions", response_model=List[Dict[str, Any]])
+def get_parameter_versions(
+    supplier_id: int,
+    model_id: int,
+    parameter_id: int,
+    db: Session = Depends(get_db),
+    current_user: MockUser = Depends(get_mock_user)
+):
+    """
+    获取参数的所有版本历史
+    
+    Args:
+        supplier_id: 供应商ID
+        model_id: 模型ID
+        parameter_id: 参数ID
+        db: 数据库会话
+        current_user: 当前用户
+        
+    Returns:
+        参数版本历史列表
+    """
+    # 验证模型是否存在
+    model = db.query(ModelDB).filter(
+        ModelDB.id == model_id,
+        ModelDB.supplier_id == supplier_id
+    ).first()
+    if not model:
+        raise HTTPException(status_code=404, detail="模型不存在")
+    
+    # 验证参数是否存在且属于该模型
+    parameter = db.query(ModelParameter).filter(
+        ModelParameter.id == parameter_id,
+        ModelParameter.model_id == model_id
+    ).first()
+    if not parameter:
+        raise HTTPException(status_code=404, detail="参数不存在")
+    
+    # 获取参数版本历史
+    versions = ParameterManager.get_parameter_versions(db, parameter_id)
+    
+    # 转换为响应格式
+    response = []
+    for version in versions:
+        response.append({
+            "id": version.id,
+            "parameter_id": version.parameter_id,
+            "version_number": version.version_number,
+            "parameter_value": version.parameter_value,
+            "updated_at": version.updated_at,
+            "updated_by": version.updated_by
+        })
+    
+    return response
+
+
+@router.post("/suppliers/{supplier_id}/models/{model_id}/parameters/{parameter_id}/revert/{version_number}", response_model=Dict[str, Any])
+def revert_parameter_to_version(
+    supplier_id: int,
+    model_id: int,
+    parameter_id: int,
+    version_number: int,
+    db: Session = Depends(get_db),
+    current_user: MockUser = Depends(get_mock_user)
+):
+    """
+    将参数回滚到指定版本
+    
+    Args:
+        supplier_id: 供应商ID
+        model_id: 模型ID
+        parameter_id: 参数ID
+        version_number: 要回滚到的版本号
+        db: 数据库会话
+        current_user: 当前用户
+        
+    Returns:
+        更新后的参数信息和模型参数列表
+    """
+    # 验证模型是否存在
+    model = db.query(ModelDB).filter(
+        ModelDB.id == model_id,
+        ModelDB.supplier_id == supplier_id
+    ).first()
+    if not model:
+        raise HTTPException(status_code=404, detail="模型不存在")
+    
+    # 验证参数是否存在且属于该模型
+    parameter = db.query(ModelParameter).filter(
+        ModelParameter.id == parameter_id,
+        ModelParameter.model_id == model_id
+    ).first()
+    if not parameter:
+        raise HTTPException(status_code=404, detail="参数不存在")
+    
+    try:
+        # 执行回滚操作
+        updated_parameter = ParameterManager.revert_parameter_to_version(
+            db=db,
+            parameter_id=parameter_id,
+            version_number=version_number,
+            updated_by="system"  # 可以根据实际用户信息修改
+        )
+        
+        # 获取更新后的所有参数
+        parameters = ParameterManager.get_model_parameters(db, model_id)
+        
+        return {
+            "model_id": model_id,
+            "supplier_id": supplier_id,
+            "parameter": {
+                "id": updated_parameter.id,
+                "parameter_name": updated_parameter.parameter_name,
+                "parameter_value": updated_parameter.parameter_value,
+                "parameter_type": updated_parameter.parameter_type,
+                "description": updated_parameter.description,
+                "parameter_source": updated_parameter.parameter_source,
+                "is_override": updated_parameter.is_override,
+                "is_default": updated_parameter.is_default
+            },
+            "parameters": parameters
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/suppliers/{supplier_id}/models/{model_id}/parameters/batch", response_model=Dict[str, Any])
+def batch_update_model_parameters(
+    supplier_id: int,
+    model_id: int,
+    params_data: List[Dict[str, Any]],
+    db: Session = Depends(get_db),
+    current_user: MockUser = Depends(get_mock_user)
+):
+    """
+    批量更新模型参数
+    
+    Args:
+        supplier_id: 供应商ID
+        model_id: 模型ID
+        params_data: 参数数据列表，每个元素包含parameter_name、parameter_value、parameter_type等字段
+        db: 数据库会话
+        current_user: 当前用户
+        
+    Returns:
+        更新后的模型参数列表
+    """
+    # 验证模型是否存在
+    model = db.query(ModelDB).filter(
+        ModelDB.id == model_id,
+        ModelDB.supplier_id == supplier_id
+    ).first()
+    if not model:
+        raise HTTPException(status_code=404, detail="模型不存在")
+    
+    try:
+        # 执行批量更新操作
+        ParameterManager.batch_update_model_parameters(
+            db=db,
+            model_id=model_id,
+            params_data=params_data,
+            updated_by="system"  # 可以根据实际用户信息修改
+        )
+        
+        # 获取更新后的所有参数
+        parameters = ParameterManager.get_model_parameters(db, model_id)
+        
+        return {
+            "model_id": model_id,
+            "supplier_id": supplier_id,
+            "parameters": parameters
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

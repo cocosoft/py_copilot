@@ -99,6 +99,103 @@ class DocumentTagsResponse(BaseModel):
     document_id: int
     tags: List[KnowledgeTag]
 
+# Advanced Search Schemas
+class AdvancedSearchRequest(BaseModel):
+    query: str
+    n_results: Optional[int] = 10
+    knowledge_base_id: Optional[int] = None
+    tags: Optional[List[str]] = None
+    filters: Optional[Dict[str, Any]] = None
+    sort_by: Optional[str] = "relevance"
+    entity_filter: Optional[Dict[str, Any]] = None
+
+class HybridSearchRequest(BaseModel):
+    query: str
+    n_results: Optional[int] = 10
+    keyword_weight: Optional[float] = 0.3
+    vector_weight: Optional[float] = 0.7
+    knowledge_base_id: Optional[int] = None
+    tags: Optional[List[str]] = None
+    filters: Optional[Dict[str, Any]] = None
+    sort_by: Optional[str] = "relevance"
+
+class AdvancedSearchResult(BaseModel):
+    id: Union[int, str]
+    title: str
+    content: str
+    score: float
+    keyword_score: Optional[float] = None
+    vector_score: Optional[float] = None
+    knowledge_base_id: Optional[int] = None
+    file_type: Optional[str] = None
+    created_at: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
+class AdvancedSearchResponse(BaseModel):
+    query: str
+    results: List[AdvancedSearchResult]
+    count: int
+    search_type: str
+
+# Knowledge Document Chunk Schemas
+class KnowledgeDocumentChunk(BaseModel):
+    id: int
+    document_id: int
+    chunk_text: str
+    chunk_index: int
+    total_chunks: int
+    chunk_metadata: Optional[Dict[str, Any]] = None
+    vector_id: Optional[str] = None
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+# Knowledge Graph API Schemas
+class EntityExtractionRequest(BaseModel):
+    text: str
+    language: Optional[str] = "zh"
+
+class EntityExtractionResponse(BaseModel):
+    entities: List[Dict[str, Any]]
+
+class KeywordExtractionRequest(BaseModel):
+    text: str
+    language: Optional[str] = "zh"
+    max_keywords: Optional[int] = 10
+
+class KeywordExtractionResponse(BaseModel):
+    keywords: List[Dict[str, Any]]
+
+class TextSimilarityRequest(BaseModel):
+    text1: str
+    text2: str
+
+class TextSimilarityResponse(BaseModel):
+    similarity: float
+
+class TextProcessingRequest(BaseModel):
+    text: str
+    operation: str  # "clean", "chunk", "entities", "keywords"
+    language: Optional[str] = "zh"
+
+class TextProcessingResponse(BaseModel):
+    result: Union[str, List[str], List[Dict[str, Any]]]
+    operation: str
+
+
+
+class DocumentChunkRequest(BaseModel):
+    document_id: int
+    chunk_size: Optional[int] = 1000
+
+class DocumentChunkResponse(BaseModel):
+    document_id: int
+    chunks: List[str]
+    total_chunks: int
+
 # Knowledge Document Chunk Schemas
 class KnowledgeDocumentChunk(BaseModel):
     """知识库文档向量片段模型"""

@@ -228,13 +228,3 @@ async def proxy_image(url: str = Query(..., description="要代理的外部图�
 from app.api import api_router
 app.include_router(api_router, prefix="/api")
 
-# 创建数据库表 - 已通过init_db.py初始化，此处注释避免重复创建
-# from app.core.database import Base
-# 在创建表之前导入所有模型类，确保它们被注册
-# from app.models.supplier_db import SupplierDB, ModelDB
-# from app.models.model_capability import ModelCapability, ModelCapabilityAssociation
-# from app.modules.capability_category.models.category_db import ModelCategoryDB
-# from app.models.parameter_template import ParameterTemplate
-# from app.models.supplier_db import ModelParameter
-# User模型暂时不导入，避免重复定义
-# Base.metadata.create_all(bind=engine)

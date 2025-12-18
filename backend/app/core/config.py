@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     # API配置
     api_v1_str: str = Field(default="/api/v1", env="API_V1_STR")
     secret_key: str = Field(
-        default="your-secret-key-here-change-in-production", 
+        default="", 
         env="SECRET_KEY"
     )
     algorithm: str = Field(default="HS256", env="ALGORITHM")

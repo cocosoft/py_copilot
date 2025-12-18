@@ -45,6 +45,13 @@ async def register(
             detail="该用户名已被使用"
         )
     
+    # 验证密码复杂度
+    if not security.validate_password_complexity(user_in.password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="密码复杂度不足，请确保密码至少包含8个字符，包括大写字母、小写字母、数字和特殊字符"
+        )
+    
     # 创建新用户
     hashed_password = security.get_password_hash(user_in.password)
     db_user = User(

@@ -6,11 +6,13 @@ from typing import List, Optional
 from app.core.database import get_db
 from app.modules.knowledge.services.knowledge_service import KnowledgeService
 from app.modules.knowledge.models.knowledge_document import KnowledgeBase as KnowledgeBaseModel
+from app.services.knowledge.retrieval_service import AdvancedRetrievalService
 from app.modules.knowledge.schemas.knowledge import (
     KnowledgeDocument, SearchResponse, DocumentListResponse,
     KnowledgeBase, KnowledgeBaseCreate, KnowledgeBaseUpdate,
     KnowledgeTag, DocumentTagRequest, DocumentTagsResponse, TagListResponse,
-    KnowledgeDocumentChunk
+    KnowledgeDocumentChunk, AdvancedSearchRequest, HybridSearchRequest, 
+    AdvancedSearchResponse
 )
 
 router = APIRouter()
@@ -149,6 +151,69 @@ async def search_documents(
         return {"query": query, "results": results, "count": len(results)}
     except Exception as e:
         raise HTTPException(status_code=500, detail="搜索失败")
+
+@router.post("/search/advanced", response_model=AdvancedSearchResponse)
+async def advanced_search_documents(
+    search_request: AdvancedSearchRequest,
+    db: Session = Depends(get_db)
+):
+    """高级搜索知识库文档"""
+    try:
+        advanced_service = AdvancedRetrievalService()
+        
+        results = advanced_service.advanced_search(
+            query=search_request.query,
+            n_results=search_request.n_results,
+            knowledge_base_id=search_request.knowledge_base_id,
+            tags=search_request.tags,
+            filters=search_request.filters,
+            sort_by=search_request.sort_by,
+            entity_filter=search_request.entity_filter
+        )
+        
+        return {
+            "query": search_request.query,
+            "results": results,
+            "count": len(results),
+            "search_type": "advanced"
+        }
+    except Exception as e:
+        import traceback
+        print(f"高级搜索失败: {str(e)}")
+        print(f"详细堆栈: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail="高级搜索失败")
+
+@router.post("/search/hybrid", response_model=AdvancedSearchResponse)
+async def hybrid_search_documents(
+    search_request: HybridSearchRequest,
+    db: Session = Depends(get_db)
+):
+    """混合搜索知识库文档（关键词+向量）"""
+    try:
+        advanced_service = AdvancedRetrievalService()
+        
+        results = advanced_service.hybrid_search(
+            query=search_request.query,
+            n_results=search_request.n_results,
+            keyword_weight=search_request.keyword_weight,
+            vector_weight=search_request.vector_weight,
+            knowledge_base_id=search_request.knowledge_base_id,
+            tags=search_request.tags,
+            filters=search_request.filters,
+            sort_by=search_request.sort_by
+        )
+        
+        return {
+            "query": search_request.query,
+            "results": results,
+            "count": len(results),
+            "search_type": "hybrid"
+        }
+    except Exception as e:
+        import traceback
+        print(f"混合搜索失败: {str(e)}")
+        print(f"详细堆栈: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail="混合搜索失败")
 
 @router.get("/documents", response_model=DocumentListResponse)
 async def list_documents(
@@ -418,3 +483,379 @@ async def search_documents_by_tag(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail="按标签搜索文档失败")
+
+# Document Version Control API Endpoints
+from pydantic import BaseModel
+from typing import List, Optional
+
+class DocumentVersion(BaseModel):
+    id: int
+    title: str
+    version: int
+    is_current: bool
+    created_at: str
+    updated_at: Optional[str]
+    content_preview: Optional[str]
+
+class DocumentVersionsResponse(BaseModel):
+    document_id: int
+    current_version: DocumentVersion
+    versions: List[DocumentVersion]
+    total_versions: int
+
+class UpdateDocumentRequest(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+
+# Knowledge Graph API Endpoints
+from app.services.knowledge.document_processor import DocumentProcessor
+from app.services.knowledge.advanced_text_processor import AdvancedTextProcessor
+from typing import Dict, Any, List
+
+class EntityExtractionRequest(BaseModel):
+    text: str
+
+class EntityExtractionResponse(BaseModel):
+    entities: List[Dict[str, Any]]
+    relationships: List[Dict[str, Any]]
+    success: bool
+
+class KeywordExtractionRequest(BaseModel):
+    text: str
+    top_n: int = 10
+
+class KeywordExtractionResponse(BaseModel):
+    keywords: List[Dict[str, Any]]
+    success: bool
+
+class TextSimilarityRequest(BaseModel):
+    text1: str
+    text2: str
+
+class TextSimilarityResponse(BaseModel):
+    similarity: float
+    success: bool
+
+class DocumentChunksRequest(BaseModel):
+    document_id: int
+
+class DocumentChunksResponse(BaseModel):
+    chunks: List[Dict[str, Any]]
+    success: bool
+
+# 初始化文档处理器
+document_processor = DocumentProcessor()
+
+@router.post("/knowledge-graph/extract-entities", response_model=EntityExtractionResponse)
+async def extract_entities(request: EntityExtractionRequest):
+    """提取文本中的实体和关系"""
+    try:
+        entities, relationships = document_processor.text_processor.extract_entities_relationships(request.text)
+        return {
+            "entities": entities,
+            "relationships": relationships,
+            "success": True
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"实体提取失败: {str(e)}")
+
+@router.get("/knowledge-graph/document/{document_id}/entities", response_model=EntityExtractionResponse)
+async def get_document_entities(document_id: int, db: Session = Depends(get_db)):
+    """获取文档的实体和关系"""
+    try:
+        # 获取文档内容
+        document = knowledge_service.get_document_by_id(document_id, db)
+        if not document:
+            raise HTTPException(status_code=404, detail="文档不存在")
+        
+        # 提取实体和关系
+        entities, relationships = document_processor.text_processor.extract_entities_relationships(document.content)
+        return {
+            "entities": entities,
+            "relationships": relationships,
+            "success": True
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取文档实体失败: {str(e)}")
+
+@router.post("/knowledge-graph/extract-keywords", response_model=KeywordExtractionResponse)
+async def extract_keywords(request: KeywordExtractionRequest):
+    """提取文本关键词"""
+    try:
+        keywords = document_processor.extract_keywords(request.text, request.top_n)
+        return {
+            "keywords": keywords,
+            "success": True
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"关键词提取失败: {str(e)}")
+
+@router.post("/knowledge-graph/calculate-similarity", response_model=TextSimilarityResponse)
+async def calculate_text_similarity(request: TextSimilarityRequest):
+    """计算文本相似度"""
+    try:
+        similarity = document_processor.calculate_similarity(request.text1, request.text2)
+        return {
+            "similarity": similarity,
+            "success": True
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"相似度计算失败: {str(e)}")
+
+@router.post("/knowledge-graph/get-document-chunks", response_model=DocumentChunksResponse)
+async def get_document_chunks(request: DocumentChunksRequest):
+    """获取文档的分块信息"""
+    try:
+        chunks = document_processor.get_document_chunks(request.document_id)
+        return {
+            "chunks": chunks,
+            "success": True
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取文档块失败: {str(e)}")
+
+@router.post("/knowledge-graph/advanced-search")
+async def advanced_search(
+    query: str = Query(..., min_length=1),
+    knowledge_base_id: Optional[int] = Query(None),
+    n_results: int = Query(10, ge=1, le=50),
+    filters: Optional[str] = Query(None, description="JSON格式的过滤条件")
+):
+    """高级搜索（知识图谱增强）"""
+    try:
+        # 解析过滤条件
+        filter_dict = {}
+        if filters:
+            import json
+            filter_dict = json.loads(filters)
+        
+        results = document_processor.search_documents(query, n_results, knowledge_base_id, filter_dict)
+        return {
+            "query": query,
+            "results": results,
+            "count": len(results),
+            "success": True
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"高级搜索失败: {str(e)}")
+
+@router.post("/knowledge-graph/process-text")
+async def process_text(
+    text: str = Query(..., min_length=1),
+    include_entities: bool = Query(True),
+    include_keywords: bool = Query(True),
+    include_chunks: bool = Query(False)
+):
+    """综合文本处理（实体、关键词、分块）"""
+    try:
+        result = {
+            "text": text,
+            "success": True
+        }
+        
+        # 清理文本
+        cleaned_text = document_processor.text_processor.clean_text(text)
+        result["cleaned_text"] = cleaned_text
+        result["original_length"] = len(text)
+        result["cleaned_length"] = len(cleaned_text)
+        
+        # 提取实体和关系
+        if include_entities:
+            entities, relationships = document_processor.text_processor.extract_entities_relationships(cleaned_text)
+            result["entities"] = entities
+            result["relationships"] = relationships
+            result["entity_count"] = len(entities)
+            result["relationship_count"] = len(relationships)
+        
+        # 提取关键词
+        if include_keywords:
+            keywords = document_processor.extract_keywords(cleaned_text)
+            result["keywords"] = keywords
+            result["keyword_count"] = len(keywords)
+        
+        # 智能分块
+        if include_chunks:
+            chunks = document_processor.text_processor.semantic_chunking(cleaned_text)
+            result["chunks"] = chunks
+            result["chunk_count"] = len(chunks)
+        
+        return result
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"文本处理失败: {str(e)}")
+
+@router.get("/knowledge-graph/health")
+async def knowledge_graph_health():
+    """知识图谱服务健康检查"""
+    try:
+        # 检查spacy是否可用
+        text_processor = AdvancedTextProcessor()
+        spacy_status = "available" if text_processor.use_spacy else "unavailable"
+        
+        # 检查向量数据库连接
+        from app.services.knowledge.chroma_service import ChromaService
+        chroma_service = ChromaService()
+        vector_db_status = "connected"
+        
+        return {
+            "status": "healthy",
+            "spacy": spacy_status,
+            "vector_database": vector_db_status,
+            "timestamp": "2024-12-18T00:00:00Z"
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "error": str(e),
+            "timestamp": "2024-12-18T00:00:00Z"
+        }
+
+# Document Version Control API Endpoints
+@router.get("/documents/{document_id}/versions", response_model=DocumentVersionsResponse)
+async def get_document_versions(
+    document_id: int,
+    db: Session = Depends(get_db)
+):
+    """获取文档的所有版本"""
+    try:
+        versions = knowledge_service.get_document_versions(document_id, db)
+        if not versions:
+            raise HTTPException(status_code=404, detail="文档不存在")
+        
+        # 获取当前版本
+        current_version = next((v for v in versions if v.is_current), versions[0])
+        
+        # 转换为响应模型
+        version_models = []
+        for version in versions:
+            version_models.append(DocumentVersion(
+                id=version.id,
+                title=version.title,
+                version=version.version,
+                is_current=version.is_current,
+                created_at=version.created_at.isoformat() if version.created_at else None,
+                updated_at=version.updated_at.isoformat() if version.updated_at else None,
+                content_preview=version.content[:200] + "..." if version.content and len(version.content) > 200 else version.content
+            ))
+        
+        current_version_model = DocumentVersion(
+            id=current_version.id,
+            title=current_version.title,
+            version=current_version.version,
+            is_current=current_version.is_current,
+            created_at=current_version.created_at.isoformat() if current_version.created_at else None,
+            updated_at=current_version.updated_at.isoformat() if current_version.updated_at else None,
+            content_preview=current_version.content[:200] + "..." if current_version.content and len(current_version.content) > 200 else current_version.content
+        )
+        
+        return DocumentVersionsResponse(
+            document_id=document_id,
+            current_version=current_version_model,
+            versions=version_models,
+            total_versions=len(versions)
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取文档版本失败: {str(e)}")
+
+@router.put("/documents/{document_id}", response_model=KnowledgeDocument)
+async def update_document_with_version(
+    document_id: int,
+    update_request: UpdateDocumentRequest,
+    db: Session = Depends(get_db)
+):
+    """更新文档并创建新版本"""
+    try:
+        update_data = {}
+        if update_request.title is not None:
+            update_data["title"] = update_request.title
+        if update_request.content is not None:
+            update_data["content"] = update_request.content
+        
+        if not update_data:
+            raise HTTPException(status_code=400, detail="没有提供更新数据")
+        
+        updated_document = knowledge_service.update_document_with_version(document_id, update_data, db)
+        if not updated_document:
+            raise HTTPException(status_code=404, detail="文档不存在")
+        
+        return KnowledgeDocument(
+            id=updated_document.id,
+            title=updated_document.title,
+            knowledge_base_id=updated_document.knowledge_base_id,
+            file_path=updated_document.file_path,
+            file_type=updated_document.file_type,
+            content=updated_document.content,
+            document_metadata=updated_document.document_metadata,
+            created_at=updated_document.created_at,
+            updated_at=updated_document.updated_at,
+            vector_id=updated_document.vector_id,
+            is_vectorized=updated_document.is_vectorized
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"更新文档失败: {str(e)}")
+
+@router.get("/documents/{document_id}/versions/{version_id}", response_model=KnowledgeDocument)
+async def get_document_version(
+    document_id: int,
+    version_id: int,
+    db: Session = Depends(get_db)
+):
+    """获取特定版本的文档"""
+    try:
+        document = knowledge_service.get_document_version(document_id, version_id, db)
+        if not document:
+            raise HTTPException(status_code=404, detail="文档或版本不存在")
+        
+        return KnowledgeDocument(
+            id=document.id,
+            title=document.title,
+            knowledge_base_id=document.knowledge_base_id,
+            file_path=document.file_path,
+            file_type=document.file_type,
+            content=document.content,
+            document_metadata=document.document_metadata,
+            created_at=document.created_at,
+            updated_at=document.updated_at,
+            vector_id=document.vector_id,
+            is_vectorized=document.is_vectorized
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取文档版本失败: {str(e)}")
+
+@router.post("/documents/{document_id}/versions/{version_id}/restore", response_model=KnowledgeDocument)
+async def restore_document_version(
+    document_id: int,
+    version_id: int,
+    db: Session = Depends(get_db)
+):
+    """恢复文档到指定版本"""
+    try:
+        restored_document = knowledge_service.restore_document_version(document_id, version_id, db)
+        if not restored_document:
+            raise HTTPException(status_code=404, detail="文档或版本不存在")
+        
+        return KnowledgeDocument(
+            id=restored_document.id,
+            title=restored_document.title,
+            knowledge_base_id=restored_document.knowledge_base_id,
+            file_path=restored_document.file_path,
+            file_type=restored_document.file_type,
+            content=restored_document.content,
+            document_metadata=restored_document.document_metadata,
+            created_at=restored_document.created_at,
+            updated_at=restored_document.updated_at,
+            vector_id=restored_document.vector_id,
+            is_vectorized=restored_document.is_vectorized
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"恢复文档版本失败: {str(e)}")
