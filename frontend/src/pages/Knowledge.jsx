@@ -3,6 +3,7 @@ import './knowledge.css';
 import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
 import { FaDownload } from 'react-icons/fa';
+import KnowledgeGraph from '../components/KnowledgeGraph';
 import {  
   uploadDocument, 
   searchDocuments, 
@@ -519,9 +520,11 @@ const Knowledge = () => {
       
       // 根据文件类型生成预览内容
       if (doc.file_type === '.pdf') {
-        // PDF文件预览
+        // PDF文件预览 - 使用后端下载API
         try {
-          const response = await fetch(doc.file_path);
+          const response = await fetch(`/api/v1/knowledge/documents/${documentId}/download`);
+          if (!response.ok) throw new Error('下载PDF失败');
+          
           const arrayBuffer = await response.arrayBuffer();
           const pdf = await pdfjsLib.getDocument({
             data: arrayBuffer,
@@ -548,9 +551,11 @@ const Knowledge = () => {
           setPreviewContent(doc.content || '文档内容为空');
         }
       } else if (doc.file_type === '.docx' || doc.file_type === '.doc') {
-        // Word文档预览
+        // Word文档预览 - 使用后端下载API
         try {
-          const response = await fetch(doc.file_path);
+          const response = await fetch(`/api/v1/knowledge/documents/${documentId}/download`);
+          if (!response.ok) throw new Error('下载Word文档失败');
+          
           const arrayBuffer = await response.arrayBuffer();
           const result = await mammoth.convertToHtml({ arrayBuffer });
           setPreviewContent(<div dangerouslySetInnerHTML={{ __html: result.value }} className="word-preview" />);
@@ -1859,6 +1864,12 @@ const Knowledge = () => {
                       向量片段
                     </button>
                   )}
+                  <button 
+                    className={`tab-btn ${documentDetailActiveTab === 'knowledge-graph' ? 'active' : ''}`}
+                    onClick={() => setDocumentDetailActiveTab('knowledge-graph')}
+                  >
+                    知识图谱
+                  </button>
                 </div>
                 
                 {/* 标签页内容 */}
@@ -2020,6 +2031,29 @@ const Knowledge = () => {
                           <span>当前文档没有向量片段</span>
                         </div>
                       )}
+                    </div>
+                  )}
+                  
+                  {/* 知识图谱标签页 */}
+                  {documentDetailActiveTab === 'knowledge-graph' && (
+                    <div className="knowledge-graph-tab">
+                      <KnowledgeGraph 
+                        documentId={selectedDocument.id}
+                        width={700}
+                        height={400}
+                      />
+                      
+                      {/* 知识图谱统计信息 */}
+                      <div className="graph-info-section">
+                        <h4>知识图谱说明</h4>
+                        <ul>
+                          <li>知识图谱展示了文档中的实体（人物、组织、地点等）及其关系</li>
+                          <li>双击节点可以聚焦查看该节点及其关联节点</li>
+                          <li>双击空白处可以重置视图</li>
+                          <li>拖动节点可以重新布局图谱</li>
+                          <li>不同颜色的节点代表不同类型的实体</li>
+                        </ul>
+                      </div>
                     </div>
                   )}
                 </div>

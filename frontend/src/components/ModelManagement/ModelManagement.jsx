@@ -426,6 +426,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
         <ParameterManagementMain
           selectedSupplier={selectedSupplier}
           onBack={handleBackFromParameterManagement}
+          selectedModel={selectedModel}
         />
       ) : selectedModel ? (
         <div className="model-parameters-section">

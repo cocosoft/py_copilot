@@ -137,13 +137,13 @@ const formatModelData = (model) => {
   return {
     id: model.id,
     modelId: model.model_id || '',
-    modelName: model.model_name || model.modelName || '',
+    modelName: model.model_name || '', // 确保优先使用后端返回的 model_name 字段
     description: model.description || '',
-    contextWindow: model.context_window || model.contextWindow || 0,
-    maxTokens: model.max_tokens || model.maxTokens || 1000,
-    isDefault: model.is_default || model.isDefault || false,
-    isActive: model.is_active || model.isActive || true,
-    supplierId: model.supplier_id || model.supplierId,
+    contextWindow: model.context_window || 0,
+    maxTokens: model.max_tokens || 1000,
+    isDefault: model.is_default || false,
+    isActive: model.is_active !== undefined ? model.is_active : true,
+    supplierId: model.supplier_id || '',
     supplierName: supplierName,
     supplierDisplayName: supplierDisplayName,
     modelType: modelType,
@@ -152,8 +152,8 @@ const formatModelData = (model) => {
     modelTypeLogo: modelTypeLogo,
     categories: categories,
     logo: model.logo || null,
-    createdAt: model.created_at || model.createdAt,
-    updatedAt: model.updated_at || model.updatedAt
+    createdAt: model.created_at || '',
+    updatedAt: model.updated_at || ''
   };
 };
 
@@ -165,7 +165,7 @@ const buildModelDataForBackend = (model, supplierId) => {
   // 如果用户没有输入模型ID，使用模型名称作为默认值
   // 注意：这里需要同时检查model_id（下划线格式）和modelId（驼峰格式）以兼容不同的表单数据来源
   const modelIdValue = model.model_id || model.modelId;
-  const modelId = modelIdValue && modelIdValue.trim() !== '' ? modelIdValue : model.modelName || model.model_id;
+  const modelId = modelIdValue && modelIdValue.trim() !== '' ? modelIdValue : model.model_name || model.modelName;
   
   // 处理模型名称字段：同时检查model_name（下划线格式）和modelName（驼峰格式）
   const modelNameValue = model.model_name || model.modelName;
@@ -176,16 +176,18 @@ const buildModelDataForBackend = (model, supplierId) => {
     model_id: modelId,
     model_name: modelName, // 添加模型名称字段
     description: model.description || '',
-    context_window: Number(model.contextWindow) || 8000,
-    max_tokens: Number(model.maxTokens) || 1000,
-    is_default: Boolean(model.isDefault),
-    is_active: model.isActive !== undefined ? Boolean(model.isActive) : true,
+    context_window: Number(model.contextWindow) || Number(model.context_window) || 8000,
+    max_tokens: Number(model.maxTokens) || Number(model.max_tokens) || 1000,
+    is_default: Boolean(model.isDefault) || Boolean(model.is_default),
+    is_active: model.isActive !== undefined ? Boolean(model.isActive) : Boolean(model.is_active) !== undefined ? Boolean(model.is_active) : true,
     supplier_id: integerSupplierId
   };
   
   // 处理模型类型字段：前端传递的是分类ID，需要转换为model_type_id
   if (model.modelType && model.modelType.trim() !== '') {
     modelData.model_type_id = Number(model.modelType);
+  } else if (model.model_type && model.model_type.trim() !== '') {
+    modelData.model_type_id = Number(model.model_type);
   }
   
   // 只有当logo是文件对象时才包含logo字段，避免覆盖现有logo
@@ -554,9 +556,14 @@ export const modelApi = {
   },
 
   // 获取参数模板列表
-  getParameterTemplates: async () => {
+  getParameterTemplates: async (level = null) => {
     try {
-      const response = await request(`/v1/parameter-templates`, {
+      let endpoint = `/v1/parameter-templates`;
+      if (level) {
+        endpoint = `/v1/parameter-templates/level/${level}`;
+      }
+      
+      const response = await request(endpoint, {
         method: 'GET'
       });
       
@@ -575,6 +582,93 @@ export const modelApi = {
     }
   },
   
+  // 获取单个参数模板
+  getParameterTemplate: async (templateId) => {
+    try {
+      const response = await request(`/v1/parameter-templates/${templateId}`, {
+        method: 'GET'
+      });
+      
+      return response;
+    } catch (error) {
+      const errorObj = handleApiError(error, 'getParameterTemplate', `模板ID: ${templateId}`);
+      throw new Error(errorObj.message);
+    }
+  },
+  
+  // 创建参数模板
+  createParameterTemplate: async (templateData) => {
+    try {
+      const response = await request(`/v1/parameter-templates`, {
+        method: 'POST',
+        body: JSON.stringify(templateData)
+      });
+      
+      return response;
+    } catch (error) {
+      const errorObj = handleApiError(error, 'createParameterTemplate', templateData);
+      throw new Error(errorObj.message);
+    }
+  },
+  
+  // 更新参数模板
+  updateParameterTemplate: async (templateId, templateData) => {
+    try {
+      const response = await request(`/v1/parameter-templates/${templateId}`, {
+        method: 'PUT',
+        body: JSON.stringify(templateData)
+      });
+      
+      return response;
+    } catch (error) {
+      const errorObj = handleApiError(error, 'updateParameterTemplate', `模板ID: ${templateId}, 数据: ${JSON.stringify(templateData)}`);
+      throw new Error(errorObj.message);
+    }
+  },
+  
+  // 删除参数模板
+  deleteParameterTemplate: async (templateId) => {
+    try {
+      const response = await request(`/v1/parameter-templates/${templateId}`, {
+        method: 'DELETE'
+      });
+      
+      return { success: true, message: '参数模板删除成功' };
+    } catch (error) {
+      const errorObj = handleApiError(error, 'deleteParameterTemplate', `模板ID: ${templateId}`);
+      throw new Error(errorObj.message);
+    }
+  },
+  
+  // 获取合并后的参数配置
+  getMergedParameters: async (templateId) => {
+    try {
+      const response = await request(`/v1/parameter-templates/${templateId}/merged-parameters`, {
+        method: 'GET'
+      });
+      
+      return response;
+    } catch (error) {
+      const errorObj = handleApiError(error, 'getMergedParameters', `模板ID: ${templateId}`);
+      throw new Error(errorObj.message);
+    }
+  },
+  
+  // 应用参数模板到模型
+  applyParameterTemplate: async (supplierId, modelId, templateId) => {
+    try {
+      const response = await request(`/v1/parameter-templates/suppliers/${supplierId}/models/${modelId}/apply-parameter-template`, {
+        method: 'POST',
+        body: JSON.stringify({ template_id: templateId })
+      });
+      
+      return response;
+    } catch (error) {
+      const errorObj = handleApiError(error, 'applyParameterTemplate', `供应商ID: ${supplierId}, 模型ID: ${modelId}, 模板ID: ${templateId}`);
+      throw new Error(errorObj.message);
+    }
+  },
+  
   // 获取指定层级的参数
   getParameters: async (supplierId, modelId, level = 'model') => {
     try {
@@ -589,6 +683,10 @@ export const modelApi = {
           endpoint = '/v1/model-management/system-parameters';
           break;
         case 'supplier':
+          // 检查supplierId是否存在
+          if (!supplierId) {
+            throw new Error('供应商ID不能为空');
+          }
           integerSupplierId = Number(supplierId);
           if (isNaN(integerSupplierId) || integerSupplierId <= 0) {
             throw new Error('无效的供应商ID');
@@ -603,21 +701,27 @@ export const modelApi = {
           break;
         case 'model':
         default:
-          // 参数验证和类型转换
-          integerSupplierId = Number(supplierId);
-          integerModelId = Number(modelId);
-          
-          // 参数验证
-          if (isNaN(integerSupplierId) || integerSupplierId <= 0) {
-            throw new Error('无效的供应商ID');
+          // 只有当需要这些参数时才进行验证
+          if (level === 'model') {
+            // 参数验证和类型转换
+            integerSupplierId = Number(supplierId);
+            integerModelId = Number(modelId);
+            
+            // 参数验证
+            if (isNaN(integerSupplierId) || integerSupplierId <= 0) {
+              throw new Error('无效的供应商ID');
+            }
+            
+            if (isNaN(integerModelId) || integerModelId <= 0) {
+              throw new Error('无效的模型ID');
+            }
+            
+            // 使用正确的路径格式
+            endpoint = `/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters`;
+          } else {
+            // 默认使用系统参数端点
+            endpoint = '/v1/model-management/system-parameters';
           }
-          
-          if (isNaN(integerModelId) || integerModelId <= 0) {
-            throw new Error('无效的模型ID');
-          }
-          
-          // 使用正确的路径格式
-          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters`;
       }
       
       const response = await request(endpoint, {
@@ -909,7 +1013,7 @@ export const modelApi = {
   },
 
   // 应用参数模板（系统级到供应商级）
-  applyParameterTemplate: async (supplierId, templateId, level = 'supplier') => {
+  applySystemParameterTemplate: async (supplierId, templateId, level = 'supplier') => {
     // 参数验证和类型转换
     const integerSupplierId = Number(supplierId);
     const integerTemplateId = Number(templateId);
@@ -952,15 +1056,15 @@ export const modelApi = {
     } catch (error) {
       const errorObj = handleApiError(
         error, 
-        'applyParameterTemplate', 
+        'applySystemParameterTemplate', 
         `层级: ${level}, 供应商ID: ${supplierId}, 模板ID: ${templateId}`
       );
       throw new Error(errorObj.message);
     }
   },
 
-  // 获取参数模板列表
-  getParameterTemplates: async (level = 'system') => {
+  // 获取参数模板列表（系统级）
+  getSystemParameterTemplates: async (level = 'system') => {
     try {
       let endpoint;
       
@@ -991,15 +1095,15 @@ export const modelApi = {
     } catch (error) {
       const errorObj = handleApiError(
         error, 
-        'getParameterTemplates', 
+        'getSystemParameterTemplates', 
         `层级: ${level}`
       );
       throw new Error(errorObj.message);
     }
   },
   
-  // 创建参数模板
-  createParameterTemplate: async (templateData, level = 'system') => {
+  // 创建参数模板（系统级）
+  createSystemParameterTemplate: async (templateData, level = 'system') => {
     try {
       let endpoint;
       
@@ -1038,15 +1142,15 @@ export const modelApi = {
     } catch (error) {
       const errorObj = handleApiError(
         error, 
-        'createParameterTemplate', 
+        'createSystemParameterTemplate', 
         `层级: ${level}, 模板数据: ${JSON.stringify(templateData)}`
       );
       throw new Error(errorObj.message);
     }
   },
   
-  // 获取单个参数模板详情
-  getParameterTemplate: async (templateId, level = 'system') => {
+  // 获取单个参数模板详情（系统级）
+  getSystemParameterTemplate: async (templateId, level = 'system') => {
     try {
       const integerTemplateId = Number(templateId);
       
@@ -1083,15 +1187,15 @@ export const modelApi = {
     } catch (error) {
       const errorObj = handleApiError(
         error, 
-        'getParameterTemplate', 
+        'getSystemParameterTemplate', 
         `层级: ${level}, 模板ID: ${templateId}`
       );
       throw new Error(errorObj.message);
     }
   },
   
-  // 更新参数模板
-  updateParameterTemplate: async (templateId, templateData, level = 'system') => {
+  // 更新参数模板（系统级）
+  updateSystemParameterTemplate: async (templateId, templateData, level = 'system') => {
     try {
       const integerTemplateId = Number(templateId);
       
@@ -1132,15 +1236,15 @@ export const modelApi = {
     } catch (error) {
       const errorObj = handleApiError(
         error, 
-        'updateParameterTemplate', 
+        'updateSystemParameterTemplate', 
         `层级: ${level}, 模板ID: ${templateId}, 模板数据: ${JSON.stringify(templateData)}`
       );
       throw new Error(errorObj.message);
     }
   },
   
-  // 删除参数模板
-  deleteParameterTemplate: async (templateId, level = 'system') => {
+  // 删除参数模板（系统级）
+  deleteSystemParameterTemplate: async (templateId, level = 'system') => {
     try {
       const integerTemplateId = Number(templateId);
       
@@ -1181,7 +1285,7 @@ export const modelApi = {
     } catch (error) {
       const errorObj = handleApiError(
         error, 
-        'deleteParameterTemplate', 
+        'deleteSystemParameterTemplate', 
         `层级: ${level}, 模板ID: ${templateId}`
       );
       throw new Error(errorObj.message);
@@ -1281,6 +1385,149 @@ export const modelApi = {
     }
   },
 
+  // 获取模型类型参数
+  getCategoryParameters: async (categoryId) => {
+    try {
+      const integerCategoryId = Number(categoryId);
+      if (isNaN(integerCategoryId) || integerCategoryId <= 0) {
+        throw new Error('无效的模型类型ID');
+      }
+      
+      const response = await request(`/v1/model-management/model-types/${integerCategoryId}/parameters`, {
+        method: 'GET'
+      });
+
+      let parameters = [];
+      if (Array.isArray(response)) {
+        parameters = response;
+      } else if (response && Array.isArray(response.parameters)) {
+        parameters = response.parameters;
+      }
+
+      return parameters.map(formatParameterData);
+    } catch (error) {
+      const errorObj = handleApiError(
+        error, 
+        'getCategoryParameters',
+        `模型类型ID: ${categoryId}`
+      );
+      throw new Error(errorObj.message);
+    }
+  },
+
+  // 创建模型类型参数
+  createCategoryParameter: async (categoryId, parameterData) => {
+    try {
+      const integerCategoryId = Number(categoryId);
+      if (isNaN(integerCategoryId) || integerCategoryId <= 0) {
+        throw new Error('无效的模型类型ID');
+      }
+
+      const formattedData = {
+        parameter_name: parameterData.parameter_name || '',
+        parameter_value: parameterData.parameter_value || '',
+        parameter_type: parameterData.parameter_type || 'string',
+        default_value: parameterData.default_value || '',
+        description: parameterData.description || '',
+        is_required: parameterData.is_required || false
+      };
+
+      const response = await request(`/v1/model-management/model-types/${integerCategoryId}/parameters`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        data: formattedData
+      });
+
+      return formatParameterData(response);
+    } catch (error) {
+      const errorObj = handleApiError(
+        error, 
+        'createCategoryParameter',
+        `模型类型ID: ${categoryId}, 参数数据: ${JSON.stringify(parameterData)}`
+      );
+      throw new Error(errorObj.message);
+    }
+  },
+
+  // 更新模型类型参数
+  updateCategoryParameter: async (categoryId, parameterId, parameterData) => {
+    try {
+      const integerCategoryId = Number(categoryId);
+      const integerParameterId = Number(parameterId);
+
+      if (isNaN(integerCategoryId) || integerCategoryId <= 0) {
+        throw new Error('无效的模型类型ID');
+      }
+
+      if (isNaN(integerParameterId) || integerParameterId <= 0) {
+        throw new Error('无效的参数ID');
+      }
+
+      const formattedData = {
+        parameter_name: parameterData.parameter_name || '',
+        parameter_value: parameterData.parameter_value || '',
+        parameter_type: parameterData.parameter_type || 'string',
+        default_value: parameterData.default_value || '',
+        description: parameterData.description || '',
+        is_required: parameterData.is_required || false
+      };
+
+      const response = await request(`/v1/model-management/model-types/${integerCategoryId}/parameters/${integerParameterId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        data: formattedData
+      });
+
+      return formatParameterData(response);
+    } catch (error) {
+      const errorObj = handleApiError(
+        error, 
+        'updateCategoryParameter',
+        `模型类型ID: ${categoryId}, 参数ID: ${parameterId}, 参数数据: ${JSON.stringify(parameterData)}`
+      );
+      throw new Error(errorObj.message);
+    }
+  },
+
+  // 删除模型类型参数
+  deleteCategoryParameter: async (categoryId, parameterId) => {
+    try {
+      const integerCategoryId = Number(categoryId);
+      const integerParameterId = Number(parameterId);
+
+      if (isNaN(integerCategoryId) || integerCategoryId <= 0) {
+        throw new Error('无效的模型类型ID');
+      }
+
+      if (isNaN(integerParameterId) || integerParameterId <= 0) {
+        throw new Error('无效的参数ID');
+      }
+
+      const response = await request(`/v1/model-management/model-types/${integerCategoryId}/parameters/${integerParameterId}`, {
+        method: 'DELETE'
+      });
+
+      return {
+        success: true,
+        message: response?.message || '模型类型参数删除成功',
+        parameterId: integerParameterId
+      };
+    } catch (error) {
+      const errorObj = handleApiError(
+        error, 
+        'deleteCategoryParameter',
+        `模型类型ID: ${categoryId}, 参数ID: ${parameterId}`
+      );
+      throw new Error(errorObj.message);
+    }
+  },
+
+
+
   // 获取所有参数的版本历史记录
   getAllParameterVersions: async (supplierId, modelId, level = 'model') => {
     try {
@@ -1323,6 +1570,33 @@ export const modelApi = {
         error, 
         'getAllParameterVersions', 
         `层级: ${level}, 供应商ID: ${supplierId}, 模型ID: ${modelId}`
+      );
+      throw new Error(errorObj.message);
+    }
+  },
+
+  // 获取参数继承树
+  getParameterInheritanceTree: async (modelId, parameterName) => {
+    try {
+      const integerModelId = Number(modelId);
+      if (isNaN(integerModelId) || integerModelId <= 0) {
+        throw new Error('无效的模型ID');
+      }
+      
+      if (!parameterName || parameterName.trim() === '') {
+        throw new Error('参数名称不能为空');
+      }
+      
+      const response = await request(`/v1/model-management/models/${integerModelId}/parameters/${parameterName}/inheritance-tree`, {
+        method: 'GET'
+      });
+
+      return response;
+    } catch (error) {
+      const errorObj = handleApiError(
+        error, 
+        'getParameterInheritanceTree',
+        `模型ID: ${modelId}, 参数名称: ${parameterName}`
       );
       throw new Error(errorObj.message);
     }
@@ -1619,6 +1893,161 @@ export const modelApi = {
       const errorObj = handleApiError(
         error, 
         'getExportFormats'
+      );
+      throw new Error(errorObj.message);
+    }
+  },
+
+
+
+  // 模型实例参数API方法
+  getModelParameters: async (supplierId, modelId) => {
+    try {
+      const integerSupplierId = Number(supplierId);
+      const integerModelId = Number(modelId);
+      
+      if (isNaN(integerSupplierId) || integerSupplierId <= 0) {
+        throw new Error('无效的供应商ID');
+      }
+      
+      if (isNaN(integerModelId) || integerModelId <= 0) {
+        throw new Error('无效的模型ID');
+      }
+      
+      const response = await request(`/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters`, {
+        method: 'GET'
+      });
+
+      let parameters = [];
+      if (Array.isArray(response)) {
+        parameters = response;
+      } else if (response && Array.isArray(response.parameters)) {
+        parameters = response.parameters;
+      }
+
+      return parameters.map(formatParameterData);
+    } catch (error) {
+      const errorObj = handleApiError(
+        error, 
+        'getModelParameters',
+        `供应商ID: ${supplierId}, 模型ID: ${modelId}`
+      );
+      throw new Error(errorObj.message);
+    }
+  },
+
+  createModelParameter: async (supplierId, modelId, parameterData) => {
+    try {
+      const integerSupplierId = Number(supplierId);
+      const integerModelId = Number(modelId);
+      
+      if (isNaN(integerSupplierId) || integerSupplierId <= 0) {
+        throw new Error('无效的供应商ID');
+      }
+      
+      if (isNaN(integerModelId) || integerModelId <= 0) {
+        throw new Error('无效的模型ID');
+      }
+      
+      const formattedData = {
+        parameter_name: parameterData.parameter_name || '',
+        parameter_value: parameterData.parameter_value || '',
+        parameter_type: parameterData.parameter_type || 'string',
+        description: parameterData.description || ''
+      };
+
+      const response = await request(`/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        data: formattedData
+      });
+
+      return formatParameterData(response);
+    } catch (error) {
+      const errorObj = handleApiError(
+        error, 
+        'createModelParameter',
+        `供应商ID: ${supplierId}, 模型ID: ${modelId}, 参数数据: ${JSON.stringify(parameterData)}`
+      );
+      throw new Error(errorObj.message);
+    }
+  },
+
+  updateModelParameter: async (supplierId, modelId, parameterName, parameterData) => {
+    try {
+      const integerSupplierId = Number(supplierId);
+      const integerModelId = Number(modelId);
+      
+      if (isNaN(integerSupplierId) || integerSupplierId <= 0) {
+        throw new Error('无效的供应商ID');
+      }
+      
+      if (isNaN(integerModelId) || integerModelId <= 0) {
+        throw new Error('无效的模型ID');
+      }
+      
+      if (!parameterName) {
+        throw new Error('参数名称不能为空');
+      }
+      
+      const formattedData = {
+        parameter_value: parameterData.parameter_value || '',
+        parameter_type: parameterData.parameter_type || 'string',
+        description: parameterData.description || ''
+      };
+
+      const response = await request(`/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${encodeURIComponent(parameterName)}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        data: formattedData
+      });
+
+      return formatParameterData(response);
+    } catch (error) {
+      const errorObj = handleApiError(
+        error, 
+        'updateModelParameter',
+        `供应商ID: ${supplierId}, 模型ID: ${modelId}, 参数名称: ${parameterName}, 参数数据: ${JSON.stringify(parameterData)}`
+      );
+      throw new Error(errorObj.message);
+    }
+  },
+
+  deleteModelParameter: async (supplierId, modelId, parameterName) => {
+    try {
+      const integerSupplierId = Number(supplierId);
+      const integerModelId = Number(modelId);
+      
+      if (isNaN(integerSupplierId) || integerSupplierId <= 0) {
+        throw new Error('无效的供应商ID');
+      }
+      
+      if (isNaN(integerModelId) || integerModelId <= 0) {
+        throw new Error('无效的模型ID');
+      }
+      
+      if (!parameterName) {
+        throw new Error('参数名称不能为空');
+      }
+
+      const response = await request(`/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${encodeURIComponent(parameterName)}`, {
+        method: 'DELETE'
+      });
+
+      return {
+        success: true,
+        message: response?.message || '参数删除成功',
+        parameterName
+      };
+    } catch (error) {
+      const errorObj = handleApiError(
+        error, 
+        'deleteModelParameter',
+        `供应商ID: ${supplierId}, 模型ID: ${modelId}, 参数名称: ${parameterName}`
       );
       throw new Error(errorObj.message);
     }

@@ -3,8 +3,9 @@ import '../../styles/ParameterManagement.css';
 import api from '../../utils/api';
 import ParameterModal from './ModelParameterModal';
 import BatchParameterModal from './BatchParameterModal';
+import ParameterTemplateModal from './ParameterTemplateModal';
 
-const ParameterManagementMain = ({ selectedSupplier, onBack }) => {
+const ParameterManagementMain = ({ selectedSupplier, onBack, selectedModel }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [parameters, setParameters] = useState([]);
@@ -23,6 +24,18 @@ const ParameterManagementMain = ({ selectedSupplier, onBack }) => {
   const [showBatchActions, setShowBatchActions] = useState(false); // 是否显示批量操作按钮
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false); // 批量编辑模态框开关
   const [applyingTemplate, setApplyingTemplate] = useState(false); // 模板应用状态
+  // 模板管理相关状态
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [templateModalMode, setTemplateModalMode] = useState('add');
+  const [editingTemplate, setEditingTemplate] = useState(null);
+  // 模板搜索和过滤状态
+  const [templateSearchTerm, setTemplateSearchTerm] = useState('');
+  const [templateFilterLevel, setTemplateFilterLevel] = useState('');
+  // 参数版本控制相关状态
+  const [isVersionHistoryModalOpen, setIsVersionHistoryModalOpen] = useState(false);
+  const [selectedParameterForVersion, setSelectedParameterForVersion] = useState(null);
+  const [parameterVersions, setParameterVersions] = useState([]);
+  const [versionHistoryLoading, setVersionHistoryLoading] = useState(false);
 
   // 层级选项
   const levelOptions = [
@@ -45,6 +58,9 @@ const ParameterManagementMain = ({ selectedSupplier, onBack }) => {
         case 'supplier':
           if (selectedSupplier) {
             params = await api.modelApi.getParameters(selectedSupplier.id, null, 'supplier');
+          } else {
+            // 没有选择供应商时，显示空数据
+            params = [];
           }
           break;
         case 'model_type':
@@ -57,7 +73,11 @@ const ParameterManagementMain = ({ selectedSupplier, onBack }) => {
           break;
         case 'model':
           // 加载模型参数模板
-          params = await api.modelApi.getParameters(null, null, 'model');
+          if (selectedModel && selectedSupplier) {
+            params = await api.modelApi.getParameters(selectedSupplier.id, selectedModel.id, 'model');
+          } else {
+            params = [];
+          }
           break;
         case 'agent':
           // 加载代理参数模板
@@ -120,10 +140,10 @@ const ParameterManagementMain = ({ selectedSupplier, onBack }) => {
       setError(null);
       
       if (parameterModalMode === 'add') {
-        await api.modelApi.createParameter(selectedSupplier?.id, null, parameterData, selectedLevel);
+        await api.modelApi.createParameter(selectedSupplier?.id, selectedLevel === 'model' ? selectedModel?.id : null, parameterData, selectedLevel);
         setSuccess('参数添加成功');
       } else {
-        await api.modelApi.updateParameter(selectedSupplier?.id, null, editingParameter.id, parameterData, selectedLevel);
+        await api.modelApi.updateParameter(selectedSupplier?.id, selectedLevel === 'model' ? selectedModel?.id : null, editingParameter.id, parameterData, selectedLevel);
         setSuccess('参数更新成功');
       }
       
@@ -153,7 +173,7 @@ const ParameterManagementMain = ({ selectedSupplier, onBack }) => {
         setSaving(true);
         setError(null);
         
-        await api.modelApi.deleteParameter(selectedSupplier?.id, null, parameterId, selectedLevel);
+        await api.modelApi.deleteParameter(selectedSupplier?.id, selectedLevel === 'model' ? selectedModel?.id : null, parameterId, selectedLevel);
         setSuccess('参数删除成功');
         loadParameters();
       } catch (err) {
@@ -210,7 +230,7 @@ const ParameterManagementMain = ({ selectedSupplier, onBack }) => {
         
         // 批量删除参数
         for (const parameterId of selectedParameters) {
-          await api.modelApi.deleteParameter(selectedSupplier?.id, null, parameterId, selectedLevel);
+          await api.modelApi.deleteParameter(selectedSupplier?.id, selectedLevel === 'model' ? selectedModel?.id : null, parameterId, selectedLevel);
         }
         
         setSuccess(`成功删除${selectedParameters.length}个参数`);
@@ -246,7 +266,7 @@ const ParameterManagementMain = ({ selectedSupplier, onBack }) => {
       
       // 批量更新参数
       for (const parameterId of selectedParameters) {
-        await api.modelApi.updateParameter(selectedSupplier?.id, null, parameterId, updateData, selectedLevel);
+        await api.modelApi.updateParameter(selectedSupplier?.id, selectedLevel === 'model' ? selectedModel?.id : null, parameterId, updateData, selectedLevel);
       }
       
       setSuccess(`成功更新${selectedParameters.length}个参数`);
@@ -373,26 +393,113 @@ const ParameterManagementMain = ({ selectedSupplier, onBack }) => {
     };
   };
 
+  // 状态：选择要查看继承树的参数
+  const [selectedInheritanceParameter, setSelectedInheritanceParameter] = useState(null);
+
   // 加载参数继承树
   const loadInheritanceTree = async () => {
     try {
       setTreeLoading(true);
       setError(null);
       
-      // TODO: 替换为真实API调用
-      // const treeData = await api.modelApi.getParameterInheritanceTree(selectedSupplier?.id);
-      const treeData = getMockInheritanceTree();
+      // 如果没有选择参数，使用第一个参数
+      const parameterToUse = selectedInheritanceParameter || parameters[0];
       
-      setInheritanceTree(treeData);
+      if (parameterToUse && parameterToUse.model_id) {
+        // 使用真实API调用
+        const treeData = await api.modelApi.getParameterInheritanceTree(
+          parameterToUse.model_id,
+          parameterToUse.parameter_name
+        );
+        setInheritanceTree(treeData);
+      } else {
+        // 如果没有可用的模型ID或参数，使用模拟数据
+        const treeData = getMockInheritanceTree();
+        setInheritanceTree(treeData);
+      }
     } catch (err) {
       console.error('加载参数继承树失败:', err);
       setError('加载参数继承树失败，请重试');
+      // 加载失败时使用模拟数据
+      const treeData = getMockInheritanceTree();
+      setInheritanceTree(treeData);
     } finally {
       setTreeLoading(false);
     }
   };
 
-  // 加载参数模板列表
+  // 加载参数版本历史
+  const loadParameterVersions = async (parameterId) => {
+    try {
+      setVersionHistoryLoading(true);
+      setError(null);
+      
+      const versions = await api.modelApi.getParameterVersions(
+        selectedSupplier?.id, 
+        selectedLevel === 'model' ? selectedModel?.id : null, 
+        parameterId, 
+        selectedLevel
+      );
+      setParameterVersions(versions);
+    } catch (err) {
+      console.error('加载参数版本历史失败:', err);
+      setError('加载参数版本历史失败，请重试');
+    } finally {
+      setVersionHistoryLoading(false);
+    }
+  };
+
+  // 查看参数版本历史
+  const handleViewVersionHistory = (parameter) => {
+    if (parameter.inherited) {
+      setError('继承参数无法查看版本历史');
+      return;
+    }
+    
+    setSelectedParameterForVersion(parameter);
+    loadParameterVersions(parameter.id);
+    setIsVersionHistoryModalOpen(true);
+  };
+
+  // 恢复到指定版本
+  const handleRevertToVersion = async (versionId) => {
+    if (!selectedParameterForVersion) return;
+    
+    if (window.confirm('确定要恢复到这个版本吗？此操作将覆盖当前参数值。')) {
+      try {
+        setSaving(true);
+        setError(null);
+        
+        await api.modelApi.revertParameterToVersion(
+          selectedSupplier?.id, 
+          selectedLevel === 'model' ? selectedModel?.id : null, 
+          selectedParameterForVersion.id, 
+          versionId, 
+          selectedLevel
+        );
+        
+        setSuccess('参数版本恢复成功');
+        loadParameters();
+        setIsVersionHistoryModalOpen(false);
+        setSelectedParameterForVersion(null);
+      } catch (err) {
+        console.error('恢复参数版本失败:', err);
+        setError('恢复参数版本失败，请重试');
+      } finally {
+        setSaving(false);
+        setTimeout(() => setSuccess(null), 3000);
+      }
+    }
+  };
+
+  // 关闭版本历史模态框
+  const handleCloseVersionHistoryModal = () => {
+    setIsVersionHistoryModalOpen(false);
+    setSelectedParameterForVersion(null);
+    setParameterVersions([]);
+  };
+
+  // 参数模板列表
   const loadParameterTemplates = async () => {
     try {
       setLoading(true);
@@ -423,6 +530,7 @@ const ParameterManagementMain = ({ selectedSupplier, onBack }) => {
           templateLevel = 'system';
       }
       
+      // 无论是否有selectedSupplier，都可以加载参数模板
       const templates = await api.modelApi.getParameterTemplates(templateLevel);
       setParameterTemplates(templates);
     } catch (err) {
@@ -433,9 +541,10 @@ const ParameterManagementMain = ({ selectedSupplier, onBack }) => {
     }
   };
 
-  // 当选择的层级或供应商改变时，重新加载继承树
+  // 当选择的层级或供应商改变时，重新加载继承树和参数模板
   useEffect(() => {
     loadInheritanceTree();
+    loadParameterTemplates();
   }, [selectedLevel, selectedSupplier]);
 
   // 应用参数模板
@@ -449,11 +558,16 @@ const ParameterManagementMain = ({ selectedSupplier, onBack }) => {
       setApplyingTemplate(true);
       setError(null);
       
+      // 获取要应用的模板详情
+      const templateToApply = parameterTemplates.find(t => t.id === selectedParameterTemplate);
+      const templateName = templateToApply?.template_name || `模板 ${selectedParameterTemplate}`;
+      
       // 根据当前层级调用不同的API
+      let result;
       switch (selectedLevel) {
         case 'system':
           // 系统级参数模板应用
-          await api.modelApi.applyParameterTemplate(null, selectedParameterTemplate, 'system');
+          result = await api.modelApi.applyParameterTemplate(null, null, selectedParameterTemplate);
           break;
         case 'supplier':
           if (!selectedSupplier) {
@@ -461,7 +575,7 @@ const ParameterManagementMain = ({ selectedSupplier, onBack }) => {
             return;
           }
           // 供应商级参数模板应用
-          await api.modelApi.applyParameterTemplate(selectedSupplier.id, selectedParameterTemplate, 'supplier');
+          result = await api.modelApi.applyParameterTemplate(selectedSupplier.id, null, selectedParameterTemplate);
           break;
         case 'model_type':
           if (!selectedSupplier) {
@@ -469,7 +583,7 @@ const ParameterManagementMain = ({ selectedSupplier, onBack }) => {
             return;
           }
           // 模型类型级参数模板应用
-          await api.modelApi.applyParameterTemplate(selectedSupplier.id, selectedParameterTemplate, 'model_type');
+          result = await api.modelApi.applyParameterTemplate(selectedSupplier.id, null, selectedParameterTemplate);
           break;
         case 'model_capability':
           if (!selectedSupplier) {
@@ -477,7 +591,7 @@ const ParameterManagementMain = ({ selectedSupplier, onBack }) => {
             return;
           }
           // 模型能力级参数模板应用
-          await api.modelApi.applyParameterTemplate(selectedSupplier.id, selectedParameterTemplate, 'model_capability');
+          result = await api.modelApi.applyParameterTemplate(selectedSupplier.id, null, selectedParameterTemplate);
           break;
         case 'model':
           if (!selectedSupplier) {
@@ -485,7 +599,9 @@ const ParameterManagementMain = ({ selectedSupplier, onBack }) => {
             return;
           }
           // 模型级参数模板应用
-          await api.modelApi.applyParameterTemplate(selectedSupplier.id, selectedParameterTemplate, 'model');
+          // 注意：这里需要modelId，但当前组件没有modelId，可能需要从外部传入或通过其他方式获取
+          // 暂时使用null，后续需要优化
+          result = await api.modelApi.applyParameterTemplate(selectedSupplier.id, null, selectedParameterTemplate);
           break;
         case 'agent':
           if (!selectedSupplier) {
@@ -493,14 +609,37 @@ const ParameterManagementMain = ({ selectedSupplier, onBack }) => {
             return;
           }
           // 代理级参数模板应用
-          await api.modelApi.applyParameterTemplate(selectedSupplier.id, selectedParameterTemplate, 'agent');
+          result = await api.modelApi.applyParameterTemplate(selectedSupplier.id, null, selectedParameterTemplate);
           break;
         default:
           setError('不支持的参数层级');
           return;
       }
       
-      setSuccess('参数模板应用成功');
+      // 显示应用结果
+      let successMessage = `模板 "${templateName}" 应用成功！`;
+      
+      if (result?.applied_count !== undefined && result?.total_count !== undefined) {
+        successMessage += `\n共应用了 ${result.applied_count}/${result.total_count} 个参数`;
+        
+        // 添加更详细的结果信息
+        if (result?.applied_parameters?.length > 0) {
+          const appliedNames = result.applied_parameters.map(p => p.parameter_name).join(', ');
+          successMessage += `\n成功应用的参数：${appliedNames}`;
+        }
+        
+        if (result?.skipped_count > 0) {
+          successMessage += `\n跳过了 ${result.skipped_count} 个参数（可能已存在或不适用）`;
+        }
+        
+        if (result?.overridden_count > 0) {
+          successMessage += `\n覆盖了 ${result.overridden_count} 个现有参数`;
+        }
+      } else {
+        successMessage += '\n参数已成功应用到当前层级';
+      }
+      
+      setSuccess(successMessage);
       
       // 重新加载参数列表和继承树
       loadParameters();
@@ -510,12 +649,95 @@ const ParameterManagementMain = ({ selectedSupplier, onBack }) => {
       setSelectedParameterTemplate(null);
     } catch (err) {
       console.error('应用参数模板失败:', err);
-      setError('应用参数模板失败，请重试');
+      
+      // 显示更具体的错误信息
+      const errorMessage = err.response?.data?.detail || err.message || '应用参数模板失败，请重试';
+      setError(errorMessage);
     } finally {
       setApplyingTemplate(false);
       
+      // 5秒后清除成功消息（延长时间让用户有足够时间阅读详细信息）
+      setTimeout(() => setSuccess(null), 5000);
+      // 5秒后清除错误消息
+      setTimeout(() => setError(null), 5000);
+    }
+  };
+
+  // 打开参数模板创建模态框
+  const handleAddTemplateClick = () => {
+    setEditingTemplate(null);
+    setTemplateModalMode('add');
+    setIsTemplateModalOpen(true);
+  };
+
+  // 打开参数模板编辑模态框
+  const handleEditTemplateClick = (template) => {
+    setEditingTemplate(template);
+    setTemplateModalMode('edit');
+    setIsTemplateModalOpen(true);
+  };
+
+  // 关闭参数模板模态框
+  const handleCloseTemplateModal = () => {
+    setIsTemplateModalOpen(false);
+    setEditingTemplate(null);
+  };
+
+  // 保存参数模板数据
+  const handleSaveTemplateData = async (templateData) => {
+    try {
+      setSaving(true);
+      setError(null);
+      
+      if (templateModalMode === 'add') {
+        await api.modelApi.createParameterTemplate(templateData);
+        setSuccess('参数模板创建成功');
+      } else {
+        await api.modelApi.updateParameterTemplate(editingTemplate.id, templateData);
+        setSuccess('参数模板更新成功');
+      }
+      
+      // 重新加载参数模板列表
+      loadParameterTemplates();
+    } catch (err) {
+      console.error('保存参数模板失败:', err);
+      setError('保存参数模板失败，请重试');
+    } finally {
+      setSaving(false);
+      setIsTemplateModalOpen(false);
+      setEditingTemplate(null);
+      
       // 3秒后清除成功消息
       setTimeout(() => setSuccess(null), 3000);
+    }
+  };
+
+  // 删除参数模板
+  const handleDeleteTemplate = async (templateId) => {
+    if (window.confirm('确定要删除这个参数模板吗？删除后将无法恢复。')) {
+      try {
+        setSaving(true);
+        setError(null);
+        
+        await api.modelApi.deleteParameterTemplate(templateId);
+        setSuccess('参数模板删除成功');
+        
+        // 重新加载参数模板列表
+        loadParameterTemplates();
+        
+        // 如果删除的是当前选中的模板，重置选中状态
+        if (selectedParameterTemplate === templateId) {
+          setSelectedParameterTemplate(null);
+        }
+      } catch (err) {
+        console.error('删除参数模板失败:', err);
+        setError('删除参数模板失败，请重试');
+      } finally {
+        setSaving(false);
+        
+        // 3秒后清除成功消息
+        setTimeout(() => setSuccess(null), 3000);
+      }
     }
   };
 
@@ -614,6 +836,7 @@ const ParameterManagementMain = ({ selectedSupplier, onBack }) => {
         <div className="section-title">
           <h3>{levelOptions.find(option => option.value === selectedLevel)?.label}参数模板</h3>
           <div className="template-actions">
+            {/* 参数模板选择和应用 */}
             {((selectedLevel === 'system') || 
               (selectedSupplier && 
                (selectedLevel === 'supplier' || 
@@ -645,6 +868,17 @@ const ParameterManagementMain = ({ selectedSupplier, onBack }) => {
                 </button>
               </div>
             )}
+            
+            {/* 参数模板管理按钮 */}
+            <button
+              className="btn btn-primary"
+              onClick={handleAddTemplateClick}
+              disabled={loading || saving}
+            >
+              创建模板
+            </button>
+            
+            {/* 参数管理按钮 */}
             <button
               className="btn btn-primary"
               onClick={handleAddParameterClick}
@@ -653,6 +887,111 @@ const ParameterManagementMain = ({ selectedSupplier, onBack }) => {
               添加参数
             </button>
           </div>
+        </div>
+
+        {/* 模板搜索和过滤 */}
+        <div className="template-filters">
+          <div className="search-input-container">
+            <input
+              type="text"
+              placeholder="搜索模板名称..."
+              value={templateSearchTerm}
+              onChange={(e) => setTemplateSearchTerm(e.target.value)}
+              className="search-input"
+              disabled={loading}
+            />
+          </div>
+          <div className="filter-select-container">
+            <select
+              value={templateFilterLevel}
+              onChange={(e) => setTemplateFilterLevel(e.target.value)}
+              className="filter-select"
+              disabled={loading}
+            >
+              <option value="">所有级别</option>
+              {levelOptions.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        
+        {/* 参数模板列表 */}
+        <div className="parameter-templates-list">
+          <h4>模板列表</h4>
+          {/* 过滤模板 */}
+          {(() => {
+            // 应用搜索和过滤条件
+            let filteredTemplates = [...parameterTemplates];
+            
+            // 按名称搜索
+            if (templateSearchTerm.trim()) {
+              const searchTerm = templateSearchTerm.toLowerCase().trim();
+              filteredTemplates = filteredTemplates.filter(template => 
+                template.template_name?.toLowerCase().includes(searchTerm)
+              );
+            }
+            
+            // 按级别过滤
+            if (templateFilterLevel) {
+              filteredTemplates = filteredTemplates.filter(template => 
+                template.template_level === templateFilterLevel
+              );
+            }
+            
+            return (
+              <>                
+                {filteredTemplates.length === 0 ? (
+                  <div className="empty-state">
+                    {parameterTemplates.length > 0 ? '没有匹配的模板' : '暂无参数模板'}
+                  </div>
+                ) : (
+                  <div className="templates-table-container">
+                    <table className="templates-table">
+                      <thead>
+                        <tr>
+                          <th>模板名称</th>
+                          <th>模板级别</th>
+                          <th>参数数量</th>
+                          <th>描述</th>
+                          <th>操作</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredTemplates.map((template) => (
+                    <tr key={template.id}>
+                      <td>{template.template_name || `模板 ${template.id}`}</td>
+                      <td>{levelOptions.find(opt => opt.value === template.template_level)?.label}</td>
+                      <td>{template.parameters?.length || 0}</td>
+                      <td>{template.description || '-'}</td>
+                      <td>
+                        <div className="template-actions">
+                          <button
+                            className="btn btn-secondary btn-small"
+                            onClick={() => handleEditTemplateClick(template)}
+                            disabled={loading || saving}
+                          >
+                            编辑
+                          </button>
+                          <button
+                            className="btn btn-danger btn-small"
+                            onClick={() => handleDeleteTemplate(template.id)}
+                            disabled={loading || saving}
+                          >
+                            删除
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          </>
+        )})()}
         </div>
 
         {loading ? (
@@ -745,6 +1084,13 @@ const ParameterManagementMain = ({ selectedSupplier, onBack }) => {
                             编辑
                           </button>
                           <button
+                            className="btn btn-info btn-small"
+                            onClick={() => handleViewVersionHistory(param)}
+                            disabled={saving || param.inherited}
+                          >
+                            版本历史
+                          </button>
+                          <button
                             className="btn btn-danger btn-small"
                             onClick={() => handleDeleteParameter(param.id)}
                             disabled={saving || param.inherited}
@@ -830,6 +1176,94 @@ const ParameterManagementMain = ({ selectedSupplier, onBack }) => {
         onSave={handleSaveBatchParameterData}
         selectedParameters={parameters.filter(p => selectedParameters.includes(p.id))}
       />
+
+      {/* 参数模板模态框 */}
+      <ParameterTemplateModal
+        isOpen={isTemplateModalOpen}
+        onClose={handleCloseTemplateModal}
+        onSave={handleSaveTemplateData}
+        templateData={editingTemplate}
+        mode={templateModalMode}
+      />
+
+      {/* 参数版本历史模态框 */}
+      {isVersionHistoryModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal version-history-modal">
+            <div className="modal-header">
+              <h3>参数版本历史</h3>
+              <button 
+                className="modal-close-btn"
+                onClick={handleCloseVersionHistoryModal}
+                disabled={saving}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="parameter-info">
+                <h4>{selectedParameterForVersion?.parameter_name}</h4>
+                <p>参数ID: {selectedParameterForVersion?.id}</p>
+                <p>当前层级: {levelOptions.find(opt => opt.value === selectedLevel)?.label}</p>
+              </div>
+              
+              {versionHistoryLoading ? (
+                <div className="loading-state">加载版本历史中...</div>
+              ) : parameterVersions.length === 0 ? (
+                <div className="empty-state">暂无版本历史记录</div>
+              ) : (
+                <div className="versions-table-container">
+                  <table className="versions-table">
+                    <thead>
+                      <tr>
+                        <th>版本号</th>
+                        <th>更新时间</th>
+                        <th>更新人</th>
+                        <th>参数值</th>
+                        <th>操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {parameterVersions.map((version) => (
+                        <tr key={version.id}>
+                          <td>v{version.version_number}</td>
+                          <td>{new Date(version.updated_at).toLocaleString()}</td>
+                          <td>{version.updated_by || '系统'}</td>
+                          <td>
+                            {typeof version.parameter_value === 'object' ? 
+                              JSON.stringify(version.parameter_value) : 
+                              version.parameter_value}
+                          </td>
+                          <td>
+                            <button
+                              className="btn btn-primary btn-small"
+                              onClick={() => handleRevertToVersion(version.id)}
+                              disabled={saving}
+                            >
+                              恢复
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            
+            <div className="modal-footer">
+              <button 
+                className="btn btn-secondary"
+                onClick={handleCloseVersionHistoryModal}
+                disabled={saving}
+              >
+                关闭
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

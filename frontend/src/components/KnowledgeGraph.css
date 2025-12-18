@@ -1,0 +1,228 @@
+/* 知识图谱组件样式 */
+.knowledge-graph-container {
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+/* 图谱头部 */
+.graph-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e1e8ed;
+}
+
+.graph-header h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0;
+}
+
+.graph-stats {
+  display: flex;
+  gap: 16px;
+  font-size: 14px;
+  color: #7f8c8d;
+}
+
+.graph-stats span {
+  background-color: #f8f9fa;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.graph-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.refresh-btn, .export-btn, .retry-btn, .generate-btn {
+  padding: 6px 12px;
+  border: 1px solid #e1e8ed;
+  border-radius: 4px;
+  background-color: #ffffff;
+  color: #2c3e50;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.refresh-btn:hover, .export-btn:hover, .retry-btn:hover, .generate-btn:hover {
+  background-color: #3498db;
+  color: white;
+  border-color: #3498db;
+}
+
+/* 图例 */
+.graph-legend {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #7f8c8d;
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.legend-color.person {
+  background-color: #ff6b6b;
+}
+
+.legend-color.organization {
+  background-color: #4ecdc4;
+}
+
+.legend-color.location {
+  background-color: #45b7d1;
+}
+
+.legend-color.date {
+  background-color: #96ceb4;
+}
+
+.legend-color.money {
+  background-color: #feca57;
+}
+
+/* SVG容器 */
+.knowledge-graph-svg {
+  border: 1px solid #e1e8ed;
+  border-radius: 4px;
+  background-color: #fafbfc;
+}
+
+/* 节点和连线样式 */
+.nodes circle {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.nodes circle:hover {
+  stroke-width: 3px;
+  stroke: #3498db;
+}
+
+.links line {
+  cursor: pointer;
+}
+
+.links line:hover {
+  stroke-width: 3px;
+  stroke: #3498db;
+}
+
+/* 加载状态 */
+.knowledge-graph-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #7f8c8d;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e1e8ed;
+  border-top: 4px solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 错误状态 */
+.knowledge-graph-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #e74c3c;
+  text-align: center;
+}
+
+.error-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+/* 空状态 */
+.knowledge-graph-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #7f8c8d;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .knowledge-graph-container {
+    padding: 12px;
+  }
+  
+  .graph-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  
+  .graph-stats {
+    gap: 8px;
+  }
+  
+  .graph-legend {
+    gap: 8px;
+  }
+  
+  .knowledge-graph-svg {
+    width: 100%;
+    height: 400px;
+  }
+}
+
+/* 打印样式 */
+@media print {
+  .knowledge-graph-container {
+    box-shadow: none;
+    border: 1px solid #ccc;
+  }
+  
+  .graph-controls {
+    display: none;
+  }
+}

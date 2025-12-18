@@ -8,7 +8,16 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
     parameter_type: 'string',
     default_value: '',
     description: '',
-    is_required: false
+    is_required: false,
+    validation_rules: {
+      min: '',
+      max: '',
+      regex: '',
+      enum_values: '',
+      min_length: '',
+      max_length: '',
+      custom_message: ''
+    }
   });
   const [errors, setErrors] = useState({});
   const [showValidation, setShowValidation] = useState(false);
@@ -22,7 +31,16 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
         parameter_type: parameter.parameter_type || 'string',
         default_value: parameter.default_value || '',
         description: parameter.description || '',
-        is_required: parameter.is_required || false
+        is_required: parameter.is_required || false,
+        validation_rules: parameter.validation_rules || {
+          min: '',
+          max: '',
+          regex: '',
+          enum_values: '',
+          min_length: '',
+          max_length: '',
+          custom_message: ''
+        }
       });
     } else {
       setFormData({
@@ -31,7 +49,16 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
         parameter_type: 'string',
         default_value: '',
         description: '',
-        is_required: false
+        is_required: false,
+        validation_rules: {
+          min: '',
+          max: '',
+          regex: '',
+          enum_values: '',
+          min_length: '',
+          max_length: '',
+          custom_message: ''
+        }
       });
     }
     setErrors({});
@@ -65,10 +92,21 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
           if (value.trim() !== '') {
             switch (formData.parameter_type) {
               case 'number':
-                if (isNaN(Number(value))) {
+                const numValue = Number(value);
+                if (isNaN(numValue)) {
                   newErrors[name] = '请输入有效的数字';
                 } else {
-                  delete newErrors[name];
+                  // 验证最小值
+                  if (formData.validation_rules.min !== '' && numValue < Number(formData.validation_rules.min)) {
+                    newErrors[name] = `值不能小于 ${formData.validation_rules.min}`;
+                  } 
+                  // 验证最大值
+                  else if (formData.validation_rules.max !== '' && numValue > Number(formData.validation_rules.max)) {
+                    newErrors[name] = `值不能大于 ${formData.validation_rules.max}`;
+                  }
+                  else {
+                    delete newErrors[name];
+                  }
                 }
                 break;
               case 'boolean':
@@ -86,6 +124,31 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
                 JSON.parse(value);
                 delete newErrors[name];
                 break;
+              case 'string':
+                // 验证正则表达式
+                if (formData.validation_rules.regex !== '' && !new RegExp(formData.validation_rules.regex).test(value)) {
+                  newErrors[name] = `值不符合正则表达式: ${formData.validation_rules.regex}`;
+                }
+                // 验证字符串长度
+                else if (formData.validation_rules.min_length !== '' && value.length < Number(formData.validation_rules.min_length)) {
+                  newErrors[name] = `字符串长度不能小于 ${formData.validation_rules.min_length}`;
+                }
+                else if (formData.validation_rules.max_length !== '' && value.length > Number(formData.validation_rules.max_length)) {
+                  newErrors[name] = `字符串长度不能大于 ${formData.validation_rules.max_length}`;
+                }
+                // 验证枚举值
+                else if (formData.validation_rules.enum_values !== '') {
+                  const enumValues = JSON.parse(formData.validation_rules.enum_values);
+                  if (!enumValues.includes(value)) {
+                    newErrors[name] = `值必须是 ${enumValues.join(', ')} 之一`;
+                  } else {
+                    delete newErrors[name];
+                  }
+                }
+                else {
+                  delete newErrors[name];
+                }
+                break;
               default:
                 delete newErrors[name];
             }
@@ -93,8 +156,57 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
             delete newErrors[name];
           }
         } catch (e) {
-          newErrors[name] = `请输入有效的${formData.parameter_type}格式`;
+          if (e instanceof SyntaxError && (formData.parameter_type === 'array' || formData.parameter_type === 'object')) {
+            newErrors[name] = `请输入有效的${formData.parameter_type}格式`;
+          } else if (e instanceof SyntaxError && formData.validation_rules.enum_values) {
+            newErrors.enum_values = '枚举值格式错误，请使用 JSON 数组格式';
+          } else {
+            newErrors[name] = formData.validation_rules.custom_message || `请输入有效的值`;
+          }
         }
+      }
+    }
+    
+    // 验证规则字段验证
+    if (name.startsWith('validation_rules.')) {
+      const ruleName = name.split('.')[1];
+      switch (ruleName) {
+        case 'min':
+        case 'max':
+        case 'min_length':
+        case 'max_length':
+          if (value !== '' && isNaN(Number(value))) {
+            newErrors[name] = '请输入有效的数字';
+          } else {
+            delete newErrors[name];
+          }
+          break;
+        case 'regex':
+          try {
+            if (value !== '') {
+              new RegExp(value);
+            }
+            delete newErrors[name];
+          } catch (e) {
+            newErrors[name] = '正则表达式格式错误';
+          }
+          break;
+        case 'enum_values':
+          try {
+            if (value !== '') {
+              const parsed = JSON.parse(value);
+              if (!Array.isArray(parsed)) {
+                newErrors[name] = '枚举值必须是 JSON 数组格式';
+              } else {
+                delete newErrors[name];
+              }
+            } else {
+              delete newErrors[name];
+            }
+          } catch (e) {
+            newErrors[name] = '枚举值格式错误，请使用 JSON 数组格式';
+          }
+          break;
       }
     }
     
@@ -106,13 +218,24 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
     const { name, value, type, checked } = e.target;
     const newValue = type === 'checkbox' ? checked : value;
     
-    setFormData(prev => ({
-      ...prev,
-      [name]: newValue
-    }));
-    
-    // 实时验证
-    validateField(name, newValue);
+    if (name.startsWith('validation_rules.')) {
+      // 处理验证规则的嵌套对象变更
+      const ruleName = name.split('.')[1];
+      setFormData(prev => ({
+        ...prev,
+        validation_rules: {
+          ...prev.validation_rules,
+          [ruleName]: newValue
+        }
+      }));
+      validateField(name, newValue);
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: newValue
+      }));
+      validateField(name, newValue);
+    }
   };
 
   const handleSubmit = (e) => {
@@ -123,7 +246,13 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
     const allErrors = {
       ...validateField('parameter_name', formData.parameter_name),
       ...validateField('parameter_value', formData.parameter_value),
-      ...validateField('default_value', formData.default_value)
+      ...validateField('default_value', formData.default_value),
+      ...validateField('validation_rules.min', formData.validation_rules.min),
+      ...validateField('validation_rules.max', formData.validation_rules.max),
+      ...validateField('validation_rules.min_length', formData.validation_rules.min_length),
+      ...validateField('validation_rules.max_length', formData.validation_rules.max_length),
+      ...validateField('validation_rules.regex', formData.validation_rules.regex),
+      ...validateField('validation_rules.enum_values', formData.validation_rules.enum_values)
     };
     
     if (Object.keys(allErrors).length === 0) {
@@ -261,6 +390,129 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
               onChange={handleChange}
             />
             <label htmlFor="is_required">必填参数</label>
+          </div>
+
+          <div className="form-section">
+            <h3>验证规则</h3>
+            
+            {/* 数字类型验证规则 */}
+            {formData.parameter_type === 'number' && (
+              <>
+                <div className="form-row">
+                  <div className="form-group half-width">
+                    <label htmlFor="validation_rules.min">最小值</label>
+                    <input
+                      type="number"
+                      id="validation_rules.min"
+                      name="validation_rules.min"
+                      value={formData.validation_rules.min}
+                      onChange={handleChange}
+                      placeholder="例如: 0.1"
+                      step="any"
+                    />
+                    {showValidation && errors['validation_rules.min'] && (
+                      <div className="error-message">{errors['validation_rules.min']}</div>
+                    )}
+                  </div>
+                  
+                  <div className="form-group half-width">
+                    <label htmlFor="validation_rules.max">最大值</label>
+                    <input
+                      type="number"
+                      id="validation_rules.max"
+                      name="validation_rules.max"
+                      value={formData.validation_rules.max}
+                      onChange={handleChange}
+                      placeholder="例如: 1.0"
+                      step="any"
+                    />
+                    {showValidation && errors['validation_rules.max'] && (
+                      <div className="error-message">{errors['validation_rules.max']}</div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+            
+            {/* 字符串类型验证规则 */}
+            {formData.parameter_type === 'string' && (
+              <>
+                <div className="form-group">
+                  <label htmlFor="validation_rules.regex">正则表达式</label>
+                  <input
+                    type="text"
+                    id="validation_rules.regex"
+                    name="validation_rules.regex"
+                    value={formData.validation_rules.regex}
+                    onChange={handleChange}
+                    placeholder="例如: ^[a-zA-Z0-9]+$"
+                  />
+                  {showValidation && errors['validation_rules.regex'] && (
+                    <div className="error-message">{errors['validation_rules.regex']}</div>
+                  )}
+                </div>
+                
+                <div className="form-row">
+                  <div className="form-group half-width">
+                    <label htmlFor="validation_rules.min_length">最小长度</label>
+                    <input
+                      type="number"
+                      id="validation_rules.min_length"
+                      name="validation_rules.min_length"
+                      value={formData.validation_rules.min_length}
+                      onChange={handleChange}
+                      placeholder="例如: 3"
+                    />
+                    {showValidation && errors['validation_rules.min_length'] && (
+                      <div className="error-message">{errors['validation_rules.min_length']}</div>
+                    )}
+                  </div>
+                  
+                  <div className="form-group half-width">
+                    <label htmlFor="validation_rules.max_length">最大长度</label>
+                    <input
+                      type="number"
+                      id="validation_rules.max_length"
+                      name="validation_rules.max_length"
+                      value={formData.validation_rules.max_length}
+                      onChange={handleChange}
+                      placeholder="例如: 20"
+                    />
+                    {showValidation && errors['validation_rules.max_length'] && (
+                      <div className="error-message">{errors['validation_rules.max_length']}</div>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="validation_rules.enum_values">枚举值 (JSON数组)</label>
+                  <input
+                    type="text"
+                    id="validation_rules.enum_values"
+                    name="validation_rules.enum_values"
+                    value={formData.validation_rules.enum_values}
+                    onChange={handleChange}
+                    placeholder='例如: ["option1", "option2"]'
+                  />
+                  {showValidation && errors['validation_rules.enum_values'] && (
+                    <div className="error-message">{errors['validation_rules.enum_values']}</div>
+                  )}
+                </div>
+              </>
+            )}
+            
+            {/* 通用验证规则 */}
+            <div className="form-group">
+              <label htmlFor="validation_rules.custom_message">自定义错误信息</label>
+              <input
+                type="text"
+                id="validation_rules.custom_message"
+                name="validation_rules.custom_message"
+                value={formData.validation_rules.custom_message}
+                onChange={handleChange}
+                placeholder="例如: 请输入有效的值"
+              />
+            </div>
           </div>
 
           <div className="modal-actions">

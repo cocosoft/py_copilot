@@ -131,16 +131,28 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
   useEffect(() => {
     if (mode === 'edit' && model) {
       setFormData({
-        model_id: model.modelId || model.model_id || model.modelName || '',
-        model_name: model.model_name || model.modelName || '', // 修复：优先使用model.model_name
+        model_id: model.modelId || model.model_id || '',
+        model_name: model.modelName || model.model_name || '', // 确保模型名称字段正确设置
         description: model.description || '',
         contextWindow: model.contextWindow || model.context_window || 8000,
-        max_tokens: model.max_tokens || 1000,
+        max_tokens: model.maxTokens || model.max_tokens || 1000,
         model_type: model.modelType?.toString() || model.model_type?.toString() || '',
         parameter_template_id: model.parameter_template_id?.toString() || '',
         isDefault: model.isDefault || model.is_default || false,
-        is_active: model.is_active || true
+        is_active: model.isActive || model.is_active || true
       });
+      // 调试：打印设置的表单数据
+      console.log('设置的表单数据:', JSON.stringify({
+        model_id: model.modelId || model.model_id || '',
+        model_name: model.modelName || model.model_name || '',
+        description: model.description || '',
+        contextWindow: model.contextWindow || model.context_window || 8000,
+        max_tokens: model.maxTokens || model.max_tokens || 1000,
+        model_type: model.modelType?.toString() || model.model_type?.toString() || '',
+        parameter_template_id: model.parameter_template_id?.toString() || '',
+        isDefault: model.isDefault || model.is_default || false,
+        is_active: model.isActive || model.is_active || true
+      }, null, 2));
       // 确保模型LOGO预览使用正确的路径
       let logoPath = model.logo || null;
       if (logoPath && !logoPath.startsWith('http')) {
@@ -214,11 +226,14 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
         // 确保字段命名一致性和类型转换
         contextWindow: parseInt(formData.contextWindow) || 8000,
         maxTokens: parseInt(formData.max_tokens) || 1000,
-        modelType: formData.model_type || 'chat',
+        modelType: formData.model_type || '',
         parameterTemplateId: formData.parameter_template_id || '',
         isDefault: formData.isDefault || false,
         isActive: formData.is_active || true
       };
+      
+      // 调试：打印提交的模型数据
+      console.log('提交的模型数据:', JSON.stringify(modelData, null, 2));
       
       // 调用父组件的保存函数
       await onSave(modelData, logo);
