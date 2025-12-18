@@ -31,8 +31,8 @@ import {
   importKnowledgeBase
 } from '../utils/api/knowledgeApi';
 
-// 设置PDF.js工作路径
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// 设置PDF.js工作路径 - 使用本地worker文件
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
 
 const Knowledge = () => {
   // 状态管理
@@ -80,6 +80,11 @@ const Knowledge = () => {
   const [previewContent, setPreviewContent] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState('');
+  
+  // PDF预览翻页相关状态
+  const [currentPdfPage, setCurrentPdfPage] = useState(1);
+  const [totalPdfPages, setTotalPdfPages] = useState(0);
+  const [pdfDocument, setPdfDocument] = useState(null);
   
   // 更新文档相关状态
   const [updatingDocument, setUpdatingDocument] = useState(false);
@@ -500,12 +505,124 @@ const Knowledge = () => {
     }
   };
   
+  // 渲染PDF页面（使用状态中的pdfDocument）
+  const renderPdfPage = async (pageNumber) => {
+    if (!pdfDocument) return;
+    
+    try {
+      const page = await pdfDocument.getPage(pageNumber);
+      const viewport = page.getViewport({ scale: 1.5 });
+      
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      
+      const context = canvas.getContext('2d');
+      
+      await page.render({
+        canvasContext: context,
+        viewport: viewport
+      }).promise;
+      
+      const dataUrl = canvas.toDataURL();
+      
+      setPreviewContent(
+        <div className="pdf-preview-container">
+          <img src={dataUrl} alt={`PDF预览 - 第${pageNumber}页`} className="pdf-preview-image" />
+          <div className="pdf-pagination">
+            <button 
+              className="pagination-btn" 
+              onClick={() => handlePdfPageChange(pageNumber - 1)}
+              disabled={pageNumber <= 1}
+            >
+              上一页
+            </button>
+            <span className="page-info">
+              第 {pageNumber} 页 / 共 {totalPdfPages} 页
+            </span>
+            <button 
+              className="pagination-btn" 
+              onClick={() => handlePdfPageChange(pageNumber + 1)}
+              disabled={pageNumber >= totalPdfPages}
+            >
+              下一页
+            </button>
+          </div>
+        </div>
+      );
+    } catch (error) {
+      console.error('渲染PDF页面失败:', error);
+      setPreviewError(`渲染第${pageNumber}页失败: ${error.message}`);
+    }
+  };
+
+  // 渲染PDF页面（直接传入PDF文档对象，用于首次加载）
+  const renderPdfPageWithDocument = async (pdfDoc, pageNumber) => {
+    if (!pdfDoc) return;
+    
+    try {
+      const page = await pdfDoc.getPage(pageNumber);
+      const viewport = page.getViewport({ scale: 1.5 });
+      
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      
+      const context = canvas.getContext('2d');
+      
+      await page.render({
+        canvasContext: context,
+        viewport: viewport
+      }).promise;
+      
+      const dataUrl = canvas.toDataURL();
+      
+      setPreviewContent(
+        <div className="pdf-preview-container">
+          <img src={dataUrl} alt={`PDF预览 - 第${pageNumber}页`} className="pdf-preview-image" />
+          <div className="pdf-pagination">
+            <button 
+              className="pagination-btn" 
+              onClick={() => handlePdfPageChange(pageNumber - 1)}
+              disabled={pageNumber <= 1}
+            >
+              上一页
+            </button>
+            <span className="page-info">
+              第 {pageNumber} 页 / 共 {pdfDoc.numPages} 页
+            </span>
+            <button 
+              className="pagination-btn" 
+              onClick={() => handlePdfPageChange(pageNumber + 1)}
+              disabled={pageNumber >= pdfDoc.numPages}
+            >
+              下一页
+            </button>
+          </div>
+        </div>
+      );
+    } catch (error) {
+      console.error('渲染PDF页面失败:', error);
+      setPreviewError(`渲染第${pageNumber}页失败: ${error.message}`);
+    }
+  };
+
+  // 处理PDF翻页
+  const handlePdfPageChange = async (pageNumber) => {
+    if (pageNumber < 1 || pageNumber > totalPdfPages) return;
+    setCurrentPdfPage(pageNumber);
+    await renderPdfPage(pageNumber);
+  };
+
   // 打开文档详情
   const openDocumentDetail = async (documentId) => {
     try {
       setPreviewLoading(true);
       setPreviewError('');
       setPreviewContent(null);
+      setCurrentPdfPage(1);
+      setTotalPdfPages(0);
+      setPdfDocument(null);
       
       const doc = await getDocument(documentId);
       setSelectedDocument(doc);
@@ -522,32 +639,35 @@ const Knowledge = () => {
       if (doc.file_type === '.pdf') {
         // PDF文件预览 - 使用后端下载API
         try {
+          console.log('开始PDF预览流程...');
+          
+          // 1. 下载PDF文件
           const response = await fetch(`/api/v1/knowledge/documents/${documentId}/download`);
-          if (!response.ok) throw new Error('下载PDF失败');
+          if (!response.ok) throw new Error(`下载PDF失败: ${response.status} ${response.statusText}`);
+          console.log('PDF下载成功');
           
           const arrayBuffer = await response.arrayBuffer();
+          console.log('PDF文件大小:', arrayBuffer.byteLength, 'bytes');
+          
+          // 2. 加载PDF文档
           const pdf = await pdfjsLib.getDocument({
             data: arrayBuffer,
-            cMapUrl: `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/cmaps/`,
+            cMapUrl: new URL('pdfjs-dist/cmaps/', import.meta.url).href + '/',
             cMapPacked: true
           }).promise;
+          console.log('PDF文档加载成功，总页数:', pdf.numPages);
           
-          const page = await pdf.getPage(1);
-          const viewport = page.getViewport({ scale: 1 });
-          const canvas = document.createElement('canvas');
-          const context = canvas.getContext('2d');
+          // 保存PDF文档和总页数
+          setPdfDocument(pdf);
+          setTotalPdfPages(pdf.numPages);
           
-          canvas.height = viewport.height;
-          canvas.width = viewport.width;
+          // 3. 渲染第一页 - 直接使用加载的pdf对象，避免状态更新延迟问题
+          await renderPdfPageWithDocument(pdf, 1);
+          console.log('PDF预览设置成功');
           
-          await page.render({
-            canvasContext: context,
-            viewport: viewport
-          }).promise;
-          
-          setPreviewContent(<canvas ref={(el) => el && el.getContext('2d').drawImage(canvas, 0, 0)} width={viewport.width} height={viewport.height} className="pdf-preview" />);
         } catch (pdfError) {
-          setPreviewError('PDF预览失败，显示文本内容');
+          console.error('PDF预览失败:', pdfError);
+          setPreviewError(`PDF预览失败: ${pdfError.message}，显示文本内容`);
           setPreviewContent(doc.content || '文档内容为空');
         }
       } else if (doc.file_type === '.docx' || doc.file_type === '.doc') {

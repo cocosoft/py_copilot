@@ -31,15 +31,15 @@ class SupplierDB(Base):
     @property
     def api_key(self):
         """获取解密后的API密钥"""
-        if self._api_key:
+        if self._api_key is not None:
             try:
                 # 尝试解密
-                return decrypt_string(self._api_key)
+                return decrypt_string(str(self._api_key))
             except Exception as e:
                 # 如果解密失败，可能是因为这是旧的未加密API密钥
                 print(f"Warning: Failed to decrypt API key for supplier {self.name}: {e}")
                 # 返回原始值，但不建议这样做，更好的做法是自动加密
-                return self._api_key
+                return str(self._api_key)
         return None
     
     @api_key.setter
@@ -78,7 +78,7 @@ class ModelDB(Base):
     parameters = relationship("ModelParameter", back_populates="model", cascade="all, delete-orphan")
     model_type = relationship("ModelCategory", back_populates="model_db")
     categories = relationship("ModelCategory", secondary="model_category_associations", back_populates="models")
-    capabilities = relationship("ModelCapability", secondary="model_capability_associations", back_populates="models")
+    capabilities = relationship("app.models.model_capability.ModelCapability", secondary="model_capability_associations", back_populates="models")
     
     # 参数模板关联
     parameter_template_id = Column(Integer, ForeignKey("parameter_templates.id", ondelete="SET NULL"), nullable=True)
