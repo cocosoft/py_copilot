@@ -54,7 +54,7 @@ def get_capabilities(
     
     # 转换结果
     capabilities = []
-    for cap in result.capabilities:
+    for cap in result["capabilities"]:
         capabilities.append(CapabilityResponse(
             id=cap.id,
             name=cap.name,

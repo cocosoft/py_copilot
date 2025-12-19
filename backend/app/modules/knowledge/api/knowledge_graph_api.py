@@ -7,35 +7,20 @@ from app.core.database import get_db
 from app.modules.knowledge.models.knowledge_document import KnowledgeDocument
 from app.services.knowledge.knowledge_graph_service import KnowledgeGraphService
 
-# 导入知识图谱相关的schemas
-from app.modules.knowledge.schemas.knowledge import (
-    EntityExtractionRequest, EntityExtractionResponse,
-    KeywordExtractionRequest, KeywordExtractionResponse,
-    TextSimilarityRequest, TextSimilarityResponse,
-    DocumentChunkRequest, DocumentChunkResponse
-)
-
 # 创建Pydantic模型用于API请求和响应
 from pydantic import BaseModel
+from typing import List, Dict, Any
 
 
-class EntityExtractionRequestFixed(BaseModel):
+class EntityExtractionRequest(BaseModel):
     document_id: int
 
 
-class EntityExtractionResponseFixed(BaseModel):
-    entities: List[Dict[str, Any]]
-    relationships: List[Dict[str, Any]]
+class EntityExtractionResponse(BaseModel):
     success: bool
-
-
-class DocumentChunksRequest(BaseModel):
-    document_id: int
-
-
-class DocumentChunksResponse(BaseModel):
-    chunks: List[Dict[str, Any]]
-    success: bool
+    entities_count: int = 0
+    relationships_count: int = 0
+    error: Optional[str] = None
 
 
 class EntitySearchRequest(BaseModel):
@@ -65,13 +50,16 @@ class DocumentSemanticsResponse(BaseModel):
     semantic_richness: float
 
 
-router = APIRouter()
+router = APIRouter(prefix="/knowledge-graph", tags=["knowledge-graph"])
 knowledge_graph_service = KnowledgeGraphService()
 
 
-@router.post("/extract-entities", response_model=EntityExtractionResponseFixed)
-async def extract_entities(request: EntityExtractionRequestFixed, db: Session = Depends(get_db)):
-    """从文档中提取实体和关系并存储到数据库"""
+@router.post("/extract-entities", response_model=EntityExtractionResponse)
+async def extract_entities(
+    request: EntityExtractionRequest,
+    db: Session = Depends(get_db)
+):
+    """从文档中提取实体和关系"""
     try:
         # 获取文档
         document = db.query(KnowledgeDocument).filter(
@@ -81,101 +69,39 @@ async def extract_entities(request: EntityExtractionRequestFixed, db: Session = 
         if not document:
             raise HTTPException(status_code=404, detail="文档不存在")
         
-        # 提取实体和关系并存储
+        # 提取实体和关系
         result = knowledge_graph_service.extract_and_store_entities(db, document)
         
-        if not result["success"]:
-            raise HTTPException(status_code=500, detail=result.get("error", "提取失败"))
+        return EntityExtractionResponse(**result)
         
-        # 获取存储的实体和关系
-        entities = knowledge_graph_service.get_document_entities(db, request.document_id)
-        relationships = knowledge_graph_service.get_document_relationships(db, request.document_id)
-        
-        return {
-            "entities": entities,
-            "relationships": relationships,
-            "success": True
-        }
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"实体提取失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"提取实体失败: {str(e)}")
 
 
-@router.get("/document/{document_id}/entities", response_model=EntityExtractionResponseFixed)
-async def get_document_entities(document_id: int, db: Session = Depends(get_db)):
-    """获取文档的实体和关系"""
+@router.get("/documents/{document_id}/entities")
+async def get_document_entities(
+    document_id: int,
+    db: Session = Depends(get_db)
+):
+    """获取文档的所有实体"""
     try:
-        # 获取存储的实体和关系
         entities = knowledge_graph_service.get_document_entities(db, document_id)
+        return {"entities": entities}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取实体失败: {str(e)}")
+
+
+@router.get("/documents/{document_id}/relationships")
+async def get_document_relationships(
+    document_id: int,
+    db: Session = Depends(get_db)
+):
+    """获取文档的所有关系"""
+    try:
         relationships = knowledge_graph_service.get_document_relationships(db, document_id)
-        
-        return {
-            "entities": entities,
-            "relationships": relationships,
-            "success": True
-        }
+        return {"relationships": relationships}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取文档实体失败: {str(e)}")
-
-
-@router.post("/extract-keywords", response_model=KeywordExtractionResponse)
-async def extract_keywords(request: KeywordExtractionRequest):
-    """提取文本关键词"""
-    try:
-        keywords = knowledge_graph_service.text_processor.extract_keywords(request.text, request.max_keywords)
-        # 转换关键词格式，将"word"字段改为"text"字段
-        formatted_keywords = []
-        for keyword in keywords:
-            if "word" in keyword:
-                formatted_keywords.append({"text": keyword["word"]})
-            else:
-                formatted_keywords.append(keyword)
-        
-        return {
-            "keywords": formatted_keywords,
-            "success": True
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"关键词提取失败: {str(e)}")
-
-
-@router.post("/calculate-similarity", response_model=TextSimilarityResponse)
-async def calculate_text_similarity(request: TextSimilarityRequest):
-    """计算文本相似度"""
-    try:
-        similarity = knowledge_graph_service.text_processor.calculate_similarity(request.text1, request.text2)
-        return {
-            "similarity": similarity,
-            "success": True
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"相似度计算失败: {str(e)}")
-
-
-@router.post("/get-document-chunks", response_model=DocumentChunksResponse)
-async def get_document_chunks(request: DocumentChunksRequest, db: Session = Depends(get_db)):
-    """获取文档的分块信息"""
-    try:
-        # 获取文档
-        document = db.query(KnowledgeDocument).filter(
-            KnowledgeDocument.id == request.document_id
-        ).first()
-        
-        if not document:
-            raise HTTPException(status_code=404, detail="文档不存在")
-        
-        # 使用高级文本处理器进行分块
-        chunks = knowledge_graph_service.text_processor.semantic_chunking(document.content)
-        
-        return {
-            "chunks": chunks,
-            "success": True
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取文档分块失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"获取关系失败: {str(e)}")
 
 
 @router.get("/search-entities")

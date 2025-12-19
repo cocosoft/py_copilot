@@ -4,6 +4,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from app.core.database import engine, Base
 from app.modules.knowledge.models.knowledge_document import KnowledgeBase, KnowledgeDocument, KnowledgeTag
+from app.modules.workflow.models.workflow import Workflow, WorkflowExecution, WorkflowNode, NodeExecution
 
 # 创建所有表
 Base.metadata.create_all(bind=engine)

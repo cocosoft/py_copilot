@@ -4,6 +4,9 @@ from sqlalchemy.orm import relationship
 
 from app.core.database import Base
 
+# 导入ModelDB类以避免关系解析错误
+from app.models.supplier_db import ModelDB
+
 
 class ModelCapability(Base):
     """模型能力表模型"""
@@ -40,8 +43,8 @@ class ModelCapability(Base):
     logo = Column(Text, nullable=True)  # SVG格式的logo数据
     
     # 关系定义
-    # 与模型的多对多关系
-    models = relationship("ModelDB", secondary="model_capability_associations", back_populates="capabilities")
+    # 与模型的多对多关系（使用字符串形式避免导入循环）
+    models = relationship("app.models.supplier_db.ModelDB", secondary="model_capability_associations", back_populates="capabilities")
     
     def __repr__(self):
         return f"<ModelCapability(id={self.id}, name='{self.name}', display_name='{self.display_name}')>"

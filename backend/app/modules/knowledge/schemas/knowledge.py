@@ -139,6 +139,44 @@ class AdvancedSearchResponse(BaseModel):
     count: int
     search_type: str
 
+# Semantic Search Schemas
+class SemanticSearchRequest(BaseModel):
+    query: str
+    n_results: Optional[int] = 10
+    knowledge_base_id: Optional[int] = None
+    use_entities: Optional[bool] = True
+    use_synonyms: Optional[bool] = True
+    boost_recent: Optional[bool] = True
+    semantic_boost: Optional[float] = 0.3
+
+class SearchSuggestionRequest(BaseModel):
+    query: str
+    n_suggestions: Optional[int] = 5
+    knowledge_base_id: Optional[int] = None
+
+class SearchSuggestion(BaseModel):
+    suggestion: str
+    score: float
+    type: str  # "synonym", "expansion", "correction"
+
+class SearchSuggestionResponse(BaseModel):
+    query: str
+    suggestions: List[SearchSuggestion]
+    count: int
+
+class SearchAnalysis(BaseModel):
+    query_complexity: str  # "simple", "medium", "complex"
+    entity_usage: bool
+    synonym_usage: bool
+    semantic_boost: float
+    result_quality: str  # "high", "medium", "low"
+    suggestions: List[str]
+
+class SearchAnalysisResponse(BaseModel):
+    query: str
+    analysis: SearchAnalysis
+    recommendations: List[str]
+
 # Knowledge Document Chunk Schemas
 class KnowledgeDocumentChunk(BaseModel):
     id: int
