@@ -63,7 +63,7 @@ const KnowledgeGraph = ({ documentId, textContent, width = 800, height = 600 }) 
     }));
     
     // 预处理关系：确保source和target是对象引用
-    const processedRelationships = relationships.map(rel => ({
+    const processedRelationships = (relationships || []).map(rel => ({
       ...rel,
       source: processedEntities.find(e => e.text === rel.subject) || { id: -1 },
       target: processedEntities.find(e => e.text === rel.object) || { id: -1 }

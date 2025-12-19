@@ -50,7 +50,7 @@ class DocumentSemanticsResponse(BaseModel):
     semantic_richness: float
 
 
-router = APIRouter(prefix="/knowledge-graph", tags=["knowledge-graph"])
+router = APIRouter(tags=["knowledge-graph"])
 knowledge_graph_service = KnowledgeGraphService()
 
 
@@ -90,6 +90,15 @@ async def get_document_entities(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取实体失败: {str(e)}")
 
+# 添加单数形式的路由以兼容前端请求
+@router.get("/document/{document_id}/entities")
+async def get_document_entities_singular(
+    document_id: int,
+    db: Session = Depends(get_db)
+):
+    """获取文档的所有实体（单数形式路由，兼容前端请求）"""
+    return await get_document_entities(document_id, db)
+
 
 @router.get("/documents/{document_id}/relationships")
 async def get_document_relationships(
@@ -102,6 +111,15 @@ async def get_document_relationships(
         return {"relationships": relationships}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取关系失败: {str(e)}")
+
+# 添加单数形式的路由以兼容前端请求
+@router.get("/document/{document_id}/relationships")
+async def get_document_relationships_singular(
+    document_id: int,
+    db: Session = Depends(get_db)
+):
+    """获取文档的所有关系（单数形式路由，兼容前端请求）"""
+    return await get_document_relationships(document_id, db)
 
 
 @router.get("/search-entities")

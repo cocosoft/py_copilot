@@ -204,49 +204,8 @@ const Settings = () => {
               </div>
             )}
           </div>
-        );
-      
-      case 'personal':
-        return (
-          <div className="settings-content">
-            <div className="content-header">
-              <h2>个人中心</h2>
-              <p>管理您的账户、通知、隐私和账单设置</p>
-            </div>
-            <div className="personal-center-container">
-              <div className="personal-section">
-                <h3>账户设置</h3>
-                <p className="placeholder-text">账户设置内容将在这里显示...</p>
-              </div>
-              <div className="personal-section">
-                <h3>通知设置</h3>
-                <p className="placeholder-text">通知设置内容将在这里显示...</p>
-              </div>
-              <div className="personal-section">
-                <h3>隐私设置</h3>
-                <p className="placeholder-text">隐私设置内容将在这里显示...</p>
-              </div>
-              <div className="personal-section">
-                <h3>账单管理</h3>
-                <p className="placeholder-text">账单管理内容将在这里显示...</p>
-              </div>
-            </div>
-          </div>
-        );
-        
-      case 'help':
-        return (
-          <div className="settings-content">
-            <div className="content-header">
-              <h2>帮助中心</h2>
-              <p>获取Py Copilot的使用帮助和常见问题解答</p>
-            </div>
-            <p className="placeholder-text">帮助中心内容将在这里显示...</p>
-          </div>
-        );
-        
-      
-        
+        );      
+           
       default:
         return (
           <div className="settings-content">

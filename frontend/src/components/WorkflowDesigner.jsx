@@ -8,7 +8,8 @@ import ReactFlow, {
   MiniMap,
   Background,
   Handle,
-  Position
+  Position,
+  useReactFlow
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import './WorkflowDesigner.css';
@@ -1016,7 +1017,7 @@ const WorkflowDesigner = ({ workflow, onSave, onExecute }) => {
   const [workflowName, setWorkflowName] = useState(workflow?.name || '新工作流');
   const [workflowVariables, setWorkflowVariables] = useState(workflow?.variables || []);
   const [showVariableManager, setShowVariableManager] = useState(false);
-  const reactFlowInstance = ReactFlow.useReactFlowInstance();
+  const [reactFlowInstance, setReactFlowInstance] = useState(null); // 使用状态存储reactFlowInstance
   
   // 当workflow变化时，加载已保存的节点和边
   useEffect(() => {
@@ -1120,7 +1121,7 @@ const WorkflowDesigner = ({ workflow, onSave, onExecute }) => {
 
       setNodes((nds) => nds.concat(newNode));
     },
-    [setNodes]
+    [setNodes, reactFlowInstance]
   );
 
   // 优化拖拽过程中的视觉反馈
@@ -1339,6 +1340,7 @@ const WorkflowDesigner = ({ workflow, onSave, onExecute }) => {
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
                 onConnect={onConnect}
+                onInit={setReactFlowInstance}
                 onDrop={onDrop}
                 onDragOver={onDragOver}
                 onDragLeave={onDragLeave}

@@ -19,8 +19,7 @@ from app.modules.capability_category.api.model_categories import router as model
 from app.api.v1.agents import router as agents_router
 from app.api.v1.agent_categories import router as agent_categories_router
 from app.modules.knowledge.api.knowledge import router as knowledge_router
-from app.modules.knowledge.api.knowledge_graph import router as knowledge_graph_router
-from app.modules.knowledge.api.semantic_search import router as semantic_search_router
+from app.modules.knowledge.api.knowledge_graph_api import router as knowledge_graph_router
 from app.modules.workflow.api.workflow import router as workflow_router
 from app.api.v1.search_management import router as search_management_router
 
@@ -53,6 +52,5 @@ api_router.include_router(agents_router, prefix="/agents", tags=["agents"])
 api_router.include_router(agent_categories_router, prefix="/agent-categories", tags=["agent-categories"])
 api_router.include_router(knowledge_router, prefix="/knowledge", tags=["knowledge"])
 api_router.include_router(knowledge_graph_router, prefix="/knowledge-graph", tags=["knowledge-graph"])
-api_router.include_router(semantic_search_router, tags=["semantic-search"])
 api_router.include_router(workflow_router, tags=["workflows"])
 api_router.include_router(search_management_router)

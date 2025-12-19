@@ -14,7 +14,11 @@
   font-weight: 600;
   margin: 0;
 }
-
+.help-header p {
+  font-size: 14px;
+  color: #7f8c8d;
+  margin: 0;
+}
 .help-content-wrapper {
   display: flex;
   gap: 20px;

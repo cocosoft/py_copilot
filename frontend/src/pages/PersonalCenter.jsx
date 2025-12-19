@@ -95,6 +95,7 @@ const PersonalCenter = () => {
     <div className="help-center-container">
       <div className="help-header">
         <h1>个人中心</h1>
+        <p>管理您的账户、通知、隐私和账单设置</p>
       </div>
       <div className="help-content-wrapper">
         {/* 左侧导航菜单 */}

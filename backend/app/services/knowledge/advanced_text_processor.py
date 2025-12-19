@@ -1,5 +1,6 @@
 import re
 import logging
+import jieba
 from typing import List, Dict, Any, Tuple, Optional
 
 logger = logging.getLogger(__name__)
@@ -8,18 +9,16 @@ class AdvancedTextProcessor:
     """高级文本处理模块，提供智能分块、实体识别等功能"""
     
     def __init__(self):
-        # 尝试导入spacy，如果不可用则使用基于规则的处理
+        # 初始化jieba中文分词器
         try:
-            import spacy
-            # 尝试加载spacy中文模型
-            self.nlp = spacy.load("zh_core_web_sm")
-            self.use_spacy = True
-            logger.info("spacy中文模型加载成功，启用高级NLP功能")
-        except (OSError, ImportError) as e:
-            # 如果spacy模型不可用，使用基于规则的简单处理
-            self.nlp = None
-            self.use_spacy = False
-            logger.warning(f"spacy中文模型未安装或加载失败: {e}，使用基于规则的处理")
+            # 初始化jieba
+            jieba.initialize()
+            self.use_jieba = True
+            logger.info("jieba中文分词器加载成功，启用中文处理功能")
+        except Exception as e:
+            # 如果jieba不可用，使用基于规则的简单处理
+            self.use_jieba = False
+            logger.warning(f"jieba初始化失败: {e}，使用基于规则的处理")
     
     def clean_text(self, text: str) -> str:
         """清理文本，移除多余空格和特殊字符"""
@@ -48,28 +47,26 @@ class AdvancedTextProcessor:
         Returns:
             分块后的文本列表
         """
-        
-        if self.use_spacy and self.nlp:
-            # 使用spacy进行智能分块
-            return self._spacy_semantic_chunking(text, max_chunk_size, min_chunk_size, overlap, semantic_threshold)
+        if self.use_jieba:
+            # 使用jieba分词优化的分块方法
+            return self._jieba_semantic_chunking(text, max_chunk_size, min_chunk_size, overlap)
         else:
             # 使用基于规则的分块
             return self._rule_based_chunking(text, max_chunk_size, min_chunk_size, overlap)
     
-    def _spacy_semantic_chunking(self, text: str, max_chunk_size: int, 
-                                min_chunk_size: int, overlap: int = 100,
-                                semantic_threshold: float = 0.7) -> List[str]:
-        """使用spacy进行语义分块，包含语义相似度检测和重叠窗口优化"""
-        doc = self.nlp(text)
-        chunks = []
-        current_chunk = ""
-        current_size = 0
-        
-        # 获取所有句子
-        sentences = [sent.text.strip() for sent in doc.sents if sent.text.strip()]
+    def _jieba_semantic_chunking(self, text: str, max_chunk_size: int, 
+                                min_chunk_size: int, overlap: int = 100) -> List[str]:
+        """使用jieba分词进行语义分块，包含重叠窗口优化"""
+        # 先使用句子边界分割
+        sentences = re.split(r'[.!?。！？]+', text)
+        sentences = [s.strip() for s in sentences if s.strip()]
         
         if not sentences:
             return []
+            
+        chunks = []
+        current_chunk = ""
+        current_size = 0
         
         i = 0
         while i < len(sentences):
@@ -82,20 +79,6 @@ class AdvancedTextProcessor:
                 current_size += sentence_size
                 i += 1
             else:
-                # 检查是否需要语义分割
-                if current_chunk and i < len(sentences):
-                    # 计算当前块与下一句子的语义相似度
-                    next_sentence = sentences[i]
-                    similarity = self.calculate_similarity(current_chunk, next_sentence)
-                    
-                    # 如果相似度低于阈值，进行分割
-                    if similarity < semantic_threshold and current_size >= min_chunk_size:
-                        chunks.append(current_chunk.strip())
-                        current_chunk = ""
-                        current_size = 0
-                        # 不增加i，下一轮继续处理当前句子
-                        continue
-                
                 # 如果当前块不为空且达到最小大小，则保存
                 if current_chunk and current_size >= min_chunk_size:
                     chunks.append(current_chunk.strip())
@@ -171,40 +154,27 @@ class AdvancedTextProcessor:
     
     def extract_entities_relationships(self, text: str) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         """提取实体和关系"""
-        
-        if self.use_spacy and self.nlp:
-            # 使用spacy进行实体识别
-            return self._spacy_entity_extraction(text)
-        else:
-            # 使用基于规则的实体识别
-            return self._rule_based_entity_extraction(text)
+        # 使用基于规则的实体识别，结合jieba分词优化
+        return self._rule_based_entity_extraction(text)
     
-    def _spacy_entity_extraction(self, text: str) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-        """使用spacy提取实体和关系"""
-        doc = self.nlp(text)
-        entities = []
-        relationships = []
+    def _jieba_keyword_extraction(self, text: str, top_n: int = 10) -> List[Dict[str, Any]]:
+        """使用jieba提取关键词"""
+        # 使用jieba的关键词提取功能
+        from collections import Counter
         
-        # 提取命名实体
-        for ent in doc.ents:
-            entities.append({
-                "text": ent.text,
-                "type": ent.label_,
-                "start_pos": ent.start_char,
-                "end_pos": ent.end_char
-            })
+        # 分词
+        words = list(jieba.cut(text))
         
-        # 提取依存关系（简化版本）
-        for token in doc:
-            if token.dep_ in ["nsubj", "dobj", "pobj"] and token.head.pos_ in ["NOUN", "PROPN"]:
-                relationships.append({
-                    "subject": token.head.text,
-                    "relation": token.dep_,
-                    "object": token.text,
-                    "confidence": 0.7
-                })
+        # 过滤停用词
+        stop_words = {'的', '是', '在', '和', '与', '或', '了', '着', '过', '地', '得', '啊', '呢', '吧', '吗', '我', '你', '他', '她', '它'}
+        filtered_words = [word for word in words if word not in stop_words and len(word) > 1]
         
-        return entities, relationships
+        # 统计词频
+        word_freq = Counter(filtered_words)
+        
+        # 返回前top_n个关键词
+        top_keywords = word_freq.most_common(top_n)
+        return [{"word": word, "frequency": freq} for word, freq in top_keywords]
     
     def _rule_based_entity_extraction(self, text: str) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         """基于规则的实体识别（优化版本）"""
@@ -370,31 +340,14 @@ class AdvancedTextProcessor:
     
     def extract_keywords(self, text: str, top_n: int = 10) -> List[Dict[str, Any]]:
         """提取关键词"""
-        
-        if self.use_spacy and self.nlp:
-            # 使用spacy提取关键词
-            return self._spacy_keyword_extraction(text, top_n)
+        if self.use_jieba:
+            # 使用jieba提取关键词
+            return self._jieba_keyword_extraction(text, top_n)
         else:
             # 使用基于词频的关键词提取
             return self._frequency_based_keyword_extraction(text, top_n)
     
-    def _spacy_keyword_extraction(self, text: str, top_n: int) -> List[Dict[str, Any]]:
-        """使用spacy提取关键词"""
-        doc = self.nlp(text)
-        
-        # 提取名词和专有名词作为关键词候选
-        keywords = []
-        for token in doc:
-            if token.pos_ in ["NOUN", "PROPN"] and not token.is_stop:
-                keywords.append(token.text)
-        
-        # 统计词频
-        from collections import Counter
-        keyword_freq = Counter(keywords)
-        
-        # 返回前top_n个关键词
-        top_keywords = keyword_freq.most_common(top_n)
-        return [{"word": word, "frequency": freq} for word, freq in top_keywords]
+
     
     def _frequency_based_keyword_extraction(self, text: str, top_n: int) -> List[Dict[str, Any]]:
         """基于词频的关键词提取"""
@@ -415,24 +368,18 @@ class AdvancedTextProcessor:
     
     def calculate_similarity(self, text1: str, text2: str) -> float:
         """计算文本相似度"""
-        
-        if self.use_spacy and self.nlp:
-            # 使用spacy计算相似度
-            doc1 = self.nlp(text1)
-            doc2 = self.nlp(text2)
-            return doc1.similarity(doc2)
+        # 使用基于Jaccard相似度的计算，结合jieba分词优化
+        if self.use_jieba:
+            # 分词后计算相似度
+            words1 = set(jieba.cut(text1))
+            words2 = set(jieba.cut(text2))
         else:
-            # 使用基于Jaccard相似度的简单计算
-            return self._jaccard_similarity(text1, text2)
-    
-    def _jaccard_similarity(self, text1: str, text2: str) -> float:
-        """基于Jaccard相似度的计算"""
-        # 改进的中文分词，使用更细粒度的分词
-        words1 = set(re.findall(r'[\u4e00-\u9fff]{1,4}|[a-zA-Z]{2,}', text1))
-        words2 = set(re.findall(r'[\u4e00-\u9fff]{1,4}|[a-zA-Z]{2,}', text2))
+            # 基于字符的相似度计算
+            words1 = set(re.findall(r'[\u4e00-\u9fff]{1,4}|[a-zA-Z]{2,}', text1))
+            words2 = set(re.findall(r'[\u4e00-\u9fff]{1,4}|[a-zA-Z]{2,}', text2))
         
         # 过滤停用词
-        stop_words = {'的', '是', '在', '和', '与', '或', '了', '着', '过', '地', '得', '啊', '呢', '吧', '吗', '一个', '一种', '这个', '那个'}
+        stop_words = {'的', '是', '在', '和', '与', '或', '了', '着', '过', '地', '得', '啊', '呢', '吧', '吗'}
         words1 = {word for word in words1 if word not in stop_words and len(word) > 1}
         words2 = {word for word in words2 if word not in stop_words and len(word) > 1}
         
@@ -443,12 +390,6 @@ class AdvancedTextProcessor:
         union = len(words1.union(words2))
         
         similarity = intersection / union if union > 0 else 0.0
-        
-        # 如果相似度太低，尝试使用字符级别的相似度作为补充
-        if similarity < 0.1:
-            char_similarity = self._character_similarity(text1, text2)
-            # 结合两种相似度
-            similarity = max(similarity, char_similarity * 0.3)
         
         return similarity
     
@@ -512,66 +453,51 @@ class AdvancedTextProcessor:
         Returns:
             分块后的文本列表
         """
-        
-        if self.use_spacy and self.nlp:
-            return self._adaptive_spacy_chunking(text, target_chunk_size, min_chunk_size, 
-                                               max_chunk_size, semantic_threshold)
+        if self.use_jieba:
+            # 使用jieba优化的自适应分块
+            return self._adaptive_jieba_chunking(text, target_chunk_size, min_chunk_size, max_chunk_size)
         else:
-            return self._adaptive_rule_based_chunking(text, target_chunk_size, min_chunk_size, 
-                                                    max_chunk_size)
+            return self._adaptive_rule_based_chunking(text, target_chunk_size, min_chunk_size, max_chunk_size)
     
-    def _adaptive_spacy_chunking(self, text: str, target_chunk_size: int, min_chunk_size: int,
-                                max_chunk_size: int, semantic_threshold: float) -> List[str]:
-        """使用spacy的自适应分块"""
-        doc = self.nlp(text)
-        chunks = []
-        current_chunk = ""
-        current_size = 0
-        
-        sentences = [sent.text.strip() for sent in doc.sents if sent.text.strip()]
+    def _adaptive_jieba_chunking(self, text: str, target_chunk_size: int, min_chunk_size: int,
+                                max_chunk_size: int) -> List[str]:
+        """使用jieba的自适应分块"""
+        # 使用句子边界分割
+        sentences = re.split(r'[.!?。！？]+', text)
+        sentences = [s.strip() for s in sentences if s.strip()]
         
         if not sentences:
             return []
+        
+        chunks = []
+        current_chunk = ""
+        current_size = 0
         
         i = 0
         while i < len(sentences):
             sentence = sentences[i]
             sentence_size = len(sentence)
             
-            # 动态调整块大小：根据语义连贯性调整
-            if current_chunk and i < len(sentences):
-                next_sentence = sentences[i]
-                similarity = self.calculate_similarity(current_chunk, next_sentence)
-                
-                # 如果语义相似度高，允许更大的块
-                if similarity > semantic_threshold + 0.2:
-                    effective_max_size = max_chunk_size + 200
-                # 如果语义相似度低，使用更小的块
-                elif similarity < semantic_threshold - 0.2:
-                    effective_max_size = min(max_chunk_size - 200, target_chunk_size)
-                else:
-                    effective_max_size = max_chunk_size
-            else:
+            # 简单的自适应：根据当前块大小调整
+            if current_size < target_chunk_size:
                 effective_max_size = max_chunk_size
+            else:
+                effective_max_size = target_chunk_size
             
-            # 如果当前块加上新句子不超过有效最大大小，则添加到当前块
             if current_size + sentence_size <= effective_max_size:
                 current_chunk += " " + sentence if current_chunk else sentence
                 current_size += sentence_size
                 i += 1
             else:
-                # 如果当前块达到最小大小，则保存
                 if current_chunk and current_size >= min_chunk_size:
                     chunks.append(current_chunk.strip())
                     current_chunk = ""
                     current_size = 0
                 else:
-                    # 如果当前块太小，强制添加下一句子
                     current_chunk += " " + sentence if current_chunk else sentence
                     current_size += sentence_size
                     i += 1
         
-        # 添加最后一个块
         if current_chunk and current_size >= min_chunk_size:
             chunks.append(current_chunk.strip())
         

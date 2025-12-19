@@ -125,6 +125,7 @@ const HelpCenter = () => {
     <div className="help-center-container">
       <div className="help-header">
         <h1>帮助中心</h1>
+        <p>欢迎来到Py Copilot的帮助中心，在这里，你可以找到有关如何使用Py Copilot的帮助文件和常见问题解答。</p>
       </div>
       <div className="help-content-wrapper">
         {/* 左侧导航菜单 */}

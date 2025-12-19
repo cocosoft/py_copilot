@@ -296,3 +296,4 @@ backend/test_db.py
 backend/fix_db.py
 backend/create_search_table_raw.py
 backend/create_search_table.py
+backend/py_copilot_202512200023.zip
