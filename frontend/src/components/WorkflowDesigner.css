@@ -1,0 +1,617 @@
+.workflow-designer {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: #f8f9fa;
+}
+
+.designer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background-color: white;
+  border-bottom: 1px solid #e9ecef;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.workflow-name-input {
+  font-size: 24px;
+  font-weight: 600;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #2c3e50;
+  width: 300px;
+}
+
+.workflow-name-input::placeholder {
+  color: #6c757d;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.save-button, .execute-button, .delete-node-button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.save-button {
+  background-color: #28a745;
+  color: white;
+}
+
+.save-button:hover {
+  background-color: #218838;
+}
+
+.execute-button {
+  background-color: #007bff;
+  color: white;
+}
+
+.execute-button:hover {
+  background-color: #0056b3;
+}
+
+.delete-node-button {
+  background-color: #dc3545;
+  color: white;
+  margin-bottom: 16px;
+}
+
+.delete-node-button:hover {
+  background-color: #c82333;
+}
+
+.designer-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.node-panel {
+  width: 250px;
+  background-color: white;
+  border-right: 1px solid #e9ecef;
+  overflow-y: auto;
+}
+
+.node-panel-header {
+  padding: 16px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.node-search-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.node-search-input:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.node-category {
+  border-bottom: 1px solid #e9ecef;
+}
+
+.node-category-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: #f8f9fa;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.node-category-header:hover {
+  background-color: #e9ecef;
+}
+
+.node-category-header h3 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.category-toggle {
+  font-size: 12px;
+  color: #6c757d;
+  transition: transform 0.2s;
+}
+
+.category-toggle.expanded {
+  transform: rotate(0deg);
+}
+
+.node-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 16px 16px;
+}
+
+.node-item {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.node-item:hover {
+  background-color: #e9ecef;
+  border-color: #007bff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s;
+}
+
+.node-item:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 拖拽过程中的视觉反馈 */
+.reactflow-wrapper.drag-over {
+  background-color: rgba(0, 123, 255, 0.05);
+  border: 2px dashed #007bff;
+  border-radius: 6px;
+}
+
+/* 节点拖拽时的样式 */
+.node-item[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+/* 网格背景样式（可选） */
+.react-flow__background {
+  background-size: 20px 20px;
+  background-image: linear-gradient(to right, rgba(0, 0, 0, 0.05) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+}
+
+.node-icon {
+  font-size: 20px;
+  margin-right: 12px;
+}
+
+.node-info {
+  flex: 1;
+}
+
+/* 变量管理样式 */
+.variable-manager-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.variable-manager-content {
+  background-color: white;
+  border-radius: 8px;
+  width: 80%;
+  max-width: 1000px;
+  max-height: 80%;
+  overflow-y: auto;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.close-button:hover {
+  background-color: #f5f5f5;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.variables-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+}
+
+.variables-table th,
+.variables-table td {
+  padding: 8px;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.variables-table th {
+  background-color: #f5f5f5;
+  font-weight: 600;
+}
+
+.variables-table input,
+.variables-table select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.variables-table .delete-button {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.variables-table .delete-button:hover {
+  background-color: #c82333;
+}
+
+.add-variable-button {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.add-variable-button:hover {
+  background-color: #218838;
+}
+
+/* 数据映射样式 */
+.data-mapping-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.data-mapping-section h4 {
+  margin-top: 0;
+  font-size: 16px;
+  margin-bottom: 15px;
+}
+
+.header-actions .variable-button {
+  background-color: #6f42c1;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: 8px;
+  font-size: 14px;
+}
+
+.header-actions .variable-button:hover {
+  background-color: #5a32a3;
+}
+
+
+.node-name {
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 2px;
+}
+
+.node-description {
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.flow-container {
+  flex: 1;
+  background-color: #f8f9fa;
+}
+
+.reactflow-wrapper {
+  width: 100%;
+  height: 100%;
+}
+
+.config-panel {
+  width: 300px;
+  background-color: white;
+  border-left: 1px solid #e9ecef;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.config-panel h3 {
+  margin: 0 0 16px 0;
+  color: #2c3e50;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.config-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-weight: 600;
+  color: #495057;
+  font-size: 14px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #007bff;
+}
+
+.checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: normal;
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  margin: 0;
+}
+
+/* 节点样式 */
+.knowledge-search-node,
+.entity-extraction-node,
+.relationship-analysis-node,
+.visualization-node {
+  background: white;
+  border: 2px solid #007bff;
+  border-radius: 8px;
+  padding: 12px;
+  min-width: 200px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.knowledge-search-node {
+  border-color: #28a745;
+}
+
+.entity-extraction-node {
+  border-color: #ffc107;
+}
+
+.relationship-analysis-node {
+  border-color: #e83e8c;
+}
+
+.visualization-node {
+  border-color: #6f42c1;
+}
+
+/* 基础节点样式 */
+.start-node,
+.end-node,
+.branch-node,
+.condition-node {
+  background: white;
+  border: 2px solid #007bff;
+  border-radius: 8px;
+  padding: 12px;
+  min-width: 200px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.start-node {
+  border-color: #28a745;
+}
+
+.end-node {
+  border-color: #dc3545;
+}
+
+.branch-node {
+  border-color: #ffc107;
+}
+
+.condition-node {
+  border-color: #17a2b8;
+}
+
+/* 节点分类样式 */
+.node-category {
+  margin-bottom: 24px;
+}
+
+.node-category h3 {
+  margin: 0 0 16px 0;
+  color: #2c3e50;
+  font-size: 16px;
+  font-weight: 600;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.node-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  border-bottom: 1px solid #e9ecef;
+  padding-bottom: 8px;
+}
+
+.node-icon {
+  font-size: 16px;
+  margin-right: 8px;
+}
+
+.node-title {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.node-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.node-property {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.node-property label {
+  font-weight: 600;
+  color: #6c757d;
+}
+
+.node-property span {
+  color: #495057;
+  text-align: right;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* React Flow 自定义样式 */
+.react-flow__node {
+  cursor: pointer;
+}
+
+.react-flow__node.selected {
+  box-shadow: 0 0 0 2px #007bff;
+}
+
+.react-flow__handle {
+  width: 8px;
+  height: 8px;
+  background: #007bff;
+  border: 2px solid white;
+}
+
+.react-flow__handle-top {
+  top: -4px;
+}
+
+.react-flow__handle-bottom {
+  bottom: -4px;
+}
+
+.react-flow__edge-path {
+  stroke: #007bff;
+  stroke-width: 2;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: #0056b3;
+  stroke-width: 3;
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+  .designer-content {
+    flex-direction: column;
+  }
+  
+  .node-panel,
+  .config-panel {
+    width: 100%;
+    height: 200px;
+  }
+  
+  .flow-container {
+    height: 400px;
+  }
+}
+
+/* 动画效果 */
+.node-item,
+.save-button,
+.execute-button {
+  transition: all 0.3s ease;
+}
+
+.node-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.save-button:hover,
+.execute-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}

@@ -70,11 +70,11 @@ export const capabilityApi = {
   },
   
   // 更新能力
-  update: async (capabilityId, updatedData) => {
+  update: async (capabilityId, capabilityData) => {
     try {
       return await request(`/v1/capabilities/${capabilityId}`, {
         method: 'PUT',
-        body: JSON.stringify(updatedData),
+        body: JSON.stringify(capabilityData),
         headers: {
           'Content-Type': 'application/json'
         }
@@ -97,17 +97,17 @@ export const capabilityApi = {
     }
   },
   
-  // 获取能力分类
-  getTypes: async () => {
-    try {
-      return await request('/v1/capabilities/types', {
-        method: 'GET'
-      });
-    } catch (error) {
-      console.error('获取能力分类失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
-      throw error;
-    }
-  },
+  // 获取能力类型列表（后端未实现，暂时注释）
+  // getTypes: async () => {
+  //   try {
+  //     return await request('/v1/capabilities/types', {
+  //       method: 'GET'
+  //     });
+  //   } catch (error) {
+  //     console.error('获取能力分类失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+  //     throw error;
+  //   }
+  // },
   
   // 添加模型能力关联
   addModelCapability: async (modelId, capabilityId, value = null) => {

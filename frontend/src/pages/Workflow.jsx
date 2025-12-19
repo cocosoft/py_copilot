@@ -1,55 +1,59 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import WorkflowDesigner from '../components/WorkflowDesigner';
+import workflowService from '../services/workflowService';
 import './workflow.css';
 
 const Workflow = () => {
   const [selectedWorkflow, setSelectedWorkflow] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showDesigner, setShowDesigner] = useState(false);
+  const [editingWorkflow, setEditingWorkflow] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
+  const [workflows, setWorkflows] = useState([]);
+  const [executions, setExecutions] = useState([]);
+  const [selectedExecution, setSelectedExecution] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // 示例工作流数据
-  const workflows = [
-    {
-      id: 1,
-      name: '文档生成工作流',
-      description: '自动从数据生成PDF和Word文档',
-      steps: 4,
-      status: 'active',
-      createdAt: '2023-06-15',
-      lastRun: '2023-06-20',
-      icon: '📄'
-    },
-    {
-      id: 2,
-      name: '图像预处理工作流',
-      description: '批量调整图像大小和格式转换',
-      steps: 3,
-      status: 'active',
-      createdAt: '2023-06-10',
-      lastRun: '2023-06-18',
-      icon: '🖼️'
-    },
-    {
-      id: 3,
-      name: '数据清洗管道',
-      description: '数据去重、格式化和验证',
-      steps: 5,
-      status: 'inactive',
-      createdAt: '2023-05-25',
-      lastRun: '2023-06-10',
-      icon: '🧹'
-    },
-    {
-      id: 4,
-      name: '多语言翻译流程',
-      description: '批量文档多语言翻译',
-      steps: 4,
-      status: 'active',
-      createdAt: '2023-06-05',
-      lastRun: '2023-06-15',
-      icon: '🌐'
+  useEffect(() => {
+    loadWorkflows();
+    loadExecutions();
+  }, []);
+
+  const loadWorkflows = async () => {
+    try {
+      setLoading(true);
+      const data = await workflowService.getWorkflows();
+      
+      // 计算每个工作流的步骤数量
+      const workflowsWithSteps = data.map(workflow => {
+        // 计算definition.nodes数组的长度作为步骤数量
+        const stepCount = workflow.definition?.nodes?.length || 0;
+        return {
+          ...workflow,
+          steps: stepCount
+        };
+      });
+      
+      setWorkflows(workflowsWithSteps);
+    } catch (err) {
+      setError('加载工作流失败: ' + err.message);
+      console.error('加载工作流失败:', err);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  const loadExecutions = async () => {
+    try {
+      const data = await workflowService.getWorkflowExecutions();
+      setExecutions(data);
+    } catch (err) {
+      console.error('加载工作流执行历史失败:', err);
+      // 不设置全局错误，因为这不是关键功能
+    }
+  };
 
   const handleCreateWorkflow = () => {
     setShowCreateModal(true);
@@ -57,6 +61,135 @@ const Workflow = () => {
 
   const handleWorkflowSelect = (workflow) => {
     setSelectedWorkflow(workflow);
+  };
+
+  const handleEditWorkflow = (workflow) => {
+    setEditingWorkflow(workflow);
+    setShowDesigner(true);
+  };
+
+  const handleCreateNewWorkflow = (template) => {
+    const newWorkflow = {
+      id: Date.now(),
+      name: `新工作流-${Date.now()}`,
+      description: '基于模板创建的新工作流',
+      steps: 0,
+      status: 'draft',
+      createdAt: new Date().toISOString().split('T')[0],
+      lastRun: null,
+      icon: '📝',
+      type: template
+    };
+    setEditingWorkflow(newWorkflow);
+    setShowDesigner(true);
+    setShowCreateModal(false);
+  };
+
+  const handleSaveWorkflow = async (workflowData) => {
+    try {
+      console.log('保存工作流:', workflowData);
+      
+      if (workflowData.id) {
+        // 更新现有工作流
+        await workflowService.updateWorkflow(workflowData.id, workflowData);
+        alert('工作流更新成功！');
+      } else {
+        // 创建新工作流
+        await workflowService.createWorkflow(workflowData);
+        alert('工作流创建成功！');
+      }
+      
+      // 重新加载工作流列表
+      await loadWorkflows();
+    } catch (error) {
+      console.error('保存工作流失败:', error);
+      alert('保存工作流失败: ' + error.message);
+    }
+  };
+
+  const handleExecuteWorkflow = async (executionData) => {
+    try {
+      console.log('执行工作流:', executionData);
+      
+      const result = await workflowService.executeWorkflow(
+        executionData.workflowId, 
+        executionData.inputData
+      );
+      
+      alert(`工作流执行已启动！执行ID: ${result.execution_id}`);
+    } catch (error) {
+      console.error('执行工作流失败:', error);
+      alert('执行工作流失败: ' + error.message);
+    }
+  };
+
+  const handleCloseDesigner = () => {
+    setShowDesigner(false);
+    setEditingWorkflow(null);
+  };
+
+  const handleDeleteWorkflow = async (workflowId) => {
+    try {
+      if (window.confirm('确定要删除这个工作流吗？此操作不可撤销。')) {
+        await workflowService.deleteWorkflow(workflowId);
+        alert('工作流删除成功！');
+        
+        // 重新加载工作流列表
+        await loadWorkflows();
+        
+        // 如果删除的是当前选中的工作流，关闭详情视图
+        if (selectedWorkflow && selectedWorkflow.id === workflowId) {
+          setSelectedWorkflow(null);
+        }
+      }
+    } catch (error) {
+      console.error('删除工作流失败:', error);
+      alert('删除工作流失败: ' + error.message);
+    }
+  };
+
+  // 辅助函数
+  const getWorkflowIcon = (type) => {
+    const iconMap = {
+      'document': '📄',
+      'image': '🖼️',
+      'data': '🧹',
+      'translation': '🌐',
+      'knowledge_graph': '🧠',
+      'analysis': '📊',
+      'default': '📝'
+    };
+    return iconMap[type] || iconMap.default;
+  };
+
+  const getStatusText = (status) => {
+    const statusMap = {
+      'active': '活跃',
+      'inactive': '停用',
+      'draft': '草稿',
+      'archived': '已归档',
+      'running': '运行中',
+      'completed': '已完成',
+      'failed': '失败',
+      'canceled': '已取消',
+      'paused': '已暂停',
+      'default': '未知'
+    };
+    return statusMap[status] || statusMap.default;
+  };
+
+  const handleExecutionSelect = (execution) => {
+    setSelectedExecution(execution);
+  };
+
+  const handleCloseExecutionDetail = () => {
+    setSelectedExecution(null);
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '未知';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('zh-CN');
   };
 
   return (
@@ -96,33 +229,71 @@ const Workflow = () => {
         </div>
       </div>
 
-      <div className={`workflow-container ${viewMode}`}>
-        {workflows.map((workflow) => (
-          <div 
-            key={workflow.id} 
-            className={`workflow-item ${workflow.status}`}
-            onClick={() => handleWorkflowSelect(workflow)}
-          >
-            <div className="workflow-icon">{workflow.icon}</div>
-            <h3 className="workflow-name">{workflow.name}</h3>
-            <p className="workflow-description">{workflow.description}</p>
-            <div className="workflow-meta">
-              <span className="step-count">{workflow.steps} 个步骤</span>
-              <span className={`status-badge ${workflow.status}`}>
-                {workflow.status === 'active' ? '活跃' : '停用'}
-              </span>
+      {loading && (
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>加载工作流中...</p>
+        </div>
+      )}
+      
+      {error && (
+        <div className="error-container">
+          <p className="error-message">{error}</p>
+          <button onClick={loadWorkflows} className="retry-button">重试</button>
+        </div>
+      )}
+      
+      {!loading && !error && (
+        <div className={`workflow-container ${viewMode}`}>
+          {workflows.length === 0 ? (
+            <div className="empty-state">
+              <p>暂无工作流，点击"创建新工作流"开始创建</p>
             </div>
-            <div className="workflow-timestamps">
-              <span>创建于: {workflow.createdAt}</span>
-              <span>最后运行: {workflow.lastRun}</span>
-            </div>
-            <div className="workflow-actions">
-              <button className="action-button run">运行</button>
-              <button className="action-button edit">编辑</button>
-            </div>
-          </div>
-        ))}
-      </div>
+          ) : (
+            workflows.map((workflow) => (
+              <div 
+                key={workflow.id} 
+                className={`workflow-item ${workflow.status}`}
+                onClick={() => handleWorkflowSelect(workflow)}
+              >
+                <div className="workflow-icon">{getWorkflowIcon(workflow.type)}</div>
+                <h3 className="workflow-name">{workflow.name}</h3>
+                <p className="workflow-description">{workflow.description}</p>
+                <div className="workflow-meta">
+                  <span className="step-count">{workflow.steps || 0} 个步骤</span>
+                  <span className={`status-badge ${workflow.status}`}>
+                    {getStatusText(workflow.status)}
+                  </span>
+                </div>
+                <div className="workflow-timestamps">
+                  <span>创建于: {formatDate(workflow.created_at)}</span>
+                  <span>最后运行: {workflow.last_run ? formatDate(workflow.last_run) : '从未运行'}</span>
+                </div>
+                <div className="workflow-actions">
+                  <button 
+                    className="action-button run"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleExecuteWorkflow({ workflowId: workflow.id, inputData: {} });
+                    }}
+                  >
+                    运行
+                  </button>
+                  <button 
+                    className="action-button edit"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditWorkflow(workflow);
+                    }}
+                  >
+                    编辑
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
 
       {selectedWorkflow && (
         <div className="workflow-detail-overlay">
@@ -151,10 +322,53 @@ const Workflow = () => {
                   ))}
                 </div>
               </div>
+
+              <div className="workflow-executions">
+                <h3>执行历史</h3>
+                <div className="executions-list">
+                  {executions
+                    .filter(exec => exec.workflow_id === selectedWorkflow.id)
+                    .sort((a, b) => new Date(b.started_at) - new Date(a.started_at))
+                    .map((execution) => (
+                    <div
+                      key={execution.id}
+                      className={`execution-item ${execution.status}`}
+                      onClick={() => handleExecutionSelect(execution)}
+                    >
+                      <div className="execution-info">
+                        <div className="execution-id">执行 ID: {execution.id}</div>
+                        <div className="execution-time">
+                          {formatDate(execution.started_at)}
+                        </div>
+                      </div>
+                      <div className="execution-status">
+                        <span className={`status-badge ${execution.status}`}>
+                          {getStatusText(execution.status)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
               <div className="detail-actions">
-                <button className="primary-button">运行工作流</button>
-                <button className="secondary-button">编辑工作流</button>
-                <button className="danger-button">删除工作流</button>
+                <button 
+                  className="primary-button"
+                  onClick={() => handleExecuteWorkflow({ workflowId: selectedWorkflow.id, inputData: {} })}
+                >
+                  运行工作流
+                </button>
+                <button 
+                  className="secondary-button"
+                  onClick={() => handleEditWorkflow(selectedWorkflow)}
+                >
+                  编辑工作流
+                </button>
+                <button 
+                  className="danger-button"
+                  onClick={() => handleDeleteWorkflow(selectedWorkflow.id)}
+                >
+                  删除工作流
+                </button>
               </div>
             </div>
           </div>
@@ -201,6 +415,83 @@ const Workflow = () => {
                 取消
               </button>
               <button className="primary-button">创建工作流</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDesigner && (
+        <div className="workflow-designer-overlay">
+          <div className="workflow-designer-container">
+            <WorkflowDesigner
+              workflow={editingWorkflow}
+              onSave={handleSaveWorkflow}
+              onExecute={handleExecuteWorkflow}
+            />
+            <button 
+              className="close-designer-button"
+              onClick={handleCloseDesigner}
+            >
+              ✕ 关闭设计器
+            </button>
+          </div>
+        </div>
+      )}
+
+      {selectedExecution && (
+        <div className="execution-detail-overlay">
+          <div className="execution-detail">
+            <div className="detail-header">
+              <h2>执行详情 - ID: {selectedExecution.id}</h2>
+              <button 
+                className="close-button"
+                onClick={handleCloseExecutionDetail}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="detail-content">
+              <div className="execution-meta">
+                <div className="meta-item">
+                  <label>工作流:</label>
+                  <span>{workflows.find(wf => wf.id === selectedExecution.workflow_id)?.name || '未知'}</span>
+                </div>
+                <div className="meta-item">
+                  <label>状态:</label>
+                  <span className={`status-badge ${selectedExecution.status}`}>
+                    {getStatusText(selectedExecution.status)}
+                  </span>
+                </div>
+                <div className="meta-item">
+                  <label>开始时间:</label>
+                  <span>{formatDate(selectedExecution.started_at)}</span>
+                </div>
+                {selectedExecution.completed_at && (
+                  <div className="meta-item">
+                    <label>结束时间:</label>
+                    <span>{formatDate(selectedExecution.completed_at)}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="execution-data">
+                <h3>输入数据</h3>
+                <pre>{JSON.stringify(selectedExecution.input_data, null, 2)}</pre>
+              </div>
+
+              {selectedExecution.output_data && (
+                <div className="execution-data">
+                  <h3>输出数据</h3>
+                  <pre>{JSON.stringify(selectedExecution.output_data, null, 2)}</pre>
+                </div>
+              )}
+
+              {selectedExecution.error && (
+                <div className="execution-error">
+                  <h3>错误信息</h3>
+                  <pre>{selectedExecution.error}</pre>
+                </div>
+              )}
             </div>
           </div>
         </div>

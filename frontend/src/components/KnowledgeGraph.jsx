@@ -55,9 +55,23 @@ const KnowledgeGraph = ({ documentId, textContent, width = 800, height = 600 }) 
 
     const { entities, relationships } = graphData;
     
+    // 预处理数据：为实体添加id和name字段
+    const processedEntities = entities.map((entity, index) => ({
+      ...entity,
+      id: index,
+      name: entity.text || entity.name || `实体${index}`
+    }));
+    
+    // 预处理关系：确保source和target是对象引用
+    const processedRelationships = relationships.map(rel => ({
+      ...rel,
+      source: processedEntities.find(e => e.text === rel.subject) || { id: -1 },
+      target: processedEntities.find(e => e.text === rel.object) || { id: -1 }
+    })).filter(rel => rel.source.id !== -1 && rel.target.id !== -1);
+    
     // 创建力导向图模拟
-    const simulation = d3.forceSimulation(entities)
-      .force("link", d3.forceLink(relationships).id(d => d.id).distance(100))
+    const simulation = d3.forceSimulation(processedEntities)
+      .force("link", d3.forceLink(processedRelationships).id(d => d.id).distance(100))
       .force("charge", d3.forceManyBody().strength(-300))
       .force("center", d3.forceCenter(width / 2, height / 2))
       .force("collision", d3.forceCollide().radius(50));
@@ -66,17 +80,17 @@ const KnowledgeGraph = ({ documentId, textContent, width = 800, height = 600 }) 
     const link = svg.append("g")
       .attr("class", "links")
       .selectAll("line")
-      .data(relationships)
+      .data(processedRelationships)
       .enter().append("line")
       .attr("stroke", "#999")
       .attr("stroke-opacity", 0.6)
-      .attr("stroke-width", d => Math.sqrt(d.strength || 1));
+      .attr("stroke-width", d => Math.sqrt(d.confidence || 1));
 
     // 创建节点
     const node = svg.append("g")
       .attr("class", "nodes")
       .selectAll("g")
-      .data(entities)
+      .data(processedEntities)
       .enter().append("g")
       .call(d3.drag()
         .on("start", dragstarted)
@@ -88,16 +102,18 @@ const KnowledgeGraph = ({ documentId, textContent, width = 800, height = 600 }) 
       .attr("r", d => {
         // 根据实体重要性调整大小
         if (d.type === 'PERSON') return 10;
-        if (d.type === 'ORGANIZATION') return 12;
-        if (d.type === 'LOCATION') return 8;
+        if (d.type === 'ORGANIZATION' || d.type === 'ORG') return 12;
+        if (d.type === 'LOCATION' || d.type === 'LOC') return 8;
         return 6;
       })
       .attr("fill", d => {
         // 根据实体类型设置颜色
         switch(d.type) {
           case 'PERSON': return '#ff6b6b';
-          case 'ORGANIZATION': return '#4ecdc4';
-          case 'LOCATION': return '#45b7d1';
+          case 'ORGANIZATION':
+          case 'ORG': return '#4ecdc4';
+          case 'LOCATION':
+          case 'LOC': return '#45b7d1';
           case 'DATE': return '#96ceb4';
           case 'MONEY': return '#feca57';
           default: return '#a29bfe';
@@ -118,9 +134,9 @@ const KnowledgeGraph = ({ documentId, textContent, width = 800, height = 600 }) 
     const linkText = svg.append("g")
       .attr("class", "link-labels")
       .selectAll("text")
-      .data(relationships)
+      .data(processedRelationships)
       .enter().append("text")
-      .text(d => d.type)
+      .text(d => d.relation || d.type)
       .attr("font-size", "8px")
       .attr("fill", "#7f8c8d");
 

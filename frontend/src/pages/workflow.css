@@ -592,3 +592,236 @@
 .modal-content::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
+
+/* 工作流设计器样式 */
+.workflow-designer-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  padding: 20px;
+}
+
+.workflow-designer-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  max-width: 1400px;
+  max-height: 90vh;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+.close-designer-button {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 1000;
+  background-color: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.close-designer-button:hover {
+  background-color: #c0392b;
+  transform: translateY(-1px);
+}
+
+/* 执行历史记录样式 */
+.workflow-executions {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #e1e8ed;
+}
+
+.workflow-executions h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 16px;
+}
+
+.executions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.execution-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.execution-item:hover {
+  background-color: #e9ecef;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.execution-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.execution-id {
+  font-size: 14px;
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.execution-time {
+  font-size: 12px;
+  color: #7f8c8d;
+}
+
+.execution-status {
+  display: flex;
+  align-items: center;
+}
+
+/* 执行状态样式 */
+.status-badge.running {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.status-badge.completed {
+  background-color: #d5f5e3;
+  color: #27ae60;
+}
+
+.status-badge.failed {
+  background-color: #fdebd0;
+  color: #e67e22;
+}
+
+.status-badge.canceled {
+  background-color: #f5f9f7;
+  color: #95a5a6;
+}
+
+.status-badge.paused {
+  background-color: #f0f4f8;
+  color: #3498db;
+}
+
+/* 执行详情样式 */
+.execution-detail-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.execution-detail {
+  background-color: white;
+  border-radius: 12px;
+  max-width: 900px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.execution-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+  padding: 16px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.meta-item label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #7f8c8d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.meta-item span {
+  font-size: 14px;
+  color: #2c3e50;
+}
+
+.execution-data {
+  margin-bottom: 24px;
+}
+
+.execution-data h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 12px;
+}
+
+.execution-data pre {
+  background-color: #f8f9fa;
+  border: 1px solid #e1e8ed;
+  border-radius: 6px;
+  padding: 16px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-x: auto;
+  max-height: 300px;
+}
+
+.execution-error {
+  margin-bottom: 24px;
+  padding: 16px;
+  background-color: #fdebd0;
+  border: 1px solid #fad7a0;
+  border-radius: 6px;
+}
+
+.execution-error h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #d35400;
+  margin-bottom: 12px;
+}
+
+.execution-error pre {
+  margin: 0;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-x: auto;
+  max-height: 300px;
+}
