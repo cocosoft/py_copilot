@@ -6,6 +6,8 @@ import time
 from app.core.config import settings
 from app.services.model_query_service import model_query_service
 from app.models.model_management import ModelSupplier
+from app.services.search_management_service import SearchManagementService
+from app.services.web_search_service import WebSearchService
 
 # 导入自定义日志配置
 from app.core.logging_config import logger
@@ -20,6 +22,10 @@ class LLMService:
         # 默认模型配置
         self.default_model = getattr(settings, 'DEFAULT_MODEL', "text-davinci-003")
         self.default_chat_model = getattr(settings, 'DEFAULT_CHAT_MODEL', "gpt-3.5-turbo")
+        
+        # 初始化搜索服务
+        self.search_management_service = SearchManagementService()
+        self.web_search_service = WebSearchService()
         
         # 可用模型列表
         self.available_models = [
@@ -579,6 +585,47 @@ class LLMService:
             logger.error(f"Embeddings generation error: {str(e)}")
             raise
     
+    def perform_web_search(self, query: str, db: Optional[Any] = None, user_id: Optional[int] = None) -> Dict[str, Any]:
+        """
+        使用配置的搜索引擎执行联网搜索
+        
+        Args:
+            query: 搜索查询词
+            db: 数据库会话
+            user_id: 用户ID
+            
+        Returns:
+            搜索结果
+        """
+        if not db:
+            # 如果没有数据库会话，创建一个临时的
+            from app.core.database import get_db
+            db = next(get_db())
+            
+        try:
+            # 获取搜索设置
+            search_settings = self.search_management_service.get_search_settings(db, user_id)
+            
+            # 如果没有设置，使用默认设置
+            if not search_settings:
+                search_settings = self.search_management_service.update_search_settings(db, {}, user_id)
+            
+            # 执行搜索
+            search_result = self.web_search_service.search(
+                query=query,
+                engine=search_settings.default_search_engine,
+                safe_search=search_settings.safe_search
+            )
+            
+            return search_result
+        except Exception as e:
+            logger.error(f"搜索执行失败: {str(e)}")
+            return {
+                "query": query,
+                "results": [],
+                "success": False,
+                "error": str(e)
+            }
     def get_available_models(self, db: Optional[Any] = None, model_type: str = None) -> List[Dict[str, Any]]:
         """
         获取可用的LLM模型列表

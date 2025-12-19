@@ -4,34 +4,319 @@
   margin: 0 auto;
 }
 
-.help-center-container h1 {
+.help-header {
   margin-bottom: 30px;
+}
+
+.help-header h1 {
   color: #333;
   font-size: 24px;
   font-weight: 600;
+  margin: 0;
 }
 
-.help-center-content {
-  display: grid;
-  grid-template-columns: 1fr;
+.help-content-wrapper {
+  display: flex;
   gap: 20px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+/* 侧边栏样式 */
+.help-sidebar {
+  width: 200px;
+  background-color: #f8f9fa;
+  border-right: 1px solid #e9ecef;
+  padding: 20px 0;
+}
+
+.help-nav {
+  display: flex;
+  flex-direction: column;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 20px;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 14px;
+  color: #495057;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.nav-item:hover {
+  background-color: #e9ecef;
+  color: #212529;
+}
+
+.nav-item.active {
+  background-color: #007bff;
+  color: #fff;
+}
+
+.nav-icon {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+}
+
+.nav-text {
+  margin-left: 8px;
+}
+
+/* 内容区域样式 */
+.help-main {
+  flex: 1;
+  padding: 20px;
+}
+
+.help-content {
+  min-height: 400px;
+}
+
+.content-header {
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.content-header h2 {
+  margin-bottom: 10px;
+  color: #333;
+  font-size: 24px;
+  font-weight: 500;
+}
+
+.content-header p {
+  color: #666;
+  font-size: 14px;
+  margin: 0;
+}
+
+/* 帮助中心内容样式 */
+.help-center-content {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  max-width: 800px;
+  margin: 0 auto;
 }
 
 .help-section {
-  background-color: #fff;
+  background-color: #f8f9fa;
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.help-section h2 {
+.help-section h3 {
   margin-bottom: 15px;
-  color: #555;
+  color: #333;
   font-size: 18px;
   font-weight: 500;
 }
 
 .help-section p {
-  color: #777;
+  color: #666;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* 反馈表单容器样式 */
+.feedback-container {
+  display: flex;
+  justify-content: center;
+}
+
+/* 更新日志样式 */
+.update-logs-container {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.commit-item {
+  padding: 15px;
+  border-left: 3px solid #007bff;
+  background-color: #f8f9fa;
+  border-radius: 0 8px 8px 0;
+}
+
+.commit-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.commit-hash {
+  font-family: monospace;
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.commit-date {
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.commit-message {
   font-size: 14px;
+  color: #333;
+  margin-bottom: 5px;
+}
+
+.commit-author {
+  font-size: 12px;
+  color: #6c757d;
+}
+
+/* 问题反馈表单样式 */
+.feedback-form {
+  max-width: 600px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+}
+
+.form-input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: border-color 0.3s ease;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.submit-btn {
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.submit-btn:hover {
+  background-color: #0056b3;
+}
+
+/* 关于我们样式调整 */
+.about-content {
+  color: #555;
+}
+
+.about-intro {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.about-logo {
+  margin-bottom: 20px;
+}
+
+.logo-container {
+  display: inline-block;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.logo-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.about-description {
+  font-size: 16px;
+  line-height: 1.6;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.about-features {
+  margin-bottom: 30px;
+}
+
+.about-features h3 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.feature-card {
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.feature-icon {
+  font-size: 36px;
+  margin-bottom: 15px;
+}
+
+.feature-card h4 {
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.feature-card p {
+  color: #666;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.about-team, .about-contact, .about-version {
+  margin-bottom: 30px;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.about-team h3, .about-contact h3, .about-version h3 {
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.about-team p, .about-contact p, .about-version p {
+  color: #666;
+  line-height: 1.6;
+}
+
+.contact-info p {
+  margin-bottom: 5px;
 }

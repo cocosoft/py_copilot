@@ -6,6 +6,7 @@ from app.models.llm import LLMRequestHistory, ModelConfiguration
 from app.models.model_capability import ModelCapability, ModelCapabilityAssociation
 from app.models.agent import Agent
 from app.models.agent_category import AgentCategory
+from app.models.search_settings import SearchSetting
 
 __all__ = [
     "User",
@@ -17,5 +18,6 @@ __all__ = [
     "ModelCapability",
     "ModelCapabilityAssociation",
     "Agent",
-    "AgentCategory"
+    "AgentCategory",
+    "SearchSetting"
 ]

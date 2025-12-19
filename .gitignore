@@ -290,3 +290,9 @@ frontend/test-knowledge-graph-visualization.html
 test_useEffect_fix.html
 generate_sample_workflows.py
 workflow_designer_roadmap.md
+backend/py_copilot_202512192147.zip
+backend/test_db_path.py
+backend/test_db.py
+backend/fix_db.py
+backend/create_search_table_raw.py
+backend/create_search_table.py

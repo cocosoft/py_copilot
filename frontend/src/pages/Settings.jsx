@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import './settings.css';
 import IntegratedModelManagement from '../components/ModelManagement/IntegratedModelManagement';
 import ParameterManagementMain from '../components/ModelManagement/ParameterManagementMain';
@@ -6,7 +7,7 @@ import Agent from './Agent';
 import Knowledge from './Knowledge';
 import Workflow from './Workflow';
 import Tool from './Tool';
-import About from './About';
+
 
 const Settings = () => {
   // 状态管理当前选中的二级菜单
@@ -42,18 +43,55 @@ const Settings = () => {
     };
   }, []);
   
-  // 搜索设置的状态
-  const [searchEngine, setSearchEngine] = useState('google');
+  // 搜索设置的状态（仅保留基础配置）
+  const [defaultSearchEngine, setDefaultSearchEngine] = useState('google');
   const [safeSearch, setSafeSearch] = useState(true);
-  const [strictFilter, setStrictFilter] = useState(false);
-  const [includeAdult, setIncludeAdult] = useState(false);
-  const [saveHistory, setSaveHistory] = useState(true);
-  const [historyDuration, setHistoryDuration] = useState('90');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // 切换侧边栏展开/收缩状态
   const toggleSidebar = () => {
     setSidebarExpanded(!sidebarExpanded);
   };
+
+  // 加载搜索设置
+  const loadSearchSettings = async () => {
+    setIsLoading(true);
+    try {
+      const response = await axios.get('/api/v1/search/settings');
+      const data = response.data;
+      setDefaultSearchEngine(data.default_search_engine);
+      setSafeSearch(data.safe_search);
+    } catch (error) {
+      console.error('加载搜索设置失败:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 保存搜索设置
+  const saveSearchSettings = async () => {
+    setIsSaving(true);
+    try {
+      await axios.put('/api/v1/search/settings', {
+        default_search_engine: defaultSearchEngine,
+        safe_search: safeSearch
+      });
+      alert('搜索设置已保存');
+    } catch (error) {
+      console.error('保存搜索设置失败:', error);
+      alert('保存失败，请重试');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // 页面加载时获取搜索设置
+  useEffect(() => {
+    if (activeSection === 'search') {
+      loadSearchSettings();
+    }
+  }, [activeSection]);
 
   // 根据选中的二级菜单渲染对应内容
   const renderContent = () => {
@@ -121,97 +159,50 @@ const Settings = () => {
           <div className="settings-content">
             <div className="content-header">
               <h2>搜索管理</h2>
-              <p>配置搜索偏好和搜索引擎</p>
+              <p>配置联网搜索的基础选项</p>
             </div>
             
-            <div className="search-section">
-              <div className="setting-card">
-                <div className="setting-header">
-                  <h3>默认搜索引擎</h3>
-                  <p>选择默认使用的搜索引擎</p>
-                </div>
-                <div className="setting-control">
-                  <select 
-                    className="search-select"
-                    value={searchEngine}
-                    onChange={(e) => setSearchEngine(e.target.value)}
-                  >
-                    <option value="google">Google</option>
-                    <option value="bing">Bing</option>
-                    <option value="duckduckgo">DuckDuckGo</option>
-                    <option value="baidu">百度</option>
-                  </select>
-                </div>
-              </div>
-              
-              <div className="setting-card">
-                <div className="setting-header">
-                  <h3>搜索过滤设置</h3>
-                  <p>配置搜索结果的过滤选项</p>
-                </div>
-                <div className="filter-options">
-                  <div className="filter-item">
+            {isLoading ? (
+              <div className="loading">加载中...</div>
+            ) : (
+              <div className="search-section">
+                <div className="setting-card">
+                  <div className="setting-item">
+                    <label htmlFor="defaultSearchEngine">默认搜索引擎</label>
+                    <select 
+                      id="defaultSearchEngine"
+                      className="search-select"
+                      value={defaultSearchEngine}
+                      onChange={(e) => setDefaultSearchEngine(e.target.value)}
+                    >
+                      <option value="google">Google</option>
+                      <option value="bing">Bing</option>
+                      <option value="baidu">百度</option>
+                    </select>
+                  </div>
+                  
+                  <div className="setting-item">
+                    <label htmlFor="safeSearch">启用安全搜索</label>
                     <input 
                       type="checkbox" 
-                      id="safe-search" 
+                      id="safeSearch" 
                       checked={safeSearch}
                       onChange={(e) => setSafeSearch(e.target.checked)}
                     />
-                    <label htmlFor="safe-search">启用安全搜索</label>
                   </div>
-                  <div className="filter-item">
-                    <input 
-                      type="checkbox" 
-                      id="strict-filter" 
-                      checked={strictFilter}
-                      onChange={(e) => setStrictFilter(e.target.checked)}
-                    />
-                    <label htmlFor="strict-filter">严格内容过滤</label>
-                  </div>
-                  <div className="filter-item">
-                    <input 
-                      type="checkbox" 
-                      id="include-adult" 
-                      checked={includeAdult}
-                      onChange={(e) => setIncludeAdult(e.target.checked)}
-                    />
-                    <label htmlFor="include-adult">包含成人内容（需确认）</label>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="setting-card">
-                <div className="setting-header">
-                  <h3>搜索历史</h3>
-                  <p>管理您的搜索历史记录</p>
-                </div>
-                <div className="history-settings">
-                  <div className="history-option">
-                    <input 
-                      type="checkbox" 
-                      id="save-history" 
-                      checked={saveHistory}
-                      onChange={(e) => setSaveHistory(e.target.checked)}
-                    />
-                    <label htmlFor="save-history">保存搜索历史</label>
-                  </div>
-                  <div className="history-option">
-                    <select 
-                      className="history-duration"
-                      value={historyDuration}
-                      onChange={(e) => setHistoryDuration(e.target.value)}
+                  
+                  <div className="setting-actions">
+                    <button 
+                      className="save-btn" 
+                      onClick={saveSearchSettings}
+                      disabled={isSaving}
                     >
-                      <option value="30">保留30天</option>
-                      <option value="90">保留90天</option>
-                      <option value="180">保留180天</option>
-                      <option value="365">保留1年</option>
-                      <option value="forever">永久保留</option>
-                    </select>
+                      {isSaving ? '保存中...' : '保存设置'}
+                    </button>
                   </div>
-                  <button className="clear-history-btn">清空搜索历史</button>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         );
       
@@ -254,10 +245,7 @@ const Settings = () => {
           </div>
         );
         
-      case 'about':
-        return (
-          <About />
-        );
+      
         
       default:
         return (
@@ -336,18 +324,6 @@ const Settings = () => {
             >
               <span className="nav-icon">🔍</span>
               <span className="nav-text">搜索管理</span>
-            </button>
-            
-            
-            
-            
-            
-            <button 
-              className={`nav-item ${activeSection === 'about' ? 'active' : ''}`}
-              onClick={() => setActiveSection('about')}
-            >
-              <span className="nav-icon">ℹ️</span>
-              <span className="nav-text">关于我们</span>
             </button>
               
 

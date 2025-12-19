@@ -1,9 +1,9 @@
-import React from 'react';
+
 import './about.css';
 
 const About = () => {
   return (
-    <div className="settings-content">
+    <div className="help-content">
       <div className="content-header">
         <h2>关于我们</h2>
         <p>Py Copilot - 您的私人智能助手</p>
