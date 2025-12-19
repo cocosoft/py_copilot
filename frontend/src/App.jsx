@@ -22,18 +22,26 @@ function App() {
               <NavLink 
                 to="/personal" 
                 className="header-user-button"
-                title="个人中心"
+                title="用户"
               >
                 <span className="user-icon">👤</span>
-                <span className="user-text">个人中心</span>
+                <span className="user-text">用户</span>
+              </NavLink>
+              <NavLink 
+                to="/settings" 
+                className="header-user-button"
+                title="设置"
+              >
+                <span className="user-icon">⚙️</span>
+                <span className="user-text">设置</span>
               </NavLink>
               <NavLink 
                 to="/help" 
                 className="header-user-button"
-                title="帮助中心"
+                title="帮助"
               >
                 <span className="user-icon">❓</span>
-                <span className="user-text">帮助中心</span>
+                <span className="user-text">帮助</span>
               </NavLink>
             </div>
           </header>

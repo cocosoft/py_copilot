@@ -55,13 +55,7 @@ const Navbar = () => {
     }
   ];
   
-  // 设置导航项
-  const settingsItem = { 
-    path: '/settings', 
-    name: '设置', 
-    icon: <FaCog className="nav-svg" />,
-    iconCollapsed: <FaCog className="nav-svg" />
-  };
+
 
   return (
     <nav className={`navbar ${collapsed ? 'collapsed' : ''}`}>
@@ -94,19 +88,7 @@ const Navbar = () => {
           ))}
         </ul>
         
-        {/* 底部设置项 */}
-        <div className="nav-bottom">
-          <li className="nav-item">
-            <NavLink 
-              to={settingsItem.path} 
-              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-              title={collapsed ? settingsItem.name : ''}
-            >
-              {collapsed ? settingsItem.iconCollapsed : settingsItem.icon}
-              <span>{settingsItem.name}</span>
-            </NavLink>
-          </li>
-        </div>
+
       </div>
     </nav>
   );
