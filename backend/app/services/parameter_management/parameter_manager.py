@@ -143,8 +143,10 @@ class ParameterManager:
             
             # 检查类型级参数是否已存在
             type_param = db.query(ModelParameter).filter(
-                ModelParameter.model_type_id == model_type_id,
-                ModelParameter.parameter_name == param_name
+                ModelParameter.parameter_name == param_name,
+                ModelParameter.parameter_source == "model_type"
+                # 注意：由于inherit_from列不存在，暂时简化查询条件
+                # ModelParameter.inherit_from == f"model_type:{model_type_id}"
             ).first()
             
             if type_param:
@@ -154,20 +156,15 @@ class ParameterManager:
                 type_param.description = f"Default {param_type} parameter for {model_type.name}"
                 type_param.parameter_source = "model_type"
                 type_param.is_default = True
-                type_param.parameter_level = 0
-                type_param.inherit_from = f"model_type:{model_type_id}"
             else:
                 # 创建新的类型级参数
                 type_param = ModelParameter(
-                    model_type_id=model_type_id,
                     parameter_name=param_name,
                     parameter_value=str(param_value),
                     parameter_type=param_type,
                     description=f"Default {param_type} parameter for {model_type.name}",
                     parameter_source="model_type",
-                    is_default=True,
-                    parameter_level=0,
-                    inherit_from=f"model_type:{model_type_id}"
+                    is_default=True
                 )
                 db.add(type_param)
         
@@ -190,8 +187,10 @@ class ParameterManager:
                 
                 # 查找类型级参数作为父参数
                 parent_param = db.query(ModelParameter).filter(
-                    ModelParameter.model_type_id == model_type_id,
-                    ModelParameter.parameter_name == param_name
+                    ModelParameter.parameter_name == param_name,
+                    ModelParameter.parameter_source == "model_type"
+                    # 注意：由于inherit_from列不存在，暂时简化查询条件
+                    # ModelParameter.inherit_from == f"model_type:{model_type_id}"
                 ).first()
                 
                 # 查找该模型中对应的继承参数
@@ -204,25 +203,16 @@ class ParameterManager:
                     # 更新现有继承参数
                     inherited_param.parameter_value = str(param_value)
                     inherited_param.parameter_type = param_type
-                    inherited_param.parent_parameter_id = parent_param.id if parent_param else None
-                    inherited_param.parameter_level = 1
-                    inherited_param.inherit_from = f"model_type:{model_type_id}"
-                    inherited_param.is_inherited = True
                     db.add(inherited_param)
                 elif param_name not in existing_param_names:
                     # 如果该参数不存在且不是自定义参数，则创建新的继承参数
                     new_param = ModelParameter(
                         model_id=model.id,
-                        model_type_id=model_type_id,
                         parameter_name=param_name,
                         parameter_value=str(param_value),
                         parameter_type=param_type,
                         parameter_source="model_type",
-                        is_override=False,
-                        parent_parameter_id=parent_param.id if parent_param else None,
-                        parameter_level=1,
-                        inherit_from=f"model_type:{model_type_id}",
-                        is_inherited=True
+                        is_override=False
                     )
                     db.add(new_param)
         
@@ -266,8 +256,10 @@ class ParameterManager:
                 # 获取所有受影响的参数
                 for param_name in parameter_updates.keys():
                     param = db.query(ModelParameter).filter(
-                        ModelParameter.model_type_id == source_id,
-                        ModelParameter.parameter_name == param_name
+                        ModelParameter.parameter_name == param_name,
+                        ModelParameter.parameter_source == "model_type"
+                        # 注意：由于inherit_from列不存在，暂时简化查询条件
+                        # ModelParameter.inherit_from == f"model_type:{source_id}"
                     ).first()
                     if param:
                         updated_params.append(param)
@@ -363,17 +355,18 @@ class ParameterManager:
         db.add(param)
         
         # 查找所有继承此参数的子参数
-        child_params = db.query(ModelParameter).filter(
-            ModelParameter.parent_parameter_id == parameter_id,
-            not ModelParameter.is_override  # 只更新未被覆盖的子参数
-        ).all()
-        
+        # 注意：由于parent_parameter_id列不存在，暂时无法实现继承链更新
+        # child_params = db.query(ModelParameter).filter(
+        #     ModelParameter.parent_parameter_id == parameter_id,
+        #     not ModelParameter.is_override  # 只更新未被覆盖的子参数
+        # ).all()
+        # 
         # 更新所有子参数
-        for child_param in child_params:
-            child_param.parameter_value = new_value
-            if new_type:
-                child_param.parameter_type = new_type
-            db.add(child_param)
+        # for child_param in child_params:
+        #     child_param.parameter_value = new_value
+        #     if new_type:
+        #         child_param.parameter_type = new_type
+        #     db.add(child_param)
         
         db.commit()
         db.refresh(param)
@@ -497,22 +490,24 @@ class ParameterManager:
             raise ValueError(f"模型ID {model_id} 不存在")
         
         # 确定参数层级
-        parameter_level = 1  # 默认层级为1（模型级）
-        inherit_from = None
-        parent_parameter_id = None
+        # 注意：由于parameter_level, inherit_from, parent_parameter_id列不存在，暂时简化层级逻辑
+        # parameter_level = 1  # 默认层级为1（模型级）
+        # inherit_from = None
+        # parent_parameter_id = None
         
         # 如果参数来自模型类型，设置继承关系
-        if param_data.parameter_source == "model_type" and model.model_type_id:
-            parameter_level = 0  # 类型级参数层级为0
-            inherit_from = f"model_type:{model.model_type_id}"
-            
-            # 查找父参数
-            parent_param = db.query(ModelParameter).filter(
-                ModelParameter.model_type_id == model.model_type_id,
-                ModelParameter.parameter_name == param_data.parameter_name
-            ).first()
-            if parent_param:
-                parent_parameter_id = parent_param.id
+        # if param_data.parameter_source == "model_type" and model.model_type_id:
+        #     parameter_level = 0  # 类型级参数层级为0
+        #     inherit_from = f"model_type:{model.model_type_id}"
+        #     
+        #     # 查找父参数
+        #     parent_param = db.query(ModelParameter).filter(
+        #         ModelParameter.parameter_name == param_data.parameter_name,
+        #         ModelParameter.parameter_source == "model_type",
+        #         ModelParameter.inherit_from == f"model_type:{model.model_type_id}"
+        #     ).first()
+        #     if parent_param:
+        #         parent_parameter_id = parent_param.id
         
         # 检查参数是否已存在
         existing_param = db.query(ModelParameter).filter(
@@ -531,26 +526,27 @@ class ParameterManager:
             existing_param.is_default = param_data.is_default
             existing_param.parameter_source = param_data.parameter_source
             existing_param.is_override = param_data.is_override
-            existing_param.parameter_level = parameter_level
-            existing_param.inherit_from = inherit_from
-            existing_param.parent_parameter_id = parent_parameter_id
-            existing_param.is_inherited = param_data.parameter_source == "model_type"
+            # 注意：由于parameter_level, inherit_from, parent_parameter_id, is_inherited列不存在，暂时跳过这些字段
+            # existing_param.parameter_level = parameter_level
+            # existing_param.inherit_from = inherit_from
+            # existing_param.parent_parameter_id = parent_parameter_id
+            # existing_param.is_inherited = param_data.parameter_source == "model_type"
         else:
             # 创建新参数
             existing_param = ModelParameter(
                 model_id=model_id,
-                model_type_id=model.model_type_id if param_data.parameter_source == "model_type" else None,
                 parameter_name=param_data.parameter_name,
                 parameter_type=param_data.parameter_type,
                 parameter_value=param_data.parameter_value,
                 description=param_data.description,
                 is_default=param_data.is_default,
                 parameter_source=param_data.parameter_source,
-                is_override=param_data.is_override,
-                parameter_level=parameter_level,
-                inherit_from=inherit_from,
-                parent_parameter_id=parent_parameter_id,
-                is_inherited=param_data.parameter_source == "model_type"
+                is_override=param_data.is_override
+                # 注意：由于parameter_level, inherit_from, parent_parameter_id, is_inherited列不存在，暂时跳过这些字段
+                # parameter_level=parameter_level,
+                # inherit_from=inherit_from,
+                # parent_parameter_id=parent_parameter_id,
+                # is_inherited=param_data.parameter_source == "model_type"
             )
             db.add(existing_param)
         
@@ -707,7 +703,9 @@ class ParameterManager:
         
         # 获取模型类型的所有默认参数
         type_params = db.query(ModelParameter).filter(
-            ModelParameter.model_type_id == model_type_id
+            ModelParameter.parameter_source == "model_type"
+            # 注意：由于inherit_from列不存在，暂时简化查询条件
+            # ModelParameter.inherit_from == f"model_type:{model_type_id}"
         ).all()
         
         # 获取模型现有的参数
@@ -728,18 +726,18 @@ class ParameterManager:
             # 创建新的继承参数
             inherited_param = ModelParameter(
                 model_id=model_id,
-                model_type_id=model_type_id,
                 parameter_name=type_param.parameter_name,
                 parameter_value=type_param.parameter_value,
                 parameter_type=type_param.parameter_type,
                 description=type_param.description,
                 parameter_source="model_type",
                 is_default=type_param.is_default,
-                is_override=False,
-                parent_parameter_id=type_param.id,
-                parameter_level=1,
-                inherit_from=f"model_type:{model_type_id}",
-                is_inherited=True
+                is_override=False
+                # 注意：由于parent_parameter_id, parameter_level, inherit_from, is_inherited列不存在，暂时跳过这些字段
+                # parent_parameter_id=type_param.id,
+                # parameter_level=1,
+                # inherit_from=f"model_type:{model_type_id}",
+                # is_inherited=True
             )
             db.add(inherited_param)
             inherited_params.append(inherited_param)
@@ -774,24 +772,27 @@ class ParameterManager:
                 "parameter_type": current_param.parameter_type,
                 "description": current_param.description,
                 "parameter_source": current_param.parameter_source,
-                "parameter_level": current_param.parameter_level,
-                "is_inherited": current_param.is_inherited,
                 "is_override": current_param.is_override,
-                "inherit_from": current_param.inherit_from,
                 "model_id": current_param.model_id,
-                "model_type_id": current_param.model_type_id,
                 "created_at": current_param.created_at,
                 "updated_at": current_param.updated_at
+                # 注意：由于parameter_level, is_inherited, inherit_from, model_type_id列不存在，暂时跳过这些字段
+                # "parameter_level": current_param.parameter_level,
+                # "is_inherited": current_param.is_inherited,
+                # "inherit_from": current_param.inherit_from,
+                # "model_type_id": current_param.model_type_id,
             }
             inheritance_chain.append(param_info)
             
             # 查找父参数
-            if current_param.parent_parameter_id:
-                current_param = db.query(ModelParameter).filter(
-                    ModelParameter.id == current_param.parent_parameter_id
-                ).first()
-            else:
-                current_param = None
+            # 注意：由于parent_parameter_id列不存在，暂时无法实现继承链查找
+            # if current_param.parent_parameter_id:
+            #     current_param = db.query(ModelParameter).filter(
+            #         ModelParameter.id == current_param.parent_parameter_id
+            #     ).first()
+            # else:
+            #     current_param = None
+            current_param = None
         
         return inheritance_chain
     

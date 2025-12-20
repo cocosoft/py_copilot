@@ -337,3 +337,6 @@ backend/test_dev_api.py
 backend/test_no_auth.py
 backend/test_with_auth_token.py
 backend/test_with_auth.py
+dev_plan/frontend_interface_optimization_plan.md
+backend/py_copilot_202512201826.zip
+dev_plan/frontend_interface_optimization_plan_actual.md
