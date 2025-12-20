@@ -3,7 +3,7 @@ import api from '../utils/api';
 
 const SupplierContext = createContext();
 
-export const SupplierProvider = ({ children }) => {
+const SupplierProvider = ({ children }) => {
   const [suppliers, setSuppliers] = useState([]);
   const [selectedSupplier, setSelectedSupplier] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -124,12 +124,12 @@ export const SupplierProvider = ({ children }) => {
 };
 
 // 确保一致的导出格式，修复Fast Refresh警告
-export function useSupplier() {
+const useSupplier = () => {
   const context = useContext(SupplierContext);
   if (!context) {
     throw new Error('useSupplier must be used within a SupplierProvider');
   }
   return context;
-}
+};
 
-// SupplierProvider已经在定义时导出，不需要重复导出
+export { SupplierProvider, useSupplier };

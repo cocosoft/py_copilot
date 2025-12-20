@@ -62,11 +62,11 @@ export const request = async (endpoint, options = {}) => {
   }
   
   try {
-    // 添加调试信息
-    console.log('即将发送请求:', JSON.stringify({
-      url: url,
-      options: mergedOptions
-    }, null, 2));
+    // 生产环境中移除调试日志
+    // console.log('即将发送请求:', JSON.stringify({
+    //   url: url,
+    //   options: mergedOptions
+    // }, null, 2));
     
     // 发送请求
     const response = await fetch(url, mergedOptions);
@@ -138,13 +138,13 @@ export const request = async (endpoint, options = {}) => {
     const contentType = response.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
       const data = await response.json();
-      // 添加响应内容调试日志
-      console.log('API响应数据:', JSON.stringify(data, null, 2));
+      // 生产环境中移除调试日志
+      // console.log('API响应数据:', JSON.stringify(data, null, 2));
       return data;
     } else {
       const text = await response.text();
-      // 添加文本响应调试日志
-      console.log('API响应文本:', text);
+      // 生产环境中移除调试日志
+      // console.log('API响应文本:', text);
       return text;
     }
   } catch (error) {

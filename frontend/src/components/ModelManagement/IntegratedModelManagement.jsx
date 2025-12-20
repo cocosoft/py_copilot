@@ -19,8 +19,10 @@ const IntegratedModelManagement = () => {
   const loadCategories = async () => {
     try {
       const response = await api.categoryApi.getAll();
+      return response; // 返回Promise结果
     } catch (error) {
       console.error('❌ 加载模型分类失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+      throw error; // 抛出错误以便Promise.all捕获
     }
   };
   
@@ -28,8 +30,10 @@ const IntegratedModelManagement = () => {
   const loadCapabilities = async () => {
     try {
       const response = await api.capabilityApi.getAll();
+      return response; // 返回Promise结果
     } catch (error) {
       console.error('❌ 加载能力信息失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+      throw error; // 抛出错误以便Promise.all捕获
     }
   };
 

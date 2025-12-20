@@ -7,7 +7,6 @@ import ModelCapabilityAssociation from '../CapabilityManagement/ModelCapabilityA
 import ParameterManagementMain from './ParameterManagementMain';
 import '../../styles/ModelManagement.css';
 import api from '../../utils/api';
-import capabilityApi from '../../utils/api/capabilityApi';
 
 const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }) => {
   const [currentModels, setCurrentModels] = useState([]);
@@ -163,7 +162,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
   // 加载模型能力信息
   const loadModelCapabilities = async (modelId) => {
     try {
-      const capabilities = await capabilityApi.getModelCapabilities(modelId);
+      const capabilities = await api.capabilityApi.getModelCapabilities(modelId);
       setModelCapabilities(prev => ({
         ...prev,
         [modelId]: capabilities

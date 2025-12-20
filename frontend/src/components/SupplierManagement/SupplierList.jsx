@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { getImageUrl } from '../../config/imageConfig';
-import { useSupplier } from '../contexts/SupplierContext';
+import { useSupplier } from '../../contexts/SupplierContext';
 import { supplierApi } from '../../utils/api/supplierApi';
 
 const SupplierList = () => {

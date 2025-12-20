@@ -48,19 +48,7 @@ const Home = () => {
             icon="🌐" 
             title="翻译"
             description="多语言翻译和语言识别"
-            link="/translation"
-          />
-          <FeatureCard 
-            icon="📚" 
-            title="知识库"
-            description="管理和查询您的知识库"
-            link="/knowledge-base"
-          />
-          <FeatureCard 
-            icon="🔧" 
-            title="工具"
-            description="实用工具集和功能扩展"
-            link="/tools"
+            link="/translate"
           />
           <FeatureCard 
             icon="⚙️" 
