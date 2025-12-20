@@ -7,7 +7,7 @@ from datetime import datetime
 import os
 import aiofiles
 
-from app.api.dependencies import get_db
+from app.core.dependencies import get_db
 from app.models.supplier_db import SupplierDB, ModelDB
 from app.schemas.supplier_model import (
     SupplierCreate, SupplierResponse,

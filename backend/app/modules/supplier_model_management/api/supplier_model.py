@@ -228,24 +228,33 @@ def get_supplier_models(supplier_id: int, db: Session = Depends(get_db)):
     if not supplier:
         raise HTTPException(status_code=404, detail="供应商不存在")
     
-    # 获取该供应商的所有模型
-    models = db.query(ModelDB).filter(ModelDB.supplier_id == supplier_id).all()
-    total = len(models)
+    # 使用原始SQL查询来避免ORM关系加载问题
+    from sqlalchemy import text
+    query = text("""
+        SELECT id, model_id, model_name, description, supplier_id, 
+               context_window, max_tokens, is_default, is_active
+        FROM models 
+        WHERE supplier_id = :supplier_id
+    """)
+    
+    result = db.execute(query, {"supplier_id": supplier_id})
+    models_data = result.fetchall()
+    total = len(models_data)
     
     # 转换为响应格式
     model_responses = [
         ModelResponse(
-            id=str(model.id),
-            model_id=str(model.model_id) if model.model_id is not None else "",
-            model_name=str(getattr(model, "model_name", model.model_id)) if getattr(model, "model_name", model.model_id) is not None else "",
-            description=str(model.description) if model.description is not None else None,
-            supplier_id=int(model.supplier_id),
-            context_window=int(model.context_window) if model.context_window is not None else None,
-            max_tokens=int(getattr(model, "max_tokens", model.default_max_tokens)) if getattr(model, "max_tokens", model.default_max_tokens) is not None else None,
-            is_default=bool(model.is_default),
-            is_active=bool(model.is_active)
+            id=row[0],
+            name=row[1] or "",  # model_id
+            display_name=row[2] or row[1] or "",  # model_name or model_id
+            description=row[3],
+            supplier_id=row[4],
+            context_window=row[5],
+            max_tokens=row[6],
+            is_default=bool(row[7]),
+            is_active=bool(row[8])
         )
-        for model in models
+        for row in models_data
     ]
     
     return ModelListResponse(models=model_responses, total=total)

@@ -73,16 +73,18 @@ class ModelDB(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     logo = Column(String(255), nullable=True)  # 模型LOGO存储路径或URL
     
-    # 添加关系定义
-    supplier = relationship("SupplierDB", back_populates="models")
-    parameters = relationship("ModelParameter", back_populates="model", cascade="all, delete-orphan")
-    model_type = relationship("ModelCategory", back_populates="model_db")
-    categories = relationship("ModelCategory", secondary="model_category_associations", back_populates="models")
-    capabilities = relationship("app.models.model_capability.ModelCapability", secondary="model_capability_associations", back_populates="models")
+    # 添加关系定义，使用lazy='select'避免自动加载
+    supplier = relationship("SupplierDB", back_populates="models", lazy='select')
+    parameters = relationship("ModelParameter", back_populates="model", cascade="all, delete-orphan", lazy='select')
+    model_type = relationship("ModelCategory", back_populates="model_db", lazy='select')
+    categories = relationship("ModelCategory", secondary="model_category_associations", back_populates="models", lazy='select')
+    category_associations = relationship("ModelCategoryAssociation", back_populates="model", lazy='select')
+    capabilities = relationship("app.models.model_capability.ModelCapability", secondary="model_capability_associations", back_populates="models", lazy='select')
+    capability_associations = relationship("app.models.model_capability.ModelCapabilityAssociation", back_populates="model", lazy='select')
     
     # 参数模板关联
     parameter_template_id = Column(Integer, ForeignKey("parameter_templates.id", ondelete="SET NULL"), nullable=True)
-    parameter_template = relationship("ParameterTemplate", back_populates="models")
+    parameter_template = relationship("ParameterTemplate", back_populates="models", lazy='select')
 
 
 class ModelParameter(Base):
@@ -131,3 +133,21 @@ class ParameterVersion(Base):
     
     # 添加关系定义
     parameter = relationship("ModelParameter", back_populates="parameter_versions")
+
+
+class ModelParameterVersion(Base):
+    """模型参数版本表，用于存储整个模型参数的历史版本记录"""
+    __tablename__ = "model_parameter_versions"
+    __table_args__ = {'extend_existing': True}
+    
+    id = Column(Integer, primary_key=True, index=True)
+    model_id = Column(Integer, ForeignKey("models.id", ondelete="CASCADE"), nullable=False)  # 关联的模型ID
+    version_name = Column(String(100), nullable=False)  # 版本名称
+    version_description = Column(Text, nullable=True)  # 版本描述
+    parameters_snapshot = Column(Text, nullable=False)  # 参数快照（JSON格式）
+    created_by = Column(String(100), nullable=True)  # 创建人
+    created_at = Column(DateTime(timezone=True), server_default=func.now())  # 创建时间
+    is_active = Column(Boolean, default=True)  # 是否活跃版本
+    
+    # 添加关系定义
+    model = relationship("ModelDB", backref="parameter_versions")

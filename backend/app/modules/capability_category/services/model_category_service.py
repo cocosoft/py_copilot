@@ -75,7 +75,10 @@ class ModelCategoryService:
         limit: int = 100,
         category_type: Optional[str] = None,
         is_active: Optional[bool] = None,
-        parent_id: Optional[int] = None
+        parent_id: Optional[int] = None,
+        dimension: Optional[str] = None,
+        sort_by: str = "weight",
+        sort_order: str = "desc"
     ) -> Dict[str, Any]:
         """获取模型分类列表"""
         query = db.query(ModelCategory)
@@ -87,6 +90,25 @@ class ModelCategoryService:
             query = query.filter(ModelCategory.is_active == is_active)
         if parent_id is not None:
             query = query.filter(ModelCategory.parent_id == parent_id)
+        if dimension:
+            query = query.filter(ModelCategory.dimension == dimension)
+        
+        # 排序
+        if sort_by == "weight":
+            if sort_order == "desc":
+                query = query.order_by(ModelCategory.weight.desc())
+            else:
+                query = query.order_by(ModelCategory.weight.asc())
+        elif sort_by == "name":
+            if sort_order == "desc":
+                query = query.order_by(ModelCategory.name.desc())
+            else:
+                query = query.order_by(ModelCategory.name.asc())
+        elif sort_by == "created_at":
+            if sort_order == "desc":
+                query = query.order_by(ModelCategory.created_at.desc())
+            else:
+                query = query.order_by(ModelCategory.created_at.asc())
         
         # 获取总数
         total = query.count()
@@ -312,7 +334,7 @@ class ModelCategoryService:
     def get_categories_by_model(db: Session, model_id: int) -> List[ModelCategory]:
         """获取指定模型的所有分类"""
         # 检查模型是否存在
-        model = db.query(Model).filter(Model.id == model_id).first()
+        model = db.query(ModelDB).filter(ModelDB.id == model_id).first()
         if not model:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -325,6 +347,134 @@ class ModelCategoryService:
         ).all()
         
         return categories
+
+    @staticmethod
+    def get_categories_by_dimension(db: Session, dimension: str) -> List[ModelCategory]:
+        """根据维度获取分类"""
+        categories = db.query(ModelCategory).filter(
+            ModelCategory.dimension == dimension,
+            ModelCategory.is_active == True
+        ).order_by(ModelCategory.weight.desc()).all()
+        
+        return categories
+
+    @staticmethod
+    def get_model_parameters_by_category_hierarchy(
+        db: Session, 
+        model_id: int
+    ) -> Dict[str, Any]:
+        """根据模型分类层级获取参数（六级继承体系）"""
+        # 获取模型的所有分类
+        categories = ModelCategoryService.get_categories_by_model(db, model_id)
+        
+        if not categories:
+            return {}
+        
+        # 构建参数继承层级
+        parameter_hierarchy = {}
+        
+        for category in categories:
+            # 获取分类的默认参数
+            if category.default_parameters:
+                parameter_hierarchy[f"category_{category.id}"] = {
+                    "source": f"category_{category.name}",
+                    "parameters": category.default_parameters,
+                    "weight": category.weight
+                }
+            
+            # 获取父分类的参数（递归）
+            parent_params = ModelCategoryService._get_parent_category_parameters(
+                db, category, parameter_hierarchy
+            )
+            parameter_hierarchy.update(parent_params)
+        
+        # 合并参数（按权重排序）
+        merged_parameters = ModelCategoryService._merge_parameters_by_weight(parameter_hierarchy)
+        
+        return merged_parameters
+
+    @staticmethod
+    def _get_parent_category_parameters(
+        db: Session, 
+        category: ModelCategory, 
+        parameter_hierarchy: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """递归获取父分类参数"""
+        parent_params = {}
+        
+        if category.parent_id:
+            parent_category = db.query(ModelCategory).filter(
+                ModelCategory.id == category.parent_id
+            ).first()
+            
+            if parent_category and parent_category.default_parameters:
+                parent_key = f"category_{parent_category.id}"
+                if parent_key not in parameter_hierarchy:
+                    parent_params[parent_key] = {
+                        "source": f"category_{parent_category.name}",
+                        "parameters": parent_category.default_parameters,
+                        "weight": parent_category.weight
+                    }
+                    
+                    # 递归获取父分类的参数
+                    grandparent_params = ModelCategoryService._get_parent_category_parameters(
+                        db, parent_category, parameter_hierarchy
+                    )
+                    parent_params.update(grandparent_params)
+        
+        return parent_params
+
+    @staticmethod
+    def _merge_parameters_by_weight(parameter_hierarchy: Dict[str, Any]) -> Dict[str, Any]:
+        """根据权重合并参数"""
+        # 按权重排序
+        sorted_sources = sorted(
+            parameter_hierarchy.items(), 
+            key=lambda x: x[1]["weight"], 
+            reverse=True
+        )
+        
+        merged_parameters = {}
+        
+        for source_key, source_data in sorted_sources:
+            for param_name, param_value in source_data["parameters"].items():
+                # 高权重参数覆盖低权重参数
+                if param_name not in merged_parameters:
+                    merged_parameters[param_name] = {
+                        "value": param_value,
+                        "source": source_data["source"]
+                    }
+        
+        return merged_parameters
+
+    @staticmethod
+    def get_models_by_multiple_categories(
+        db: Session,
+        category_ids: List[int],
+        match_all: bool = True
+    ) -> List[ModelDB]:
+        """根据多个分类获取模型（支持AND/OR逻辑）"""
+        if not category_ids:
+            return []
+        
+        if match_all:
+            # AND逻辑：模型必须包含所有指定分类
+            query = db.query(ModelDB)
+            for category_id in category_ids:
+                query = query.filter(
+                    ModelDB.id.in_(
+                        db.query(ModelCategoryAssociation.model_id).filter(
+                            ModelCategoryAssociation.category_id == category_id
+                        )
+                    )
+                )
+        else:
+            # OR逻辑：模型包含任意一个指定分类
+            query = db.query(ModelDB).join(ModelCategoryAssociation).filter(
+                ModelCategoryAssociation.category_id.in_(category_ids)
+            ).distinct()
+        
+        return query.all()
 
 
 # 创建服务实例

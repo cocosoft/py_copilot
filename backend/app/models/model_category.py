@@ -14,7 +14,7 @@ class ModelCategory(Base):
     display_name = Column(String(100), nullable=False)  # 显示名称，如 任务类型, 规模
     description = Column(Text, nullable=True)  # 分类描述
     
-    # 分类类型：main（主要分类）, secondary（次要分类）
+    # 分类类型：main（主要分类）, secondary（次要分类）, tag（标签分类）
     category_type = Column(String(20), default="main", nullable=False)
     
     # 父分类ID，支持层级分类
@@ -34,6 +34,12 @@ class ModelCategory(Base):
     # 默认参数配置（JSON格式）
     default_parameters = Column(JSON, nullable=True, default={})
     
+    # 分类权重（用于排序和优先级）
+    weight = Column(Integer, default=0)
+    
+    # 分类维度标识（支持多维分类）
+    dimension = Column(String(50), nullable=True)  # 如：capability, task_type, size
+    
     # 关系定义
     # 自引用关系，用于层级分类
     parent = relationship("ModelCategory", remote_side=[id], backref="children")
@@ -47,6 +53,9 @@ class ModelCategory(Base):
         secondary="model_category_associations",
         back_populates="categories"
     )
+    
+    # 与关联表的关系
+    model_associations = relationship("ModelCategoryAssociation", back_populates="category")
     
     # 与旧模型的关系（已废弃，已移除LegacyModel依赖）
     # legacy_models = relationship("LegacyModel", back_populates="model_type")
@@ -64,5 +73,18 @@ class ModelCategoryAssociation(Base):
     model_id = Column(Integer, ForeignKey("models.id", ondelete="CASCADE"), nullable=False)
     category_id = Column(Integer, ForeignKey("model_categories.id", ondelete="CASCADE"), nullable=False)
     
+    # 关联权重（用于多维分类中的优先级）
+    weight = Column(Integer, default=0)
+    
+    # 关联类型（主要关联、次要关联等）
+    association_type = Column(String(20), default="primary")
+    
     # 时间戳
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # 关系定义
+    model = relationship("ModelDB", back_populates="category_associations")
+    category = relationship("ModelCategory", back_populates="model_associations")
+    
+    def __repr__(self):
+        return f"<ModelCategoryAssociation(id={self.id}, model_id={self.model_id}, category_id={self.category_id})>"

@@ -11,11 +11,13 @@ class ModelCategoryBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     display_name: str = Field(..., min_length=1, max_length=100)
     description: Optional[str] = None
-    category_type: str = Field(default="main", pattern="^(main|secondary)$")
+    category_type: str = Field(default="main", pattern="^(main|secondary|tag)$")
     parent_id: Optional[int] = None
     is_active: bool = True
     is_system: bool = False
     logo: Optional[str] = None
+    weight: int = Field(default=0, ge=0)
+    dimension: Optional[str] = Field(None, max_length=50)
     default_parameters: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
 
@@ -29,10 +31,12 @@ class ModelCategoryUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     display_name: Optional[str] = Field(None, min_length=1, max_length=100)
     description: Optional[str] = None
-    category_type: Optional[str] = Field(None, pattern="^(main|secondary)$")
+    category_type: Optional[str] = Field(None, pattern="^(main|secondary|tag)$")
     parent_id: Optional[int] = None
     is_active: Optional[bool] = None
     logo: Optional[str] = None
+    weight: Optional[int] = Field(None, ge=0)
+    dimension: Optional[str] = Field(None, max_length=50)
     default_parameters: Optional[Dict[str, Any]] = None
 
 

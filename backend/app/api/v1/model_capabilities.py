@@ -1,5 +1,6 @@
 """模型能力相关的API路由"""
 from typing import List, Optional
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
@@ -13,9 +14,19 @@ from app.schemas.model_capability import (
     ModelCapabilityAssociationUpdate,
     ModelCapabilityAssociationResponse,
     ModelWithCapabilitiesResponse,
-    CapabilityWithModelsResponse
+    CapabilityWithModelsResponse,
+    CapabilityAssessmentRequest,
+    CapabilityAssessmentResult,
+    BenchmarkAssessmentRequest,
+    BenchmarkAssessmentResult,
+    ModelComparisonRequest,
+    ModelComparisonResult,
+    TaskRecommendationRequest,
+    TaskRecommendationResult,
+    AssessmentHistoryResponse
 )
 from app.services.model_capability_service import model_capability_service
+from app.services.capability_assessment_service import capability_assessment_service
 
 # 创建路由器
 router = APIRouter(prefix="/capabilities", tags=["model_capabilities"])
@@ -153,3 +164,101 @@ async def get_capabilities_by_model(
     """获取指定模型的所有能力"""
     capabilities = model_capability_service.get_capabilities_by_model(db, model_id)
     return capabilities
+
+
+# 能力评估相关API端点
+@router.post("/assessments/assess", response_model=CapabilityAssessmentResult)
+async def assess_capability(
+    assessment_request: CapabilityAssessmentRequest,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """评估模型在特定能力上的强度"""
+    actual_strength, confidence_score = capability_assessment_service.assess_capability_strength(
+        db, assessment_request.model_id, assessment_request.capability_id, assessment_request.assessment_data
+    )
+    
+    return CapabilityAssessmentResult(
+        model_id=assessment_request.model_id,
+        capability_id=assessment_request.capability_id,
+        actual_strength=actual_strength,
+        confidence_score=confidence_score,
+        assessment_date=datetime.now(),
+        assessment_method="automated",
+        assessment_data=assessment_request.assessment_data
+    )
+
+
+@router.post("/assessments/benchmark", response_model=BenchmarkAssessmentResult)
+async def run_benchmark_assessment(
+    benchmark_request: BenchmarkAssessmentRequest,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """运行基准测试评估"""
+    result = capability_assessment_service.run_benchmark_assessment(
+        db, 
+        benchmark_request.model_id, 
+        benchmark_request.capability_name, 
+        benchmark_request.benchmark_name,
+        benchmark_request.test_data
+    )
+    
+    return BenchmarkAssessmentResult(**result)
+
+
+@router.post("/assessments/compare", response_model=ModelComparisonResult)
+async def compare_models_by_capability(
+    comparison_request: ModelComparisonRequest,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """比较多个模型在特定能力上的表现"""
+    comparison_results = capability_assessment_service.compare_models_by_capability(
+        db, comparison_request.capability_id, comparison_request.model_ids
+    )
+    
+    return ModelComparisonResult(
+        capability_id=comparison_request.capability_id,
+        comparison_results=comparison_results
+    )
+
+
+@router.post("/assessments/recommend", response_model=TaskRecommendationResult)
+async def get_recommended_models_for_task(
+    recommendation_request: TaskRecommendationRequest,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """根据任务需求推荐合适的模型"""
+    recommended_models = capability_assessment_service.get_recommended_models_for_task(
+        db, 
+        recommendation_request.task_description,
+        recommendation_request.required_capabilities,
+        recommendation_request.min_strength
+    )
+    
+    return TaskRecommendationResult(
+        task_description=recommendation_request.task_description,
+        required_capabilities=recommendation_request.required_capabilities,
+        recommended_models=recommended_models
+    )
+
+
+@router.get("/assessments/history/model/{model_id}/capability/{capability_id}", response_model=AssessmentHistoryResponse)
+async def get_capability_assessment_history(
+    model_id: int,
+    capability_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """获取能力评估历史"""
+    assessment_history = capability_assessment_service.get_capability_assessment_history(
+        db, model_id, capability_id
+    )
+    
+    return AssessmentHistoryResponse(
+        model_id=model_id,
+        capability_id=capability_id,
+        assessment_history=assessment_history
+    )

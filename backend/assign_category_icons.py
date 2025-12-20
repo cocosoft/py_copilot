@@ -14,7 +14,7 @@ sys.path.insert(0, str(project_root))
 
 from sqlalchemy.orm import Session
 from app.core.database import SessionLocal, engine
-from app.modules.capability_category.models.model_category import ModelCategory
+from app.models.model_category import ModelCategory
 
 # 模型分类与Font Awesome图标的映射字典
 # 基于分类名称和描述，为每个分类分配最合适的图标

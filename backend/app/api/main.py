@@ -115,7 +115,36 @@ async def unicode_decode_error_handler(request: Request, exc: UnicodeDecodeError
 #         content={"detail": "请求验证错误"},
 #     )
 
-# 请求日志中间件
+# 导入监控系统
+from app.core.performance_middleware import PerformanceMiddleware, get_performance_monitor
+from app.services.monitoring.monitoring_service import MonitoringService
+from app.services.monitoring.alert_notifier import NotificationManager
+from app.api.deps import get_db
+
+# 创建全局监控服务实例
+_monitoring_service = None
+_performance_monitor = None
+
+def get_monitoring_service():
+    """获取监控服务实例"""
+    global _monitoring_service
+    if _monitoring_service is None:
+        # 使用数据库依赖获取数据库会话
+        db = next(get_db())
+        _monitoring_service = MonitoringService(db)
+        
+        # 添加告警通知处理器
+        notification_manager = NotificationManager()
+        _monitoring_service.add_alert_handler(notification_manager.send_alert_notification)
+    
+    return _monitoring_service
+
+# 添加性能监控中间件
+monitoring_service = get_monitoring_service()
+performance_monitor = get_performance_monitor(monitoring_service)
+app.add_middleware(PerformanceMiddleware, monitoring_service=monitoring_service)
+
+# 请求日志中间件（增强版，包含性能监控）
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     """

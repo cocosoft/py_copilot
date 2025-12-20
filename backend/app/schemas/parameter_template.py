@@ -69,3 +69,11 @@ class ParameterTemplateLinkResponse(BaseModel):
     model_id: Optional[int] = None
     supplier_id: Optional[int] = None
     template_id: Optional[int] = None
+
+
+class ParameterTemplateVersion(BaseModel):
+    """参数模板版本模型"""
+    version: str = Field(..., description="版本号")
+    parameters: Union[List[Dict[str, Any]], Dict[str, Any]] = Field(..., description="参数配置")
+    created_at: datetime = Field(..., description="创建时间")
+    updated_at: Optional[datetime] = Field(None, description="更新时间")

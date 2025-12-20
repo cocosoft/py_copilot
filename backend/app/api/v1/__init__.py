@@ -22,6 +22,7 @@ from app.modules.knowledge.api.knowledge import router as knowledge_router
 from app.modules.knowledge.api.knowledge_graph_api import router as knowledge_graph_router
 from app.modules.workflow.api.workflow import router as workflow_router
 from app.api.v1.search_management import router as search_management_router
+from app.api.v1.supplier_model import router as supplier_model_v1_router
 
 api_router = APIRouter()
 
@@ -30,9 +31,9 @@ api_router.include_router(auth_router, prefix="/auth", tags=["auth"])
 api_router.include_router(conversation_router, prefix="/conversations", tags=["conversations"])
 api_router.include_router(llm_router, prefix="/llm", tags=["llm"])
 # 先注册包含suppliers-list的模型管理路由
-api_router.include_router(model_management_router, prefix="/model-management", tags=["model-management"])
-# 再注册其他model-management前缀的路由
-api_router.include_router(supplier_model_router, prefix="/model-management", tags=["supplier-model"])
+# api_router.include_router(model_management_router, prefix="/model-management", tags=["model-management"])
+# 启用supplier_model_router以提供/suppliers-list端点，放在前面确保优先匹配
+api_router.include_router(supplier_model_v1_router, prefix="/model-management", tags=["supplier-model"])
 api_router.include_router(model_management_v1_router, prefix="/model-management", tags=["model-parameters"])
 # 注册参数模板路由（不添加前缀，因为路由定义中已经包含）
 api_router.include_router(parameter_templates_router, tags=["parameter-templates"])

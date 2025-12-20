@@ -216,9 +216,12 @@ async def get_category(
 async def get_categories(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    category_type: Optional[str] = Query(None, regex="^(main|secondary)$"),
+    category_type: Optional[str] = Query(None, regex="^(main|secondary|tag)$"),
     is_active: Optional[bool] = None,
     parent_id: Optional[int] = None,
+    dimension: Optional[str] = Query(None, max_length=50),
+    sort_by: str = Query("weight", regex="^(weight|name|created_at)$"),
+    sort_order: str = Query("desc", regex="^(asc|desc)$"),
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
@@ -229,7 +232,10 @@ async def get_categories(
         limit=limit,
         category_type=category_type,
         is_active=is_active,
-        parent_id=parent_id
+        parent_id=parent_id,
+        dimension=dimension,
+        sort_by=sort_by,
+        sort_order=sort_order
     )
     return result
 
@@ -452,3 +458,79 @@ async def delete_category_parameter(
     
     # 返回更新后的参数
     return updated_category.default_parameters or {}
+
+
+# 多维分类和参数继承相关API
+@router.get("/dimension/{dimension}", response_model=List[ModelCategoryResponse])
+async def get_categories_by_dimension(
+    dimension: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """根据维度获取分类"""
+    categories = model_category_service.get_categories_by_dimension(db, dimension)
+    return categories
+
+
+@router.get("/model/{model_id}/parameters/hierarchy", response_model=Dict[str, Any])
+async def get_model_parameters_by_hierarchy(
+    model_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """根据模型分类层级获取参数（六级继承体系）"""
+    parameters = model_category_service.get_model_parameters_by_category_hierarchy(db, model_id)
+    return parameters
+
+
+@router.post("/models/by-categories", response_model=List[ModelWithCategoriesResponse])
+async def get_models_by_multiple_categories(
+    category_ids: List[int] = Query(...),
+    match_all: bool = Query(True, description="是否要求匹配所有分类（AND逻辑）"),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """根据多个分类获取模型（支持AND/OR逻辑）"""
+    models = model_category_service.get_models_by_multiple_categories(
+        db, category_ids, match_all
+    )
+    return models
+
+
+@router.get("/{category_id}/hierarchy/parameters", response_model=Dict[str, Any])
+async def get_category_hierarchy_parameters(
+    category_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """获取分类层级参数（包括父分类的参数）"""
+    category = model_category_service.get_category(db, category_id)
+    
+    # 构建参数层级
+    parameter_hierarchy = {}
+    
+    # 获取当前分类的参数
+    if category.default_parameters:
+        parameter_hierarchy[f"category_{category.id}"] = {
+            "source": f"category_{category.name}",
+            "parameters": category.default_parameters,
+            "weight": category.weight
+        }
+    
+    # 递归获取父分类的参数
+    def get_parent_parameters(cat: ModelCategory):
+        if cat.parent_id:
+            parent_category = model_category_service.get_category(db, cat.parent_id)
+            if parent_category and parent_category.default_parameters:
+                parent_key = f"category_{parent_category.id}"
+                if parent_key not in parameter_hierarchy:
+                    parameter_hierarchy[parent_key] = {
+                        "source": f"category_{parent_category.name}",
+                        "parameters": parent_category.default_parameters,
+                        "weight": parent_category.weight
+                    }
+                    get_parent_parameters(parent_category)
+    
+    get_parent_parameters(category)
+    
+    return parameter_hierarchy
