@@ -340,3 +340,6 @@ backend/test_with_auth.py
 dev_plan/frontend_interface_optimization_plan.md
 backend/py_copilot_202512201826.zip
 dev_plan/frontend_interface_optimization_plan_actual.md
+backend/force_migrate_api_keys.py
+backend/migrate_api_keys.py
+dev_plan/ModelParamsManagementDevPlan.md

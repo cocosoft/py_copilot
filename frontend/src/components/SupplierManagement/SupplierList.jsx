@@ -56,7 +56,7 @@ const SupplierList = () => {
       formData.append('is_active', isActive);
       
       // 发送PUT请求更新状态
-      const response = await fetch(`/model-management/suppliers/${supplierId}`, {
+      const response = await fetch(`/v1/suppliers/${supplierId}`, {
         method: 'PUT',
         body: formData
       });

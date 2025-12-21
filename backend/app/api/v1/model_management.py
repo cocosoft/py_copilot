@@ -536,14 +536,22 @@ async def update_model(
     update_data['id'] = model_id
     
     # 处理模型类型：验证前端发送的model_type_id是否存在
-    if 'model_type_id' in update_data:
-        # 验证分类是否存在
-        category = db.query(ModelCategory).filter(ModelCategory.id == update_data['model_type_id']).first()
-        if not category:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Model category with id {update_data['model_type_id']} not found"
-            )
+    if 'model_type_id' in update_data and update_data['model_type_id'] is not None:
+        # 只有当model_type_id有值时才进行验证
+        if update_data['model_type_id'] != '':
+            try:
+                model_type_id_int = int(update_data['model_type_id'])
+                # 验证分类是否存在
+                category = db.query(ModelCategory).filter(ModelCategory.id == model_type_id_int).first()
+                if not category:
+                    # 如果分类不存在，记录警告但不阻止更新，将model_type_id设为None
+                    print(f"警告: 模型分类ID {update_data['model_type_id']} 不存在，将设为None")
+                    update_data['model_type_id'] = None
+            except (ValueError, TypeError):
+                # 如果model_type_id不是有效数字，设为None
+                print(f"警告: 模型分类ID {update_data['model_type_id']} 无效，将设为None")
+                update_data['model_type_id'] = None
+    
     # 如果存在旧的model_type字段（用于向后兼容），则删除
     if 'model_type' in update_data:
         del update_data['model_type']

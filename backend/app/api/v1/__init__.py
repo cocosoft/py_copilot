@@ -32,8 +32,8 @@ api_router.include_router(conversation_router, prefix="/conversations", tags=["c
 api_router.include_router(llm_router, prefix="/llm", tags=["llm"])
 # 先注册包含suppliers-list的模型管理路由
 # api_router.include_router(model_management_router, prefix="/model-management", tags=["model-management"])
-# 启用supplier_model_router以提供/suppliers-list端点，放在前面确保优先匹配
-api_router.include_router(supplier_model_v1_router, prefix="/model-management", tags=["supplier-model"])
+# 启用supplier_model_router以提供/suppliers端点，放在前面确保优先匹配
+api_router.include_router(supplier_model_v1_router, tags=["supplier-model"])
 api_router.include_router(model_management_v1_router, prefix="/model-management", tags=["model-parameters"])
 # 注册参数模板路由（不添加前缀，因为路由定义中已经包含）
 api_router.include_router(parameter_templates_router, tags=["parameter-templates"])

@@ -6,8 +6,7 @@ import time
 import logging
 import inspect
 from app.core.config import settings
-from app.models.supplier_db import ModelDB
-from app.models.model_management import ModelSupplier
+from app.models.supplier_db import ModelDB, SupplierDB
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -256,14 +255,14 @@ class LLMService:
                 
                 if model_info:
                     # 查询供应商信息
-                    supplier_info = db.query(ModelSupplier).filter(
-                        ModelSupplier.id == model_info.supplier_id,
-                        ModelSupplier.is_active == True
+                    supplier_info = db.query(SupplierDB).filter(
+                        SupplierDB.id == model_info.supplier_id,
+                        SupplierDB.is_active == True
                     ).first()
                     print(f"DEBUG: 查询到的供应商信息: {supplier_info}")
                     
                     # 查询所有供应商
-                    all_suppliers = db.query(ModelSupplier).all()
+                    all_suppliers = db.query(SupplierDB).all()
         except Exception as e:
             import traceback
             error_message = f"数据库查询异常: {str(e)}\n{traceback.format_exc()}"

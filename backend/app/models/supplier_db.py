@@ -32,14 +32,8 @@ class SupplierDB(Base):
     def api_key(self):
         """获取解密后的API密钥"""
         if self._api_key is not None:
-            try:
-                # 尝试解密
-                return decrypt_string(str(self._api_key))
-            except Exception as e:
-                # 如果解密失败，可能是因为这是旧的未加密API密钥
-                print(f"Warning: Failed to decrypt API key for supplier {self.name}: {e}")
-                # 返回原始值，但不建议这样做，更好的做法是自动加密
-                return str(self._api_key)
+            # 使用decrypt_string函数，它已经包含错误处理
+            return decrypt_string(self._api_key)
         return None
     
     @api_key.setter
@@ -50,8 +44,8 @@ class SupplierDB(Base):
         else:
             self._api_key = None
     
-    # 添加关系定义
-    models = relationship("ModelDB", back_populates="supplier")
+    # 添加关系定义，使用明确的foreign_keys配置
+    models = relationship("ModelDB", back_populates="supplier", foreign_keys="[ModelDB.supplier_id]")
 
 
 class ModelDB(Base):

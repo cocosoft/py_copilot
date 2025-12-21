@@ -295,9 +295,18 @@ async def get_suppliers(
     Returns:
         模型供应商列表
     """
-    # 查询所有供应商，包括非激活的
-    suppliers = db.query(SupplierDB).offset(skip).limit(limit).all()
-    total = db.query(SupplierDB).count()
+    # 查询所有供应商，包括非激活的 - 使用原始SQL查询避免ORM关系映射问题
+    result = db.execute(text("""
+        SELECT id, name, display_name, description, logo, website, 
+               api_key_required, is_active
+        FROM suppliers
+        LIMIT :limit OFFSET :skip
+    """), {"limit": limit, "skip": skip})
+    suppliers = result.fetchall()
+    
+    # 获取总数
+    count_result = db.execute(text("SELECT COUNT(*) as total FROM suppliers"))
+    total = count_result.fetchone().total
 
 
 # 重命名路由以避免与参数化路由冲突
@@ -317,8 +326,13 @@ async def get_all_suppliers(
         所有模型供应商列表
     """
     try:
-        # 查询所有供应商，包括非激活的
-        suppliers = db.query(SupplierDB).all()
+        # 查询所有供应商，包括非激活的 - 使用原始SQL查询避免ORM关系映射问题
+        result = db.execute(text("""
+            SELECT id, name, display_name, description, logo, website, 
+                   api_key_required, is_active
+            FROM suppliers
+        """))
+        suppliers = result.fetchall()
         total = len(suppliers)
         
         # 构建响应数据
@@ -375,7 +389,11 @@ async def get_model_supplier(
     Returns:
         模型供应商信息
     """
-    supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
+    # 使用原始SQL查询避免ORM关系映射问题
+    result = db.execute(text("SELECT id FROM suppliers WHERE id = :supplier_id"), {
+        "supplier_id": supplier_id
+    })
+    supplier = result.fetchone()
     if not supplier:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -396,218 +414,8 @@ async def get_model_supplier(
     return supplier
 
 
-@router.put("/suppliers/{supplier_id}")
-async def update_model_supplier(
-    supplier_id: int,
-    request: Request,
-    name: Optional[str] = Form(None),
-    description: Optional[str] = Form(None),
-    api_endpoint: Optional[str] = Form(None),
-    api_key_required: Optional[bool] = Form(None),
-    is_active: Optional[bool] = Form(None),
-    logo: Optional[UploadFile] = File(None),
-    existing_logo: Optional[str] = Form(None),
-    category: Optional[str] = Form(None),
-    website: Optional[str] = Form(None),
-    api_docs: Optional[str] = Form(None),
-    api_key: Optional[str] = Form(None),
-    db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
-) -> Any:
-    """
-    更新模型供应商信息（支持图片上传）
-    
-    Args:
-        supplier_id: 供应商ID
-        name: 供应商名称（可选）
-        description: 供应商描述（可选）
-        api_endpoint: API端点（可选）
-        api_key_required: 是否需要API密钥（可选）
-        is_active: 是否激活（可选）
-        logo: 供应商logo图片（可选）
-        existing_logo: 现有logo路径（可选）
-        category: 供应商类别（可选）
-        website: 供应商网站（可选）
-        api_docs: API文档链接（可选）
-        api_key: API密钥（可选）
-        db: 数据库会话
-        current_user: 当前用户
-    
-    Returns:
-        更新后的模型供应商信息
-    """
-    try:
-        # 检查供应商是否存在
-        result = db.execute(text("SELECT id FROM suppliers WHERE id = :supplier_id"), {
-            "supplier_id": supplier_id
-        })
-        if result.fetchone() is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="供应商不存在"
-            )
-        
-        # 获取Content-Type
-        content_type = request.headers.get("Content-Type", "")
-        logger.info(f"[更新供应商] Content-Type: {content_type}")
-        
-        # 初始化更新数据
-        update_data = {
-            "supplier_id": supplier_id,
-            "updated_at": datetime.utcnow()
-        }
-        
-        # 处理logo上传
-        logo_path = None
-        
-        # 处理JSON格式请求
-        if "application/json" in content_type:
-            # 解析JSON数据
-            try:
-                json_data = await request.json()
-                logger.info(f"[更新供应商] JSON数据: {json_data}")
-                
-                # 检查名称是否重复
-                if "name" in json_data and json_data["name"] is not None:
-                    result = db.execute(text("SELECT id FROM suppliers WHERE name = :name AND id != :supplier_id"), {
-                        "name": json_data["name"],
-                        "supplier_id": supplier_id
-                    })
-                    if result.fetchone() is not None:
-                        raise HTTPException(
-                            status_code=status.HTTP_400_BAD_REQUEST,
-                            detail="供应商名称已存在"
-                        )
-                
-                # 构建更新数据
-                if "name" in json_data and json_data["name"] is not None:
-                    update_data["name"] = json_data["name"]
-                if "description" in json_data and json_data["description"] is not None:
-                    update_data["description"] = json_data["description"]
-                if "api_endpoint" in json_data and json_data["api_endpoint"] is not None:
-                    update_data["api_endpoint"] = json_data["api_endpoint"]
-                if "api_key_required" in json_data:
-                    update_data["api_key_required"] = json_data["api_key_required"]
-                if "is_active" in json_data:
-                    update_data["is_active"] = json_data["is_active"]
-                if "category" in json_data and json_data["category"] is not None:
-                    update_data["category"] = json_data["category"]
-                if "website" in json_data and json_data["website"] is not None:
-                    update_data["website"] = json_data["website"]
-                if "api_docs" in json_data and json_data["api_docs"] is not None:
-                    update_data["api_docs"] = json_data["api_docs"]
-                if "api_key" in json_data and json_data["api_key"] is not None:
-                    # 加密API密钥
-                    update_data["api_key"] = encrypt_string(json_data["api_key"])
-            except Exception as e:
-                logger.error(f"[更新供应商] 解析JSON数据失败: {str(e)}")
-                raise HTTPException(status_code=400, detail="无效的JSON数据")
-        
-        # 处理FormData格式请求
-        else:
-            # 检查名称是否重复
-            if name is not None:
-                result = db.execute(text("SELECT id FROM suppliers WHERE name = :name AND id != :supplier_id"), {
-                    "name": name,
-                    "supplier_id": supplier_id
-                })
-                if result.fetchone() is not None:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="供应商名称已存在"
-                    )
-            
-            # 处理logo上传
-            if logo:
-                # 如果有新的logo文件上传，保存它
-                logo_path = await save_upload_file(logo)
-                print(f"已更新logo为新上传的文件: {logo_path}")
-            elif existing_logo is not None:
-                # 如果提供了existing_logo，使用它
-                logo_path = existing_logo
-                print(f"保留现有logo: {logo_path}")
-            
-            # 构建更新数据
-            if name is not None:
-                update_data["name"] = name
-            if description is not None:
-                update_data["description"] = description
-            if api_endpoint is not None:
-                update_data["api_endpoint"] = api_endpoint
-            if api_key_required is not None:
-                update_data["api_key_required"] = api_key_required
-            if is_active is not None:
-                update_data["is_active"] = is_active
-            if category is not None:
-                update_data["category"] = category
-            if website is not None:
-                update_data["website"] = website
-            if api_docs is not None:
-                update_data["api_docs"] = api_docs
-            if logo_path is not None:
-                update_data["logo"] = logo_path
-            if api_key is not None:
-                # 加密API密钥
-                update_data["api_key"] = encrypt_string(api_key)
-        
-        # 构建更新SQL语句
-        set_clause = ", ".join([f"{key} = :{key}" for key in update_data.keys() if key != "supplier_id"])
-        update_query = text(f"UPDATE suppliers SET {set_clause} WHERE id = :supplier_id")
-        
-        # 执行更新
-        db.execute(update_query, update_data)
-        
-        # 查询更新后的供应商信息
-        result = db.execute(text("""
-            SELECT id, name, description, api_endpoint, api_key_required, 
-                   is_active, logo, category, website, api_docs, api_key, 
-                   created_at, updated_at
-            FROM suppliers WHERE id = :supplier_id
-        """), {"supplier_id": supplier_id})
-        supplier = result.fetchone()
-        
-        db.commit()
-        
-        # 检查供应商是否存在
-        if supplier is None:
-            raise HTTPException(status_code=404, detail="供应商不存在")
-        
-        # 返回响应 - 使用name作为display_name，确保API密钥是解密后的
-        decrypted_api_key = None
-        if supplier.api_key_required and supplier.api_key:
-            try:
-                decrypted_api_key = decrypt_string(supplier.api_key)
-            except Exception as e:
-                import logging
-                logging.error(f"解密供应商API密钥失败: {str(e)}")
-        
-        return {
-            "id": supplier.id,
-            "name": supplier.name,
-            "display_name": supplier.name,  # 使用name作为display_name
-            "description": supplier.description,
-            "api_endpoint": supplier.api_endpoint,
-            "api_key_required": supplier.api_key_required,
-            "is_active": supplier.is_active,
-            "logo": supplier.logo,
-            "category": supplier.category,
-            "website": supplier.website,
-            "api_docs": supplier.api_docs,
-            "api_key": decrypted_api_key,
-            "created_at": supplier.created_at,
-            "updated_at": supplier.updated_at
-        }
-    except HTTPException:
-        db.rollback()
-        raise
-    except Exception as e:
-        db.rollback()
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"更新供应商失败: {str(e)}"
-        )
+# 供应商更新功能已移至 app/api/v1/supplier_model.py 以避免路由冲突
+# 此处的供应商更新路由已被移除，请使用主API模块中的实现
 
 
 @router.delete("/suppliers/{supplier_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -624,16 +432,22 @@ async def delete_model_supplier(
         db: 数据库会话
         current_user: 当前活跃的超级用户
     """
-    supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
+    # 使用原始SQL查询避免ORM关系映射问题
+    result = db.execute(text("SELECT id FROM suppliers WHERE id = :supplier_id"), {
+        "supplier_id": supplier_id
+    })
+    supplier = result.fetchone()
     if not supplier:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="供应商不存在"
         )
     
-    # 检查是否有相关模型 - 使用查询方式避免直接访问关系属性
-    from app.models.supplier_db import ModelDB
-    model_count = db.query(ModelDB).filter(ModelDB.supplier_id == supplier_id).count()
+    # 检查是否有相关模型 - 使用原始SQL查询避免ORM关系映射问题
+    result = db.execute(text("SELECT COUNT(*) as count FROM models WHERE supplier_id = :supplier_id"), {
+        "supplier_id": supplier_id
+    })
+    model_count = result.fetchone().count
     if model_count > 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -666,7 +480,11 @@ async def test_supplier_api_config(
     logger.info(f"接收到的请求体: {request_data}")
     
     # 首先验证供应商是否存在并获取供应商信息
-    supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
+    # 使用原始SQL查询避免ORM关系映射问题
+    result = db.execute(text("SELECT id FROM suppliers WHERE id = :supplier_id"), {
+        "supplier_id": supplier_id
+    })
+    supplier = result.fetchone()
     if not supplier:
         logger.error(f"供应商不存在: supplier_id={supplier_id}")
         raise HTTPException(
@@ -820,8 +638,11 @@ async def create_model(
     Returns:
         创建的模型信息
     """
-    # 验证供应商是否存在
-    supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
+    # 验证供应商是否存在 - 使用原始SQL查询避免ORM关系映射问题
+    result = db.execute(text("SELECT id FROM suppliers WHERE id = :supplier_id"), {
+        "supplier_id": supplier_id
+    })
+    supplier = result.fetchone()
     if not supplier:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -1024,8 +845,11 @@ async def update_model(
     Returns:
         更新后的模型信息
     """
-    # 验证供应商是否存在
-    supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
+    # 验证供应商是否存在 - 使用原始SQL查询避免ORM关系映射问题
+    result = db.execute(text("SELECT id FROM suppliers WHERE id = :supplier_id"), {
+        "supplier_id": supplier_id
+    })
+    supplier = result.fetchone()
     if not supplier:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -1090,16 +914,23 @@ async def update_model(
                 update_data['model_type_id'] = model_category.id
             # 删除原来的model_type字段
             del update_data['model_type']
-        elif 'model_type_id' in update_data:
-            # 验证模型分类是否存在
-            model_category = db.query(ModelCategory).filter(
-                ModelCategory.id == update_data['model_type_id']
-            ).first()
-            if not model_category:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Model category with id {update_data['model_type_id']} not found"
-                )
+        elif 'model_type_id' in update_data and update_data['model_type_id'] is not None:
+            # 只有当model_type_id有值时才进行验证
+            if update_data['model_type_id'] != '':
+                try:
+                    model_type_id_int = int(update_data['model_type_id'])
+                    # 验证模型分类是否存在
+                    model_category = db.query(ModelCategory).filter(
+                        ModelCategory.id == model_type_id_int
+                    ).first()
+                    if not model_category:
+                        # 如果分类不存在，记录警告但不阻止更新，将model_type_id设为None
+                        print(f"警告: 模型分类ID {update_data['model_type_id']} 不存在，将设为None")
+                        update_data['model_type_id'] = None
+                except (ValueError, TypeError):
+                    # 如果model_type_id不是有效数字，设为None
+                    print(f"警告: 模型分类ID {update_data['model_type_id']} 无效，将设为None")
+                    update_data['model_type_id'] = None
         
         # 更新模型
         for field, value in update_data.items():

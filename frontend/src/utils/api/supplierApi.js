@@ -4,7 +4,7 @@ import { request } from '../apiUtils';
 export const supplierApi = {
   // 获取所有供应商
   getAll: async () => {
-    const response = await request('/v1/model-management/suppliers-list', {
+    const response = await request('/v1/suppliers-list', {
       method: 'GET'
     });
        
@@ -40,7 +40,7 @@ export const supplierApi = {
   
   // 获取单个供应商
   getById: async (id) => {
-    const endpoint = `/v1/model-management/suppliers/${id}`;
+    const endpoint = `/v1/suppliers/${id}`;
     
     // 调用API获取供应商详情
     const supplier = await request(endpoint, {
@@ -108,7 +108,7 @@ export const supplierApi = {
       };
     }
     
-    const response = await request('/v1/model-management/suppliers', requestOptions);
+    const response = await request('/v1/suppliers', requestOptions);
     
     // 格式化响应以匹配前端需求
     return {
@@ -135,10 +135,10 @@ export const supplierApi = {
 
     
     // 使用专门的状态更新端点(PATCH请求)
-    const endpoint = `/model-management/suppliers/${numericId}/status`;
+    const endpoint = `/v1/suppliers/${numericId}/status`;
 
     // 发送PATCH请求，使用JSON格式
-    const response = await request(`/v1${endpoint}`, {
+    const response = await request(endpoint, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json'
@@ -194,8 +194,8 @@ export const supplierApi = {
     } else {
     }
     
-    // 修正endpoint，后端路由是/v1/model-management/suppliers/{id}
-    const endpoint = `/v1/model-management/suppliers/${numericId}`;
+    // 修正endpoint，后端路由是/v1/suppliers/{id}
+    const endpoint = `/v1/suppliers/${numericId}`;
 
     // 准备请求选项
     const requestOptions = {
@@ -233,7 +233,7 @@ export const supplierApi = {
   
   // 删除供应商
   delete: async (id) => {
-    const endpoint = `/v1/model-management/suppliers/${id}`;
+    const endpoint = `/v1/suppliers/${id}`;
     return await request(endpoint, {
       method: 'DELETE'
     });
@@ -247,19 +247,19 @@ export const supplierApi = {
     // 添加调试信息
     console.log('调用testApiConfig，传递的apiConfig:', JSON.stringify(apiConfig, null, 2));
     console.log('要发送到后端的请求体:', JSON.stringify({
-      api_endpoint: apiConfig.apiUrl,
-      api_key: apiConfig.apiKey
+      apiUrl: apiConfig.apiUrl,
+      apiKey: apiConfig.apiKey
     }, null, 2));
     
-    const endpoint = `/v1/model-management/suppliers/${numericId}/test-api`;
+    const endpoint = `/v1/suppliers/${numericId}/test-api`;
     const response = await request(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        api_endpoint: apiConfig.apiUrl,
-        api_key: apiConfig.apiKey
+        apiUrl: apiConfig.apiUrl,
+        apiKey: apiConfig.apiKey
       })
     });
     

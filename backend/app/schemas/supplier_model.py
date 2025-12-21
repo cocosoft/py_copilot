@@ -21,7 +21,11 @@ class SupplierResponse(BaseModel):
     description: Optional[str] = None
     logo: Optional[str] = None
     website: Optional[str] = None
+    api_endpoint: Optional[str] = None
+    api_key: Optional[str] = None
     api_key_required: Optional[bool] = False
+    category: Optional[str] = None
+    api_docs: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     is_active: bool = True

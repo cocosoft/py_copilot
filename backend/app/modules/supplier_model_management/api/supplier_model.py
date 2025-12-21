@@ -136,56 +136,8 @@ def get_all_suppliers_legacy(db: Session = Depends(get_db)):
     """获取所有供应商（兼容旧版端点）"""
     return get_all_suppliers(db)
 
-@router.put("/suppliers/{supplier_id}")
-async def update_supplier(
-    supplier_id: int,
-    name: str = Form(...),
-    description: str = Form(...),
-    website: str = Form(...),
-    logo: UploadFile = File(None),
-    db: Session = Depends(get_db)
-):
-    """更新供应商信息（支持文件上传）"""
-    supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
-    if not supplier:
-        raise HTTPException(status_code=404, detail="供应商不存在")
-    
-    # 如果更新name，检查是否已存在
-    if name != supplier.name:
-        existing_supplier = db.query(SupplierDB).filter(SupplierDB.name == name).first()
-        if existing_supplier:
-            raise HTTPException(status_code=400, detail="供应商名称已存在")
-    
-    # 保存新logo文件（如果有）
-    update_data = {}
-    if logo:
-        logo_path = await save_upload_file(logo)
-        update_data["logo"] = logo_path
-    
-    # 更新基础信息字段
-    update_data.update({
-        "name": name,
-        "description": description,
-        "website": website,
-        "updated_at": datetime.utcnow()
-    })
-    
-    db.query(SupplierDB).filter(SupplierDB.id == supplier_id).update(update_data)
-    
-    db.commit()
-    db.refresh(supplier)
-    
-    # 返回供应商信息
-    return {
-        "id": supplier.id,
-        "name": supplier.name,
-        "description": supplier.description,
-        "logo": supplier.logo,
-        "website": supplier.website,
-        "created_at": supplier.created_at,
-        "updated_at": supplier.updated_at,
-        "is_active": supplier.is_active
-    }
+# 供应商更新功能已移至 app/api/v1/supplier_model.py 以避免路由冲突
+# 此处的供应商更新路由已被移除，请使用主API模块中的实现
 
 @router.patch("/suppliers/{supplier_id}/status", response_model=dict)
 def update_supplier_status(supplier_id: int, status_update: dict, db: Session = Depends(get_db)):

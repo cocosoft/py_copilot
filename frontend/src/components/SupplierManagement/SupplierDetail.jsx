@@ -53,7 +53,7 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
         return;
       }
 
-      const apiUrl = `${API_BASE_URL}/model-management/suppliers/${supplier.id}`;
+      const apiUrl = `${API_BASE_URL}/v1/suppliers/${supplier.id}`;
 
       await supplierApi.updateSupplierStatus(supplier.id, newStatus);
 
@@ -152,7 +152,14 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
         key: String(updatedSupplierData.id),
         name: updatedSupplierData.name,
         description: updatedSupplierData.description,
-        isDomestic: frontendData && frontendData.isDomestic !== undefined ? frontendData.isDomestic : updatedSupplierData.is_domestic || false
+        isDomestic: frontendData && frontendData.isDomestic !== undefined ? frontendData.isDomestic : updatedSupplierData.is_domestic || false,
+        // API相关字段
+        api_endpoint: updatedSupplierData.api_endpoint || '',
+        api_key: updatedSupplierData.api_key || '',
+        api_docs: updatedSupplierData.api_docs || '',
+        // 其他字段
+        logo: updatedSupplierData.logo || '',
+        website: updatedSupplierData.website || ''
       };
 
       // 立即更新本地currentSupplier状态
@@ -170,6 +177,9 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
         // 使用setTimeout确保UI更新后再刷新
         setTimeout(() => onSupplierUpdate(), 0);
       }
+
+      // 显示成功消息
+      alert(`${supplierModalMode === 'add' ? '添加' : '更新'}供应商成功！`);
 
       // 关闭模态窗口
       handleCloseSupplierModal();

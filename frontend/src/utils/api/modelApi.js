@@ -256,8 +256,8 @@ export const modelApi = {
     }
     
     try {
-      // 使用正确的路径格式：/model-management/suppliers/{supplier_id}/models
-      const result = await request(`/v1/model-management/suppliers/${integerSupplierId}/models`, {
+      // 使用正确的路径格式：/suppliers/{supplier_id}/models
+      const result = await request(`/v1/suppliers/${integerSupplierId}/models`, {
         method: 'GET'
       });
       
@@ -308,7 +308,7 @@ export const modelApi = {
     
     try {
       // 使用正确的路径格式
-      const response = await request(`/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}`, {
+      const response = await request(`/v1/suppliers/${integerSupplierId}/models/${integerModelId}`, {
         method: 'GET'
       });
       
@@ -359,7 +359,7 @@ export const modelApi = {
       }
       
       // 使用正确的路径格式
-      const response = await request(`/v1/model-management/suppliers/${integerSupplierId}/models`, {
+      const response = await request(`/v1/suppliers/${integerSupplierId}/models`, {
         method: 'POST',
         body: formData,
         // 不需要设置Content-Type，浏览器会自动设置并添加边界
@@ -419,7 +419,7 @@ export const modelApi = {
       }
       
       // 使用正确的路径格式
-      const response = await request(`/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}`, {
+      const response = await request(`/v1/suppliers/${integerSupplierId}/models/${integerModelId}`, {
         method: 'PUT',
         body: formData,
         // 不需要设置Content-Type，浏览器会自动设置并添加边界
@@ -459,7 +459,7 @@ export const modelApi = {
     
     try {
       // 使用正确的路径格式
-      const response = await request(`/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}`, {
+      const response = await request(`/v1/suppliers/${integerSupplierId}/models/${integerModelId}`, {
         method: 'DELETE'
       });
       
@@ -494,7 +494,7 @@ export const modelApi = {
     
     try {
       // 使用正确的路径格式
-      const response = await request(`/v1/model-management/suppliers/${integerSupplierId}/models/set-default/${integerModelId}`, {
+      const response = await request(`/v1/suppliers/${integerSupplierId}/models/set-default/${integerModelId}`, {
         method: 'POST'
       });
       
@@ -691,7 +691,7 @@ export const modelApi = {
           if (isNaN(integerSupplierId) || integerSupplierId <= 0) {
             throw new Error('无效的供应商ID');
           }
-          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/parameters`;
+          endpoint = `/v1/suppliers/${integerSupplierId}/parameters`;
           break;
         case 'model_type':
           endpoint = '/v1/model-management/model-types/parameters';
@@ -717,7 +717,7 @@ export const modelApi = {
             }
             
             // 使用正确的路径格式
-            endpoint = `/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters`;
+            endpoint = `/v1/suppliers/${integerSupplierId}/models/${integerModelId}/parameters`;
           } else {
             // 默认使用系统参数端点
             endpoint = '/v1/model-management/system-parameters';
@@ -775,7 +775,7 @@ export const modelApi = {
           if (isNaN(integerSupplierId) || integerSupplierId <= 0) {
             throw new Error('无效的供应商ID');
           }
-          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/parameters`;
+          endpoint = `/v1/suppliers/${integerSupplierId}/parameters`;
           formattedData = {
             parameter_name: parameterData.parameter_name || '',
             parameter_value: parameterData.parameter_value || '',
@@ -804,7 +804,7 @@ export const modelApi = {
           formattedData = buildParameterDataForBackend(parameterData, integerModelId);
           
           // 使用正确的路径格式
-          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters`;
+          endpoint = `/v1/suppliers/${integerSupplierId}/models/${integerModelId}/parameters`;
       }
       
       const response = await request(endpoint, {
@@ -851,7 +851,7 @@ export const modelApi = {
     
     try {
       // 使用正确的路径格式
-      const response = await request(`/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${integerParameterId}`, {
+      const response = await request(`/v1/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${integerParameterId}`, {
         method: 'GET'
       });
       
@@ -894,7 +894,7 @@ export const modelApi = {
           if (isNaN(integerSupplierId) || integerSupplierId <= 0) {
             throw new Error('无效的供应商ID');
           }
-          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/parameters/${integerParameterId}`;
+          endpoint = `/v1/suppliers/${integerSupplierId}/parameters/${integerParameterId}`;
           break;
         case 'model':
         default:
@@ -912,7 +912,7 @@ export const modelApi = {
           }
           
           // 使用正确的路径格式
-          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${integerParameterId}`;
+          endpoint = `/v1/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${integerParameterId}`;
       }
       
       // 构建发送到后端的数据格式
@@ -972,7 +972,7 @@ export const modelApi = {
           if (isNaN(integerSupplierId) || integerSupplierId <= 0) {
             throw new Error('无效的供应商ID');
           }
-          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/parameters/${integerParameterId}`;
+          endpoint = `/v1/suppliers/${integerSupplierId}/parameters/${integerParameterId}`;
           break;
         case 'model':
         default:
@@ -990,7 +990,7 @@ export const modelApi = {
           }
           
           // 使用正确的路径格式
-          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${integerParameterId}`;
+          endpoint = `/v1/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${integerParameterId}`;
       }
       
       const response = await request(endpoint, {
@@ -1032,7 +1032,7 @@ export const modelApi = {
       
       switch (level) {
         case 'supplier':
-          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/apply-template`;
+          endpoint = `/v1/suppliers/${integerSupplierId}/apply-template`;
           break;
         default:
           throw new Error('不支持的层级');
@@ -1305,7 +1305,7 @@ export const modelApi = {
           endpoint = `/v1/model-management/system-parameters/${integerParameterId}/versions`;
           break;
         case 'supplier':
-          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/parameters/${integerParameterId}/versions`;
+          endpoint = `/v1/suppliers/${integerSupplierId}/parameters/${integerParameterId}/versions`;
           break;
         case 'model_type':
           endpoint = `/v1/model-management/model-types/parameters/${integerParameterId}/versions`;
@@ -1314,7 +1314,7 @@ export const modelApi = {
           endpoint = `/v1/model-management/model-capabilities/parameters/${integerParameterId}/versions`;
           break;
         default:
-          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${integerParameterId}/versions`;
+          endpoint = `/v1/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${integerParameterId}/versions`;
       }
 
       const response = await request(endpoint, {
@@ -1354,7 +1354,7 @@ export const modelApi = {
           endpoint = `/v1/model-management/system-parameters/${integerParameterId}/versions/${integerVersionId}/revert`;
           break;
         case 'supplier':
-          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/parameters/${integerParameterId}/versions/${integerVersionId}/revert`;
+          endpoint = `/v1/suppliers/${integerSupplierId}/parameters/${integerParameterId}/versions/${integerVersionId}/revert`;
           break;
         case 'model_type':
           endpoint = `/v1/model-management/model-types/parameters/${integerParameterId}/versions/${integerVersionId}/revert`;
@@ -1363,7 +1363,7 @@ export const modelApi = {
           endpoint = `/v1/model-management/model-capabilities/parameters/${integerParameterId}/versions/${integerVersionId}/revert`;
           break;
         default:
-          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${integerParameterId}/versions/${integerVersionId}/revert`;
+          endpoint = `/v1/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${integerParameterId}/versions/${integerVersionId}/revert`;
       }
 
       const response = await request(endpoint, {
@@ -1540,7 +1540,7 @@ export const modelApi = {
           endpoint = `/v1/model-management/system-parameters/versions`;
           break;
         case 'supplier':
-          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/parameters/versions`;
+          endpoint = `/v1/suppliers/${integerSupplierId}/parameters/versions`;
           break;
         case 'model_type':
           endpoint = `/v1/model-management/model-types/parameters/versions`;
@@ -1549,7 +1549,7 @@ export const modelApi = {
           endpoint = `/v1/model-management/model-capabilities/parameters/versions`;
           break;
         default:
-          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/versions`;
+          endpoint = `/v1/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/versions`;
       }
 
       const response = await request(endpoint, {
@@ -1631,9 +1631,9 @@ export const modelApi = {
           break;
         case 'supplier':
           if (integerParameterId) {
-            endpoint = `/v1/model-management/suppliers/${integerSupplierId}/parameters/${integerParameterId}/audit-logs${queryString}`;
+            endpoint = `/v1/suppliers/${integerSupplierId}/parameters/${integerParameterId}/audit-logs${queryString}`;
           } else {
-            endpoint = `/v1/model-management/suppliers/${integerSupplierId}/parameters/audit-logs${queryString}`;
+            endpoint = `/v1/suppliers/${integerSupplierId}/parameters/audit-logs${queryString}`;
           }
           break;
         case 'model_type':
@@ -1652,9 +1652,9 @@ export const modelApi = {
           break;
         default:
           if (integerParameterId) {
-            endpoint = `/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${integerParameterId}/audit-logs${queryString}`;
+            endpoint = `/v1/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${integerParameterId}/audit-logs${queryString}`;
           } else {
-            endpoint = `/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/audit-logs${queryString}`;
+            endpoint = `/v1/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/audit-logs${queryString}`;
           }
       }
 
@@ -1736,7 +1736,7 @@ export const modelApi = {
           endpoint = `/v1/model-management/system-parameters/export${queryString}`;
           break;
         case 'supplier':
-          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/parameters/export${queryString}`;
+          endpoint = `/v1/suppliers/${integerSupplierId}/parameters/export${queryString}`;
           break;
         case 'model_type':
           endpoint = `/v1/model-management/model-types/parameters/export${queryString}`;
@@ -1745,7 +1745,7 @@ export const modelApi = {
           endpoint = `/v1/model-management/model-capabilities/parameters/export${queryString}`;
           break;
         default:
-          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/export${queryString}`;
+          endpoint = `/v1/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/export${queryString}`;
       }
 
       // 导出文件需要特殊处理，使用responseType: 'blob'
@@ -1793,7 +1793,7 @@ export const modelApi = {
           endpoint = `/v1/model-management/system-parameters/import`;
           break;
         case 'supplier':
-          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/parameters/import`;
+          endpoint = `/v1/suppliers/${integerSupplierId}/parameters/import`;
           break;
         case 'model_type':
           endpoint = `/v1/model-management/model-types/parameters/import`;
@@ -1802,7 +1802,7 @@ export const modelApi = {
           endpoint = `/v1/model-management/model-capabilities/parameters/import`;
           break;
         default:
-          endpoint = `/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/import`;
+          endpoint = `/v1/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/import`;
       }
 
       // 创建FormData对象来上传文件
@@ -1914,7 +1914,7 @@ export const modelApi = {
         throw new Error('无效的模型ID');
       }
       
-      const response = await request(`/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters`, {
+      const response = await request(`/v1/suppliers/${integerSupplierId}/models/${integerModelId}/parameters`, {
         method: 'GET'
       });
 
@@ -1956,7 +1956,7 @@ export const modelApi = {
         description: parameterData.description || ''
       };
 
-      const response = await request(`/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters`, {
+      const response = await request(`/v1/suppliers/${integerSupplierId}/models/${integerModelId}/parameters`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1998,7 +1998,7 @@ export const modelApi = {
         description: parameterData.description || ''
       };
 
-      const response = await request(`/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${encodeURIComponent(parameterName)}`, {
+      const response = await request(`/v1/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${encodeURIComponent(parameterName)}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -2034,7 +2034,7 @@ export const modelApi = {
         throw new Error('参数名称不能为空');
       }
 
-      const response = await request(`/v1/model-management/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${encodeURIComponent(parameterName)}`, {
+      const response = await request(`/v1/suppliers/${integerSupplierId}/models/${integerModelId}/parameters/${encodeURIComponent(parameterName)}`, {
         method: 'DELETE'
       });
 

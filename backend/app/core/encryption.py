@@ -29,8 +29,10 @@ class EncryptionTool:
                 )
                 self.key = base64.urlsafe_b64encode(kdf.derive(secret_key.encode()))
         else:
-            # 否则生成一个随机密钥（注意：生产环境应使用固定密钥）
-            self.key = Fernet.generate_key()
+            # 使用固定的默认密钥（开发环境）
+            # 生产环境应该设置ENCRYPTION_KEY环境变量
+            # 使用固定的开发密钥，确保加密解密一致性
+            self.key = b'ymftr1-hmQe66gN52fBIvw1AAnZx7UDnUeFql4DQbH8='
             
         self.cipher_suite = Fernet(self.key)
     
@@ -92,4 +94,15 @@ def decrypt_string(encrypted_data: str) -> str:
         # 如果不是加密数据，直接返回
         return encrypted_data
     
-    return encryption_tool.decrypt(encrypted_data)
+    try:
+        return encryption_tool.decrypt(encrypted_data)
+    except Exception as e:
+        # 如果解密失败，记录错误并返回原始数据
+        import traceback
+        print(f"Warning: Failed to decrypt data: {e}")
+        print(f"完整错误信息:")
+        traceback.print_exc()
+        print(f"加密数据: {encrypted_data}")
+        print(f"加密数据长度: {len(encrypted_data)}")
+        print(f"加密数据是否以gAAAAAB开头: {encrypted_data.startswith('gAAAAAB')}")
+        return encrypted_data

@@ -5,7 +5,7 @@ from datetime import datetime
 import time
 from app.core.config import settings
 from app.services.model_query_service import model_query_service
-from app.models.model_management import ModelSupplier
+from app.models.supplier_db import SupplierDB as ModelSupplier
 from app.services.search_management_service import SearchManagementService
 from app.services.web_search_service import WebSearchService
 

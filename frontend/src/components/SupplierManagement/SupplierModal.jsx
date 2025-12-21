@@ -16,21 +16,22 @@ const SupplierModal = ({ isOpen, onClose, onSave, supplier = null, mode = 'add' 
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState('');
 
-  // 当传入的supplier变化时，更新表单数据
+  // 当传入的supplier变化时或模态窗口打开时，更新表单数据
   useEffect(() => {
-    if (mode === 'edit' && supplier) {
-      setFormData({
-        name: supplier.name || '',
-        description: supplier.description || '',
-        logo: supplier.logo || '',
-        website: supplier.website || '',
-        api_endpoint: supplier.api_endpoint || supplier.apiUrl || '',
-        api_key: supplier.api_key || '',
-        api_docs: supplier.api_docs || ''
-      });
-      // 重置文件和预览
-      setFile(null);
-      // 处理logo预览URL，现在后端直接返回前端可访问的路径格式
+    if (isOpen) {
+      if (mode === 'edit' && supplier) {
+        setFormData({
+          name: supplier.name || '',
+          description: supplier.description || '',
+          logo: supplier.logo || '',
+          website: supplier.website || '',
+          api_endpoint: supplier.api_endpoint || supplier.apiUrl || '',
+          api_key: supplier.api_key || '',
+          api_docs: supplier.api_docs || ''
+        });
+        // 重置文件和预览
+        setFile(null);
+        // 处理logo预览URL，现在后端直接返回前端可访问的路径格式
         const logoUrl = supplier.logo || '';
         // 对于/logo/providers/开头的路径或其他相对路径，前端可以直接访问
         // 对于只有文件名的logo值，添加完整路径前缀
@@ -50,21 +51,22 @@ const SupplierModal = ({ isOpen, onClose, onSave, supplier = null, mode = 'add' 
           ...prev,
           logo: logoUrl
         }));
-    } else if (mode === 'add') {
-      // 重置表单数据
-      setFormData({
-        name: '',
-        description: '',
-        logo: '',
-        website: '',
-        api_endpoint: '',
-        api_key: '',
-        api_docs: ''
-      });
-      setFile(null);
-      setPreviewUrl('');
+      } else if (mode === 'add') {
+        // 重置表单数据
+        setFormData({
+          name: '',
+          description: '',
+          logo: '',
+          website: '',
+          api_endpoint: '',
+          api_key: '',
+          api_docs: ''
+        });
+        setFile(null);
+        setPreviewUrl('');
+      }
     }
-  }, [supplier, mode]);
+  }, [supplier, mode, isOpen]);
 
   // 处理表单输入变化
   const handleChange = (e) => {
