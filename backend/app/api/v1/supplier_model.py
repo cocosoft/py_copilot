@@ -662,10 +662,10 @@ def delete_model(supplier_id: int, model_id: int, db: Session = Depends(get_db))
     
     return {"message": "模型删除成功"}
 
-@router.post("/suppliers/{supplier_id}/test-api")
-async def test_api_config(supplier_id: int, api_config: dict, db: Session = Depends(get_db)):
+@router.post("/suppliers/{supplier_id}/fetch-models")
+async def fetch_models_from_api(supplier_id: int, api_config: dict, db: Session = Depends(get_db)):
     """
-    测试供应商的API配置
+    从供应商API获取模型列表
     
     Args:
         supplier_id: 供应商ID
@@ -673,8 +673,194 @@ async def test_api_config(supplier_id: int, api_config: dict, db: Session = Depe
         db: 数据库会话
     
     Returns:
-        测试结果
+        获取的模型列表
     """
+    import requests
+    import logging
+    # 使用根日志记录器
+    logger = logging.getLogger()
+    
+    # 记录请求开始
+    logger.info(f"[获取模型] 请求开始 - 供应商ID: {supplier_id}, API配置: {api_config}")
+    
+    # 验证供应商是否存在 - 使用原始SQL查询避免ORM关系映射错误
+    from sqlalchemy import text
+    result = db.execute(text("""
+        SELECT id, api_endpoint FROM suppliers WHERE id = :supplier_id
+    """), {"supplier_id": supplier_id})
+    supplier = result.fetchone()
+    if not supplier:
+        logger.error(f"[获取模型] 供应商不存在 - 供应商ID: {supplier_id}")
+        raise HTTPException(status_code=404, detail="供应商不存在")
+    
+    # 提取API配置 - 优先使用前端传递的API端点，如果未提供则使用数据库中的
+    api_endpoint = api_config.get("apiUrl") or supplier.api_endpoint
+    # 使用前端传递的API密钥
+    api_key = api_config.get("apiKey") or api_config.get("api_key")
+    
+    logger.info(f"[获取模型] 提取的API配置 - 端点: {api_endpoint}, 密钥长度: {len(api_key) if api_key else 0}")
+    
+    if not api_endpoint:
+        logger.error(f"[获取模型] API端点为空 - 供应商ID: {supplier_id}")
+        raise HTTPException(status_code=400, detail="API端点不能为空")
+    
+    try:
+        # 根据供应商类型选择不同的获取模型方法
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}" if api_key else ""
+        }
+        
+        models = []
+        
+        # 检查API端点类型，使用不同的获取方法
+        if "siliconflow" in api_endpoint.lower():
+            # 硅基流动API - 使用/models端点获取模型列表
+            models_endpoint = api_endpoint.rstrip('/') + "/models"
+            logger.info(f"[获取模型] 硅基流动API - 方法: GET, 端点: {models_endpoint}")
+            response = requests.get(models_endpoint, headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                logger.info(f"[获取模型] 硅基流动API响应: {data}")
+                
+                # 硅基流动返回格式：直接是模型数组
+                if isinstance(data, list):
+                    for model_data in data:
+                        models.append({
+                            "model_id": model_data.get("id"),
+                            "model_name": model_data.get("id"),  # 使用id作为名称
+                            "description": f"硅基流动模型: {model_data.get('id')}",
+                            "context_window": 8000,
+                            "max_tokens": 1000,
+                            "is_default": False,
+                            "is_active": True
+                        })
+                elif isinstance(data, dict) and "data" in data:
+                    # 备用格式处理
+                    for model_data in data["data"]:
+                        models.append({
+                            "model_id": model_data.get("id"),
+                            "model_name": model_data.get("name", model_data.get("id")),
+                            "description": model_data.get("description", ""),
+                            "context_window": model_data.get("context_length", 8000),
+                            "max_tokens": model_data.get("max_tokens", 1000),
+                            "is_default": False,
+                            "is_active": True
+                        })
+                else:
+                    logger.warning(f"[获取模型] 硅基流动API返回格式未知: {type(data)}")
+        elif "ollama" in api_endpoint.lower() or "localhost:11434" in api_endpoint.lower():
+            # Ollama API - 使用/api/tags获取模型列表
+            # 对于Ollama，API端点通常是基础URL，需要构建正确的模型列表端点
+            base_url = api_endpoint.rstrip('/')
+            # 如果端点已经是完整的API路径，需要去掉重复的/api部分
+            if base_url.endswith('/api'):
+                base_url = base_url[:-4]  # 去掉最后的/api
+            models_endpoint = base_url.rstrip('/') + "/api/tags"
+            logger.info(f"[获取模型] Ollama API - 方法: GET, 端点: {models_endpoint}")
+            response = requests.get(models_endpoint, headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if "models" in data:
+                    for model_data in data["models"]:
+                        models.append({
+                            "model_id": model_data.get("name"),
+                            "model_name": model_data.get("name"),
+                            "description": f"Ollama模型: {model_data.get('name')}",
+                            "context_window": 8000,
+                            "max_tokens": 1000,
+                            "is_default": False,
+                            "is_active": True
+                        })
+        elif "deepseek" in api_endpoint.lower():
+            # DeepSeek API - 使用/models端点获取模型列表
+            # 修复端点构建逻辑，避免重复的/v1路径
+            base_url = api_endpoint.rstrip('/')
+            if base_url.endswith('/v1'):
+                base_url = base_url[:-3]  # 去掉最后的/v1
+            models_endpoint = base_url.rstrip('/') + "/v1/models"
+            logger.info(f"[获取模型] DeepSeek API - 方法: GET, 端点: {models_endpoint}")
+            response = requests.get(models_endpoint, headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if "data" in data:
+                    for model_data in data["data"]:
+                        models.append({
+                            "model_id": model_data.get("id"),
+                            "model_name": model_data.get("name", model_data.get("id")),
+                            "description": model_data.get("description", ""),
+                            "context_window": model_data.get("context_window", 8000),
+                            "max_tokens": model_data.get("max_tokens", 1000),
+                            "is_default": False,
+                            "is_active": True
+                        })
+        else:
+            # 通用API - 尝试使用/models端点
+            models_endpoint = api_endpoint.rstrip('/') + "/v1/models"
+            logger.info(f"[获取模型] 通用API - 方法: GET, 端点: {models_endpoint}")
+            response = requests.get(models_endpoint, headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if "data" in data:
+                    for model_data in data["data"]:
+                        models.append({
+                            "model_id": model_data.get("id"),
+                            "model_name": model_data.get("name", model_data.get("id")),
+                            "description": model_data.get("description", ""),
+                            "context_window": model_data.get("context_window", 8000),
+                            "max_tokens": model_data.get("max_tokens", 1000),
+                            "is_default": False,
+                            "is_active": True
+                        })
+        
+        logger.info(f"[获取模型] 获取成功 - 供应商ID: {supplier_id}, 获取到 {len(models)} 个模型")
+        
+        return {
+            "status": "success",
+            "message": f"成功获取 {len(models)} 个模型",
+            "models": models,
+            "total": len(models)
+        }
+    
+    except requests.exceptions.ConnectionError as e:
+        logger.error(f"[获取模型] 连接错误 - 供应商ID: {supplier_id}, API端点: {api_endpoint}, 错误: {str(e)}")
+        return {
+            "status": "error",
+            "message": "无法连接到API端点，请检查地址是否正确。",
+            "models": [],
+            "total": 0
+        }
+    except requests.exceptions.Timeout as e:
+        logger.error(f"[获取模型] 请求超时 - 供应商ID: {supplier_id}, API端点: {api_endpoint}, 错误: {str(e)}")
+        return {
+            "status": "error",
+            "message": "API请求超时，请检查网络连接或端点响应时间。",
+            "models": [],
+            "total": 0
+        }
+    except requests.exceptions.RequestException as e:
+        logger.error(f"[获取模型] 请求异常 - 供应商ID: {supplier_id}, API端点: {api_endpoint}, 错误: {str(e)}")
+        return {
+            "status": "error",
+            "message": f"获取模型失败: {str(e)}",
+            "models": [],
+            "total": 0
+        }
+    except Exception as e:
+        logger.error(f"[获取模型] 未知错误 - 供应商ID: {supplier_id}, API端点: {api_endpoint}, 错误: {str(e)}", exc_info=True)
+        return {
+            "status": "error",
+            "message": f"获取模型过程中发生错误: {str(e)}",
+            "models": [],
+            "total": 0
+        }
+
+@router.post("/suppliers/{supplier_id}/test-api")
+async def test_api_config(supplier_id: int, api_config: dict, db: Session = Depends(get_db)):
     import requests
     import logging
     # 使用根日志记录器
