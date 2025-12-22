@@ -1,13 +1,39 @@
 """智能体分类API路由"""
-from typing import Any, Optional
+from typing import Any, Optional, List, Dict
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 
 from app.core.dependencies import get_db
 from app.schemas.agent_category import AgentCategoryCreate, AgentCategoryUpdate, AgentCategoryResponse, AgentCategoryListResponse
 from app.services.agent_category_service import agent_category_service
 
 router = APIRouter()
+
+
+# 树形结构响应模型
+class CategoryTreeNode(BaseModel):
+    """分类树节点"""
+    id: int
+    name: str
+    logo: Optional[str]
+    is_system: bool
+    is_root: bool
+    is_leaf: bool
+    children: List["CategoryTreeNode"]
+
+
+class CategoryTreeResponse(BaseModel):
+    """分类树响应"""
+    categories: List[CategoryTreeNode]
+
+
+class CategoryPathResponse(BaseModel):
+    """分类路径响应"""
+    path: List[AgentCategoryResponse]
+
+
+CategoryTreeNode.update_forward_refs()
 
 
 @router.post("/", response_model=AgentCategoryResponse, status_code=status.HTTP_201_CREATED)
@@ -112,3 +138,92 @@ def delete_agent_category_api(
         status_code=status.HTTP_404_NOT_FOUND,
         detail="智能体分类不存在"
     )
+
+
+# 树形结构相关API端点
+
+@router.get("/tree/", response_model=CategoryTreeResponse)
+def get_agent_category_tree_api(db: Session = Depends(get_db)) -> Any:
+    """
+    获取智能体分类树结构接口
+    
+    Args:
+        db: 数据库会话
+    
+    Returns:
+        完整的智能体分类树结构
+    """
+    tree_data = agent_category_service.get_category_tree(db=db)
+    return {"categories": tree_data}
+
+
+@router.get("/roots/", response_model=AgentCategoryListResponse)
+def get_root_agent_categories_api(db: Session = Depends(get_db)) -> Any:
+    """
+    获取所有根分类接口
+    
+    Args:
+        db: 数据库会话
+    
+    Returns:
+        根分类列表信息
+    """
+    root_categories = agent_category_service.get_root_categories(db=db)
+    return {"categories": root_categories, "total": len(root_categories)}
+
+
+@router.get("/{category_id}/children/", response_model=AgentCategoryListResponse)
+def get_agent_category_children_api(
+    category_id: int,
+    db: Session = Depends(get_db)
+) -> Any:
+    """
+    获取指定分类的子分类接口
+    
+    Args:
+        category_id: 智能体分类ID
+        db: 数据库会话
+    
+    Returns:
+        子分类列表信息
+    """
+    children = agent_category_service.get_category_children(db=db, category_id=category_id)
+    return {"categories": children, "total": len(children)}
+
+
+@router.get("/{category_id}/path/", response_model=CategoryPathResponse)
+def get_agent_category_path_api(
+    category_id: int,
+    db: Session = Depends(get_db)
+) -> Any:
+    """
+    获取分类路径接口
+    
+    Args:
+        category_id: 智能体分类ID
+        db: 数据库会话
+    
+    Returns:
+        从根分类到当前分类的完整路径
+    """
+    path = agent_category_service.get_category_path(db=db, category_id=category_id)
+    return {"path": path}
+
+
+@router.get("/level/{level}/", response_model=AgentCategoryListResponse)
+def get_agent_categories_by_level_api(
+    level: int,
+    db: Session = Depends(get_db)
+) -> Any:
+    """
+    获取指定层级的分类接口
+    
+    Args:
+        level: 层级（0表示根分类）
+        db: 数据库会话
+    
+    Returns:
+        指定层级的分类列表信息
+    """
+    categories = agent_category_service.get_categories_by_level(db=db, level=level)
+    return {"categories": categories, "total": len(categories)}

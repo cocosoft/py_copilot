@@ -343,3 +343,7 @@ dev_plan/frontend_interface_optimization_plan_actual.md
 backend/force_migrate_api_keys.py
 backend/migrate_api_keys.py
 dev_plan/ModelParamsManagementDevPlan.md
+backend/test_deepseek.json
+test_aliyun_dashscope.py
+backend/test_tree_structure.py
+backend/智能体分类说明.md

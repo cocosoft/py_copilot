@@ -92,7 +92,7 @@ export const categoryApi = {
       // 判断是否为FormData对象（用于文件上传）
       const isFormData = categoryData instanceof FormData;
       
-      return await request(`/v1/model/categories/${categoryId}`, {
+      return await request(`/api/v1/model/categories/${categoryId}`, {
         method: 'PUT',
         body: isFormData ? categoryData : JSON.stringify(categoryData),
         headers: isFormData ? {} : {
@@ -196,7 +196,7 @@ export const categoryApi = {
   // 设置类型默认参数
   setParameters: async (categoryId, parameters) => {
     try {
-      return await request(`/v1/categories/${categoryId}/parameters`, {
+      return await request(`/api/v1/categories/${categoryId}/parameters`, {
         method: 'POST',
         body: JSON.stringify(parameters),
         headers: {

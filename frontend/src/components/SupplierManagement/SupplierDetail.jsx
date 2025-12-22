@@ -53,7 +53,7 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
         return;
       }
 
-      const apiUrl = `${API_BASE_URL}/v1/suppliers/${supplier.id}`;
+      // 不再直接使用API URL，改为调用supplierApi方法
 
       await supplierApi.updateSupplierStatus(supplier.id, newStatus);
 

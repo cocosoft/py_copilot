@@ -72,3 +72,14 @@ export const deleteAgentCategory = async (categoryId) => {
     throw error;
   }
 };
+
+// 获取智能体分类树结构
+export const getAgentCategoryTree = async () => {
+  try {
+    const response = await request(`${AGENT_CATEGORY_API_BASE}/tree/`);
+    return response;
+  } catch (error) {
+    console.error('获取智能体分类树失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+    throw error;
+  }
+};

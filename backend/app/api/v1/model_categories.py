@@ -81,7 +81,7 @@ async def save_category_logo(upload_file: UploadFile) -> Optional[str]:
         )
 
 # 创建路由器
-router = APIRouter(prefix="/categories", tags=["model_categories"])
+router = APIRouter(prefix="/model/categories", tags=["model_categories"])
 
 
 # 模拟用户认证依赖

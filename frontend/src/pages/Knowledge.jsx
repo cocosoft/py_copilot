@@ -642,7 +642,7 @@ const Knowledge = () => {
           console.log('开始PDF预览流程...');
           
           // 1. 下载PDF文件
-          const response = await fetch(`/api/v1/knowledge/documents/${documentId}/download`);
+          const response = await fetch(`/v1/knowledge/documents/${documentId}/download`);
           if (!response.ok) throw new Error(`下载PDF失败: ${response.status} ${response.statusText}`);
           console.log('PDF下载成功');
           
@@ -673,7 +673,7 @@ const Knowledge = () => {
       } else if (doc.file_type === '.docx' || doc.file_type === '.doc') {
         // Word文档预览 - 使用后端下载API
         try {
-          const response = await fetch(`/api/v1/knowledge/documents/${documentId}/download`);
+          const response = await fetch(`/v1/knowledge/documents/${documentId}/download`);
           if (!response.ok) throw new Error('下载Word文档失败');
           
           const arrayBuffer = await response.arrayBuffer();

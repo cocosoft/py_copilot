@@ -7,7 +7,7 @@ import { supplierApi } from './api/supplierApi';
 export { supplierApi };
 
 // 从独立模块导入模型API
-import { modelApi } from './api/modelApi';
+import modelApi from './api/modelApi';
 export { modelApi };
 
 // 临时简化的其他API

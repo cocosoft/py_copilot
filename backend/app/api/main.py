@@ -16,7 +16,7 @@ from app.core.logging_config import logger
 # 使用硬编码配置避免复杂导入
 API_TITLE = "Py Copilot API"
 API_VERSION = "1.0.0"
-CORS_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:5174", "http://127.0.0.1:5174"]
+CORS_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:5174", "http://127.0.0.1:5174", "http://localhost:5175", "http://127.0.0.1:5175"]
 CORS_CREDENTIALS = True
 CORS_METHODS = ["*"]
 CORS_HEADERS = ["*"]
@@ -255,5 +255,5 @@ async def proxy_image(url: str = Query(..., description="要代理的外部图�
 
 # 导入路由 - 使用动态导入避免循环导入
 from app.api import api_router
-app.include_router(api_router, prefix="/api")
+app.include_router(api_router)
 

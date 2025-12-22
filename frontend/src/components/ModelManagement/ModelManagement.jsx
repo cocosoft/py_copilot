@@ -77,6 +77,17 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
   
   // 描述展开状态管理
   const [expandedDescriptions, setExpandedDescriptions] = useState({});
+  
+  // 获取模型相关状态
+  const [fetchedModels, setFetchedModels] = useState([]);
+  const [isModelSelectionOpen, setIsModelSelectionOpen] = useState(false);
+  
+  // 翻页和筛选相关状态
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredModels, setFilteredModels] = useState([]);
+  const [selectedModelIds, setSelectedModelIds] = useState([]);
 
   // 当选择的供应商改变时，加载对应模型列表
   useEffect(() => {
@@ -88,6 +99,21 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
       setError(null);
     }
   }, [selectedSupplier]);
+
+  // 模型筛选和翻页逻辑
+  useEffect(() => {
+    if (fetchedModels.length > 0) {
+      // 筛选模型
+      const filtered = fetchedModels.filter(model => 
+        model.model_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        model.model_id.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredModels(filtered);
+      setCurrentPage(1); // 重置到第一页
+    } else {
+      setFilteredModels([]);
+    }
+  }, [fetchedModels, searchTerm]);
 
   // 确保deepseek供应商有默认的deepseek-chat模型
   useEffect(() => {
@@ -182,6 +208,167 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
     setEditingModel(null);
     setModelModalMode('add');
     setIsModelModalOpen(true);
+  };
+
+  // 获取模型列表
+  const handleFetchModelsClick = async () => {
+    if (!selectedSupplier) return;
+    
+    try {
+      setSaving(true);
+      
+      // 获取供应商的API配置
+      const supplierDetail = await api.supplierApi.getById(selectedSupplier.id);
+      
+      const apiConfig = {
+        apiUrl: supplierDetail.api_endpoint || supplierDetail.apiUrl,
+        apiKey: supplierDetail.api_key
+      };
+      
+      console.log('获取模型API配置:', apiConfig);
+      
+      // 调用获取模型列表API
+      const response = await api.supplierApi.fetchModelsFromApi(selectedSupplier.id, apiConfig);
+      
+      if (response.status === 'success' && response.models && response.models.length > 0) {
+        // 获取已保存的模型列表
+        const existingModels = await api.modelApi.getBySupplier(selectedSupplier.id);
+        const existingModelIds = existingModels.models.map(model => model.model_id);
+        
+        // 过滤掉已保存的模型
+        const newModels = response.models.filter(model => 
+          !existingModelIds.includes(model.model_id)
+        );
+        
+        if (newModels.length > 0) {
+          // 显示模型选择界面
+          setFetchedModels(newModels);
+          // 默认选中所有模型
+          setSelectedModelIds(newModels.map(model => model.model_id));
+          setIsModelSelectionOpen(true);
+          setSuccess(`成功获取 ${newModels.length} 个新模型（已过滤掉 ${response.models.length - newModels.length} 个已保存的模型）`);
+        } else {
+          setSuccess('所有模型都已保存，没有新的模型可添加');
+        }
+      } else {
+        setError('未获取到模型列表，请检查API配置是否正确');
+      }
+    } catch (err) {
+      const errorMessage = err.message || '获取模型列表失败';
+      console.error('❌ 获取模型列表失败:', errorMessage);
+      setError(`获取模型列表失败: ${errorMessage}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // 翻页相关函数
+  const getCurrentPageModels = () => {
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return filteredModels.slice(startIndex, endIndex);
+  };
+
+  const totalPages = Math.ceil(filteredModels.length / pageSize);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+  };
+
+  // 处理模型选择状态变化
+  const handleModelSelectionChange = (modelId, isSelected) => {
+    if (isSelected) {
+      setSelectedModelIds(prev => [...prev, modelId]);
+    } else {
+      setSelectedModelIds(prev => prev.filter(id => id !== modelId));
+    }
+  };
+
+  // 保存选中的模型
+  const handleSaveSelectedModels = async (selectedModelIds) => {
+    try {
+      setSaving(true);
+      
+      const selectedModels = fetchedModels.filter(model => 
+        selectedModelIds.includes(model.model_id)
+      );
+      
+      let savedCount = 0;
+      let errorCount = 0;
+      const errorMessages = [];
+      
+      for (const model of selectedModels) {
+        try {
+          // 检查模型是否已存在
+          const existingModels = await api.modelApi.getBySupplier(selectedSupplier.id);
+          const modelExists = existingModels.models.some(existing => 
+            existing.model_id === model.model_id
+          );
+          
+          if (!modelExists) {
+            // 调试：检查模型对象结构
+            console.log('模型对象结构:', JSON.stringify(model, null, 2));
+            console.log('模型ID:', model.model_id, '类型:', typeof model.model_id);
+            
+            // 构建完整的模型数据，确保包含所有必需字段，格式与API期望一致
+            const modelData = {
+              model_id: model.model_id,
+              model_name: model.model_name || model.model_id,
+              description: model.description || '',
+              context_window: Number(model.context_window) || 8000,
+              max_tokens: Number(model.max_tokens) || 1000,
+              is_active: true,
+              is_default: false,
+              supplier_id: selectedSupplier.id
+            };
+            
+            console.log('准备保存模型数据:', JSON.stringify(modelData, null, 2));
+            
+            await api.modelApi.create(selectedSupplier.id, modelData);
+            savedCount++;
+            console.log(`✅ 模型 ${model.model_id} 保存成功`);
+          } else {
+            console.log(`ℹ️ 模型 ${model.model_id} 已存在，跳过保存`);
+          }
+        } catch (err) {
+          errorCount++;
+          const errorMsg = `模型 ${model.model_id} 保存失败: ${err.message}`;
+          errorMessages.push(errorMsg);
+          console.error(`❌ ${errorMsg}`);
+        }
+      }
+      
+      // 关闭选择界面并重新加载模型列表
+      setIsModelSelectionOpen(false);
+      setFetchedModels([]);
+      await loadModels();
+      
+      // 显示保存结果
+      if (errorCount === 0) {
+        setSuccess(`成功保存 ${savedCount} 个模型`);
+      } else {
+        setError(`保存完成：成功 ${savedCount} 个，失败 ${errorCount} 个。失败详情：${errorMessages.join('; ')}`);
+      }
+    } catch (err) {
+      const errorMessage = err.message || '保存模型失败';
+      console.error('❌ 保存模型失败:', errorMessage);
+      setError(`保存模型失败: ${errorMessage}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // 关闭模型选择界面
+  const handleCloseModelSelection = () => {
+    setIsModelSelectionOpen(false);
+    setFetchedModels([]);
+    setSelectedModelIds([]);
+    setSearchTerm('');
+    setCurrentPage(1);
   };
 
   // 编辑模型
@@ -521,6 +708,12 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
                 >
                   添加模型
                 </button>
+                <button className="btn btn-secondary"
+                  onClick={() => handleFetchModelsClick()}
+                  disabled={saving || !selectedSupplier}
+                >
+                  获取模型
+                </button>
               </div>
             </div>
 
@@ -684,6 +877,94 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
           onClose={handleCloseCapabilityModal}
           model={currentCapabilitiesModel}
         />
+      )}
+      
+      {/* 模型选择界面 */}
+      {isModelSelectionOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>选择要保存的模型</h3>
+              <button className="modal-close" onClick={handleCloseModelSelection}>
+                ×
+              </button>
+            </div>
+            
+            {/* 搜索框 */}
+            <div className="modal-search">
+              <input
+                type="text"
+                placeholder="搜索模型名称或ID..."
+                value={searchTerm}
+                onChange={handleSearchChange}
+                className="search-input"
+              />
+              <div className="search-info">
+                <span>共找到 {filteredModels.length} 个模型</span>
+              </div>
+            </div>
+            
+            <div className="modal-body">
+              <div className="model-selection-list">
+                {getCurrentPageModels().map((model) => (
+                  <div key={model.model_id} className="model-selection-item">
+                    <input
+                      type="checkbox"
+                      id={`model-${model.model_id}`}
+                      value={model.model_id}
+                      checked={selectedModelIds.includes(model.model_id)}
+                      onChange={(e) => handleModelSelectionChange(model.model_id, e.target.checked)}
+                    />
+                    <label htmlFor={`model-${model.model_id}`} className="model-selection-label">
+                      <div className="model-info">
+                        <strong>{model.model_name}</strong>
+                        <span className="model-id">ID: {model.model_id}</span>
+                      </div>
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {/* 翻页控件 */}
+            {totalPages > 1 && (
+              <div className="modal-pagination">
+                <button 
+                  className="pagination-btn" 
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                >
+                  上一页
+                </button>
+                <span className="pagination-info">
+                  第 {currentPage} 页 / 共 {totalPages} 页
+                </span>
+                <button 
+                  className="pagination-btn" 
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  下一页
+                </button>
+              </div>
+            )}
+            <div className="modal-footer">
+              <button 
+                className="btn btn-secondary" 
+                onClick={handleCloseModelSelection}
+              >
+                取消
+              </button>
+              <button 
+                className="btn btn-primary" 
+                onClick={() => handleSaveSelectedModels(selectedModelIds)}
+                disabled={selectedModelIds.length === 0}
+              >
+                保存选中模型 ({selectedModelIds.length})
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

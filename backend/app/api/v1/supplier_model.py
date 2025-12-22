@@ -177,6 +177,12 @@ def get_supplier(supplier_id: int, db: Session = Depends(get_db)):
         "is_active": supplier.is_active
     }
 
+# 添加兼容性端点：/suppliers/all 作为 /suppliers-list 的别名
+@router.get("/suppliers/all", response_model=List[SupplierResponse])
+def get_all_suppliers_alias(db: Session = Depends(get_db)):
+    """获取所有供应商（兼容性端点）"""
+    return get_all_suppliers(db)
+
 from sqlalchemy import text
 
 @router.put("/suppliers/{supplier_id}")
@@ -797,6 +803,75 @@ async def fetch_models_from_api(supplier_id: int, api_config: dict, db: Session 
                             "is_default": False,
                             "is_active": True
                         })
+        elif "dashscope" in api_endpoint.lower() or "aliyun" in api_endpoint.lower():
+            # 阿里云百炼API - 使用/models端点获取模型列表
+            # 阿里云百炼的模型列表端点通常是 /v1/models
+            base_url = api_endpoint.rstrip('/')
+            # 如果端点已经包含完整的路径，需要调整
+            if base_url.endswith('/v1'):
+                base_url = base_url[:-3]  # 去掉最后的/v1
+            models_endpoint = base_url.rstrip('/') + "/v1/models"
+            logger.info(f"[获取模型] 阿里云百炼API - 方法: GET, 端点: {models_endpoint}")
+            
+            # 阿里云百炼需要特定的认证头
+            aliyun_headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}" if api_key else "",
+                "X-DashScope-Async": "enable"  # 阿里云特定的头
+            }
+            
+            response = requests.get(models_endpoint, headers=aliyun_headers, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                logger.info(f"[获取模型] 阿里云百炼API响应: {data}")
+                
+                # 阿里云百炼返回格式：包含data数组
+                if "data" in data and isinstance(data["data"], list):
+                    for model_data in data["data"]:
+                        models.append({
+                            "model_id": model_data.get("model_id", model_data.get("id")),
+                            "model_name": model_data.get("model_name", model_data.get("name", model_data.get("model_id"))),
+                            "description": model_data.get("description", f"阿里云模型: {model_data.get('model_name', model_data.get('model_id'))}"),
+                            "context_window": model_data.get("context_window", 8000),
+                            "max_tokens": model_data.get("max_tokens", 1000),
+                            "is_default": False,
+                            "is_active": True
+                        })
+                else:
+                    # 如果标准格式不匹配，尝试其他可能的格式
+                    logger.warning(f"[获取模型] 阿里云百炼API返回格式未知，尝试备用解析: {type(data)}")
+                    # 备用方案：返回一些常见的阿里云模型
+                    common_aliyun_models = [
+                        {
+                            "model_id": "qwen-max",
+                            "model_name": "通义千问Max",
+                            "description": "阿里云通义千问Max模型，支持128K上下文",
+                            "context_window": 128000,
+                            "max_tokens": 4000,
+                            "is_default": True,
+                            "is_active": True
+                        },
+                        {
+                            "model_id": "qwen-plus",
+                            "model_name": "通义千问Plus",
+                            "description": "阿里云通义千问Plus模型",
+                            "context_window": 32000,
+                            "max_tokens": 2000,
+                            "is_default": False,
+                            "is_active": True
+                        },
+                        {
+                            "model_id": "qwen-turbo",
+                            "model_name": "通义千问Turbo",
+                            "description": "阿里云通义千问Turbo模型，响应速度快",
+                            "context_window": 8000,
+                            "max_tokens": 1500,
+                            "is_default": False,
+                            "is_active": True
+                        }
+                    ]
+                    models.extend(common_aliyun_models)
         else:
             # 通用API - 尝试使用/models端点
             models_endpoint = api_endpoint.rstrip('/') + "/v1/models"
@@ -936,6 +1011,28 @@ async def test_api_config(supplier_id: int, api_config: dict, db: Session = Depe
                 "max_tokens": 50
             }
             logger.info(f"[API测试] 硅基流动API测试 - 方法: POST, 端点: {test_endpoint}")
+            response = requests.post(test_endpoint, headers=headers, json=test_payload, timeout=10)
+        elif "dashscope" in api_endpoint.lower() or "aliyun" in api_endpoint.lower():
+            # 阿里云百炼API需要POST请求到特定的生成端点
+            # 如果API端点已经包含完整的生成路径，则直接使用
+            if "generation" in api_endpoint.lower():
+                test_endpoint = api_endpoint
+            else:
+                # 否则使用标准的生成端点
+                test_endpoint = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"
+            
+            test_payload = {
+                "model": "qwen-max",
+                "input": {
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": "你好，请介绍一下你自己"
+                        }
+                    ]
+                }
+            }
+            logger.info(f"[API测试] 阿里云百炼API测试 - 方法: POST, 端点: {test_endpoint}")
             response = requests.post(test_endpoint, headers=headers, json=test_payload, timeout=10)
         elif "ollama" in api_endpoint.lower() or "localhost:11434" in api_endpoint.lower():
             # Ollama API需要GET请求到/api/tags来获取模型列表

@@ -194,7 +194,7 @@ export const supplierApi = {
     } else {
     }
     
-    // 修正endpoint，后端路由是/v1/suppliers/{id}
+    // 修正endpoint，后端路由是/api/v1/suppliers/{id}
     const endpoint = `/v1/suppliers/${numericId}`;
 
     // 准备请求选项
@@ -270,6 +270,40 @@ export const supplierApi = {
       if (response.response_text) {
         errorMessage += `: ${response.response_text}`;
       }
+      
+      // 抛出错误，让前端的错误处理逻辑捕获
+      const error = new Error(errorMessage);
+      error.response = response;
+      throw error;
+    }
+    
+    return response;
+  },
+
+  // 从API获取模型列表
+  fetchModelsFromApi: async (id, apiConfig) => {
+    // 确保ID是数字类型
+    const numericId = Number(id);
+    
+    // 添加调试信息
+    console.log('调用fetchModelsFromApi，传递的apiConfig:', JSON.stringify(apiConfig, null, 2));
+    
+    const endpoint = `/v1/suppliers/${numericId}/fetch-models`;
+    const response = await request(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        apiUrl: apiConfig.apiUrl,
+        apiKey: apiConfig.apiKey
+      })
+    });
+    
+    // 检查后端返回的状态
+    if (response.status === 'error') {
+      // 构建错误信息
+      let errorMessage = response.message;
       
       // 抛出错误，让前端的错误处理逻辑捕获
       const error = new Error(errorMessage);

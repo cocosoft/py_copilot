@@ -47,11 +47,11 @@ const EnhancedKnowledgeGraph = ({
       let data;
       
       if (documentId) {
-        const response = await fetch(`/api/v1/knowledge-graph/document/${documentId}/entities`);
+        const response = await fetch(`/v1/knowledge-graph/document/${documentId}/entities`);
         if (!response.ok) throw new Error('获取文档实体失败');
         data = await response.json();
       } else if (textContent) {
-        const response = await fetch('/api/v1/knowledge-graph/extract-entities', {
+        const response = await fetch('/v1/knowledge-graph/extract-entities', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text: textContent })
@@ -71,7 +71,7 @@ const EnhancedKnowledgeGraph = ({
 
   const performSemanticSearch = async (query) => {
     try {
-      const response = await fetch('/api/v1/knowledge-graph/semantic-search', {
+      const response = await fetch('/v1/knowledge-graph/semantic-search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

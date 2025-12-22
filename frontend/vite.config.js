@@ -7,7 +7,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   
   // 使用环境变量中的API地址，如果没有则使用默认值
-  const apiBaseUrl = env.VITE_API_BASE_URL || 'http://localhost:8000';
+  const apiBaseUrl = env.VITE_API_BASE_URL || 'http://localhost:8001';
   
   return {
     plugins: [react()],
@@ -17,7 +17,7 @@ export default defineConfig(({ mode }) => {
             target: apiBaseUrl,
             changeOrigin: true,
             secure: false,
-            // rewrite: (path) => path.replace(/^\/api/, ''),
+            rewrite: (path) => path.replace(/^\/api/, ''),
             configure: (proxy, options) => {
               proxy.on('error', (err, req, res) => {
                 console.log('proxy error', err);

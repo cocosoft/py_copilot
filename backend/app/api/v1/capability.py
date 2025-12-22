@@ -9,7 +9,7 @@ from app.services.model_capability_service import model_capability_service
 # 创建路由器
 router = APIRouter()
 
-@router.post("/model/capabilities", response_model=CapabilityResponse)
+@router.post("/capabilities", response_model=CapabilityResponse)
 def create_capability(
     capability: CapabilityCreate,
     db: Session = Depends(get_db),
@@ -42,7 +42,7 @@ def create_capability(
         is_active=db_capability.is_active
     )
 
-@router.get("/model/capabilities", response_model=List[CapabilityResponse])
+@router.get("/capabilities", response_model=List[CapabilityResponse])
 def get_capabilities(
     skip: int = 0,
     limit: int = 100,
@@ -66,7 +66,7 @@ def get_capabilities(
     
     return capabilities
 
-@router.get("/model/capabilities/{capability_id}", response_model=CapabilityResponse)
+@router.get("/capabilities/{capability_id}", response_model=CapabilityResponse)
 def get_capability(
     capability_id: int,
     db: Session = Depends(get_db),
@@ -88,7 +88,7 @@ def get_capability(
     except HTTPException:
         raise
 
-@router.put("/model/capabilities/{capability_id}", response_model=CapabilityResponse)
+@router.put("/capabilities/{capability_id}", response_model=CapabilityResponse)
 def update_capability(
     capability_id: int,
     capability_update: CapabilityUpdate,
@@ -122,7 +122,7 @@ def update_capability(
     except HTTPException:
         raise
 
-@router.delete("/model/capabilities/{capability_id}", status_code=204)
+@router.delete("/capabilities/{capability_id}", status_code=204)
 def delete_capability(
     capability_id: int,
     db: Session = Depends(get_db),

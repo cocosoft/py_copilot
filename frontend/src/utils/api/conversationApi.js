@@ -62,7 +62,7 @@ export const conversationApi = {
   // 删除对话
   delete: async (conversationId) => {
     try {
-      return await request(`/v1/conversations/${conversationId}`, {
+      return await request(`/api/v1/conversations/${conversationId}`, {
         method: 'DELETE'
       });
     } catch (error) {
@@ -74,7 +74,7 @@ export const conversationApi = {
   // 批量删除对话
   batchDelete: async (conversationIds) => {
     try {
-      return await request('/v1/conversations/batch-delete', {
+      return await request('/api/v1/conversations/batch-delete', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -92,8 +92,8 @@ export const conversationApi = {
     try {
       const queryParams = new URLSearchParams(params).toString();
       const url = queryParams 
-        ? `/v1/conversations/${conversationId}/messages?${queryParams}` 
-        : `/v1/conversations/${conversationId}/messages`;
+        ? `/api/v1/conversations/${conversationId}/messages?${queryParams}` 
+        : `/api/v1/conversations/${conversationId}/messages`;
       
       return await request(url, {
         method: 'GET'
@@ -108,7 +108,7 @@ export const conversationApi = {
   sendMessage: async (conversationId, messageData) => {
     try {
       // 通过API发送消息
-      return await request(`/v1/conversations/${conversationId}/messages`, {
+      return await request(`/api/v1/conversations/${conversationId}/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -124,7 +124,7 @@ export const conversationApi = {
   // 删除消息
   deleteMessage: async (conversationId, messageId) => {
     try {
-      return await request(`/v1/conversations/${conversationId}/messages/${messageId}`, {
+      return await request(`/api/v1/conversations/${conversationId}/messages/${messageId}`, {
         method: 'DELETE'
       });
     } catch (error) {
@@ -136,7 +136,7 @@ export const conversationApi = {
   // 获取对话历史统计
   getStats: async () => {
     try {
-      return await request('/v1/conversations/stats', {
+      return await request('/api/v1/conversations/stats', {
         method: 'GET'
       });
     } catch (error) {
@@ -148,7 +148,7 @@ export const conversationApi = {
   // 导出对话
   exportConversation: async (conversationId, format = 'json') => {
     try {
-      return await request(`/v1/conversations/${conversationId}/export?format=${format}`, {
+      return await request(`/api/v1/conversations/${conversationId}/export?format=${format}`, {
         method: 'GET'
       });
     } catch (error) {
@@ -160,7 +160,7 @@ export const conversationApi = {
   // 清除所有对话（谨慎使用）
   clearAll: async () => {
     try {
-      return await request('/v1/conversations/clear-all', {
+      return await request('/api/v1/conversations/clear-all', {
         method: 'DELETE'
       });
     } catch (error) {

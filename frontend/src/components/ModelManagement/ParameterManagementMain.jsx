@@ -65,11 +65,11 @@ const ParameterManagementMain = ({ selectedSupplier, onBack, selectedModel }) =>
           break;
         case 'model_type':
           // 加载模型类型参数模板
-          params = await api.modelApi.getParameters(null, null, 'model_type');
+          params = await api.modelApi.getParameters(selectedSupplier?.id || null, null, 'model_type');
           break;
         case 'model_capability':
           // 加载模型能力参数模板
-          params = await api.modelApi.getParameters(null, null, 'model_capability');
+          params = await api.modelApi.getParameters(selectedSupplier?.id || null, null, 'model_capability');
           break;
         case 'model':
           // 加载模型参数模板
@@ -81,7 +81,7 @@ const ParameterManagementMain = ({ selectedSupplier, onBack, selectedModel }) =>
           break;
         case 'agent':
           // 加载代理参数模板
-          params = await api.modelApi.getParameters(null, null, 'agent');
+          params = await api.modelApi.getParameters(selectedSupplier?.id || null, null, 'agent');
           break;
         default:
           // 加载系统参数模板
@@ -103,10 +103,10 @@ const ParameterManagementMain = ({ selectedSupplier, onBack, selectedModel }) =>
   }, [selectedLevel, selectedSupplier]);
 
   // 切换节点展开状态
-  const toggleNode = (nodeId) => {
+  const toggleNode = (nodePath) => {
     setExpandedNodes(prev => ({
       ...prev,
-      [nodeId]: !prev[nodeId]
+      [nodePath]: !prev[nodePath]
     }));
   };
 
@@ -405,15 +405,15 @@ const ParameterManagementMain = ({ selectedSupplier, onBack, selectedModel }) =>
       // 如果没有选择参数，使用第一个参数
       const parameterToUse = selectedInheritanceParameter || parameters[0];
       
-      if (parameterToUse && parameterToUse.model_id) {
+      if (selectedSupplier) {
         // 使用真实API调用
         const treeData = await api.modelApi.getParameterInheritanceTree(
-          parameterToUse.model_id,
-          parameterToUse.parameter_name
+          selectedSupplier.id,
+          selectedModel?.id || parameterToUse?.model_id || null
         );
         setInheritanceTree(treeData);
       } else {
-        // 如果没有可用的模型ID或参数，使用模拟数据
+        // 如果没有选择供应商，使用模拟数据
         const treeData = getMockInheritanceTree();
         setInheritanceTree(treeData);
       }
@@ -434,12 +434,7 @@ const ParameterManagementMain = ({ selectedSupplier, onBack, selectedModel }) =>
       setVersionHistoryLoading(true);
       setError(null);
       
-      const versions = await api.modelApi.getParameterVersions(
-        selectedSupplier?.id, 
-        selectedLevel === 'model' ? selectedModel?.id : null, 
-        parameterId, 
-        selectedLevel
-      );
+      const versions = await api.modelApi.getParameterVersions(parameterId);
       setParameterVersions(versions);
     } catch (err) {
       console.error('加载参数版本历史失败:', err);
@@ -471,11 +466,8 @@ const ParameterManagementMain = ({ selectedSupplier, onBack, selectedModel }) =>
         setError(null);
         
         await api.modelApi.revertParameterToVersion(
-          selectedSupplier?.id, 
-          selectedLevel === 'model' ? selectedModel?.id : null, 
           selectedParameterForVersion.id, 
-          versionId, 
-          selectedLevel
+          versionId
         );
         
         setSuccess('参数版本恢复成功');
@@ -532,7 +524,8 @@ const ParameterManagementMain = ({ selectedSupplier, onBack, selectedModel }) =>
       
       // 无论是否有selectedSupplier，都可以加载参数模板
       const templates = await api.modelApi.getParameterTemplates(templateLevel);
-      setParameterTemplates(templates);
+      // 确保parameterTemplates始终是一个数组
+      setParameterTemplates(Array.isArray(templates) ? templates : []);
     } catch (err) {
       console.error('加载参数模板列表失败:', err);
       setError('加载参数模板列表失败，请重试');
@@ -755,46 +748,53 @@ const ParameterManagementMain = ({ selectedSupplier, onBack, selectedModel }) =>
   }, [selectedLevel, selectedSupplier]);
 
   // 渲染继承树节点
-  const renderInheritanceTree = (node, level = 0) => {
+  const renderInheritanceTree = (node, level = 0, path = '') => {
+    // 创建唯一的节点路径作为展开状态的键
+    const nodePath = path ? `${path}-${node.level}-${node.name}` : `${node.level}-${node.name}`;
+    
     return (
       <div className="inheritance-tree-node" style={{ marginLeft: `${level * 20}px` }}>
         <div className="inheritance-tree-node-header">
           <div 
             className="inheritance-tree-node-toggle"
-            onClick={() => toggleNode(node.level)}
+            onClick={() => toggleNode(nodePath)}
             style={{ cursor: 'pointer', marginRight: '8px' }}
           >
-            {node.children?.length > 0 ? (expandedNodes[node.level] ? '▼' : '▶') : null}
+            {node.children && node.children.length > 0 ? (expandedNodes[nodePath] ? '▼' : '▶') : null}
           </div>
           <div className="inheritance-tree-node-title">
             {node.name}
-            <span className="node-level-badge">{levelOptions.find(opt => opt.value === node.level)?.label}</span>
+            <span className="node-level-badge">{levelOptions.find(opt => opt.value === node.level)?.label || node.level}</span>
           </div>
         </div>
         
         <div className="inheritance-tree-parameters">
-          {node.parameters.map((param) => (
-            <div 
-              key={param.id} 
-              className={`inheritance-tree-parameter ${param.inherited ? 'inherited' : 'custom'} ${param.override ? 'override' : ''}`}
-            >
-              <div className="parameter-name">
-                {param.parameter_name}
-                {param.inherited && (
-                  <span className="inheritance-badge">
-                    {param.override ? '已覆盖' : '已继承'} ({param.source})
-                  </span>
-                )}
+          {node.parameters && node.parameters.length > 0 ? (
+            node.parameters.map((param) => (
+              <div 
+                key={param.id || param.parameter_name} 
+                className={`inheritance-tree-parameter ${param.inherited ? 'inherited' : 'custom'} ${param.override ? 'override' : ''}`}
+              >
+                <div className="parameter-name">
+                  {param.parameter_name}
+                  {param.inherited && (
+                    <span className="inheritance-badge">
+                      {param.override ? '已覆盖' : '已继承'} ({param.source || 'system'})
+                    </span>
+                  )}
+                </div>
+                <div className="parameter-value">{typeof param.parameter_value === 'object' ? JSON.stringify(param.parameter_value) : param.parameter_value}</div>
+                <div className="parameter-type">{param.parameter_type}</div>
               </div>
-              <div className="parameter-value">{typeof param.parameter_value === 'object' ? JSON.stringify(param.parameter_value) : param.parameter_value}</div>
-              <div className="parameter-type">{param.parameter_type}</div>
-            </div>
-          ))}
+            ))
+          ) : (
+            <div className="empty-state">暂无参数</div>
+          )}
         </div>
         
-        {node.children?.length > 0 && expandedNodes[node.level] && (
+        {node.children && node.children.length > 0 && expandedNodes[nodePath] && (
           <div className="inheritance-tree-children">
-            {node.children.map(child => renderInheritanceTree(child, level + 1))}
+            {node.children.map(child => renderInheritanceTree(child, level + 1, nodePath))}
           </div>
         )}
       </div>
@@ -924,7 +924,7 @@ const ParameterManagementMain = ({ selectedSupplier, onBack, selectedModel }) =>
           {/* 过滤模板 */}
           {(() => {
             // 应用搜索和过滤条件
-            let filteredTemplates = [...parameterTemplates];
+            let filteredTemplates = parameterTemplates ? [...parameterTemplates] : [];
             
             // 按名称搜索
             if (templateSearchTerm.trim()) {
@@ -996,8 +996,6 @@ const ParameterManagementMain = ({ selectedSupplier, onBack, selectedModel }) =>
 
         {loading ? (
           <div className="loading-state">加载参数模板中...</div>
-        ) : parameters.length === 0 ? (
-          <div className="empty-state">暂无参数模板，请添加参数</div>
         ) : (
           <div className="parameters-tree-container">
             {/* 批量操作按钮 */}
@@ -1050,57 +1048,65 @@ const ParameterManagementMain = ({ selectedSupplier, onBack, selectedModel }) =>
                   </tr>
                 </thead>
                 <tbody>
-                  {parameters.map((param) => (
-                    <tr key={param.id} className={param.inherited ? 'inherited-parameter' : 'custom-parameter'}>
-                      <td className="checkbox-column">
-                        {showBatchActions && (
-                          <input
-                            type="checkbox"
-                            checked={selectedParameters.includes(param.id)}
-                            onChange={() => handleSelectParameter(param.id)}
-                            disabled={saving || param.inherited}
-                          />
-                        )}
-                      </td>
-                      <td>
-                        {param.parameter_name}
-                        {param.inherited && <span className="inherited-badge">继承</span>}
-                      </td>
-                      <td>{typeof param.parameter_value === 'object' ? JSON.stringify(param.parameter_value) : param.parameter_value}</td>
-                      <td>{param.parameter_type}</td>
-                      <td>{typeof param.default_value === 'object' ? JSON.stringify(param.default_value) : param.default_value}</td>
-                      <td>{param.description || '-'}</td>
-                      <td>{param.is_required ? '是' : '否'}</td>
-                      <td>
-                        {param.inherited ? getInheritanceSourceName(param.inheritance_source_type, param.inheritance_source_id) : '-'}
-                      </td>
-                      <td>
-                        <div className="parameter-actions">
-                          <button
-                            className="btn btn-secondary btn-small"
-                            onClick={() => handleEditParameterClick(param)}
-                            disabled={saving || param.inherited}
-                          >
-                            编辑
-                          </button>
-                          <button
-                            className="btn btn-info btn-small"
-                            onClick={() => handleViewVersionHistory(param)}
-                            disabled={saving || param.inherited}
-                          >
-                            版本历史
-                          </button>
-                          <button
-                            className="btn btn-danger btn-small"
-                            onClick={() => handleDeleteParameter(param.id)}
-                            disabled={saving || param.inherited}
-                          >
-                            删除
-                          </button>
-                        </div>
+                  {parameters.length > 0 ? (
+                    parameters.map((param) => (
+                      <tr key={param.id} className={param.inherited ? 'inherited-parameter' : 'custom-parameter'}>
+                        <td className="checkbox-column">
+                          {showBatchActions && (
+                            <input
+                              type="checkbox"
+                              checked={selectedParameters.includes(param.id)}
+                              onChange={() => handleSelectParameter(param.id)}
+                              disabled={saving || param.inherited}
+                            />
+                          )}
+                        </td>
+                        <td>
+                          {param.parameter_name}
+                          {param.inherited && <span className="inherited-badge">继承</span>}
+                        </td>
+                        <td>{typeof param.parameter_value === 'object' ? JSON.stringify(param.parameter_value) : param.parameter_value}</td>
+                        <td>{param.parameter_type}</td>
+                        <td>{typeof param.default_value === 'object' ? JSON.stringify(param.default_value) : param.default_value}</td>
+                        <td>{param.description || '-'}</td>
+                        <td>{param.is_required ? '是' : '否'}</td>
+                        <td>
+                          {param.inherited ? getInheritanceSourceName(param.inheritance_source_type, param.inheritance_source_id) : '-'}
+                        </td>
+                        <td>
+                          <div className="parameter-actions">
+                            <button
+                              className="btn btn-secondary btn-small"
+                              onClick={() => handleEditParameterClick(param)}
+                              disabled={saving || param.inherited}
+                            >
+                              编辑
+                            </button>
+                            <button
+                              className="btn btn-info btn-small"
+                              onClick={() => handleViewVersionHistory(param)}
+                              disabled={saving || param.inherited}
+                            >
+                              版本历史
+                            </button>
+                            <button
+                              className="btn btn-danger btn-small"
+                              onClick={() => handleDeleteParameter(param.id)}
+                              disabled={saving || param.inherited}
+                            >
+                              删除
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="9" className="empty-state">
+                        暂无参数模板，请添加参数
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>

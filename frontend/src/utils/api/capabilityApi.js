@@ -72,7 +72,7 @@ export const capabilityApi = {
   // 更新能力
   update: async (capabilityId, capabilityData) => {
     try {
-      return await request(`/v1/capabilities/${capabilityId}`, {
+      return await request(`/api/v1/capabilities/${capabilityId}`, {
         method: 'PUT',
         body: JSON.stringify(capabilityData),
         headers: {
@@ -88,7 +88,7 @@ export const capabilityApi = {
   // 删除能力
   delete: async (capabilityId) => {
     try {
-      return await request(`/v1/capabilities/${capabilityId}`, {
+      return await request(`/api/v1/capabilities/${capabilityId}`, {
         method: 'DELETE'
       });
     } catch (error) {
@@ -156,7 +156,7 @@ export const capabilityApi = {
   // 更新模型能力值
   updateModelCapabilityValue: async (modelId, capabilityId, value) => {
     try {
-      return await request(`/v1/capabilities/associations/model/${modelId}/capability/${capabilityId}`, {
+      return await request(`/api/v1/capabilities/associations/model/${modelId}/capability/${capabilityId}`, {
         method: 'PUT',
         body: JSON.stringify({ value: value }),
         headers: {

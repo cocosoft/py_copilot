@@ -21,7 +21,7 @@ const KnowledgeGraphPage = () => {
 
   const loadKnowledgeBases = async () => {
     try {
-      const response = await fetch('/api/v1/knowledge/knowledge-bases');
+      const response = await fetch('/v1/knowledge/knowledge-bases');
       if (response.ok) {
         const data = await response.json();
         setKnowledgeBases(data.knowledge_bases || []);
@@ -97,7 +97,7 @@ const KnowledgeGraphPage = () => {
   const loadDocumentGraph = async (documentId) => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/v1/knowledge-graph/document/${documentId}/entities`);
+      const response = await fetch(`/v1/knowledge-graph/document/${documentId}/entities`);
       if (response.ok) {
         const data = await response.json();
         setGraphData(data);

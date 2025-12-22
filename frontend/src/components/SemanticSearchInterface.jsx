@@ -33,7 +33,7 @@ const SemanticSearchInterface = ({
 
   const fetchSearchSuggestions = async (query) => {
     try {
-      const response = await fetch('/api/v1/knowledge-graph/search-suggestions', {
+      const response = await fetch('/v1/knowledge-graph/search-suggestions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query, limit: 5 })
@@ -53,7 +53,7 @@ const SemanticSearchInterface = ({
 
     setSearching(true);
     try {
-      const response = await fetch('/api/v1/knowledge-graph/semantic-search', {
+      const response = await fetch('/v1/knowledge-graph/semantic-search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

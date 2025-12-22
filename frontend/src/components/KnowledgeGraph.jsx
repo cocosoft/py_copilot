@@ -24,12 +24,12 @@ const KnowledgeGraph = ({ documentId, textContent, width = 800, height = 600 }) 
       
       if (documentId) {
         // 从文档ID获取知识图谱数据
-        const response = await fetch(`/api/v1/knowledge-graph/document/${documentId}/entities`);
+        const response = await fetch(`/v1/knowledge-graph/document/${documentId}/entities`);
         if (!response.ok) throw new Error('获取文档实体失败');
         data = await response.json();
       } else if (textContent) {
         // 从文本内容提取知识图谱数据
-        const response = await fetch('/api/v1/knowledge-graph/extract-entities', {
+        const response = await fetch('/v1/knowledge-graph/extract-entities', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text: textContent })

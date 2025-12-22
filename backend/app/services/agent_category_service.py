@@ -1,6 +1,6 @@
 """智能体分类服务层"""
 from typing import List, Optional, Dict, Any
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_
 from fastapi import HTTPException, status
 
@@ -14,9 +14,21 @@ class AgentCategoryService:
     @staticmethod
     def create_category(db: Session, category_data: AgentCategoryCreate) -> AgentCategory:
         """创建智能体分类"""
-        # 检查名称是否已存在
+        # 检查父分类是否存在
+        if category_data.parent_id:
+            parent_category = db.query(AgentCategory).filter(
+                AgentCategory.id == category_data.parent_id
+            ).first()
+            if not parent_category:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"父分类 ID {category_data.parent_id} 不存在"
+                )
+        
+        # 检查同级分类中名称是否已存在
         existing_category = db.query(AgentCategory).filter(
-            AgentCategory.name == category_data.name
+            AgentCategory.name == category_data.name,
+            AgentCategory.parent_id == category_data.parent_id
         ).first()
         
         if existing_category:
@@ -140,6 +152,88 @@ class AgentCategoryService:
         db.commit()
         
         return True
+
+    # 树形结构相关方法
+    
+    @staticmethod
+    def get_root_categories(db: Session) -> List[AgentCategory]:
+        """获取所有根分类（没有父分类的分类）"""
+        return db.query(AgentCategory).filter(
+            AgentCategory.parent_id.is_(None)
+        ).options(joinedload(AgentCategory.children)).all()
+    
+    @staticmethod
+    def get_category_tree(db: Session) -> List[Dict[str, Any]]:
+        """获取完整的分类树结构"""
+        root_categories = db.query(AgentCategory).filter(
+            AgentCategory.parent_id.is_(None)
+        ).options(joinedload(AgentCategory.children)).all()
+        
+        def build_tree(category):
+            """递归构建树结构"""
+            return {
+                "id": category.id,
+                "name": category.name,
+                "logo": category.logo,
+                "is_system": category.is_system,
+                "is_root": category.is_root,
+                "is_leaf": category.is_leaf,
+                "children": [build_tree(child) for child in category.children]
+            }
+        
+        return [build_tree(category) for category in root_categories]
+    
+    @staticmethod
+    def get_category_children(db: Session, category_id: int) -> List[AgentCategory]:
+        """获取指定分类的所有子分类"""
+        return db.query(AgentCategory).filter(
+            AgentCategory.parent_id == category_id
+        ).all()
+    
+    @staticmethod
+    def get_category_path(db: Session, category_id: int) -> List[AgentCategory]:
+        """获取分类的完整路径（从根分类到当前分类）"""
+        path = []
+        current_category = AgentCategoryService.get_category(db, category_id)
+        
+        while current_category:
+            path.insert(0, current_category)
+            if current_category.parent_id:
+                current_category = AgentCategoryService.get_category(db, current_category.parent_id)
+            else:
+                current_category = None
+        
+        return path
+    
+    @staticmethod
+    def get_categories_by_level(db: Session, level: int = 0) -> List[AgentCategory]:
+        """获取指定层级的分类"""
+        if level == 0:
+            return AgentCategoryService.get_root_categories(db)
+        
+        # 对于层级大于0的情况，需要递归查询
+        categories = []
+        
+        def find_categories_at_level(current_level, parent_id=None):
+            """递归查找指定层级的分类"""
+            if current_level == level:
+                # 到达目标层级，获取该层级的所有分类
+                return db.query(AgentCategory).filter(
+                    AgentCategory.parent_id == parent_id
+                ).all()
+            
+            # 获取下一层级的分类
+            next_level_categories = db.query(AgentCategory).filter(
+                AgentCategory.parent_id == parent_id
+            ).all()
+            
+            result = []
+            for category in next_level_categories:
+                result.extend(find_categories_at_level(current_level + 1, category.id))
+            
+            return result
+        
+        return find_categories_at_level(0)
 
 
 # 创建服务实例

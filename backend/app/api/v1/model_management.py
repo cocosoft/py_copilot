@@ -850,6 +850,63 @@ def delete_model_parameter(
     }
 
 
+# 通用参数管理端点，支持不同级别参数查询
+@router.get("/parameters", response_model=Dict[str, Any])
+def get_parameters(
+    supplier_id: Optional[int] = None,
+    model_id: Optional[int] = None,
+    level: str = "system",
+    db: Session = Depends(get_db),
+    current_user: MockUser = Depends(get_mock_user)
+):
+    """
+    获取指定级别的参数
+    
+    Args:
+        supplier_id: 供应商ID
+        model_id: 模型ID
+        level: 参数级别 (system, supplier, model_type, model_capability, model, agent)
+        db: 数据库会话
+        current_user: 当前用户
+        
+    Returns:
+        参数列表
+    """
+    try:
+        parameters = []
+        
+        if level == "system":
+            # 系统级别参数
+            from app.services.parameter_management.system_parameter_manager import SystemParameterManager
+            parameters = SystemParameterManager.get_system_parameters(db)
+        elif level == "model" and supplier_id and model_id:
+            # 模型级别参数
+            parameters = ParameterManager.get_model_parameters_with_templates(db, model_id)
+        elif level == "supplier" and supplier_id:
+            # 供应商级别参数
+            # TODO: 实现供应商级别参数查询
+            parameters = []
+        elif level == "model_type" and supplier_id:
+            # 模型类型级别参数
+            # TODO: 实现模型类型级别参数查询
+            parameters = []
+        elif level == "model_capability" and supplier_id:
+            # 模型能力级别参数
+            # TODO: 实现模型能力级别参数查询
+            parameters = []
+        elif level == "agent" and supplier_id:
+            # 代理级别参数
+            # TODO: 实现代理级别参数查询
+            parameters = []
+        
+        return {"parameters": parameters}
+    except Exception as e:
+        print(f"获取参数失败: {str(e)}")
+        import traceback
+        print(f"错误堆栈: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"获取参数失败: {str(e)}")
+
+
 # 参数版本控制相关路由
 @router.get("/suppliers/{supplier_id}/models/{model_id}/parameters/{parameter_id}/versions", response_model=List[Dict[str, Any]])
 def get_parameter_versions(

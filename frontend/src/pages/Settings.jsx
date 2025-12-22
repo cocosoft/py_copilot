@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { request } from '../utils/apiUtils';
 import './settings.css';
 import IntegratedModelManagement from '../components/ModelManagement/IntegratedModelManagement';
 import ParameterManagementMain from '../components/ModelManagement/ParameterManagementMain';
@@ -58,12 +58,16 @@ const Settings = () => {
   const loadSearchSettings = async () => {
     setIsLoading(true);
     try {
-      const response = await axios.get('/api/v1/search/settings');
-      const data = response.data;
+      // 这里只需要使用/v1/search/settings路径，因为request函数会自动添加API_BASE_URL（即/api）
+      // 所以实际请求的URL是/api/v1/search/settings，与后端的路由匹配
+      const data = await request('/v1/search/settings', { method: 'GET' });
       setDefaultSearchEngine(data.default_search_engine);
       setSafeSearch(data.safe_search);
     } catch (error) {
       console.error('加载搜索设置失败:', error);
+      // 加载失败时使用默认值
+      setDefaultSearchEngine('google');
+      setSafeSearch(true);
     } finally {
       setIsLoading(false);
     }
@@ -73,9 +77,14 @@ const Settings = () => {
   const saveSearchSettings = async () => {
     setIsSaving(true);
     try {
-      await axios.put('/api/v1/search/settings', {
-        default_search_engine: defaultSearchEngine,
-        safe_search: safeSearch
+      // 这里只需要使用/v1/search/settings路径，因为request函数会自动添加API_BASE_URL（即/api）
+      // 所以实际请求的URL是/api/v1/search/settings，与后端的路由匹配
+      await request('/v1/search/settings', {
+        method: 'PUT',
+        data: {
+          default_search_engine: defaultSearchEngine,
+          safe_search: safeSearch
+        }
       });
       alert('搜索设置已保存');
     } catch (error) {

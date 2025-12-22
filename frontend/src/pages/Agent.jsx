@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './agent.css';
 import { createAgent, getAgents, deleteAgent, getPublicAgents, getRecommendedAgents, updateAgent } from '../services/agentService';
-import { createAgentCategory, getAgentCategories, updateAgentCategory, deleteAgentCategory } from '../services/agentCategoryService';
+import { createAgentCategory, getAgentCategories, updateAgentCategory, deleteAgentCategory, getAgentCategoryTree } from '../services/agentCategoryService';
 
 const Agent = () => {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -23,9 +23,10 @@ const Agent = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalAgents, setTotalAgents] = useState(0);
   const [pageSize, setPageSize] = useState(10);
-  
+
   // 分类相关状态
   const [agentCategories, setAgentCategories] = useState([]);
+  const [categoryTree, setCategoryTree] = useState([]);
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
   const [newCategory, setNewCategory] = useState({
@@ -150,7 +151,7 @@ const Agent = () => {
       }
     }
   };
-  
+
   // 测试智能体
   const handleTestAgent = async (agent) => {
     alert(`测试智能体: ${agent.name}`);
@@ -255,9 +256,118 @@ const Agent = () => {
     fetchAgents();
   }, [currentCategory, currentPage, pageSize]);
 
-  // 页面加载时获取分类列表
+  // 递归渲染分类树组件
+  const CategoryTreeItem = ({ category, level = 0 }) => {
+    const hasChildren = category.children && category.children.length > 0;
+    const isExpanded = category.isExpanded !== false; // 默认展开
+
+    return (
+      <div className="category-tree-item">
+        <div
+          className={`category-info ${currentCategory === category.id ? 'active' : ''}`}
+          onClick={() => handleCategoryChange(category.id)}
+          style={{ paddingLeft: `${level * 8 + 8}px` }}
+        >
+          {hasChildren && (
+            <span
+              className="expand-icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                // 切换展开状态
+                const updatedTree = toggleCategoryExpansion(categoryTree, category.id);
+                setCategoryTree(updatedTree);
+              }}
+            >
+              {isExpanded ? '▼' : '▶'}
+            </span>
+          )}
+          {!hasChildren && <span className="expand-placeholder"></span>}
+          <span className="category-logo">{category.logo || '📁'}</span>
+          <span className="category-name">{category.name}</span>
+        </div>
+        <div className="category-actions">
+          <button
+            className="category-action-btn edit-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEditCategory(category);
+            }}
+            title="编辑分类"
+          >
+            ✏️
+          </button>
+          <button
+            className="category-action-btn delete-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDeleteCategory(category.id, category.is_system);
+            }}
+            disabled={category.is_system}
+            title={category.is_system ? '系统分类不可删除' : '删除分类'}
+          >
+            🗑️
+          </button>
+        </div>
+        {hasChildren && isExpanded && (
+          <div className="category-children">
+            {category.children.map(child => (
+              <CategoryTreeItem
+                key={child.id}
+                category={child}
+                level={level + 1}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // 切换分类展开状态的辅助函数
+  const toggleCategoryExpansion = (tree, categoryId) => {
+    return tree.map(category => {
+      if (category.id === categoryId) {
+        return { ...category, isExpanded: !category.isExpanded };
+      }
+      if (category.children) {
+        return {
+          ...category,
+          children: toggleCategoryExpansion(category.children, categoryId)
+        };
+      }
+      return category;
+    });
+  };
+
+  // 获取分类树结构
+  const fetchCategoryTree = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await getAgentCategoryTree();
+      // 为每个节点添加展开状态
+      const treeWithExpansion = addExpansionState(response.categories);
+      setCategoryTree(treeWithExpansion);
+    } catch (err) {
+      setError('获取分类树失败，请重试');
+      console.error('Error fetching category tree:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 为树节点添加展开状态的辅助函数
+  const addExpansionState = (tree) => {
+    return tree.map(category => ({
+      ...category,
+      isExpanded: true, // 默认展开
+      children: category.children ? addExpansionState(category.children) : []
+    }));
+  };
+
+  // 页面加载时获取分类树
   useEffect(() => {
-    fetchCategories();
+    fetchCategoryTree();
   }, []);
 
   return (
@@ -269,113 +379,54 @@ const Agent = () => {
 
       <div className="agent-content">
         <div className="agent-sidebar">
-            <button className="create-agent-btn" onClick={handleCreateAgent}>
-              <span className="plus-icon">+</span>
-              创建新智能体
-            </button>
-            <button className="create-category-btn" onClick={() => {
-              setEditingCategory(null);
-              setNewCategory({
-                name: '',
-                logo: '📁',
-                is_system: false
-              });
-              setShowCategoryDialog(true);
-            }}>
-              <span className="plus-icon">+</span>
-              创建分类
-            </button>
+          <button className="create-agent-btn" onClick={handleCreateAgent}>
+            <span className="plus-icon">+</span>
+            创建新智能体
+          </button>
+          <button className="create-category-btn" onClick={() => {
+            setEditingCategory(null);
+            setNewCategory({
+              name: '',
+              logo: '📁',
+              is_system: false
+            });
+            setShowCategoryDialog(true);
+          }}>
+            <span className="plus-icon">+</span>
+            创建分类
+          </button>
 
-            <div className="agent-categories">
-              <h3>智能体分类</h3>
-              
-              {/* 预设分类 */}
-              <div className="category-group">
-                <h4 className="category-group-title">预设分类</h4>
-                <ul className="preset-categories">
-                  <li
-                    className={currentCategory === 'all' ? 'active' : ''}
-                    onClick={() => handleCategoryChange('all')}
-                  >
-                    所有智能体
-                  </li>
-                  <li
-                    className={currentCategory === 'public' ? 'active' : ''}
-                    onClick={() => handleCategoryChange('public')}
-                  >
-                    公开智能体
-                  </li>
-                  <li
-                    className={currentCategory === 'recommended' ? 'active' : ''}
-                    onClick={() => handleCategoryChange('recommended')}
-                  >
-                    推荐智能体
-                  </li>
-                </ul>
-              </div>
-              
-              {/* 自定义分类 */}
-              <div className="category-group">
-                <h4 className="category-group-title">自定义分类</h4>
-                <ul className="custom-categories">
-                  {agentCategories.length > 0 ? (
-                    agentCategories.map(category => (
-                      <li key={category.id} className="category-item">
-                        <div 
-                          className={`category-info ${currentCategory === category.id ? 'active' : ''}`}
-                          onClick={() => handleCategoryChange(category.id)}
-                        >
-                          <span className="category-logo">{category.logo || '📁'}</span>
-                          <span className="category-name">{category.name}</span>
-                        </div>
-                        <div className="category-actions">
-                          <button
-                            className="category-action-btn edit-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditCategory(category);
-                            }}
-                            title="编辑分类"
-                          >
-                            ✏️
-                          </button>
-                          <button
-                            className="category-action-btn delete-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteCategory(category.id, category.is_system);
-                            }}
-                            disabled={category.is_system}
-                            title={category.is_system ? '系统分类不可删除' : '删除分类'}
-                          >
-                            🗑️
-                          </button>
-                        </div>
-                      </li>
-                    ))
-                  ) : (
-                    <li className="no-categories">
-                      <span>暂无自定义分类</span>
-                      <button 
-                        className="create-category-quick-btn"
-                        onClick={() => {
-                          setEditingCategory(null);
-                          setNewCategory({
-                            name: '',
-                            logo: '📁',
-                            is_system: false
-                          });
-                          setShowCategoryDialog(true);
-                        }}
-                      >
-                        创建第一个分类
-                      </button>
-                    </li>
-                  )}
-                </ul>
+          <div className="agent-categories">
+            <h3>智能体分类</h3>
+            <div className="category-group">
+              <div className="category-tree">
+                {categoryTree.length > 0 ? (
+                  categoryTree.map(category => (
+                    <CategoryTreeItem key={category.id} category={category} />
+                  ))
+                ) : (
+                  <div className="no-categories">
+                    <span>暂无自定义分类</span>
+                    <button
+                      className="create-category-quick-btn"
+                      onClick={() => {
+                        setEditingCategory(null);
+                        setNewCategory({
+                          name: '',
+                          logo: '📁',
+                          is_system: false
+                        });
+                        setShowCategoryDialog(true);
+                      }}
+                    >
+                      创建第一个分类
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
+        </div>
 
         <div className="agent-main">
           <div className="agent-filters">

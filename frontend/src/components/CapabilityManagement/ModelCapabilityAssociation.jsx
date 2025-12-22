@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { modelApi } from '../../utils/api/modelApi';
+import modelApi from '../../utils/api/modelApi';
 import { capabilityApi } from '../../utils/api/capabilityApi';
 
 const ModelCapabilityAssociation = () => {
