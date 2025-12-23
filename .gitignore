@@ -347,3 +347,12 @@ backend/test_deepseek.json
 test_aliyun_dashscope.py
 backend/test_tree_structure.py
 backend/智能体分类说明.md
+backend/add_weight_column.py
+backend/check_and_fix_capability_associations.py
+backend/check_and_fix_db.py
+backend/check_data.py
+backend/check_existing_tables.py
+backend/find_all_db.py
+backend/init_model_category.py
+backend/verify_all_tables.py
+backend/verify_db.py

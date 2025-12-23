@@ -4,6 +4,7 @@ from app.models.conversation import Conversation, Message
 from app.models.llm import LLMRequestHistory, ModelConfiguration
 # 使用supplier_db中的模型而不是model_management中的模型
 from app.models.model_capability import ModelCapability, ModelCapabilityAssociation
+from app.models.model_category import ModelCategory, ModelCategoryAssociation
 from app.models.agent import Agent
 from app.models.agent_category import AgentCategory
 from app.models.search_settings import SearchSetting
@@ -17,6 +18,8 @@ __all__ = [
     # "ModelSupplier" 和 "Model" 从supplier_db导入
     "ModelCapability",
     "ModelCapabilityAssociation",
+    "ModelCategory",
+    "ModelCategoryAssociation",
     "Agent",
     "AgentCategory",
     "SearchSetting"

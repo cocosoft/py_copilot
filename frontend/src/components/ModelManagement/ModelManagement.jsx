@@ -617,7 +617,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
       ) : selectedModel ? (
         <div className="model-parameters-section">
           <div className="section-header">
-            <h2>{selectedModel.modelName ? `${selectedModel.modelName} (${selectedModel.modelId})` : selectedModel.modelId} - 参数管理</h2>
+            <h2>{selectedModel.model_name ? `${selectedModel.model_name} (${selectedModel.model_id})` : selectedModel.model_id} - 参数管理</h2>
             <div className="section-actions">
               <button
                 className="btn btn-primary"
@@ -740,7 +740,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
                             }}
                           />
                         </div>
-                        <h3 className="model-name">{model.modelName ? `${model.modelName} (${model.modelId})` : model.modelId}</h3>
+                        <h3 className="model-name">{model.model_name ? `${model.model_name} (${model.model_id})` : model.model_id}</h3>
                       </div>
                       <div className="model-header-right">
                         {model.is_default && <span className="default-badge">默认</span>}

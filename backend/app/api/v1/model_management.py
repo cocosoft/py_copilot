@@ -172,7 +172,7 @@ async def create_model(
     supplier_id: int,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_superuser),
+    current_user: MockUser = Depends(get_mock_superuser),
     model_data: str = Form(None),
     logo: UploadFile = File(None)
 ) -> Any:

@@ -218,10 +218,11 @@ const modelApi = {
 
   /**
    * 创建模型
+   * @param {number} supplierId - 供应商ID
    * @param {object} modelData - 模型数据
    */
-  async create(modelData) {
-    return request('/v1/model-management/models', { method: 'POST', body: JSON.stringify(modelData), headers: { 'Content-Type': 'application/json' } });
+  async create(supplierId, modelData) {
+    return request(`/v1/model-management/suppliers/${supplierId}/models`, { method: 'POST', body: JSON.stringify(modelData), headers: { 'Content-Type': 'application/json' } });
   },
 
   /**
@@ -235,10 +236,11 @@ const modelApi = {
 
   /**
    * 删除模型
+   * @param {number} supplierId - 供应商ID
    * @param {number} modelId - 模型ID
    */
-  async delete(modelId) {
-    return request(`/v1/model-management/models/${modelId}`, { method: 'DELETE' });
+  async delete(supplierId, modelId) {
+    return request(`/v1/model-management/suppliers/${supplierId}/models/${modelId}`, { method: 'DELETE' });
   },
 
   // 系统参数相关API
