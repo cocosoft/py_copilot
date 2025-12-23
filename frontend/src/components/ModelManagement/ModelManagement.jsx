@@ -287,6 +287,20 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
       setSelectedModelIds(prev => prev.filter(id => id !== modelId));
     }
   };
+  
+  // 处理全选/取消全选
+  const handleSelectAllModels = (e) => {
+    if (e.target.checked) {
+      // 全选：将所有未保存的模型ID添加到selectedModelIds
+      const allModelIds = filteredModels
+        .filter(model => !currentModels.some(m => m.model_id === model.model_id))
+        .map(model => model.model_id);
+      setSelectedModelIds(allModelIds);
+    } else {
+      // 取消全选：清空selectedModelIds
+      setSelectedModelIds([]);
+    }
+  };
 
   // 保存选中的模型
   const handleSaveSelectedModels = async (selectedModelIds) => {
@@ -904,25 +918,63 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
               </div>
             </div>
             
+            {/* 统计信息 */}
+            <div className="modal-stats">
+              <div className="stat-item">
+                <span className="stat-label">已存数量：</span>
+                <span className="stat-value">{currentModels.length}</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">获取数量：</span>
+                <span className="stat-value">{fetchedModels.length}</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">选中数量：</span>
+                <span className="stat-value">{selectedModelIds.length}</span>
+              </div>
+            </div>
+            
             <div className="modal-body">
-              <div className="model-selection-list">
-                {getCurrentPageModels().map((model) => (
-                  <div key={model.model_id} className="model-selection-item">
-                    <input
-                      type="checkbox"
-                      id={`model-${model.model_id}`}
-                      value={model.model_id}
-                      checked={selectedModelIds.includes(model.model_id)}
-                      onChange={(e) => handleModelSelectionChange(model.model_id, e.target.checked)}
-                    />
-                    <label htmlFor={`model-${model.model_id}`} className="model-selection-label">
-                      <div className="model-info">
-                        <strong>{model.model_name}</strong>
-                        <span className="model-id">ID: {model.model_id}</span>
-                      </div>
-                    </label>
-                  </div>
-                ))}
+              <div className="model-selection-table-container">
+                <table className="model-selection-table">
+                  <thead>
+                    <tr>
+                    <th>模型ID</th>
+                    <th>模型名称</th>
+                    <th>选择
+                      <input
+                        type="checkbox"
+                        id="select-all-models"
+                        checked={selectedModelIds.length === filteredModels.filter(model => !currentModels.some(m => m.model_id === model.model_id)).length}
+                        onChange={handleSelectAllModels}
+                        disabled={filteredModels.filter(model => !currentModels.some(m => m.model_id === model.model_id)).length === 0}
+                      />
+                    </th>
+                  </tr>
+                  </thead>
+                  <tbody>
+                    {getCurrentPageModels().map((model) => {
+                      // 检查模型是否已保存
+                      const isSaved = currentModels.some(m => m.model_id === model.model_id);
+                      return (
+                        <tr key={model.model_id} className="model-selection-row">
+                          <td>{model.model_id}</td>
+                          <td>{model.model_name}</td>
+                          <td className="text-center">
+                            <input
+                              type="checkbox"
+                              id={`model-${model.model_id}`}
+                              value={model.model_id}
+                              checked={selectedModelIds.includes(model.model_id)}
+                              onChange={(e) => handleModelSelectionChange(model.model_id, e.target.checked)}
+                              disabled={isSaved}
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
             
