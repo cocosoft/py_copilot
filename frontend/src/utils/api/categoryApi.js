@@ -31,7 +31,7 @@ export const categoryApi = {
   // 获取所有分类
   getAll: async () => {
     try {
-      const result = await request('/v1/model/categories', {
+      const result = await request('/v1/categories', {
         method: 'GET'
       });
       
@@ -58,7 +58,7 @@ export const categoryApi = {
   // 获取单个分类
   getById: async (categoryId) => {
     try {
-      return await request(`/v1/model/categories/${categoryId}`, {
+      return await request(`/v1/categories/${categoryId}`, {
         method: 'GET'
       });
     } catch (error) {
@@ -73,7 +73,7 @@ export const categoryApi = {
       // 判断是否为FormData对象（用于文件上传）
       const isFormData = categoryData instanceof FormData;
       
-      return await request('/v1/model/categories', {
+      return await request('/v1/categories', {
         method: 'POST',
         body: isFormData ? categoryData : JSON.stringify(categoryData),
         headers: isFormData ? {} : {
@@ -92,7 +92,7 @@ export const categoryApi = {
       // 判断是否为FormData对象（用于文件上传）
       const isFormData = categoryData instanceof FormData;
       
-      return await request(`/api/v1/model/categories/${categoryId}`, {
+      return await request(`/v1/categories/${categoryId}`, {
         method: 'PUT',
         body: isFormData ? categoryData : JSON.stringify(categoryData),
         headers: isFormData ? {} : {
@@ -108,7 +108,7 @@ export const categoryApi = {
   // 删除分类
   delete: async (categoryId) => {
     try {
-      return await request(`/v1/model/categories/${categoryId}`, {
+      return await request(`/v1/categories/${categoryId}`, {
         method: 'DELETE'
       });
     } catch (error) {
@@ -196,7 +196,7 @@ export const categoryApi = {
   // 设置类型默认参数
   setParameters: async (categoryId, parameters) => {
     try {
-      return await request(`/api/v1/categories/${categoryId}/parameters`, {
+      return await request(`/v1/categories/${categoryId}/parameters`, {
         method: 'POST',
         body: JSON.stringify(parameters),
         headers: {

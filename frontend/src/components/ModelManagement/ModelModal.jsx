@@ -36,27 +36,17 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
     try {
       setLoadingCategories(true);
       
-      // 1. 首先直接调用后端API获取原始数据（使用正确的/api前缀）
-
-      const response = await fetch('/api/model/categories');
-      const rawData = await response.json();
-
-      
-      // 检查原始数据结构
-      if (rawData && (Array.isArray(rawData) || rawData.categories || rawData.data)) {
-        const categoriesArray = Array.isArray(rawData) ? rawData : 
-                               rawData.categories ? rawData.categories : rawData.data;
-
-        // 检查是否有子分类（parent_id不为null的分类）
-        const hasChildCategories = categoriesArray.some(category => category.parent_id !== null);
-
-        if (hasChildCategories) {
-          const childCategories = categoriesArray.filter(category => category.parent_id !== null);
-        }
-      }
-      
-
+      let categoriesArray = [];
       const treeData = await categoryApi.getTree();
+      
+      // 确保treeData是一个数组
+      if (Array.isArray(treeData)) {
+        categoriesArray = treeData;
+      } else if (treeData && Array.isArray(treeData.categories)) {
+        categoriesArray = treeData.categories;
+      } else if (treeData && Array.isArray(treeData.data)) {
+        categoriesArray = treeData.data;
+      }
       
       // 检查返回的分类树是否包含子分类
       let hasChildren = false;
@@ -72,24 +62,35 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
         }
       };
       
-      if (treeData && treeData.length > 0) {
-        checkChildren(treeData);
-        setCategories(treeData);
+      if (categoriesArray.length > 0) {
+        checkChildren(categoriesArray);
+        setCategories(categoriesArray);
         return;
       }
       
       // 3. 如果getTree失败或返回空，尝试使用getAll方法
       const categoryTree = await categoryApi.getAll();
-
-      checkChildren(categoryTree);
-
-      setCategories(categoryTree);
       
+      // 确保categoryTree是一个数组
+      let categoryTreeArray = [];
+      if (Array.isArray(categoryTree)) {
+        categoryTreeArray = categoryTree;
+      } else if (categoryTree && Array.isArray(categoryTree.categories)) {
+        categoryTreeArray = categoryTree.categories;
+      } else if (categoryTree && Array.isArray(categoryTree.data)) {
+        categoryTreeArray = categoryTree.data;
+      }
+
+      checkChildren(categoryTreeArray);
+      setCategories(categoryTreeArray);
+      
+      // 调试：打印获取到的分类数据
+      console.log('获取到的分类数据:', JSON.stringify(categoryTreeArray, null, 2));
     } catch (error) {
       console.error('ModelModal: 获取模型分类失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       console.error('❌ 错误详情:', error.message);
       console.error('❌ 错误栈:', error.stack);
-      
+      setCategories([]);
     } finally {
       setLoadingCategories(false);
     }
@@ -100,7 +101,18 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
     try {
       setLoadingTemplates(true);
       const templates = await api.modelApi.getParameterTemplates();
-      setParameterTemplates(templates);
+      // 确保parameterTemplates始终是一个数组
+      let templatesArray = [];
+      if (Array.isArray(templates)) {
+        templatesArray = templates;
+      } else if (templates && Array.isArray(templates.parameter_templates)) {
+        templatesArray = templates.parameter_templates;
+      } else if (templates && Array.isArray(templates.data)) {
+        templatesArray = templates.data;
+      }
+      setParameterTemplates(templatesArray);
+      // 调试：打印获取到的参数模板数据
+      console.log('获取到的参数模板数据:', JSON.stringify(templates, null, 2));
     } catch (error) {
       console.error('获取参数模板失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       setParameterTemplates([]);
@@ -129,52 +141,59 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
 
   // 当传入的model变化时，更新表单数据
   useEffect(() => {
-    if (mode === 'edit' && model) {
-      setFormData({
-        model_id: model.modelId || model.model_id || '',
-        model_name: model.modelName || model.model_name || '', // 确保模型名称字段正确设置
-        description: model.description || '',
-        contextWindow: model.contextWindow || model.context_window || 8000,
-        max_tokens: model.maxTokens || model.max_tokens || 1000,
-        model_type: model.modelType?.toString() || model.model_type?.toString() || '',
-        parameter_template_id: model.parameter_template_id?.toString() || '',
-        isDefault: model.isDefault || model.is_default || false,
-        is_active: model.isActive || model.is_active || true
-      });
-      // 调试：打印设置的表单数据
-      console.log('设置的表单数据:', JSON.stringify({
-        model_id: model.modelId || model.model_id || '',
-        model_name: model.modelName || model.model_name || '',
-        description: model.description || '',
-        contextWindow: model.contextWindow || model.context_window || 8000,
-        max_tokens: model.maxTokens || model.max_tokens || 1000,
-        model_type: model.modelType?.toString() || model.model_type?.toString() || '',
-        parameter_template_id: model.parameter_template_id?.toString() || '',
-        isDefault: model.isDefault || model.is_default || false,
-        is_active: model.isActive || model.is_active || true
-      }, null, 2));
-      // 确保模型LOGO预览使用正确的路径
-      let logoPath = model.logo || null;
-      if (logoPath && !logoPath.startsWith('http')) {
-        logoPath = getImageUrl('models', logoPath);
+    try {
+      if (mode === 'edit' && model) {
+        // 调试：打印传入的model对象
+        console.log('传入的model对象:', JSON.stringify(model, null, 2));
+        
+        setFormData({
+          model_id: model.modelId || model.model_id || '',
+          model_name: model.modelName || model.model_name || '', // 确保模型名称字段正确设置
+          description: model.description || '',
+          contextWindow: model.contextWindow || model.context_window || 8000,
+          max_tokens: model.maxTokens || model.max_tokens || 1000,
+          model_type: model.modelType?.toString() || model.model_type?.toString() || '',
+          parameter_template_id: model.parameter_template_id?.toString() || '',
+          isDefault: model.isDefault || model.is_default || false,
+          is_active: model.isActive || model.is_active || true
+        });
+        // 调试：打印设置的表单数据
+        console.log('设置的表单数据:', JSON.stringify({
+          model_id: model.modelId || model.model_id || '',
+          model_name: model.modelName || model.model_name || '',
+          description: model.description || '',
+          contextWindow: model.contextWindow || model.context_window || 8000,
+          max_tokens: model.maxTokens || model.max_tokens || 1000,
+          model_type: model.modelType?.toString() || model.model_type?.toString() || '',
+          parameter_template_id: model.parameter_template_id?.toString() || '',
+          isDefault: model.isDefault || model.is_default || false,
+          is_active: model.isActive || model.is_active || true
+        }, null, 2));
+        // 确保模型LOGO预览使用正确的路径
+        let logoPath = model.logo || null;
+        if (logoPath && !logoPath.startsWith('http')) {
+          logoPath = getImageUrl('models', logoPath);
+        }
+        setLogoPreview(logoPath);
+        setLogo(null);
+      } else if (mode === 'add') {
+        // 重置表单数据
+        setFormData({
+          model_id: '',
+          model_name: '',
+          description: '',
+          contextWindow: 8000,
+          max_tokens: 1000,
+          model_type: '',
+          parameter_template_id: '',
+          isDefault: isFirstModel, // 如果是第一个模型，默认设为默认模型
+          is_active: true
+        });
+        setLogo(null);
+        setLogoPreview(null);
       }
-      setLogoPreview(logoPath);
-      setLogo(null);
-    } else if (mode === 'add') {
-      // 重置表单数据
-      setFormData({
-        model_id: '',
-        model_name: '',
-        description: '',
-        contextWindow: 8000,
-        max_tokens: 1000,
-        model_type: '',
-        parameter_template_id: '',
-        isDefault: isFirstModel, // 如果是第一个模型，默认设为默认模型
-        is_active: true
-      });
-      setLogo(null);
-      setLogoPreview(null);
+    } catch (error) {
+      console.error('初始化表单数据失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
     }
   }, [model, mode, isFirstModel]);
 
