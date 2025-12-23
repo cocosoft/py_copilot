@@ -27,16 +27,41 @@ class ModelCategoryService:
             )
         
         # 检查父分类是否存在
-        if category_data.get('parent_id'):
+        parent_id = category_data.get('parent_id')
+        if parent_id:
             parent_category = db.query(ModelCategory).filter(
-                ModelCategory.id == category_data['parent_id']
+                ModelCategory.id == parent_id
             ).first()
             
             if not parent_category:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"父分类 ID {category_data['parent_id']} 不存在"
+                    detail=f"父分类 ID {parent_id} 不存在"
                 )
+            
+            # 检查分类层级（最多支持四级分类：系统分类 + 三级子分类）
+            level = 0
+            current_category = parent_category
+            while current_category:
+                level += 1
+                current_category = db.query(ModelCategory).filter(
+                    ModelCategory.id == current_category.parent_id
+                ).first()
+            
+            # level 是父分类的层级，新分类的层级是 level + 1
+            # 系统分类是 level 1，新分类最多支持到 level 4
+            if level + 1 > 4:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="分类层级最多支持四级（系统分类 + 三级子分类）"
+                )
+        
+        # 确保只有系统分类可以作为一级分类
+        if not parent_id and not category_data.get('is_system', False):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="只有系统分类可以作为一级分类"
+            )
         
         # 创建新分类
         db_category = ModelCategory(**category_data)
@@ -134,18 +159,33 @@ class ModelCategoryService:
                     detail=f"模型分类名称 '{update_data['name']}' 已存在"
                 )
         
-        # 如果更新父分类，检查是否存在
+        # 如果更新父分类，检查是否存在并验证层级限制
         if "parent_id" in update_data:
-            if update_data["parent_id"]:
+            new_parent_id = update_data["parent_id"]
+            if new_parent_id:
                 parent_category = db.query(ModelCategory).filter(
-                    ModelCategory.id == update_data["parent_id"]
+                    ModelCategory.id == new_parent_id
                 ).first()
                 
                 if not parent_category:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"父分类 ID {update_data['parent_id']} 不存在"
+                        detail=f"父分类 ID {new_parent_id} 不存在"
                     )
+                
+                # 检查分类层级（最多支持四级分类：系统分类 + 三级子分类）
+                level = 0
+                current_category = parent_category
+                while current_category:
+                    level += 1
+                    if level >= 4:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="分类层级最多支持四级（系统分类 + 三级子分类）"
+                        )
+                    current_category = db.query(ModelCategory).filter(
+                        ModelCategory.id == current_category.parent_id
+                    ).first()
         
         # 执行更新
         for field, value in update_data.items():

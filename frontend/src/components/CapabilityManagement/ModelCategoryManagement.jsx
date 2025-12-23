@@ -240,7 +240,9 @@ const ModelCategoryManagement = () => {
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       console.error('创建分类失败:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
-      setError('创建分类失败，请检查输入并重试');
+      // 显示更具体的错误消息
+      const errorMsg = err.response?.data?.detail || err.message || '创建分类失败，请检查输入并重试';
+      setError(errorMsg);
     }
   };
   
@@ -277,7 +279,9 @@ const ModelCategoryManagement = () => {
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       console.error('更新分类失败:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
-      setError('更新分类失败，请检查输入并重试');
+      // 显示更具体的错误消息
+      const errorMsg = err.response?.data?.detail || err.message || '更新分类失败，请检查输入并重试';
+      setError(errorMsg);
     }
   };
   
@@ -298,7 +302,9 @@ const ModelCategoryManagement = () => {
         setTimeout(() => setSuccess(null), 3000);
       } catch (err) {
         console.error('❌ 删除分类失败:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
-        setError('删除分类失败，可能是因为该分类下有子分类或关联的模型');
+        // 显示更具体的错误消息
+        const errorMsg = err.response?.data?.detail || err.message || '删除分类失败，可能是因为该分类下有子分类或关联的模型';
+        setError(errorMsg);
       }
     }
   };
@@ -477,8 +483,8 @@ const ModelCategoryManagement = () => {
     }
   }, [selectedCategoryForParams]);
   
-  // 获取主分类列表（用于父分类选择）
-  const mainCategories = categories.filter(cat => cat.category_type === 'main');
+  // 获取主分类列表（用于父分类选择，只显示系统分类和可用的子分类选项）
+  const mainCategories = categories.filter(cat => cat.category_type === 'main' && cat.is_system);
   
   // 处理标签点击
   const handleTabClick = (tabType) => {
@@ -882,10 +888,9 @@ const ModelCategoryManagement = () => {
       
       {/* 参数配置面板 */}
       {selectedCategoryForParams && (
-        <div className="category-parameter-panel" style={{ border: '2px solid red', marginTop: '20px', padding: '20px' }}>
+        <div className="category-parameter-panel" style={{ marginTop: '20px', padding: '20px' }}>
           <div className="parameter-panel-header">
             <h3>{selectedCategoryForParams.display_name} - 参数配置</h3>
-            <p>测试参数配置面板是否显示</p>
             <button 
               className="btn btn-primary btn-small"
               onClick={() => handleOpenParameterModal(selectedCategoryForParams, 'add')}

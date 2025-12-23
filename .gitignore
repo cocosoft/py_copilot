@@ -356,3 +356,5 @@ backend/find_all_db.py
 backend/init_model_category.py
 backend/verify_all_tables.py
 backend/verify_db.py
+应用功能与后续计划.md
+model_capability_analysis.md

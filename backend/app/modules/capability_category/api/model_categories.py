@@ -183,8 +183,8 @@ async def create_category(
                 "is_active": db_category.is_active,
                 "is_system": db_category.is_system,
                 "logo": db_category.logo,
-                "created_at": db_category.created_at,
-                "updated_at": db_category.updated_at
+                "created_at": db_category.created_at.isoformat() if db_category.created_at else None,
+                "updated_at": db_category.updated_at.isoformat() if db_category.updated_at else None
             }
         )
     except HTTPException as e:
@@ -249,7 +249,7 @@ async def update_category(
 ):
     """更新模型分类信息，支持JSON请求"""
     # 检查分类是否存在
-    existing_category = model_category_service.get_category_by_id(db, category_id)
+    existing_category = model_category_service.get_category(db, category_id)
     if not existing_category:
         raise HTTPException(status_code=404, detail="Category not found")
     
