@@ -49,7 +49,6 @@ const ModelCategoryManagement = () => {
     name: '',
     display_name: '',
     description: '',
-    category_type: 'main',
     dimension: 'task_type', // 默认维度
     parent_id: null,
     is_active: true,
@@ -57,8 +56,26 @@ const ModelCategoryManagement = () => {
   });
   
   // LOGO选择相关状态
-  const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState('');
+  
+  // 硬编码的分类图片列表，从public/logos/categories/目录获取
+  const [categoryImages, setCategoryImages] = useState([
+    'Diffusers.png',
+    'LoRA.png',
+    'default.png',
+    'gguf.png',
+    'llama.png',
+    'mlx.png',
+    'onnx.png',
+    'openvino.png',
+    'pytorch.png',
+    'safetensors.png',
+    'sentence-transformers.png',
+    'tensorflow.png',
+    'transformers.png',
+    'vdr.png',
+    'xinference.png'
+  ]);
   
   // 参数配置相关状态
   const [selectedCategoryForParams, setSelectedCategoryForParams] = useState(null);
@@ -87,13 +104,29 @@ const ModelCategoryManagement = () => {
         categoryApi.getCategoriesByDimension()
       ]);
       
-      // 标准化分类数据，确保每个分类都有必要的属性
-      const normalizedCategories = categoriesData.map(category => ({
+      // 调试：查看API返回的原始数据
+      console.log(`API返回的分类数据: ${JSON.stringify(categoriesData, null, 2)}`);
+      console.log(`API返回的维度数据: ${JSON.stringify(dimensionsData, null, 2)}`);
+      console.log(`API返回的按维度分组的分类数据: ${JSON.stringify(categoriesByDimensionData, null, 2)}`);
+      
+      // 从按维度分组的分类数据中提取所有分类
+      let allCategories = [];
+      for (const [dimension, dimensionCategories] of Object.entries(categoriesByDimensionData)) {
+        allCategories = [...allCategories, ...dimensionCategories];
+      }
+      
+      // 调试：查看提取的所有分类
+      console.log(`从按维度分组数据中提取的所有分类: ${JSON.stringify(allCategories, null, 2)}`);
+      
+      // 先将树形结构的分类数据扁平化为数组，确保包含所有分类
+      const flattenedData = flattenCategoryTree(categoriesData);
+      
+      // 然后标准化分类数据，确保每个分类都有必要的属性
+      const normalizedCategories = allCategories.map(category => ({
         id: category.id ?? `category_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         name: category.name ?? `未命名分类_${category.id || 'unknown'}`,
         display_name: category.display_name ?? category.name ?? '未命名分类',
         description: category.description || '',
-        category_type: category.category_type || 'main',
         dimension: category.dimension || 'task_type', // 添加维度属性
         parent_id: category.parent_id || null,
         is_active: category.is_active ?? true,
@@ -102,10 +135,10 @@ const ModelCategoryManagement = () => {
         ...category
       }));
       
-      // 使用扁平化处理确保所有分类（包括嵌套的次要分类）都能正确显示
-      const flattenedCategories = flattenCategoryTree(normalizedCategories);
+      // 调试：查看标准化后的分类
+      console.log(`标准化后的分类: ${JSON.stringify(normalizedCategories, null, 2)}`);
       
-      setCategories(flattenedCategories);
+      setCategories(normalizedCategories);
       setDimensions(dimensionsData);
       setCategoriesByDimension(categoriesByDimensionData);
       setError(null);
@@ -145,7 +178,6 @@ const ModelCategoryManagement = () => {
       name: '',
       display_name: '',
       description: '',
-      category_type: 'main',
       dimension: 'task_type', // 重置维度字段
       parent_id: null,
       is_active: true,
@@ -153,21 +185,15 @@ const ModelCategoryManagement = () => {
     });
     setCurrentCategory(null);
     // 重置LOGO相关状态
-    setFile(null);
     setPreviewUrl('');
   };
   
-  // 处理文件上传变化
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      // 创建预览URL
-      const objectUrl = URL.createObjectURL(selectedFile);
-      setPreviewUrl(objectUrl);
-      // 清除之前的Font Awesome图标选择
-      setFormData(prev => ({ ...prev, logo: '' }));
-    }
+  // 处理图片选择变化
+  const handleImageSelect = (e) => {
+    const selectedImage = e.target.value;
+    setFormData(prev => ({ ...prev, logo: selectedImage }));
+    // 更新预览URL
+    setPreviewUrl(getImageUrl('categories', selectedImage));
   };
   
 
@@ -175,9 +201,7 @@ const ModelCategoryManagement = () => {
   // 清理预览URL
   useEffect(() => {
     return () => {
-      if (previewUrl && previewUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(previewUrl);
-      }
+      // 不再需要清理blob URL，因为现在使用的是静态文件URL
     };
   }, [previewUrl]);
   
@@ -194,15 +218,12 @@ const ModelCategoryManagement = () => {
       name: category.name,
       display_name: category.display_name,
       description: category.description || '',
-      category_type: category.category_type,
       dimension: category.dimension || 'task_type', // 添加维度字段
       parent_id: category.parent_id !== null ? category.parent_id : null,
       is_active: category.is_active,
       logo: category.logo || ''
     });
     
-    // 重置LOGO相关状态
-    setFile(null);
     // 处理logo预览URL
     const logoUrl = category.logo || '';
     let finalPreviewUrl = '';
@@ -238,7 +259,6 @@ const ModelCategoryManagement = () => {
       formDataToSubmit.append('name', formData.name);
       formDataToSubmit.append('display_name', formData.display_name);
       formDataToSubmit.append('description', formData.description);
-      formDataToSubmit.append('category_type', formData.category_type);
       formDataToSubmit.append('dimension', formData.dimension); // 添加维度字段
       // 当parent_id为null或undefined时，使用空字符串表示"无父级分类"
       const parentIdValue = formData.parent_id === null || formData.parent_id === undefined ? '' : formData.parent_id;
@@ -247,10 +267,8 @@ const ModelCategoryManagement = () => {
       formDataToSubmit.append('is_active', formData.is_active.toString());
       
       // 处理LOGO
-      if (file) {
-        formDataToSubmit.append('logo_file', file);
-      } else if (formData.logo && !formData.logo.startsWith('fa-')) {
-        // 编辑模式下，如果没有上传新文件但有现有logo，保留现有logo
+      if (formData.logo && !formData.logo.startsWith('fa-')) {
+        // 直接发送选中的图片文件名
         formDataToSubmit.append('logo', formData.logo);
       }
       
@@ -281,7 +299,6 @@ const ModelCategoryManagement = () => {
       formDataToSubmit.append('name', formData.name);
       formDataToSubmit.append('display_name', formData.display_name);
       formDataToSubmit.append('description', formData.description);
-      formDataToSubmit.append('category_type', formData.category_type);
       formDataToSubmit.append('dimension', formData.dimension); // 添加维度字段
       // 当parent_id为null或undefined时，使用空字符串表示"无父级分类"
       const parentIdValue = formData.parent_id === null || formData.parent_id === undefined ? '' : formData.parent_id;
@@ -290,10 +307,8 @@ const ModelCategoryManagement = () => {
       formDataToSubmit.append('is_active', formData.is_active.toString());
       
       // 处理LOGO
-      if (file) {
-        formDataToSubmit.append('logo_file', file);
-      } else if (formData.logo && !formData.logo.startsWith('fa-')) {
-        // 编辑模式下，如果没有上传新文件但有现有logo，保留现有logo
+      if (formData.logo && !formData.logo.startsWith('fa-')) {
+        // 直接发送选中的图片文件名
         formDataToSubmit.append('logo', formData.logo);
       }
       
@@ -509,21 +524,39 @@ const ModelCategoryManagement = () => {
     }
   }, [selectedCategoryForParams]);
   
-  // 获取主分类列表（用于父分类选择，只显示系统分类和可用的子分类选项）
-  // 系统分类相关逻辑
-  const mainCategories = categories.filter(cat => cat.category_type === 'main' && cat.is_system);
+  // 获取所有分类列表（用于父分类选择）
+  const mainCategories = categories;
   
   // 处理标签点击
   const handleTabClick = (tabType) => {
     setActiveTab(tabType);
   };
-  
 
-  
-  // 根据当前选中的系统分类选项卡过滤分类
+  // 根据当前选中的维度选项卡过滤分类
   const filteredCategories = activeTab === 'all' 
     ? categories 
-    : categories.filter(cat => cat.parent_id === parseInt(activeTab) || cat.id === parseInt(activeTab));
+    : categories.filter(cat => {
+        // 确保维度值是字符串类型且去除空格，以避免匹配问题
+        const categoryDimension = String(cat.dimension).trim().toLowerCase();
+        const tabDimension = String(activeTab).trim().toLowerCase();
+        console.log(`比较维度: 分类维度="${categoryDimension}", 选项卡维度="${tabDimension}", 匹配结果=${categoryDimension === tabDimension}`);
+        return categoryDimension === tabDimension;
+      });
+  
+  // 添加详细调试日志
+  console.log(`=== 维度过滤调试信息 ===`);
+  console.log(`当前激活的选项卡: "${activeTab}" (类型: ${typeof activeTab})`);
+  console.log(`所有分类数量: ${categories.length}`);
+  console.log(`所有分类维度分布:`);
+  const dimensionCounts = categories.reduce((acc, cat) => {
+    const dim = String(cat.dimension).trim().toLowerCase();
+    acc[dim] = (acc[dim] || 0) + 1;
+    return acc;
+  }, {});
+  console.log(dimensionCounts);
+  console.log(`过滤后的分类数量: ${filteredCategories.length}`);
+  console.log(`过滤后的分类: ${JSON.stringify(filteredCategories.map(cat => ({id: cat.id, name: cat.name, display_name: cat.display_name, dimension: cat.dimension})), null, 2)}`);
+  console.log(`=== 调试信息结束 ===`);
   
 
   
@@ -568,13 +601,13 @@ const ModelCategoryManagement = () => {
                 data-type="all"
                 onClick={() => handleTabClick('all')}
               >所有分类</div>
-              {categories.filter(cat => cat.is_system).map(systemCat => (
+              {dimensions.map(dimension => (
                 <div 
-                  key={systemCat.id}
-                  className={`tab ${activeTab === systemCat.id.toString() ? 'active' : ''}`} 
-                  data-type={systemCat.id.toString()}
-                  onClick={() => handleTabClick(systemCat.id.toString())}
-                >{systemCat.display_name}</div>
+                  key={dimension}
+                  className={`tab ${activeTab === dimension ? 'active' : ''}`} 
+                  data-type={dimension}
+                  onClick={() => handleTabClick(dimension)}
+                >{dimension}</div>
               ))}
             </div>
             
@@ -586,7 +619,6 @@ const ModelCategoryManagement = () => {
                     <th>LOGO</th>
                     <th>名称</th>
                     <th>显示名称</th>
-                    <th>类型</th>
                     <th>维度</th>
                     <th>父分类</th>
                     <th>状态</th>
@@ -636,11 +668,6 @@ const ModelCategoryManagement = () => {
                         </td>
                         <td>{category.name}</td>
                         <td>{category.display_name}</td>
-                        <td>
-                          <span className={`category-type-badge ${category.category_type}`}>
-                            {category.category_type === 'main' ? '主要' : '次要'}
-                          </span>
-                        </td>
                         <td>{category.dimension}</td>
                         <td>{parentCategory ? parentCategory.display_name : '-'}</td>
                         <td>
@@ -733,31 +760,7 @@ const ModelCategoryManagement = () => {
                   rows="3"
                 />
               </div>
-              <div className="form-group">
-                <label>类型 *</label>
-                <select
-                  name="category_type"
-                  value={formData.category_type}
-                  onChange={handleInputChange}
-                  required
-                >
-                  <option value="main">主要分类</option>
-                  <option value="secondary">次要分类</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label>维度 *</label>
-                <select
-                  name="dimension"
-                  value={formData.dimension}
-                  onChange={handleInputChange}
-                  required
-                >
-                  {dimensions.map(dimension => (
-                    <option key={dimension} value={dimension}>{dimension}</option>
-                  ))}
-                </select>
-              </div>
+
               <div className="form-group">
                 <label>维度 *</label>
                 <select
@@ -787,7 +790,7 @@ const ModelCategoryManagement = () => {
               <div className="form-group">
                 <label>LOGO</label>
                 
-                {/* 图片上传 */}
+                {/* 图片选择 */}
                 <div className="logo-upload-section">
                   {previewUrl && (
                     <div className="logo-preview">
@@ -797,15 +800,19 @@ const ModelCategoryManagement = () => {
                       </div>
                     </div>
                   )}
-                  <input 
-                    type="file" 
-                    id="logo-upload"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    style={{ marginTop: '10px' }}
-                  />
+                  <select 
+                    id="logo-select"
+                    value={formData.logo || ''}
+                    onChange={handleImageSelect}
+                    style={{ marginTop: '10px', width: '100%', padding: '8px' }}
+                  >
+                    <option value="">请选择图片</option>
+                    {categoryImages.map(image => (
+                      <option key={image} value={image}>{image}</option>
+                    ))}
+                  </select>
                   <small style={{ display: 'block', marginTop: '5px', color: '#666' }}>
-                    支持JPG、PNG、GIF等图片格式，建议尺寸不超过500KB
+                    从前端已有的图片中选择分类LOGO
                   </small>
                 </div>
               </div>
@@ -873,18 +880,7 @@ const ModelCategoryManagement = () => {
                   rows="3"
                 />
               </div>
-              <div className="form-group">
-                <label>类型 *</label>
-                <select
-                  name="category_type"
-                  value={formData.category_type}
-                  onChange={handleInputChange}
-                  required
-                >
-                  <option value="main">主要分类</option>
-                  <option value="secondary">次要分类</option>
-                </select>
-              </div>
+
               <div className="form-group">
                 <label>维度 *</label>
                 <select
@@ -914,7 +910,7 @@ const ModelCategoryManagement = () => {
               <div className="form-group">
                 <label>LOGO</label>
                 
-                {/* 图片上传 */}
+                {/* 图片选择 */}
                 <div className="logo-upload-section">
                   {previewUrl && (
                     <div className="logo-preview">
@@ -924,15 +920,19 @@ const ModelCategoryManagement = () => {
                       </div>
                     </div>
                   )}
-                  <input 
-                    type="file" 
-                    id="logo-upload-edit"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    style={{ marginTop: '10px' }}
-                  />
+                  <select 
+                    id="logo-select-edit"
+                    value={formData.logo || ''}
+                    onChange={handleImageSelect}
+                    style={{ marginTop: '10px', width: '100%', padding: '8px' }}
+                  >
+                    <option value="">请选择图片</option>
+                    {categoryImages.map(image => (
+                      <option key={image} value={image}>{image}</option>
+                    ))}
+                  </select>
                   <small style={{ display: 'block', marginTop: '5px', color: '#666' }}>
-                    支持JPG、PNG、GIF等图片格式，建议尺寸不超过500KB
+                    从前端已有的图片中选择分类LOGO
                   </small>
                 </div>
               </div>

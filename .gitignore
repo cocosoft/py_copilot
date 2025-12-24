@@ -358,3 +358,11 @@ backend/verify_all_tables.py
 backend/verify_db.py
 应用功能与后续计划.md
 model_capability_analysis.md
+模型分类多维化改进建议.md
+backend/check_api_response.py
+backend/check_returned_dimensions.py
+backend/check_technologies_active_status.py
+backend/check_technologies_categories.py
+backend/check_technologies_dimension.py
+backend/app/modules/capability_category/frontend/public/logos/categories/20251224_103007_912143.png
+backend/app/modules/capability_category/frontend/public/logos/categories/20251224_111644_021705.png
