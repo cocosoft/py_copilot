@@ -667,7 +667,7 @@ const Knowledge = () => {
           
         } catch (pdfError) {
           console.error('PDF预览失败:', pdfError);
-          setPreviewError(`PDF预览失败: ${pdfError.message}，显示文本内容`);
+          setPreviewError(`PDF预览失败: ${pdfError.message}，显示完整文本内容`);
           setPreviewContent(doc.content || '文档内容为空');
         }
       } else if (doc.file_type === '.docx' || doc.file_type === '.doc') {
@@ -680,7 +680,100 @@ const Knowledge = () => {
           const result = await mammoth.convertToHtml({ arrayBuffer });
           setPreviewContent(<div dangerouslySetInnerHTML={{ __html: result.value }} className="word-preview" />);
         } catch (wordError) {
-          setPreviewError('Word文档预览失败，显示文本内容');
+          console.error('Word文档预览失败:', wordError);
+          // 统一处理所有Word文档解析错误，确保显示完整文本内容
+          setPreviewError(`Word文档预览失败: ${wordError.message}，显示完整文本内容`);
+          setPreviewContent(doc.content || '文档内容为空');
+        }
+      } else if (doc.file_type === '.xlsx' || doc.file_type === '.xls') {
+        // Excel文件预览
+        try {
+          // 对于Excel文件，直接使用解析后的文本内容显示表格形式
+          const excelContent = doc.content;
+          if (excelContent) {
+            // 将文本内容转换为表格格式显示
+            const sheets = excelContent.split('=== 工作表: ');
+            setPreviewContent(
+              <div className="excel-preview">
+                {sheets.filter(sheet => sheet.trim()).map((sheet, index) => {
+                  const [sheetName, ...dataLines] = sheet.split('\n');
+                  const rows = dataLines.filter(line => line.trim()).map(line => line.split('\t'));
+                  
+                  return (
+                    <div key={index} className="excel-sheet">
+                      <h4>工作表: {sheetName.replace('===', '').trim()}</h4>
+                      <table border="1" cellPadding="5" cellSpacing="0">
+                        <tbody>
+                          {rows.map((row, rowIndex) => (
+                            <tr key={rowIndex} className={rowIndex === 0 ? 'excel-header' : ''}>
+                              {row.map((cell, cellIndex) => (
+                                <td key={cellIndex}>{cell}</td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          } else {
+            setPreviewContent('文档内容为空');
+          }
+        } catch (excelError) {
+          console.error('Excel预览失败:', excelError);
+          setPreviewError(`Excel预览失败: ${excelError.message}，显示完整文本内容`);
+          setPreviewContent(doc.content || '文档内容为空');
+        }
+      } else if (doc.file_type === '.pptx' || doc.file_type === '.ppt') {
+        // PowerPoint文件预览
+        try {
+          // 对于PowerPoint文件，显示解析后的文本内容
+          setPreviewContent(
+            <div className="ppt-preview">
+              <pre>{doc.content || '文档内容为空'}</pre>
+            </div>
+          );
+        } catch (pptError) {
+          console.error('PowerPoint预览失败:', pptError);
+          setPreviewError(`PowerPoint预览失败: ${pptError.message}，显示完整文本内容`);
+          setPreviewContent(doc.content || '文档内容为空');
+        }
+      } else if (['.png', '.jpg', '.jpeg', '.gif', '.bmp'].includes(doc.file_type)) {
+        // 图片文件预览
+        try {
+          const response = await fetch(`/v1/knowledge/documents/${documentId}/download`);
+          if (!response.ok) throw new Error(`下载图片失败: ${response.status} ${response.statusText}`);
+          
+          const blob = await response.blob();
+          const imageUrl = URL.createObjectURL(blob);
+          
+          setPreviewContent(
+            <div className="image-preview">
+              <img src={imageUrl} alt={doc.title} style={{ maxWidth: '100%', maxHeight: '600px' }} />
+              <div className="image-info">
+                {doc.content || ''}
+              </div>
+            </div>
+          );
+        } catch (imageError) {
+          console.error('图片预览失败:', imageError);
+          setPreviewError(`图片预览失败: ${imageError.message}，显示图片信息`);
+          setPreviewContent(doc.content || '图片信息为空');
+        }
+      } else if (doc.file_type === '.wps' || doc.file_type === '.et' || doc.file_type === '.dps') {
+        // WPS文件预览
+        try {
+          // 对于WPS文件，显示解析后的文本内容
+          setPreviewContent(
+            <div className="wps-preview">
+              <pre>{doc.content || '文档内容为空'}</pre>
+            </div>
+          );
+        } catch (wpsError) {
+          console.error('WPS文件预览失败:', wpsError);
+          setPreviewError(`WPS文件预览失败: ${wpsError.message}，显示完整文本内容`);
           setPreviewContent(doc.content || '文档内容为空');
         }
       } else {
@@ -707,7 +800,7 @@ const Knowledge = () => {
     }
     
     // 检查文件格式和大小
-    const supportedFormats = ['.pdf', '.docx', '.doc', '.txt'];
+      const supportedFormats = ['.pdf', '.docx', '.doc', '.txt', '.xlsx', '.xls', '.pptx', '.ppt', '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.wps', '.et', '.dps'];
     const validFiles = [];
     const invalidFiles = [];
     
@@ -1311,7 +1404,7 @@ const Knowledge = () => {
               id="file-upload"
               onChange={handleFileUpload} 
               disabled={uploading || !selectedKnowledgeBase}
-              accept=".pdf,.docx,.doc,.txt"
+              accept=".pdf,.docx,.doc,.txt,.xlsx,.xls,.pptx,.ppt,.png,.jpg,.jpeg,.gif,.bmp,.wps,.et,.dps"
               multiple
               style={{ display: 'none' }}
             />
@@ -1452,6 +1545,78 @@ const Knowledge = () => {
                                 }}
                               />
                               文本 (.txt)
+                            </label>
+                            <label className="filter-option">
+                              <input 
+                                type="checkbox" 
+                                value=".xlsx" 
+                                checked={fileTypes.includes('.xlsx') || fileTypes.includes('.xls')}
+                                onChange={() => {
+                                  if (fileTypes.includes('.xls')) {
+                                    handleFileTypeChange('.xls');
+                                  }
+                                  handleFileTypeChange('.xlsx');
+                                  handleSearch(searchQuery);
+                                }}
+                              />
+                              Excel (.xlsx/.xls)
+                            </label>
+                            <label className="filter-option">
+                              <input 
+                                type="checkbox" 
+                                value=".pptx" 
+                                checked={fileTypes.includes('.pptx') || fileTypes.includes('.ppt')}
+                                onChange={() => {
+                                  if (fileTypes.includes('.ppt')) {
+                                    handleFileTypeChange('.ppt');
+                                  }
+                                  handleFileTypeChange('.pptx');
+                                  handleSearch(searchQuery);
+                                }}
+                              />
+                              PowerPoint (.pptx/.ppt)
+                            </label>
+                            <label className="filter-option">
+                              <input 
+                                type="checkbox" 
+                                value=".png" 
+                                checked={fileTypes.includes('.png') || fileTypes.includes('.jpg') || fileTypes.includes('.jpeg') || fileTypes.includes('.gif') || fileTypes.includes('.bmp')}
+                                onChange={() => {
+                                  if (fileTypes.includes('.jpg')) {
+                                    handleFileTypeChange('.jpg');
+                                  }
+                                  if (fileTypes.includes('.jpeg')) {
+                                    handleFileTypeChange('.jpeg');
+                                  }
+                                  if (fileTypes.includes('.gif')) {
+                                    handleFileTypeChange('.gif');
+                                  }
+                                  if (fileTypes.includes('.bmp')) {
+                                    handleFileTypeChange('.bmp');
+                                  }
+                                  handleFileTypeChange('.png');
+                                  handleSearch(searchQuery);
+                                }}
+                              />
+                              图片 (.png/.jpg/.jpeg/.gif/.bmp)
+                            </label>
+                            <label className="filter-option">
+                              <input 
+                                type="checkbox" 
+                                value=".wps" 
+                                checked={fileTypes.includes('.wps') || fileTypes.includes('.et') || fileTypes.includes('.dps')}
+                                onChange={() => {
+                                  if (fileTypes.includes('.et')) {
+                                    handleFileTypeChange('.et');
+                                  }
+                                  if (fileTypes.includes('.dps')) {
+                                    handleFileTypeChange('.dps');
+                                  }
+                                  handleFileTypeChange('.wps');
+                                  handleSearch(searchQuery);
+                                }}
+                              />
+                              WPS (.wps/.et/.dps)
                             </label>
                           </div>
                         </div>

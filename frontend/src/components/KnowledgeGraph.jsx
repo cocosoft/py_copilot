@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as d3 from 'd3';
+import { request } from '../utils/apiUtils';
 import './KnowledgeGraph.css';
 
 const KnowledgeGraph = ({ documentId, textContent, width = 800, height = 600 }) => {
@@ -24,18 +25,15 @@ const KnowledgeGraph = ({ documentId, textContent, width = 800, height = 600 }) 
       
       if (documentId) {
         // 从文档ID获取知识图谱数据
-        const response = await fetch(`/v1/knowledge-graph/document/${documentId}/entities`);
-        if (!response.ok) throw new Error('获取文档实体失败');
-        data = await response.json();
+        data = await request(`/v1/knowledge-graph/document/${documentId}/entities`, {
+          method: 'GET'
+        });
       } else if (textContent) {
         // 从文本内容提取知识图谱数据
-        const response = await fetch('/v1/knowledge-graph/extract-entities', {
+        data = await request('/v1/knowledge-graph/extract-entities', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: textContent })
+          data: { text: textContent }
         });
-        if (!response.ok) throw new Error('提取实体关系失败');
-        data = await response.json();
       }
       
       setGraphData(data);
@@ -207,11 +205,28 @@ const KnowledgeGraph = ({ documentId, textContent, width = 800, height = 600 }) 
   }
 
   if (error) {
+    // 优化错误信息显示
+    let friendlyError = error;
+    
+    if (error.includes('获取文档实体失败') || error.includes('提取实体关系失败')) {
+      friendlyError = '知识图谱生成失败，请检查网络连接或稍后重试';
+    } else if (error.includes('Failed to fetch') || error.includes('Network Error')) {
+      friendlyError = '网络连接失败，请检查网络连接后重试';
+    } else if (error.includes('Unexpected token') || error.includes('JSON')) {
+      friendlyError = '数据格式错误，请刷新页面后重试';
+    }
+    
     return (
       <div className="knowledge-graph-error">
         <div className="error-icon">⚠️</div>
-        <span>{error}</span>
-        <button onClick={loadGraphData} className="retry-btn">重试</button>
+        <div className="error-content">
+          <h4>知识图谱加载失败</h4>
+          <p>{friendlyError}</p>
+          <div className="error-actions">
+            <button onClick={loadGraphData} className="retry-btn">重试</button>
+            <button onClick={() => window.location.reload()} className="refresh-btn">刷新页面</button>
+          </div>
+        </div>
       </div>
     );
   }

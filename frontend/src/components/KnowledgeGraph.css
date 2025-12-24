@@ -163,9 +163,66 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 60px 20px;
+  padding: 40px 20px;
   color: #e74c3c;
   text-align: center;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  margin: 20px 0;
+}
+
+.knowledge-graph-error .error-content {
+  max-width: 400px;
+}
+
+.knowledge-graph-error h4 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #dc2626;
+}
+
+.knowledge-graph-error p {
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+  color: #7f1d1d;
+}
+
+.error-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.error-actions .retry-btn,
+.error-actions .refresh-btn {
+  padding: 8px 16px;
+  border: 1px solid #dc2626;
+  border-radius: 4px;
+  background-color: #dc2626;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.error-actions .retry-btn:hover,
+.error-actions .refresh-btn:hover {
+  background-color: #b91c1c;
+  border-color: #b91c1c;
+}
+
+.error-actions .refresh-btn {
+  background-color: #6b7280;
+  border-color: #6b7280;
+}
+
+.error-actions .refresh-btn:hover {
+  background-color: #4b5563;
+  border-color: #4b5563;
 }
 
 .error-icon {

@@ -8,12 +8,16 @@ from app.modules.knowledge.models.knowledge_document import KnowledgeDocument
 from app.services.knowledge.knowledge_graph_service import KnowledgeGraphService
 
 # 创建Pydantic模型用于API请求和响应
-from pydantic import BaseModel
-from typing import List, Dict, Any
+from pydantic import BaseModel, validator, model_validator
+from typing import List, Dict, Any, Optional
 
 
 class EntityExtractionRequest(BaseModel):
-    document_id: int
+    document_id: Optional[int] = None
+    text: Optional[str] = None
+    
+    class Config:
+        extra = "forbid"  # 禁止额外的字段
 
 
 class EntityExtractionResponse(BaseModel):
@@ -21,6 +25,12 @@ class EntityExtractionResponse(BaseModel):
     entities_count: int = 0
     relationships_count: int = 0
     error: Optional[str] = None
+
+
+class EntityExtractionResponseFixed(BaseModel):
+    entities: List[Dict[str, Any]]
+    relationships: List[Dict[str, Any]]
+    success: bool
 
 
 class EntitySearchRequest(BaseModel):
@@ -54,28 +64,98 @@ router = APIRouter(tags=["knowledge-graph"])
 knowledge_graph_service = KnowledgeGraphService()
 
 
-@router.post("/extract-entities", response_model=EntityExtractionResponse)
+@router.post("/extract-entities", response_model=EntityExtractionResponseFixed)
 async def extract_entities(
     request: EntityExtractionRequest,
     db: Session = Depends(get_db)
 ):
-    """从文档中提取实体和关系"""
+    """从文档或文本中提取实体和关系"""
     try:
-        # 获取文档
-        document = db.query(KnowledgeDocument).filter(
-            KnowledgeDocument.id == request.document_id
-        ).first()
+        # 验证必须提供document_id或text参数
+        if not request.document_id and not request.text:
+            raise HTTPException(status_code=400, detail="必须提供document_id或text参数")
+            
+        if request.document_id:
+            # 从文档中提取实体和关系
+            document = db.query(KnowledgeDocument).filter(
+                KnowledgeDocument.id == request.document_id
+            ).first()
+            
+            if not document:
+                raise HTTPException(status_code=404, detail="文档不存在")
+            
+            # 提取实体和关系并存储
+            result = knowledge_graph_service.extract_and_store_entities(db, document)
+            
+            if not result["success"]:
+                raise HTTPException(status_code=500, detail=result.get("error", "提取失败"))
+            
+            # 获取存储的实体和关系
+            entities = knowledge_graph_service.get_document_entities(db, request.document_id)
+            relationships = knowledge_graph_service.get_document_relationships(db, request.document_id)
+            
+            return {
+                "entities": entities,
+                "relationships": relationships,
+                "success": True
+            }
+        elif request.text:
+            # 从文本内容直接提取实体和关系（不存储到数据库）
+            if not request.text.strip():
+                raise HTTPException(status_code=400, detail="文本内容不能为空")
+            
+            # 直接从文本提取实体和关系
+            entities, relationships = knowledge_graph_service.text_processor.extract_entities_relationships(request.text)
+            
+            # 转换实体格式以匹配前端预期
+            formatted_entities = []
+            for i, entity in enumerate(entities):
+                formatted_entities.append({
+                    "id": i + 1,
+                    "text": entity["text"],
+                    "type": entity["type"],
+                    "start_pos": entity.get("start_pos", 0),
+                    "end_pos": entity.get("end_pos", len(entity["text"])),
+                    "confidence": entity.get("confidence", 0.7)
+                })
+            
+            # 转换关系格式以匹配前端预期
+            formatted_relationships = []
+            for i, rel in enumerate(relationships):
+                # 查找对应的实体索引
+                source_idx = next((idx for idx, ent in enumerate(formatted_entities) if ent["text"] == rel["subject"]), None)
+                target_idx = next((idx for idx, ent in enumerate(formatted_entities) if ent["text"] == rel["object"]), None)
+                
+                if source_idx is not None and target_idx is not None:
+                    formatted_relationships.append({
+                        "id": i + 1,
+                        "subject": rel["subject"],
+                        "object": rel["object"],
+                        "relation": rel["relation"],
+                        "source": {
+                            "id": source_idx + 1,
+                            "text": rel["subject"]
+                        },
+                        "target": {
+                            "id": target_idx + 1,
+                            "text": rel["object"]
+                        },
+                        "confidence": rel.get("confidence", 0.7)
+                    })
+            
+            return {
+                "entities": formatted_entities,
+                "relationships": formatted_relationships,
+                "success": True
+            }
         
-        if not document:
-            raise HTTPException(status_code=404, detail="文档不存在")
-        
-        # 提取实体和关系
-        result = knowledge_graph_service.extract_and_store_entities(db, document)
-        
-        return EntityExtractionResponse(**result)
-        
+        # 这种情况理论上不会发生，因为validator已经检查过
+        raise HTTPException(status_code=400, detail="必须提供document_id或text参数")
+    
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"提取实体失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"实体提取失败: {str(e)}")
 
 
 @router.get("/documents/{document_id}/entities")

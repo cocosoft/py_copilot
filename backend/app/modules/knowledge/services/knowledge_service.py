@@ -107,7 +107,7 @@ class KnowledgeService:
                 knowledge_base_id=knowledge_base_id,
                 file_path=file_path,
                 file_type=os.path.splitext(file.filename)[1].lower(),
-                content=text_content[:1000],  # 保存前1000字符用于预览
+                content=text_content,  # 保存完整文本内容
                 document_metadata={
                     "original_filename": file.filename,
                     "file_size": file.size,
