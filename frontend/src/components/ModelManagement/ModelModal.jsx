@@ -20,6 +20,9 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
   const [logoPreview, setLogoPreview] = useState(null);
   const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState([]);
+  const [categoriesByDimension, setCategoriesByDimension] = useState({});
+  const [dimensions, setDimensions] = useState([]);
+  const [selectedDimension, setSelectedDimension] = useState('');
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [parameterTemplates, setParameterTemplates] = useState([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
@@ -36,61 +39,48 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
     try {
       setLoadingCategories(true);
       
+      // 并行加载分类数据、维度数据和按维度分组的分类数据
+      const [categoriesTree, dimensionsData, categoriesByDimensionData] = await Promise.all([
+        categoryApi.getTree(),
+        categoryApi.getAllDimensions(),
+        categoryApi.getCategoriesByDimension()
+      ]);
+      
+      // 处理分类树形结构数据
       let categoriesArray = [];
-      const treeData = await categoryApi.getTree();
-      
-      // 确保treeData是一个数组
-      if (Array.isArray(treeData)) {
-        categoriesArray = treeData;
-      } else if (treeData && Array.isArray(treeData.categories)) {
-        categoriesArray = treeData.categories;
-      } else if (treeData && Array.isArray(treeData.data)) {
-        categoriesArray = treeData.data;
+      if (Array.isArray(categoriesTree)) {
+        categoriesArray = categoriesTree;
+      } else if (categoriesTree && Array.isArray(categoriesTree.categories)) {
+        categoriesArray = categoriesTree.categories;
+      } else if (categoriesTree && Array.isArray(categoriesTree.data)) {
+        categoriesArray = categoriesTree.data;
       }
       
-      // 检查返回的分类树是否包含子分类
-      let hasChildren = false;
-      const checkChildren = (categories) => {
-        for (const category of categories) {
-          if (category.children && category.children.length > 0) {
-            hasChildren = true;
-            break;
-          }
-          if (category.children) {
-            checkChildren(category.children);
-          }
-        }
-      };
+      // 设置分类数据
+      setCategories(categoriesArray);
       
-      if (categoriesArray.length > 0) {
-        checkChildren(categoriesArray);
-        setCategories(categoriesArray);
-        return;
+      // 设置维度数据
+      setDimensions(dimensionsData);
+      
+      // 设置按维度分组的分类数据
+      setCategoriesByDimension(categoriesByDimensionData);
+      
+      // 如果有维度数据，默认选择第一个维度
+      if (dimensionsData.length > 0 && !selectedDimension) {
+        setSelectedDimension(dimensionsData[0]);
       }
-      
-      // 3. 如果getTree失败或返回空，尝试使用getAll方法
-      const categoryTree = await categoryApi.getAll();
-      
-      // 确保categoryTree是一个数组
-      let categoryTreeArray = [];
-      if (Array.isArray(categoryTree)) {
-        categoryTreeArray = categoryTree;
-      } else if (categoryTree && Array.isArray(categoryTree.categories)) {
-        categoryTreeArray = categoryTree.categories;
-      } else if (categoryTree && Array.isArray(categoryTree.data)) {
-        categoryTreeArray = categoryTree.data;
-      }
-
-      checkChildren(categoryTreeArray);
-      setCategories(categoryTreeArray);
       
       // 调试：打印获取到的分类数据
-      console.log('获取到的分类数据:', JSON.stringify(categoryTreeArray, null, 2));
+      console.log('获取到的分类树形数据:', JSON.stringify(categoriesArray, null, 2));
+      console.log('获取到的维度数据:', JSON.stringify(dimensionsData, null, 2));
+      console.log('获取到的按维度分组的分类数据:', JSON.stringify(categoriesByDimensionData, null, 2));
     } catch (error) {
       console.error('ModelModal: 获取模型分类失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       console.error('❌ 错误详情:', error.message);
       console.error('❌ 错误栈:', error.stack);
       setCategories([]);
+      setDimensions([]);
+      setCategoriesByDimension({});
     } finally {
       setLoadingCategories(false);
     }
@@ -340,19 +330,44 @@ const ModelModal = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFir
           
           <div className="form-row">
             <div className="form-group">
+              <label htmlFor="dimension">分类维度</label>
+              <select 
+                id="dimension"
+                value={selectedDimension}
+                onChange={(e) => setSelectedDimension(e.target.value)}
+                disabled={loadingCategories || saving}
+              >
+                <option value="">请选择分类维度</option>
+                {dimensions.map(dim => (
+                  <option key={dim} value={dim}>{dim}</option>
+                ))}
+              </select>
+              {loadingCategories && <span className="loading">加载中...</span>}
+            </div>
+            <div className="form-group">
               <label htmlFor="model_type">模型类型</label>
               <select 
                 id="model_type"
                 name="model_type"
                 value={formData.model_type}
                 onChange={handleChange}
-                disabled={loadingCategories || saving}
+                disabled={loadingCategories || saving || !selectedDimension}
               >
                 <option value="">请选择模型类型</option>
-                {renderCategoryTree(categories)}
+                {selectedDimension && categoriesByDimension[selectedDimension]?.map(category => (
+                  <option key={category.id} value={category.id} style={{ 
+                    paddingLeft: `${category.level * 20}px`,
+                    fontWeight: category.level === 0 ? 'bold' : 'normal',
+                    color: category.level === 0 ? '#333' : '#666'
+                  }}>
+                    {category.display_name || category.name}
+                  </option>
+                ))}
               </select>
               {loadingCategories && <span className="loading">加载中...</span>}
             </div>
+          </div>
+          <div className="form-row">
             <div className="form-group">
               <label htmlFor="parameter_template_id">参数模板</label>
               <select 

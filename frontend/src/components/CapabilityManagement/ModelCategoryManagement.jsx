@@ -36,6 +36,8 @@ const flattenCategoryTree = (categories) => {
 
 const ModelCategoryManagement = () => {
   const [categories, setCategories] = useState([]);
+  const [dimensions, setDimensions] = useState([]);
+  const [categoriesByDimension, setCategoriesByDimension] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null); // 添加成功状态
@@ -48,6 +50,7 @@ const ModelCategoryManagement = () => {
     display_name: '',
     description: '',
     category_type: 'main',
+    dimension: 'task_type', // 默认维度
     parent_id: null,
     is_active: true,
     logo: ''
@@ -77,8 +80,12 @@ const ModelCategoryManagement = () => {
     try {
       setLoading(true);
       
-      // 使用categoryApi获取所有分类
-      const categoriesData = await categoryApi.getAll();
+      // 并行加载分类数据和维度数据
+      const [categoriesData, dimensionsData, categoriesByDimensionData] = await Promise.all([
+        categoryApi.getAll(),
+        categoryApi.getAllDimensions(),
+        categoryApi.getCategoriesByDimension()
+      ]);
       
       // 标准化分类数据，确保每个分类都有必要的属性
       const normalizedCategories = categoriesData.map(category => ({
@@ -87,6 +94,7 @@ const ModelCategoryManagement = () => {
         display_name: category.display_name ?? category.name ?? '未命名分类',
         description: category.description || '',
         category_type: category.category_type || 'main',
+        dimension: category.dimension || 'task_type', // 添加维度属性
         parent_id: category.parent_id || null,
         is_active: category.is_active ?? true,
         is_system: category.is_system ?? false,
@@ -94,11 +102,12 @@ const ModelCategoryManagement = () => {
         ...category
       }));
       
-      
       // 使用扁平化处理确保所有分类（包括嵌套的次要分类）都能正确显示
       const flattenedCategories = flattenCategoryTree(normalizedCategories);
       
       setCategories(flattenedCategories);
+      setDimensions(dimensionsData);
+      setCategoriesByDimension(categoriesByDimensionData);
       setError(null);
     } catch (err) {
       console.error('❌ 获取分类失败:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
@@ -117,9 +126,16 @@ const ModelCategoryManagement = () => {
   // 处理输入变化
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    let processedValue;
+    if (name === 'parent_id') {
+      processedValue = value === '' ? null : parseInt(value);
+      console.log('父级分类选择变化:', value, '→', processedValue);
+    } else {
+      processedValue = value;
+    }
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'parent_id' ? (value === '' ? null : parseInt(value)) : value
+      [name]: processedValue
     }));
   };
   
@@ -130,6 +146,7 @@ const ModelCategoryManagement = () => {
       display_name: '',
       description: '',
       category_type: 'main',
+      dimension: 'task_type', // 重置维度字段
       parent_id: null,
       is_active: true,
       logo: ''
@@ -178,6 +195,7 @@ const ModelCategoryManagement = () => {
       display_name: category.display_name,
       description: category.description || '',
       category_type: category.category_type,
+      dimension: category.dimension || 'task_type', // 添加维度字段
       parent_id: category.parent_id !== null ? category.parent_id : null,
       is_active: category.is_active,
       logo: category.logo || ''
@@ -216,12 +234,16 @@ const ModelCategoryManagement = () => {
       // 创建FormData对象用于文件上传
       const formDataToSubmit = new FormData();
       
-      // 添加所有表单字段
+      // 添加所有表单字段，包括维度
       formDataToSubmit.append('name', formData.name);
       formDataToSubmit.append('display_name', formData.display_name);
       formDataToSubmit.append('description', formData.description);
       formDataToSubmit.append('category_type', formData.category_type);
-      formDataToSubmit.append('parent_id', formData.parent_id || '');
+      formDataToSubmit.append('dimension', formData.dimension); // 添加维度字段
+      // 当parent_id为null或undefined时，使用空字符串表示"无父级分类"
+      const parentIdValue = formData.parent_id === null || formData.parent_id === undefined ? '' : formData.parent_id;
+      formDataToSubmit.append('parent_id', parentIdValue);
+      console.log('提交的父级分类ID:', parentIdValue);
       formDataToSubmit.append('is_active', formData.is_active.toString());
       
       // 处理LOGO
@@ -255,12 +277,16 @@ const ModelCategoryManagement = () => {
       // 创建FormData对象用于文件上传
       const formDataToSubmit = new FormData();
       
-      // 添加所有表单字段
+      // 添加所有表单字段，包括维度
       formDataToSubmit.append('name', formData.name);
       formDataToSubmit.append('display_name', formData.display_name);
       formDataToSubmit.append('description', formData.description);
       formDataToSubmit.append('category_type', formData.category_type);
-      formDataToSubmit.append('parent_id', formData.parent_id || '');
+      formDataToSubmit.append('dimension', formData.dimension); // 添加维度字段
+      // 当parent_id为null或undefined时，使用空字符串表示"无父级分类"
+      const parentIdValue = formData.parent_id === null || formData.parent_id === undefined ? '' : formData.parent_id;
+      formDataToSubmit.append('parent_id', parentIdValue);
+      console.log('提交的父级分类ID:', parentIdValue);
       formDataToSubmit.append('is_active', formData.is_active.toString());
       
       // 处理LOGO
@@ -484,6 +510,7 @@ const ModelCategoryManagement = () => {
   }, [selectedCategoryForParams]);
   
   // 获取主分类列表（用于父分类选择，只显示系统分类和可用的子分类选项）
+  // 系统分类相关逻辑
   const mainCategories = categories.filter(cat => cat.category_type === 'main' && cat.is_system);
   
   // 处理标签点击
@@ -491,10 +518,14 @@ const ModelCategoryManagement = () => {
     setActiveTab(tabType);
   };
   
-  // 根据当前选中的标签过滤分类
+
+  
+  // 根据当前选中的系统分类选项卡过滤分类
   const filteredCategories = activeTab === 'all' 
     ? categories 
-    : categories.filter(cat => cat.category_type === activeTab);
+    : categories.filter(cat => cat.parent_id === parseInt(activeTab) || cat.id === parseInt(activeTab));
+  
+
   
   if (loading) {
     return <div className="category-management-loading">加载中...</div>;
@@ -529,133 +560,136 @@ const ModelCategoryManagement = () => {
         {categories.length === 0 ? (
           <div className="empty-state">暂无分类数据</div>
         ) : (
-          <div className="category-tabs">
-            <div 
-              className={`tab ${activeTab === 'all' ? 'active' : ''}`} 
-              data-type="all"
-              onClick={() => handleTabClick('all')}
-            >所有分类</div>
-            <div 
-              className={`tab ${activeTab === 'main' ? 'active' : ''}`} 
-              data-type="main"
-              onClick={() => handleTabClick('main')}
-            >主要分类</div>
-            <div 
-              className={`tab ${activeTab === 'secondary' ? 'active' : ''}`} 
-              data-type="secondary"
-              onClick={() => handleTabClick('secondary')}
-            >次要分类</div>
-          </div>
-        )}
-        
-        <div className="category-table-container">
-          <table className="category-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>LOGO</th>
-                <th>名称</th>
-                <th>显示名称</th>
-                <th>类型</th>
-                <th>父分类</th>
-                <th>状态</th>
-                <th>是否系统分类</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredCategories.map(category => {
-                const parentCategory = category.parent_id 
-                  ? categories.find(cat => cat.id === category.parent_id)
-                  : null;
-                
-                return (
-                  <tr key={category.id}>
-                    <td>{category.id}</td>
-                    <td>
-                      {category.logo ? (
-                        <div className="category-logo">
-                          {category.logo.startsWith('<i class=') ? (
-                            <div 
-                              dangerouslySetInnerHTML={{ __html: category.logo }}
-                              className="fa-icon"
-                              title={`${category.display_name} logo`}
-                            />
-                          ) : category.logo.includes('fa-') ? (
-                            <div className="fa-icon">
-                              <i className={category.logo} title={`${category.display_name} logo`}></i>
+          // 只显示表格视图和选项卡
+          <div>
+            <div className="category-tabs">
+              <div 
+                className={`tab ${activeTab === 'all' ? 'active' : ''}`} 
+                data-type="all"
+                onClick={() => handleTabClick('all')}
+              >所有分类</div>
+              {categories.filter(cat => cat.is_system).map(systemCat => (
+                <div 
+                  key={systemCat.id}
+                  className={`tab ${activeTab === systemCat.id.toString() ? 'active' : ''}`} 
+                  data-type={systemCat.id.toString()}
+                  onClick={() => handleTabClick(systemCat.id.toString())}
+                >{systemCat.display_name}</div>
+              ))}
+            </div>
+            
+            <div className="category-table-container">
+              <table className="category-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>LOGO</th>
+                    <th>名称</th>
+                    <th>显示名称</th>
+                    <th>类型</th>
+                    <th>维度</th>
+                    <th>父分类</th>
+                    <th>状态</th>
+                    <th>是否系统分类</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredCategories.map(category => {
+                    const parentCategory = category.parent_id 
+                      ? categories.find(cat => cat.id === category.parent_id)
+                      : null;
+                    
+                    return (
+                      <tr key={category.id} className={category.is_system ? 'system-category-row' : ''}>
+                        <td>{category.id}</td>
+                        <td>
+                          {category.logo ? (
+                            <div className="category-logo">
+                              {category.logo.startsWith('<i class=') ? (
+                                <div 
+                                  dangerouslySetInnerHTML={{ __html: category.logo }}
+                                  className="fa-icon"
+                                  title={`${category.display_name} logo`}
+                                />
+                              ) : category.logo.includes('fa-') ? (
+                                <div className="fa-icon">
+                                  <i className={category.logo} title={`${category.display_name} logo`}></i>
+                                </div>
+                              ) : (
+                                <img 
+                                  src={getImageUrl('categories', category.logo)} 
+                                  alt={`${category.display_name} logo`} 
+                                  title={`${category.display_name} logo`}
+                                  onError={(e) => {
+                                    e.target.src = DEFAULT_IMAGES.category;
+                                    console.error('图片加载失败，使用默认图片:', e.target.src);
+                                  }}
+                                />
+                              )}
                             </div>
                           ) : (
-                            <img 
-                              src={getImageUrl('categories', category.logo)} 
-                              alt={`${category.display_name} logo`} 
-                              title={`${category.display_name} logo`}
-                              onError={(e) => {
-                                e.target.src = DEFAULT_IMAGES.category;
-                                console.error('图片加载失败，使用默认图片:', e.target.src);
-                              }}
-                            />
+                            <div className="category-logo placeholder">
+                              无LOGO
+                            </div>
                           )}
-                        </div>
-                      ) : (
-                        <div className="category-logo placeholder">
-                          无LOGO
-                        </div>
-                      )}
-                    </td>
-                    <td>{category.name}</td>
-                    <td>{category.display_name}</td>
-                    <td>
-                      <span className={`category-type-badge ${category.category_type}`}>
-                        {category.category_type === 'main' ? '主要' : '次要'}
-                      </span>
-                    </td>
-                    <td>{parentCategory ? parentCategory.display_name : '-'}</td>
-                    <td>
-                      <span className={`status-badge ${category.is_active ? 'active' : 'inactive'}`}>
-                        {category.is_active ? '启用' : '禁用'}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`system-badge ${category.is_system ? 'system' : 'custom'}`}>
-                        {category.is_system ? '是' : '否'}
-                      </span>
-                    </td>
-                    <td className="action-buttons">
-                      <button 
-                          className={`btn btn-small btn-info ${category.is_system ? 'disabled' : ''}`}
-                          onClick={() => handleEditModalOpen(category)}
-                          disabled={category.is_system}
-                          title={category.is_system ? '系统分类不允许编辑' : '编辑分类'}
-                        >
-                          编辑
-                        </button>
-                      <button 
-                        className={`btn btn-small btn-info ${category.is_system ? 'disabled' : ''}`}
-                        onClick={(e) => {
-                          e.stopPropagation(); // 阻止事件冒泡
-                          handleConfigureParameters(category);
-                        }}
-                        disabled={category.is_system}
-                        title={category.is_system ? '系统分类不允许配置参数' : '参数配置'}
-                      >
-                        参数配置
-                      </button>
-                      <button 
-                        className={`btn btn-small btn-danger ${category.is_system ? 'disabled' : ''}`}
-                        onClick={() => handleDelete(category.id)}
-                        disabled={category.is_system}
-                        title={category.is_system ? '系统分类不允许删除' : '删除分类'}
-                      >
-                        删除
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                        </td>
+                        <td>{category.name}</td>
+                        <td>{category.display_name}</td>
+                        <td>
+                          <span className={`category-type-badge ${category.category_type}`}>
+                            {category.category_type === 'main' ? '主要' : '次要'}
+                          </span>
+                        </td>
+                        <td>{category.dimension}</td>
+                        <td>{parentCategory ? parentCategory.display_name : '-'}</td>
+                        <td>
+                          <span className={`status-badge ${category.is_active ? 'active' : 'inactive'}`}>
+                            {category.is_active ? '启用' : '禁用'}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`system-badge ${category.is_system ? 'system' : 'custom'}`}>
+                            {category.is_system ? '是' : '否'}
+                          </span>
+                        </td>
+                        <td className="action-buttons">
+                          <button 
+                              className={`btn btn-small btn-info ${category.is_system ? 'disabled' : ''}`}
+                              onClick={() => handleEditModalOpen(category)}
+                              disabled={category.is_system}
+                              title={category.is_system ? '系统分类不允许编辑' : '编辑分类'}
+                            >
+                              编辑
+                            </button>
+                          <button 
+                            className={`btn btn-small btn-info ${category.is_system ? 'disabled' : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation(); // 阻止事件冒泡
+                              handleConfigureParameters(category);
+                            }}
+                            disabled={category.is_system}
+                            title={category.is_system ? '系统分类不允许配置参数' : '参数配置'}
+                          >
+                            参数配置
+                          </button>
+                          <button 
+                            className={`btn btn-small btn-danger ${category.is_system ? 'disabled' : ''}`}
+                            onClick={() => handleDelete(category.id)}
+                            disabled={category.is_system}
+                            title={category.is_system ? '系统分类不允许删除' : '删除分类'}
+                          >
+                            删除
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
       
       {/* 创建分类模态框 */}
@@ -709,6 +743,32 @@ const ModelCategoryManagement = () => {
                 >
                   <option value="main">主要分类</option>
                   <option value="secondary">次要分类</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>维度 *</label>
+                <select
+                  name="dimension"
+                  value={formData.dimension}
+                  onChange={handleInputChange}
+                  required
+                >
+                  {dimensions.map(dimension => (
+                    <option key={dimension} value={dimension}>{dimension}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>维度 *</label>
+                <select
+                  name="dimension"
+                  value={formData.dimension}
+                  onChange={handleInputChange}
+                  required
+                >
+                  {dimensions.map(dimension => (
+                    <option key={dimension} value={dimension}>{dimension}</option>
+                  ))}
                 </select>
               </div>
               <div className="form-group">
@@ -823,6 +883,19 @@ const ModelCategoryManagement = () => {
                 >
                   <option value="main">主要分类</option>
                   <option value="secondary">次要分类</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>维度 *</label>
+                <select
+                  name="dimension"
+                  value={formData.dimension}
+                  onChange={handleInputChange}
+                  required
+                >
+                  {dimensions.map(dimension => (
+                    <option key={dimension} value={dimension}>{dimension}</option>
+                  ))}
                 </select>
               </div>
               <div className="form-group">

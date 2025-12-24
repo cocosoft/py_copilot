@@ -219,6 +219,30 @@ export const categoryApi = {
       console.error(`删除分类 ${categoryId} 的参数 ${paramName} 失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
+  },
+
+  // 获取所有分类维度
+  getAllDimensions: async () => {
+    try {
+      return await request('/v1/categories/dimensions/all', {
+        method: 'GET'
+      });
+    } catch (error) {
+      console.error('获取分类维度失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+      throw error;
+    }
+  },
+
+  // 按维度分组获取分类
+  getCategoriesByDimension: async () => {
+    try {
+      return await request('/v1/categories/by-dimension', {
+        method: 'GET'
+      });
+    } catch (error) {
+      console.error('按维度获取分类失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+      throw error;
+    }
   }
 };
 

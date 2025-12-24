@@ -115,6 +115,16 @@
   color: #909399;
 }
 
+/* 视图模式选择器 */
+.view-mode-selector {
+  display: flex;
+  gap: 10px;
+}
+
+.view-mode-selector .btn {
+  margin-left: 8px;
+}
+
 /* 标签页 */
 .category-tabs {
   display: flex;
@@ -493,12 +503,323 @@
   border-top: 1px solid #e4e7ed;
 }
 
+/* 维度视图样式 */
+.dimension-view {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+}
+
+.dimension-view h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #303133;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.dimensions-container {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.dimension-section {
+  margin-bottom: 20px;
+}
+
+.dimension-section h4 {
+  margin-bottom: 15px;
+  color: #606266;
+  font-size: 16px;
+  font-weight: 500;
+  padding-bottom: 5px;
+  border-bottom: 1px solid #e4e7ed;
+}
+
+.category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+/* 分类卡片样式 */
+.category-card {
+  background: white;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  padding: 15px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.category-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.category-card.system-category {
+  border-left: 4px solid #409eff;
+  background-color: #f8fbff;
+}
+
+.category-card.custom-category {
+  border-left: 4px solid #909399;
+}
+
+.category-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.category-card-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f5f7fa;
+  overflow: hidden;
+}
+
+.category-card-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.category-card-logo i {
+  font-size: 24px;
+  color: #409eff;
+}
+
+.placeholder-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  background-color: #f0f2f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #909399;
+  font-size: 12px;
+}
+
+.category-card-header h5 {
+  margin: 0;
+  color: #303133;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.category-card-body {
+  margin-bottom: 15px;
+}
+
+.category-description {
+  margin: 0 0 12px 0;
+  color: #606266;
+  font-size: 14px;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.category-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.category-type {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.category-type.main {
+  background-color: #ecf5ff;
+  color: #409eff;
+}
+
+.category-type.secondary {
+  background-color: #f0f9eb;
+  color: #67c23a;
+}
+
+.category-status {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.category-status.active {
+  background-color: #f0f9eb;
+  color: #67c23a;
+}
+
+.category-status.inactive {
+  background-color: #fdf6ec;
+  color: #e6a23c;
+}
+
+.system-tag {
+  padding: 2px 8px;
+  background-color: #ecf5ff;
+  color: #409eff;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.category-card-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.category-card-actions .btn {
+  flex: 1;
+  text-align: center;
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+/* 系统分类视图样式 */
+.system-category-view {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+}
+
+.system-category-view h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #303133;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.system-category-tree {
+  padding-left: 10px;
+}
+
+.category-tree-node {
+  margin-bottom: 10px;
+}
+
+.category-tree-item {
+  margin-bottom: 8px;
+}
+
+.category-tree-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 15px;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+  background-color: #fafafa;
+  border-left: 3px solid #dcdfe6;
+}
+
+.category-tree-content.system-category {
+  border-left-color: #409eff;
+  background-color: #f8fbff;
+}
+
+.category-tree-content:hover {
+  background-color: #f0f2f5;
+}
+
+.category-tree-logo {
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #e4e7ed;
+  overflow: hidden;
+}
+
+.category-tree-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.category-tree-logo i {
+  font-size: 16px;
+  color: #409eff;
+}
+
+.category-tree-name {
+  flex: 1;
+  color: #303133;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.category-tree-status {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.category-tree-status.active {
+  background-color: #f0f9eb;
+  color: #67c23a;
+}
+
+.category-tree-status.inactive {
+  background-color: #fdf6ec;
+  color: #e6a23c;
+}
+
+.category-tree-actions {
+  display: flex;
+  gap: 5px;
+}
+
+.category-tree-actions .btn {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.category-tree-children {
+  padding-left: 30px;
+  margin-top: 5px;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
   .category-header {
     flex-direction: column;
     gap: 12px;
     align-items: flex-start;
+  }
+  
+  .view-mode-selector {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  
+  .view-mode-selector .btn {
+    flex: 1;
+    margin-left: 0;
+    margin-bottom: 8px;
   }
   
   .category-table-container {
@@ -517,6 +838,10 @@
   .action-buttons {
     flex-direction: column;
     gap: 4px;
+  }
+  
+  .category-grid {
+    grid-template-columns: 1fr;
   }
   
   .modal {
