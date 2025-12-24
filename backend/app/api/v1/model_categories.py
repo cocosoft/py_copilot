@@ -109,8 +109,16 @@ async def create_category(
             name = json_data.get("name")
             display_name = json_data.get("display_name")
             description = json_data.get("description")
-            category_type = json_data.get("category_type", "main")
+
             parent_id = json_data.get("parent_id")
+            # 处理parent_id，如果是空字符串则设为None
+            if parent_id == '':
+                parent_id = None
+            elif parent_id is not None:
+                try:
+                    parent_id = int(parent_id)
+                except ValueError:
+                    parent_id = None
             is_active = json_data.get("is_active", True)
             logo_path = json_data.get("logo")
         elif "multipart/form-data" in content_type:
@@ -119,8 +127,16 @@ async def create_category(
             name = form_data.get("name")
             display_name = form_data.get("display_name")
             description = form_data.get("description")
-            category_type = form_data.get("category_type", "main")
+
             parent_id = form_data.get("parent_id")
+            # 处理parent_id，如果是空字符串则设为None
+            if parent_id == '':
+                parent_id = None
+            elif parent_id is not None:
+                try:
+                    parent_id = int(parent_id)
+                except ValueError:
+                    parent_id = None
             is_active = form_data.get("is_active", True)
             if isinstance(is_active, str):
                 is_active = is_active.lower() == "true"
@@ -156,7 +172,7 @@ async def create_category(
             "name": name,
             "display_name": display_name,
             "description": description,
-            "category_type": category_type,
+
             "parent_id": parent_id,
             "is_active": is_active,
             "is_system": False,
@@ -172,7 +188,7 @@ async def create_category(
             "name": db_category.name,
             "display_name": db_category.display_name,
             "description": db_category.description,
-            "category_type": db_category.category_type,
+
             "parent_id": db_category.parent_id,
             "is_active": db_category.is_active,
             "is_system": db_category.is_system,
@@ -205,7 +221,7 @@ async def get_category(
         "name": db_category.name,
         "display_name": db_category.display_name,
         "description": db_category.description,
-        "category_type": db_category.category_type,
+
         "parent_id": db_category.parent_id,
         "is_active": db_category.is_active,
         "is_system": db_category.is_system,
@@ -219,7 +235,7 @@ async def get_category(
 async def get_categories(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    category_type: Optional[str] = Query(None, regex="^(main|secondary)$"),
+
     is_active: Optional[bool] = None,
     parent_id: Optional[int] = None,
     dimension: Optional[str] = Query(None),
@@ -229,7 +245,7 @@ async def get_categories(
     """获取模型分类列表"""
     # 获取分类列表
     result = model_category_service.get_categories(
-        db, skip, limit, category_type, is_active, parent_id, dimension
+        db, skip, limit, None, is_active, parent_id, dimension
     )
     
     # 手动构建响应，将datetime对象转换为ISO格式
@@ -240,7 +256,7 @@ async def get_categories(
             "name": category.name,
             "display_name": category.display_name,
             "description": category.description,
-            "category_type": category.category_type,
+
             "parent_id": category.parent_id,
             "is_active": category.is_active,
             "is_system": getattr(category, "is_system", False),
@@ -262,7 +278,8 @@ async def update_category(
     name: Optional[str] = Form(None),
     display_name: Optional[str] = Form(None),
     description: Optional[str] = Form(None),
-    category_type: Optional[str] = Form(None),
+
+    dimension: Optional[str] = Form(None),
     parent_id: Optional[int] = Form(None),
     is_active: Optional[bool] = Form(None),
     logo: Optional[UploadFile] = File(None),
@@ -287,7 +304,7 @@ async def update_category(
         "name": name,
         "display_name": display_name,
         "description": description,
-        "category_type": category_type,
+        "dimension": dimension,
         "parent_id": parent_id,
         "is_active": is_active,
         "logo": logo_path
@@ -308,7 +325,7 @@ async def update_category(
             "name": updated_category.name,
             "display_name": updated_category.display_name,
             "description": updated_category.description,
-            "category_type": updated_category.category_type,
+            "dimension": updated_category.dimension,
             "parent_id": updated_category.parent_id,
             "is_active": updated_category.is_active,
             "is_system": updated_category.is_system,
@@ -344,7 +361,7 @@ def serialize_category_with_children(category):
         "name": category.name,
         "display_name": category.display_name,
         "description": category.description,
-        "category_type": category.category_type,
+
         "parent_id": category.parent_id,
         "is_active": category.is_active,
         "is_system": category.is_system,
@@ -400,7 +417,7 @@ async def get_categories_by_dimension(
                 "name": category.name,
                 "display_name": category.display_name,
                 "description": category.description,
-                "category_type": category.category_type,
+
                 "parent_id": category.parent_id,
                 "is_active": category.is_active,
                 "is_system": category.is_system,
@@ -481,7 +498,7 @@ async def get_models_by_category(
                     "name": category.name,
                     "display_name": category.display_name,
                     "description": category.description,
-                    "category_type": category.category_type,
+
                     "parent_id": category.parent_id,
                     "is_active": category.is_active,
                     "is_system": getattr(category, 'is_system', False),
@@ -514,7 +531,7 @@ async def get_categories_by_model(
             "name": category.name,
             "display_name": category.display_name,
             "description": category.description,
-            "category_type": category.category_type,
+
             "parent_id": category.parent_id,
             "is_active": category.is_active,
             "is_system": getattr(category, 'is_system', False),

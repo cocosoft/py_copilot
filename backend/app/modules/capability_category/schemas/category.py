@@ -7,7 +7,7 @@ class ModelCategoryBase(BaseModel):
     name: str
     display_name: Optional[str] = None
     description: Optional[str] = None
-    category_type: str = "main"
+
     parent_id: Optional[int] = None
     is_active: bool = True
 

@@ -84,8 +84,6 @@ class ModelCategoryService:
         query = db.query(ModelCategory)
         
         # 应用过滤条件
-        if category_type:
-            query = query.filter(ModelCategory.category_type == category_type)
         if is_active is not None:
             query = query.filter(ModelCategory.is_active == is_active)
         if parent_id is not None:

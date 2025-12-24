@@ -118,7 +118,6 @@ async def get_categories_by_dimension(
                 "name": category.name,
                 "display_name": category.display_name,
                 "description": category.description,
-                "category_type": category.category_type,
                 "parent_id": category.parent_id,
                 "is_active": category.is_active,
                 "is_system": category.is_system,
@@ -149,7 +148,6 @@ async def create_category(
     name = None
     display_name = None
     description = None
-    category_type = "main"
     parent_id = None
     is_active = True
     logo_path = None
@@ -161,8 +159,17 @@ async def create_category(
             name = json_data.get("name")
             display_name = json_data.get("display_name")
             description = json_data.get("description")
-            category_type = json_data.get("category_type", "main")
+            dimension = json_data.get("dimension", "task_type")
+
             parent_id = json_data.get("parent_id")
+            # 处理parent_id，如果是空字符串则设为None
+            if parent_id == '':
+                parent_id = None
+            elif parent_id is not None:
+                try:
+                    parent_id = int(parent_id)
+                except ValueError:
+                    parent_id = None
             is_active = json_data.get("is_active", True)
             logo_path = json_data.get("logo")
         elif "multipart/form-data" in content_type:
@@ -171,8 +178,17 @@ async def create_category(
             name = form_data.get("name")
             display_name = form_data.get("display_name")
             description = form_data.get("description")
-            category_type = form_data.get("category_type", "main")
+            dimension = form_data.get("dimension", "task_type")
+
             parent_id = form_data.get("parent_id")
+            # 处理parent_id，如果是空字符串则设为None
+            if parent_id == '':
+                parent_id = None
+            elif parent_id is not None:
+                try:
+                    parent_id = int(parent_id)
+                except ValueError:
+                    parent_id = None
             is_active = form_data.get("is_active", True)
             if isinstance(is_active, str):
                 is_active = is_active.lower() == "true"
@@ -206,7 +222,7 @@ async def create_category(
         "name": name,
         "display_name": display_name,
         "description": description,
-        "category_type": category_type,
+        "dimension": dimension,
         "parent_id": parent_id,
         "is_active": is_active,
         "logo": logo_path
@@ -224,7 +240,7 @@ async def create_category(
                 "name": db_category.name,
                 "display_name": db_category.display_name,
                 "description": db_category.description,
-                "category_type": db_category.category_type,
+
                 "parent_id": db_category.parent_id,
                 "is_active": db_category.is_active,
                 "is_system": db_category.is_system,
@@ -251,7 +267,6 @@ async def create_category(
 async def get_categories(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    category_type: Optional[str] = Query(None, regex="^(main|secondary|tag)$"),
     is_active: Optional[bool] = None,
     parent_id: Optional[int] = None,
     dimension: Optional[str] = Query(None, max_length=50),
@@ -265,7 +280,7 @@ async def get_categories(
         db=db,
         skip=skip,
         limit=limit,
-        category_type=category_type,
+        category_type=None,
         is_active=is_active,
         parent_id=parent_id,
         dimension=dimension,
@@ -303,11 +318,11 @@ async def update_category(
     name = None
     display_name = None
     description = None
-    category_type = None
     parent_id = None
     is_active = None
     logo_path = None
     default_parameters = None
+    dimension = None
     
     try:
         # 获取Content-Type
@@ -320,7 +335,7 @@ async def update_category(
             name = json_data.get("name")
             display_name = json_data.get("display_name")
             description = json_data.get("description")
-            category_type = json_data.get("category_type")
+
             
             # 处理parent_id，如果是空字符串则设为None
             parent_id = json_data.get("parent_id")
@@ -330,6 +345,7 @@ async def update_category(
             is_active = json_data.get("is_active")
             logo_path = json_data.get("logo")
             default_parameters = json_data.get("default_parameters")
+            dimension = json_data.get("dimension")
         elif "multipart/form-data" in content_type:
             # 处理表单请求（支持文件上传）
             form_data = await request.form()
@@ -337,7 +353,8 @@ async def update_category(
             name = form_data.get("name")
             display_name = form_data.get("display_name")
             description = form_data.get("description")
-            category_type = form_data.get("category_type")
+
+            dimension = form_data.get("dimension")
             
             # 处理parent_id，如果是空字符串则设为None
             parent_id = form_data.get("parent_id")
@@ -382,12 +399,12 @@ async def update_category(
     if name: update_data["name"] = name
     if display_name: update_data["display_name"] = display_name
     if description is not None: update_data["description"] = description
-    if category_type: update_data["category_type"] = category_type
     # 即使parent_id为None，也需要更新，以支持将父级设置为无
     update_data["parent_id"] = parent_id
     if is_active is not None: update_data["is_active"] = is_active
     if logo_path is not None: update_data["logo"] = logo_path
     if default_parameters is not None: update_data["default_parameters"] = default_parameters
+    if dimension is not None: update_data["dimension"] = dimension
     
     # 更新分类
     updated_category = model_category_service.update_category(db, category_id, ModelCategoryUpdate(**update_data))
@@ -398,11 +415,11 @@ async def update_category(
         "name": updated_category.name,
         "display_name": updated_category.display_name,
         "description": updated_category.description,
-        "category_type": updated_category.category_type,
         "parent_id": updated_category.parent_id,
         "is_active": updated_category.is_active,
         "is_system": updated_category.is_system,
         "logo": updated_category.logo,
+        "dimension": updated_category.dimension,
         "created_at": updated_category.created_at,
         "updated_at": updated_category.updated_at
     }

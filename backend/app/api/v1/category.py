@@ -1,49 +1,88 @@
 """分类相关API路由"""
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 from app.models.category_db import ModelCategoryDB
 from app.schemas.category import ModelCategoryCreate, ModelCategoryResponse
 from app.api.dependencies import get_db, get_current_user
+import json
 
 # 创建路由器
 router = APIRouter()
 
-@router.post("/model/categories", response_model=ModelCategoryResponse)
-def create_model_category(
-    category: ModelCategoryCreate,
+@router.post("/model/categories")
+async def create_model_category(
+    request: Request,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
     """创建新的模型分类"""
-    # 检查名称是否已存在
-    existing = db.query(ModelCategoryDB).filter(ModelCategoryDB.name == category.name).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Category with this name already exists")
-    
-    # 检查父分类是否存在
-    if category.parent_id:
-        parent = db.query(ModelCategoryDB).filter(ModelCategoryDB.id == category.parent_id).first()
-        if not parent:
-            raise HTTPException(status_code=400, detail="Parent category not found")
-    
-    # 创建分类对象
-    db_category = ModelCategoryDB(**category.dict())
-    db.add(db_category)
-    db.commit()
-    db.refresh(db_category)
-    
-    # 构建响应（包括空的children列表）
-    return {
-        "id": db_category.id,
-        "name": db_category.name,
-        "display_name": db_category.display_name,
-        "description": db_category.description,
-        "category_type": db_category.category_type,
-        "parent_id": db_category.parent_id,
-        "is_active": db_category.is_active,
-        "children": []
-    }
+    try:
+        # 获取请求体
+        json_data = await request.json()
+        
+        # 手动处理所有字段
+        name = json_data.get("name")
+        display_name = json_data.get("display_name")
+        description = json_data.get("description")
+        category_type = json_data.get("category_type", "main")
+        
+        # 手动处理parent_id字段
+        parent_id = json_data.get("parent_id")
+        if parent_id == '':
+            parent_id = None
+        elif parent_id is not None:
+            try:
+                parent_id = int(parent_id)
+            except ValueError:
+                parent_id = None
+                
+        is_active = json_data.get("is_active", True)
+        if isinstance(is_active, str):
+            is_active = is_active.lower() == "true"
+        
+        # 验证必填字段
+        if not name:
+            raise HTTPException(status_code=400, detail="Name is required")
+        
+        # 检查名称是否已存在
+        existing = db.query(ModelCategoryDB).filter(ModelCategoryDB.name == name).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Category with this name already exists")
+        
+        # 检查父分类是否存在
+        if parent_id:
+            parent = db.query(ModelCategoryDB).filter(ModelCategoryDB.id == parent_id).first()
+            if not parent:
+                raise HTTPException(status_code=400, detail="Parent category not found")
+        
+        # 创建分类对象
+        db_category = ModelCategoryDB(
+            name=name,
+            display_name=display_name,
+            description=description,
+            category_type=category_type,
+            parent_id=parent_id,
+            is_active=is_active
+        )
+        db.add(db_category)
+        db.commit()
+        db.refresh(db_category)
+        
+        # 构建响应（包括空的children列表）
+        return {
+            "id": db_category.id,
+            "name": db_category.name,
+            "display_name": db_category.display_name,
+            "description": db_category.description,
+            "category_type": db_category.category_type,
+            "parent_id": db_category.parent_id,
+            "is_active": db_category.is_active,
+            "dimension": getattr(db_category, "dimension", "task_type"),
+            "children": []
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/model/categories", response_model=List[ModelCategoryResponse])
 def get_all_model_categories(
@@ -68,6 +107,7 @@ def get_all_model_categories(
             "category_type": cat.category_type,
             "parent_id": cat.parent_id,
             "is_active": cat.is_active,
+            "dimension": getattr(cat, "dimension", "task_type"),
             "children": []
         }
     
@@ -100,6 +140,7 @@ def get_model_category(
         "category_type": category.category_type,
         "parent_id": category.parent_id,
         "is_active": category.is_active,
+        "dimension": getattr(category, "dimension", "task_type"),
         "children": []
     }
 
@@ -124,6 +165,10 @@ def update_model_category(
     category = db.query(ModelCategoryDB).filter(ModelCategoryDB.id == category_id).first()
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
+    
+    # 处理parent_id，如果是空字符串则设为None
+    if category_data.parent_id == '':
+        category_data.parent_id = None
     
     # 检查名称是否与其他分类冲突（如果名称有更改）
     if category.name != category_data.name:
@@ -159,6 +204,7 @@ def update_model_category(
         "category_type": category.category_type,
         "parent_id": category.parent_id,
         "is_active": category.is_active,
+        "dimension": getattr(category, "dimension", "task_type"),
         "children": []
     }
 

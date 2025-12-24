@@ -14,8 +14,7 @@ class ModelCategory(Base):
     display_name = Column(String(100), nullable=False)  # 显示名称，如 任务类型, 规模
     description = Column(Text, nullable=True)  # 分类描述
     
-    # 分类类型：main（主要分类）, secondary（次要分类）, tag（标签分类）
-    category_type = Column(String(20), default="main", nullable=False)
+
     
     # 父分类ID，支持层级分类
     parent_id = Column(Integer, ForeignKey("model_categories.id"), nullable=True)

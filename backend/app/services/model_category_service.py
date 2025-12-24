@@ -98,7 +98,7 @@ class ModelCategoryService:
         db: Session,
         skip: int = 0,
         limit: int = 100,
-        category_type: Optional[str] = None,
+        category_type: Optional[str] = None,  # 保留参数但不使用，避免API调用错误
         is_active: Optional[bool] = None,
         parent_id: Optional[int] = None,
         dimension: Optional[str] = None
@@ -107,8 +107,6 @@ class ModelCategoryService:
         query = db.query(ModelCategory)
         
         # 应用过滤条件
-        if category_type:
-            query = query.filter(ModelCategory.category_type == category_type)
         if is_active is not None:
             query = query.filter(ModelCategory.is_active == is_active)
         if parent_id is not None:
@@ -260,7 +258,7 @@ class ModelCategoryService:
                 "name": category.name,
                 "display_name": category.display_name,
                 "description": category.description,
-                "category_type": category.category_type,
+
                 "parent_id": category.parent_id,
                 "children": [
                     build_tree(child_id)

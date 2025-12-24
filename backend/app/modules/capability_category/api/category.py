@@ -42,6 +42,8 @@ def create_model_category(
         "category_type": db_category.category_type,
         "parent_id": db_category.parent_id,
         "is_active": db_category.is_active,
+        "is_system": db_category.is_system,
+        "dimension": db_category.dimension,
         "children": []
     }
 
@@ -68,6 +70,7 @@ def get_all_model_categories(
             "category_type": cat.category_type,
             "parent_id": cat.parent_id,
             "is_active": cat.is_active,
+            "dimension": cat.dimension,
             "children": []
         }
     

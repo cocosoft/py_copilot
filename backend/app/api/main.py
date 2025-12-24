@@ -68,19 +68,30 @@ async def limit_request_size(request: Request, call_next):
     return response
 
 # 添加静态文件服务，提供上传的图片访问
-UPLOAD_DIR = "E:/PY/CODES/py copilot IV/frontend/public/logos/agents"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+UPLOAD_DIR = os.path.join(BASE_DIR, "frontend", "public", "logos", "agents")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/logos/agents", StaticFiles(directory=UPLOAD_DIR), name="agent_logos")
 
 # 添加logo文件的静态文件服务
-LOGOS_DIR = "../../frontend/public/logos/providers"
-os.makedirs(LOGOS_DIR, exist_ok=True)
-app.mount("/logos/providers", StaticFiles(directory=LOGOS_DIR), name="logos")
+PROVIDERS_LOGOS_DIR = os.path.join(BASE_DIR, "frontend", "public", "logos", "providers")
+os.makedirs(PROVIDERS_LOGOS_DIR, exist_ok=True)
+app.mount("/logos/providers", StaticFiles(directory=PROVIDERS_LOGOS_DIR), name="logos")
 
 # 添加分类logo文件的静态文件服务
-CATEGORIES_LOGOS_DIR = "../../frontend/public/logos/categories"
+CATEGORIES_LOGOS_DIR = os.path.join(BASE_DIR, "frontend", "public", "logos", "categories")
 os.makedirs(CATEGORIES_LOGOS_DIR, exist_ok=True)
 app.mount("/logos/categories", StaticFiles(directory=CATEGORIES_LOGOS_DIR), name="category_logos")
+
+# 添加模型logo文件的静态文件服务
+MODELS_LOGOS_DIR = os.path.join(BASE_DIR, "frontend", "public", "logos", "models")
+os.makedirs(MODELS_LOGOS_DIR, exist_ok=True)
+app.mount("/logos/models", StaticFiles(directory=MODELS_LOGOS_DIR), name="model_logos")
+
+# 添加能力logo文件的静态文件服务
+CAPABILITIES_LOGOS_DIR = os.path.join(BASE_DIR, "frontend", "public", "logos", "capabilities")
+os.makedirs(CAPABILITIES_LOGOS_DIR, exist_ok=True)
+app.mount("/logos/capabilities", StaticFiles(directory=CAPABILITIES_LOGOS_DIR), name="capability_logos")
 
 # 配置CORS
 app.add_middleware(

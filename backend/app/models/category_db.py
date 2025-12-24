@@ -10,7 +10,8 @@ class ModelCategoryDB(Base):
     name = Column(String(100), unique=True, index=True)
     display_name = Column(String(200))
     description = Column(Text, nullable=True)
-    category_type = Column(String(20), default="main")
+
     parent_id = Column(Integer, nullable=True)
     is_active = Column(Boolean, default=True)
     is_system = Column(Boolean, default=False)
+    dimension = Column(String(50), nullable=False, default="task_type")

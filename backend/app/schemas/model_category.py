@@ -11,7 +11,7 @@ class ModelCategoryBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     display_name: str = Field(..., min_length=1, max_length=100)
     description: Optional[str] = None
-    category_type: str = Field(default="main", pattern="^(main|secondary|tag)$")
+
     parent_id: Optional[int] = None
     is_active: bool = True
     is_system: bool = False
