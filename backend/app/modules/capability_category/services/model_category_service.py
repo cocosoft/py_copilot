@@ -359,6 +359,32 @@ class ModelCategoryService:
         return categories
 
     @staticmethod
+    def get_all_dimensions(db: Session) -> List[str]:
+        """获取所有分类维度"""
+        # 获取所有唯一的维度值
+        dimensions = db.query(ModelCategory.dimension).distinct().all()
+        
+        # 将结果转换为字符串列表
+        return [dim[0] for dim in dimensions]
+
+    @staticmethod
+    def get_all_categories_by_dimension(db: Session) -> Dict[str, List[ModelCategory]]:
+        """按维度分组获取所有分类"""
+        # 获取所有分类
+        all_categories = db.query(ModelCategory).filter(
+            ModelCategory.is_active == True
+        ).all()
+        
+        # 按维度分组
+        categories_by_dim = {}
+        for category in all_categories:
+            if category.dimension not in categories_by_dim:
+                categories_by_dim[category.dimension] = []
+            categories_by_dim[category.dimension].append(category)
+        
+        return categories_by_dim
+
+    @staticmethod
     def get_model_parameters_by_category_hierarchy(
         db: Session, 
         model_id: int

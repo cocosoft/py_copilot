@@ -88,6 +88,52 @@ async def save_upload_file(upload_file: UploadFile) -> str:
 
 # 移除了create_category_raw函数，因为它可能导致请求处理问题
 
+# 获取所有分类维度
+@router.get("/dimensions/all")
+async def get_all_dimensions(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """获取所有分类维度"""
+    return model_category_service.get_all_dimensions(db)
+
+
+# 按维度分组获取所有分类
+@router.get("/by-dimension")
+async def get_categories_by_dimension(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """按维度分组获取所有分类"""
+    categories_by_dim = model_category_service.get_all_categories_by_dimension(db)
+    
+    # 序列化分类数据
+    serialized_data = {}
+    for dimension, categories in categories_by_dim.items():
+        serialized_categories = []
+        for category in categories:
+            # 序列化单个分类
+            serialized = {
+                "id": category.id,
+                "name": category.name,
+                "display_name": category.display_name,
+                "description": category.description,
+                "category_type": category.category_type,
+                "parent_id": category.parent_id,
+                "is_active": category.is_active,
+                "is_system": category.is_system,
+                "logo": category.logo,
+                "dimension": category.dimension,
+                "level": getattr(category, "level", 0),
+                "created_at": category.created_at.isoformat() if category.created_at else None,
+                "updated_at": category.updated_at.isoformat() if category.updated_at else None
+            }
+            serialized_categories.append(serialized)
+        serialized_data[dimension] = serialized_categories
+    
+    return serialized_data
+
+
 # 同时支持JSON和multipart/form-data请求的路由
 @router.post("/", response_class=JSONResponse)
 async def create_category(
@@ -201,17 +247,6 @@ async def create_category(
         )
 
 
-@router.get("/{category_id}", response_model=ModelCategoryResponse)
-async def get_category(
-    category_id: int,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
-):
-    """获取单个模型分类"""
-    db_category = model_category_service.get_category(db, category_id)
-    return db_category
-
-
 @router.get("/", response_model=ModelCategoryListResponse)
 async def get_categories(
     skip: int = Query(0, ge=0),
@@ -240,6 +275,17 @@ async def get_categories(
     return result
 
 
+@router.get("/{category_id}", response_model=ModelCategoryResponse)
+async def get_category(
+    category_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """获取单个模型分类"""
+    db_category = model_category_service.get_category(db, category_id)
+    return db_category
+
+
 @router.put("/{category_id}", status_code=status.HTTP_200_OK)
 async def update_category(
     category_id: int,
@@ -247,7 +293,7 @@ async def update_category(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """更新模型分类信息，支持JSON请求"""
+    """更新模型分类信息，支持JSON和multipart/form-data请求"""
     # 检查分类是否存在
     existing_category = model_category_service.get_category(db, category_id)
     if not existing_category:
@@ -275,15 +321,60 @@ async def update_category(
             display_name = json_data.get("display_name")
             description = json_data.get("description")
             category_type = json_data.get("category_type")
+            
+            # 处理parent_id，如果是空字符串则设为None
             parent_id = json_data.get("parent_id")
+            if parent_id == '':
+                parent_id = None
+                
             is_active = json_data.get("is_active")
             logo_path = json_data.get("logo")
             default_parameters = json_data.get("default_parameters")
+        elif "multipart/form-data" in content_type:
+            # 处理表单请求（支持文件上传）
+            form_data = await request.form()
+            
+            name = form_data.get("name")
+            display_name = form_data.get("display_name")
+            description = form_data.get("description")
+            category_type = form_data.get("category_type")
+            
+            # 处理parent_id，如果是空字符串则设为None
+            parent_id = form_data.get("parent_id")
+            print(f"接收到的parent_id: {parent_id}, 类型: {type(parent_id)}")
+            if parent_id == '':
+                parent_id = None
+                print("将parent_id设置为None")
+            elif parent_id is not None:
+                try:
+                    parent_id = int(parent_id)
+                    print(f"将parent_id转换为整数: {parent_id}")
+                except ValueError:
+                    parent_id = None
+                    print("parent_id转换失败，设置为None")
+            
+            is_active = form_data.get("is_active")
+            if isinstance(is_active, str):
+                is_active = is_active.lower() == "true"
+            
+            logo_path = form_data.get("logo")
+            
+            # 处理文件上传（如果有文件，则优先使用文件上传的logo）
+            logo_file = form_data.get("logo_file")
+            if logo_file:
+                try:
+                    # 保存LOGO文件
+                    logo_path = await save_upload_file(logo_file)
+                except Exception as e:
+                    return JSONResponse(
+                        status_code=500,
+                        content={"detail": f"文件上传失败: {str(e)}"}
+                    )
         else:
-            # 对于所有非JSON请求，直接返回错误
+            # 对于所有非JSON和非multipart/form-data请求，返回错误
             raise HTTPException(status_code=415, detail="Unsupported media type")
     except Exception as e:
-        # 如果解析失败，直接返回错误信息
+        # 如果解析失败，返回错误信息
         raise HTTPException(status_code=400, detail=f"请求解析失败: {str(e)}")
     
     # 构建更新数据
@@ -292,7 +383,8 @@ async def update_category(
     if display_name: update_data["display_name"] = display_name
     if description is not None: update_data["description"] = description
     if category_type: update_data["category_type"] = category_type
-    if parent_id is not None: update_data["parent_id"] = parent_id
+    # 即使parent_id为None，也需要更新，以支持将父级设置为无
+    update_data["parent_id"] = parent_id
     if is_active is not None: update_data["is_active"] = is_active
     if logo_path is not None: update_data["logo"] = logo_path
     if default_parameters is not None: update_data["default_parameters"] = default_parameters
@@ -458,6 +550,52 @@ async def delete_category_parameter(
     
     # 返回更新后的参数
     return updated_category.default_parameters or {}
+
+
+# 获取所有分类维度
+@router.get("/dimensions/all")
+async def get_all_dimensions(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """获取所有分类维度"""
+    return model_category_service.get_all_dimensions(db)
+
+
+# 按维度分组获取所有分类
+@router.get("/by-dimension")
+async def get_categories_by_dimension(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """按维度分组获取所有分类"""
+    categories_by_dim = model_category_service.get_all_categories_by_dimension(db)
+    
+    # 序列化分类数据
+    serialized_data = {}
+    for dimension, categories in categories_by_dim.items():
+        serialized_categories = []
+        for category in categories:
+            # 序列化单个分类
+            serialized = {
+                "id": category.id,
+                "name": category.name,
+                "display_name": category.display_name,
+                "description": category.description,
+                "category_type": category.category_type,
+                "parent_id": category.parent_id,
+                "is_active": category.is_active,
+                "is_system": category.is_system,
+                "logo": category.logo,
+                "dimension": category.dimension,
+                "level": getattr(category, "level", 0),
+                "created_at": category.created_at.isoformat() if category.created_at else None,
+                "updated_at": category.updated_at.isoformat() if category.updated_at else None
+            }
+            serialized_categories.append(serialized)
+        serialized_data[dimension] = serialized_categories
+    
+    return serialized_data
 
 
 # 多维分类和参数继承相关API

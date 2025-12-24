@@ -1,5 +1,5 @@
 """模型分类相关数据模型"""
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean, func, JSON
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean, func, JSON, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -38,7 +38,15 @@ class ModelCategory(Base):
     weight = Column(Integer, default=0)
     
     # 分类维度标识（支持多维分类）
-    dimension = Column(String(50), nullable=True)  # 如：capability, task_type, size
+    dimension = Column(String(50), nullable=False, default="task_type")  # 设置默认维度
+    
+    # 添加表约束
+    __table_args__ = (
+        # 保留原有的全局唯一约束
+        UniqueConstraint('name', name='_name_uc'),
+        # 新增的联合唯一约束：同一维度下分类名称唯一
+        UniqueConstraint('dimension', 'name', name='_dimension_name_uc'),
+    )
     
     # 关系定义
     # 自引用关系，用于层级分类

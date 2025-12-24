@@ -100,7 +100,8 @@ class ModelCategoryService:
         limit: int = 100,
         category_type: Optional[str] = None,
         is_active: Optional[bool] = None,
-        parent_id: Optional[int] = None
+        parent_id: Optional[int] = None,
+        dimension: Optional[str] = None
     ) -> Dict[str, Any]:
         """获取模型分类列表"""
         query = db.query(ModelCategory)
@@ -112,6 +113,8 @@ class ModelCategoryService:
             query = query.filter(ModelCategory.is_active == is_active)
         if parent_id is not None:
             query = query.filter(ModelCategory.parent_id == parent_id)
+        if dimension:
+            query = query.filter(ModelCategory.dimension == dimension)
         
         # 获取总数
         total = query.count()
@@ -272,6 +275,27 @@ class ModelCategoryService:
                 root_categories.append(build_tree(category.id))
         
         return root_categories
+    
+    @staticmethod
+    def get_all_dimensions(db: Session) -> List[str]:
+        """获取所有分类维度"""
+        dimensions = db.query(ModelCategory.dimension).distinct().all()
+        return [dim[0] for dim in dimensions]
+    
+    @staticmethod
+    def get_categories_by_dimension(db: Session) -> Dict[str, List[ModelCategory]]:
+        """按维度分组获取所有分类"""
+        all_categories = db.query(ModelCategory).filter(
+            ModelCategory.is_active == True
+        ).all()
+        
+        dimension_dict = {}
+        for category in all_categories:
+            if category.dimension not in dimension_dict:
+                dimension_dict[category.dimension] = []
+            dimension_dict[category.dimension].append(category)
+        
+        return dimension_dict
     
     @staticmethod
     def add_category_to_model(db: Session, model_id: int, category_id: int) -> ModelCategoryAssociation:

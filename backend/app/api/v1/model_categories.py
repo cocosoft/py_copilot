@@ -222,13 +222,14 @@ async def get_categories(
     category_type: Optional[str] = Query(None, regex="^(main|secondary)$"),
     is_active: Optional[bool] = None,
     parent_id: Optional[int] = None,
+    dimension: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     """获取模型分类列表"""
     # 获取分类列表
     result = model_category_service.get_categories(
-        db, skip, limit, category_type, is_active, parent_id
+        db, skip, limit, category_type, is_active, parent_id, dimension
     )
     
     # 手动构建响应，将datetime对象转换为ISO格式
@@ -369,6 +370,49 @@ async def get_category_tree(
     # 序列化树形结构，将datetime转换为ISO格式
     serialized_tree = [serialize_category_with_children(category) for category in tree]
     return serialized_tree
+
+
+@router.get("/dimensions/all")
+async def get_all_dimensions(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """获取所有分类维度"""
+    return model_category_service.get_all_dimensions(db)
+
+
+@router.get("/by-dimension")
+async def get_categories_by_dimension(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """按维度分组获取所有分类"""
+    categories_by_dim = model_category_service.get_categories_by_dimension(db)
+    
+    # 序列化分类数据
+    serialized_data = {}
+    for dimension, categories in categories_by_dim.items():
+        serialized_categories = []
+        for category in categories:
+            # 序列化单个分类
+            serialized = {
+                "id": category.id,
+                "name": category.name,
+                "display_name": category.display_name,
+                "description": category.description,
+                "category_type": category.category_type,
+                "parent_id": category.parent_id,
+                "is_active": category.is_active,
+                "is_system": category.is_system,
+                "logo": category.logo,
+                "dimension": category.dimension,
+                "created_at": category.created_at.isoformat() if category.created_at else None,
+                "updated_at": category.updated_at.isoformat() if category.updated_at else None
+            }
+            serialized_categories.append(serialized)
+        serialized_data[dimension] = serialized_categories
+    
+    return serialized_data
 
 
 @router.post("/associations", response_model=ModelCategoryAssociationResponse, status_code=status.HTTP_201_CREATED)
