@@ -5,7 +5,7 @@ from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from fastapi import UploadFile, HTTPException
 
-from app.modules.knowledge.models.knowledge_document import KnowledgeBase, KnowledgeDocument, KnowledgeTag
+from app.modules.knowledge.models.knowledge_document import KnowledgeBase, KnowledgeDocument, KnowledgeTag, document_tag_association
 from app.services.knowledge.document_parser import DocumentParser
 from app.services.knowledge.text_processor import KnowledgeTextProcessor
 from app.services.knowledge.retrieval_service import RetrievalService
@@ -82,15 +82,24 @@ class KnowledgeService:
         if not knowledge_base:
             raise HTTPException(status_code=404, detail="知识库不存在")
         
-        # 保存文件到永久存储
+        # 保存文件到前端的public/knowledges目录
         # 获取当前文件所在目录
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        # 构建backend目录下的uploads目录路径
+        # 构建frontend/public/knowledges目录路径
         # 从knowledge_service.py向上走4层：services → knowledge → modules → app → backend
         backend_dir = os.path.abspath(os.path.join(current_dir, "..", "..", "..", ".."))
-        upload_dir = os.path.join(backend_dir, "uploads")
-        os.makedirs(upload_dir, exist_ok=True)
-        file_path = os.path.join(upload_dir, f"{uuid.uuid4()}_{file.filename}")
+        # 向上再走1层到项目根目录，frontend与backend同级
+        project_root = os.path.abspath(os.path.join(backend_dir, ".."))
+        frontend_dir = os.path.join(project_root, "frontend")
+        public_dir = os.path.join(frontend_dir, "public")
+        
+        # 创建知识库专用文件夹
+        knowledges_dir = os.path.join(public_dir, "knowledges")
+        knowledge_base_dir = os.path.join(knowledges_dir, f"knowledge_base_{knowledge_base_id}")
+        os.makedirs(knowledge_base_dir, exist_ok=True)
+        
+        # 保存文件，使用UUID前缀避免文件名冲突
+        file_path = os.path.join(knowledge_base_dir, f"{uuid.uuid4()}_{file.filename}")
         
         try:
             # 保存文件
@@ -121,8 +130,8 @@ class KnowledgeService:
             from app.services.knowledge.document_processor import DocumentProcessor
             document_processor = DocumentProcessor()
             
-            # 同步处理文档（因为异步处理在FastAPI中可能有问题）
-            processing_result = document_processor.process_document_sync(
+            # 处理文档
+            processing_result = document_processor.process_document(
                 file_path, 
                 document.file_type, 
                 document.id, 
@@ -231,31 +240,60 @@ class KnowledgeService:
     
     def delete_document(self, db: Session, document_id: int) -> bool:
         """删除文档"""
-        document = db.query(KnowledgeDocument).filter(KnowledgeDocument.id == document_id).first()
-        if not document:
+        try:
+            document = db.query(KnowledgeDocument).filter(KnowledgeDocument.id == document_id).first()
+            if not document:
+                return False
+            
+            # 从向量索引中删除
+            if document.vector_id:
+                # 根据document_id删除所有相关chunk
+                try:
+                    # 使用元数据过滤器删除该文档的所有chunk
+                    self.retrieval_service.delete_documents_by_metadata({
+                        "document_id": document.id
+                    })
+                    logger.info(f"成功从向量索引中删除文档 {document.id} 的所有chunk")
+                except Exception as e:
+                    logger.error(f"向量索引删除失败: {str(e)}")
+                    import traceback
+                    logger.error(f"错误堆栈: {traceback.format_exc()}")
+            
+            # 删除实际文件
+            if document.file_path and os.path.exists(document.file_path):
+                try:
+                    os.remove(document.file_path)
+                    logger.info(f"成功删除文件: {document.file_path}")
+                except Exception as e:
+                    logger.error(f"文件删除失败: {str(e)}")
+                    import traceback
+                    logger.error(f"错误堆栈: {traceback.format_exc()}")
+            
+            # 获取文档的标签（在删除文档前获取）
+            document_tags = document.tags.copy()
+            
+            # 删除文档记录
+            db.delete(document)
+            db.commit()
+            logger.info(f"成功删除文档记录: ID={document.id}, 标题={document.title}")
+            
+            # 清理不再使用的标签
+            for tag in document_tags:
+                # 检查该标签是否仍被其他文档使用
+                tag_documents_count = db.query(document_tag_association).filter(document_tag_association.c.tag_id == tag.id).count()
+                if tag_documents_count == 0:
+                    # 如果标签不再被任何文档使用，则删除该标签
+                    db.delete(tag)
+                    db.commit()
+                    logger.info(f"删除不再使用的标签: ID={tag.id}, 名称={tag.name}")
+            
+            return True
+        except Exception as e:
+            logger.error(f"删除文档过程中发生异常: {str(e)}")
+            import traceback
+            logger.error(f"错误堆栈: {traceback.format_exc()}")
+            db.rollback()
             return False
-        
-        # 从向量索引中删除
-        if document.vector_id:
-            # 根据document_id删除所有相关chunk
-            try:
-                # 使用元数据过滤器删除该文档的所有chunk
-                self.retrieval_service.delete_documents_by_metadata({
-                    "document_id": document.id
-                })
-            except Exception as e:
-                print(f"向量索引删除失败: {str(e)}")
-        
-        # 删除实际文件
-        if document.file_path and os.path.exists(document.file_path):
-            try:
-                os.remove(document.file_path)
-            except Exception as e:
-                print(f"文件删除失败: {str(e)}")
-        
-        db.delete(document)
-        db.commit()
-        return True
     
     def get_document_by_id(self, document_id: int, db: Session) -> Optional[KnowledgeDocument]:
         """根据ID获取文档详情"""
@@ -404,22 +442,48 @@ class KnowledgeService:
         
         # 检查文件是否存在，支持多种路径格式
         file_path = document.file_path
+        print(f"原始文件路径: {file_path}")
+        print(f"文件是否存在: {os.path.exists(file_path)}")
         
         # 如果文件不存在，尝试从不同目录查找
         if not os.path.exists(file_path):
-            # 情况1: 相对路径 temp_uploads/... → 尝试绝对路径
-            if file_path.startswith("temp_uploads"):
-                # 获取当前文件所在目录
-                current_dir = os.path.dirname(os.path.abspath(__file__))
-                # 构建backend目录路径
-                backend_dir = os.path.abspath(os.path.join(current_dir, "..", "..", "..", ".."))
-                # 尝试在backend目录下查找
+            # 获取当前文件所在目录
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            # 构建backend目录路径
+            backend_dir = os.path.abspath(os.path.join(current_dir, "..", "..", "..", ".."))
+            print(f"backend目录: {backend_dir}")
+            
+            # 向上再走1层到项目根目录，frontend与backend同级
+            project_root = os.path.abspath(os.path.join(backend_dir, ".."))
+            print(f"项目根目录: {project_root}")
+            
+            # 尝试从前端public/knowledges目录查找
+            frontend_dir = os.path.join(project_root, "frontend")
+            public_dir = os.path.join(frontend_dir, "public")
+            knowledges_dir = os.path.join(public_dir, "knowledges")
+            knowledge_base_dir = os.path.join(knowledges_dir, f"knowledge_base_{document.knowledge_base_id}")
+            print(f"前端knowledges目录: {knowledges_dir}")
+            print(f"知识库专用目录: {knowledge_base_dir}")
+            
+            # 首先尝试在知识库专用目录中查找
+            filename = os.path.basename(file_path)
+            temp_path = os.path.join(knowledge_base_dir, filename)
+            if os.path.exists(temp_path):
+                file_path = temp_path
+                print(f"在知识库专用目录找到文件: {file_path}")
+            elif os.path.exists(os.path.join(knowledges_dir, filename)):
+                # 尝试在knowledges根目录中查找
+                temp_path = os.path.join(knowledges_dir, filename)
+                file_path = temp_path
+                print(f"在knowledges根目录找到文件: {file_path}")
+            elif file_path.startswith("temp_uploads"):
+                # 尝试1: 在backend目录下查找
                 temp_path = os.path.join(backend_dir, file_path)
                 if os.path.exists(temp_path):
                     file_path = temp_path
                     print(f"找到文件: {file_path}")
                 else:
-                    # 尝试在backend/uploads目录下查找（文件名不变）
+                    # 尝试2: 在backend/uploads目录下查找（文件名不变）
                     upload_dir = os.path.join(backend_dir, "uploads")
                     filename = os.path.basename(file_path)
                     temp_path = os.path.join(upload_dir, filename)
@@ -427,24 +491,120 @@ class KnowledgeService:
                         file_path = temp_path
                         print(f"找到文件: {file_path}")
                     else:
-                        return None, None
+                        # 尝试3: 尝试在uploads目录中查找匹配UUID前缀的文件
+                        upload_dir = os.path.join(backend_dir, "uploads")
+                        if os.path.exists(upload_dir):
+                            # 提取UUID前缀（文件名的前36个字符）
+                            original_filename = os.path.basename(file_path)
+                            if len(original_filename) >= 36 and original_filename[8] == '-':
+                                uuid_prefix = original_filename[:36]
+                                # 在uploads目录中查找以该UUID开头的文件
+                                for filename in os.listdir(upload_dir):
+                                    if filename.startswith(uuid_prefix):
+                                        temp_path = os.path.join(upload_dir, filename)
+                                        if os.path.exists(temp_path):
+                                            file_path = temp_path
+                                            print(f"通过UUID前缀匹配找到文件: {file_path}")
+                                            break
+                                else:
+                                    return None, None
+                            else:
+                                return None, None
+                        else:
+                            return None, None
             # 情况2: 相对路径 uploads/... → 尝试绝对路径
             elif file_path.startswith("uploads"):
-                # 获取当前文件所在目录
-                current_dir = os.path.dirname(os.path.abspath(__file__))
-                # 构建backend目录路径
-                backend_dir = os.path.abspath(os.path.join(current_dir, "..", "..", "..", ".."))
-                # 尝试在backend目录下查找
+                # 尝试1: 在backend目录下查找
                 temp_path = os.path.join(backend_dir, file_path)
                 if os.path.exists(temp_path):
                     file_path = temp_path
                     print(f"找到文件: {file_path}")
                 else:
                     return None, None
+            # 情况3: 绝对路径格式（Windows或Linux）
+            elif os.path.isabs(file_path):
+                # 尝试直接使用绝对路径
+                if os.path.exists(file_path):
+                    print(f"使用绝对路径找到文件: {file_path}")
+                else:
+                    # 如果绝对路径不存在，尝试从uploads目录查找文件名
+                    filename = os.path.basename(file_path)
+                    upload_dir = os.path.join(backend_dir, "uploads")
+                    temp_path = os.path.join(upload_dir, filename)
+                    if os.path.exists(temp_path):
+                        file_path = temp_path
+                        print(f"通过文件名在uploads目录找到文件: {file_path}")
+                    else:
+                        # 尝试4: 尝试在uploads目录中查找匹配UUID前缀的文件
+                        upload_dir = os.path.join(backend_dir, "uploads")
+                        if os.path.exists(upload_dir):
+                            # 提取UUID前缀（文件名的前36个字符）
+                            original_filename = os.path.basename(file_path)
+                            if len(original_filename) >= 36 and original_filename[8] == '-':
+                                uuid_prefix = original_filename[:36]
+                                # 在uploads目录中查找以该UUID开头的文件
+                                for filename in os.listdir(upload_dir):
+                                    if filename.startswith(uuid_prefix):
+                                        temp_path = os.path.join(upload_dir, filename)
+                                        if os.path.exists(temp_path):
+                                            file_path = temp_path
+                                            print(f"通过UUID前缀匹配找到文件: {file_path}")
+                                            break
+                                else:
+                                    return None, None
+                            else:
+                                return None, None
+                        else:
+                            return None, None
+            # 情况4: 其他路径格式
             else:
-                return None, None
+                # 尝试1: 在backend/app/uploads目录下查找
+                app_upload_dir = os.path.join(backend_dir, "app", "uploads")
+                filename = os.path.basename(file_path)
+                temp_path = os.path.join(app_upload_dir, filename)
+                if os.path.exists(temp_path):
+                    file_path = temp_path
+                    print(f"找到文件: {file_path}")
+                else:
+                    # 尝试2: 在backend/uploads目录下查找
+                    upload_dir = os.path.join(backend_dir, "uploads")
+                    temp_path = os.path.join(upload_dir, filename)
+                    if os.path.exists(temp_path):
+                        file_path = temp_path
+                        print(f"找到文件: {file_path}")
+                    else:
+                        # 尝试3: 尝试在uploads目录中查找匹配UUID前缀的文件
+                        upload_dir = os.path.join(backend_dir, "uploads")
+                        if os.path.exists(upload_dir):
+                            # 提取UUID前缀（文件名的前36个字符）
+                            original_filename = os.path.basename(file_path)
+                            if len(original_filename) >= 36 and original_filename[8] == '-':
+                                uuid_prefix = original_filename[:36]
+                                # 在uploads目录中查找以该UUID开头的文件
+                                for filename in os.listdir(upload_dir):
+                                    if filename.startswith(uuid_prefix):
+                                        temp_path = os.path.join(upload_dir, filename)
+                                        if os.path.exists(temp_path):
+                                            file_path = temp_path
+                                            print(f"通过UUID前缀匹配找到文件: {file_path}")
+                                            break
+                                else:
+                                    return None, None
+                            else:
+                                return None, None
+                        else:
+                            return None, None
         
         # 返回文件路径和原始文件名
+        print(f"最终返回的文件路径: {file_path}")
+        
+        # 检查是否是前端目录中的文件
+        if "frontend/public/knowledges" in file_path:
+            # 可以选择返回相对路径，方便前端使用
+            # 例如：/public/knowledges/knowledge_base_1/filename.txt
+            relative_path = file_path.split("frontend")[-1]
+            print(f"前端相对路径: {relative_path}")
+            
         return file_path, document.title
     
     def get_all_tags(self, db: Session, knowledge_base_id: Optional[int] = None) -> List[Dict[str, Any]]:

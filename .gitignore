@@ -386,3 +386,8 @@ valid_test.pdf
 test_files/sample.txt
 updateknewledgegraph.md
 backend/test_entity_config.py
+backend/fix_document_chunks_metadata.py
+backend/fix_document_chunks.py
+frontend/public/knowledges/
+test_path_fix.py
+backend/clean_knowledge_base.py

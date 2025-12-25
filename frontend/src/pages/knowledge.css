@@ -1002,6 +1002,143 @@
   100% { transform: rotate(360deg); }
 }
 
+/* 知识图谱相关样式 */
+.knowledge-graph-section {
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.knowledge-graph-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.knowledge-graph-header h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0;
+}
+
+.knowledge-graph-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.graph-build-progress {
+  margin-bottom: 20px;
+}
+
+.graph-build-progress .progress-bar {
+  width: 100%;
+  height: 8px;
+  background-color: #f0f2f5;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.graph-build-progress .progress-fill {
+  height: 100%;
+  background-color: #2ecc71;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.graph-build-progress .progress-text {
+  font-size: 14px;
+  color: #7f8c8d;
+  text-align: right;
+}
+
+.knowledge-graph-container {
+  position: relative;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  overflow: auto;
+}
+
+.knowledge-graph-stats {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.knowledge-graph-stats h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0 0 12px 0;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.stat-item {
+  background-color: #ffffff;
+  border: 1px solid #e1e8ed;
+  border-radius: 6px;
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: #7f8c8d;
+}
+
+.stat-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #3498db;
+}
+
+.knowledge-graph-analysis {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.knowledge-graph-analysis h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0 0 12px 0;
+}
+
+.knowledge-graph-analysis h5 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #34495e;
+  margin: 16px 0 8px 0;
+}
+
+.knowledge-graph-analysis ul {
+  list-style-type: disc;
+  margin-left: 20px;
+  padding: 0;
+}
+
+.knowledge-graph-analysis li {
+  font-size: 14px;
+  color: #7f8c8d;
+  margin-bottom: 4px;
+  line-height: 1.5;
+}
+
 /* 向量片段标签页样式 */
 .document-chunks-section {
   padding: 16px 0;
@@ -1113,12 +1250,80 @@
 
 .empty-chunks {
   text-align: center;
-  padding: 60px 20px;
+  padding: 40px 20px;
   color: #7f8c8d;
   font-size: 16px;
   background-color: #f8f9fa;
   border: 2px dashed #dee2e6;
   border-radius: 8px;
+}
+
+.empty-chunks .empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  display: block;
+}
+
+.empty-chunks p {
+  margin: 0 0 20px 0;
+  font-size: 18px;
+  color: #5a6c7d;
+}
+
+.empty-chunks .empty-details {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #e1e8ed;
+  text-align: left;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.empty-chunks .empty-details p {
+  font-size: 16px;
+  margin-bottom: 16px;
+  color: #34495e;
+  font-weight: 500;
+}
+
+.empty-chunks .empty-details ul {
+  list-style-type: disc;
+  margin-left: 24px;
+  padding: 0;
+}
+
+.empty-chunks .empty-details li {
+  font-size: 14px;
+  margin-bottom: 8px;
+  line-height: 1.5;
+  color: #7f8c8d;
+}
+
+.empty-chunks .btn-vectorize {
+  margin-top: 24px;
+  padding: 10px 24px;
+  font-size: 16px;
+  font-weight: 500;
+  color: white;
+  background-color: #3498db;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.empty-chunks .btn-vectorize:hover:not(:disabled) {
+  background-color: #2980b9;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+}
+
+.empty-chunks .btn-vectorize:disabled {
+  background-color: #bdc3c7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 /* 滚动条样式 */

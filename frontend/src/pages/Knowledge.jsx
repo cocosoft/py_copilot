@@ -244,6 +244,13 @@ const Knowledge = () => {
     }
   }, [documentDetailActiveTab, selectedDocument?.id]);
   
+  // 当切换到知识库知识图谱标签页时，自动加载知识库知识图谱数据
+  useEffect(() => {
+    if (mainActiveTab === 'knowledge-graph' && selectedKnowledgeBase?.id) {
+      loadKnowledgeBaseGraphData(selectedKnowledgeBase.id);
+    }
+  }, [mainActiveTab, selectedKnowledgeBase?.id]);
+  
   // 当知识库列表分页参数变化时，重新加载知识库
   useEffect(() => {
     loadKnowledgeBases();
@@ -661,13 +668,24 @@ const Knowledge = () => {
       }
       
       // 根据文件类型生成预览内容
+      // 处理文件路径，转换为前端可访问的相对路径
+      let fileUrl;
+      if (doc.file_path && doc.file_path.includes('frontend/public')) {
+        // 从完整路径中提取前端可访问的相对路径
+        fileUrl = doc.file_path.split('frontend/public')[1];
+        console.log('转换后的文件URL:', fileUrl);
+      } else {
+        // 如果不是前端目录中的文件，仍使用下载API
+        fileUrl = `/api/v1/knowledge/documents/${documentId}/download`;
+      }
+      
       if (doc.file_type === '.pdf') {
         // PDF文件预览 - 使用后端下载API
         try {
           console.log('开始PDF预览流程...');
           
           // 1. 下载PDF文件
-          const response = await fetch(`/v1/knowledge/documents/${documentId}/download`);
+          const response = await fetch(fileUrl);
           if (!response.ok) throw new Error(`下载PDF失败: ${response.status} ${response.statusText}`);
           console.log('PDF下载成功');
           
@@ -696,9 +714,9 @@ const Knowledge = () => {
           setPreviewContent(doc.content || '文档内容为空');
         }
       } else if (doc.file_type === '.docx' || doc.file_type === '.doc') {
-        // Word文档预览 - 使用后端下载API
+        // Word文档预览 - 使用后端下载API或本地路径
         try {
-          const response = await fetch(`/v1/knowledge/documents/${documentId}/download`);
+          const response = await fetch(fileUrl);
           if (!response.ok) throw new Error('下载Word文档失败');
           
           const arrayBuffer = await response.arrayBuffer();
@@ -768,7 +786,7 @@ const Knowledge = () => {
       } else if (['.png', '.jpg', '.jpeg', '.gif', '.bmp'].includes(doc.file_type)) {
         // 图片文件预览
         try {
-          const response = await fetch(`/v1/knowledge/documents/${documentId}/download`);
+          const response = await fetch(fileUrl);
           if (!response.ok) throw new Error(`下载图片失败: ${response.status} ${response.statusText}`);
           
           const blob = await response.blob();
@@ -1049,19 +1067,37 @@ const Knowledge = () => {
     
     try {
       setPreviewLoading(true);
-      const blob = await downloadDocument(selectedDocument.id);
       
-      // 创建下载链接
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = selectedDocument.title;
-      document.body.appendChild(a);
-      a.click();
-      
-      // 清理
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      // 处理文件路径，转换为前端可访问的相对路径
+      let fileUrl;
+      if (selectedDocument.file_path && selectedDocument.file_path.includes('frontend/public')) {
+        // 从完整路径中提取前端可访问的相对路径
+        fileUrl = selectedDocument.file_path.split('frontend/public')[1];
+        console.log('转换后的文件下载URL:', fileUrl);
+        
+        // 创建下载链接，直接指向前端文件
+        const a = document.createElement('a');
+        a.href = fileUrl;
+        a.download = selectedDocument.title;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else {
+        // 如果不是前端目录中的文件，使用下载API
+        const blob = await downloadDocument(selectedDocument.id);
+        
+        // 创建下载链接
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = selectedDocument.title;
+        document.body.appendChild(a);
+        a.click();
+        
+        // 清理
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
       
       setSuccess('文件下载成功');
     } catch (error) {
@@ -1075,19 +1111,40 @@ const Knowledge = () => {
   const handleCardDownloadDocument = async (documentId, title) => {
     try {
       setPreviewLoading(true);
-      const blob = await downloadDocument(documentId);
       
-      // 创建下载链接
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = title;
-      document.body.appendChild(a);
-      a.click();
+      // 先获取文档信息以获取file_path
+      const doc = await getDocument(documentId);
       
-      // 清理
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      // 处理文件路径，转换为前端可访问的相对路径
+      let fileUrl;
+      if (doc.file_path && doc.file_path.includes('frontend/public')) {
+        // 从完整路径中提取前端可访问的相对路径
+        fileUrl = doc.file_path.split('frontend/public')[1];
+        console.log('转换后的文件下载URL:', fileUrl);
+        
+        // 创建下载链接，直接指向前端文件
+        const a = document.createElement('a');
+        a.href = fileUrl;
+        a.download = title;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else {
+        // 如果不是前端目录中的文件，使用下载API
+        const blob = await downloadDocument(documentId);
+        
+        // 创建下载链接
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = title;
+        document.body.appendChild(a);
+        a.click();
+        
+        // 清理
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
       
       setSuccess('文件下载成功');
     } catch (error) {
@@ -1556,6 +1613,12 @@ const Knowledge = () => {
             文档管理
           </button>
           <button 
+            className={`main-tab-btn ${mainActiveTab === 'knowledge-graph' ? 'active' : ''}`}
+            onClick={() => setMainActiveTab('knowledge-graph')}
+          >
+            知识图谱
+          </button>
+          <button 
             className={`main-tab-btn ${mainActiveTab === 'entity-config' ? 'active' : ''}`}
             onClick={() => setMainActiveTab('entity-config')}
           >
@@ -2005,6 +2068,115 @@ const Knowledge = () => {
           </>
         )}
           </>
+        )}
+        
+        {/* 知识图谱界面 */}
+        {mainActiveTab === 'knowledge-graph' && (
+          <div className="knowledge-graph-section">
+            {selectedKnowledgeBase ? (
+              <>
+                <div className="knowledge-graph-header">
+                  <h3>知识库知识图谱</h3>
+                  <div className="knowledge-graph-actions">
+                    <button 
+                      className="create-btn" 
+                      onClick={() => handleBuildKnowledgeGraph(null, selectedKnowledgeBase.id)}
+                      disabled={buildingGraph}
+                    >
+                      {buildingGraph ? '构建中...' : '构建知识图谱'}
+                    </button>
+                  </div>
+                </div>
+                
+                {buildingGraph && graphBuildProgress > 0 && (
+                  <div className="graph-build-progress">
+                    <div className="progress-bar">
+                      <div 
+                        className="progress-fill" 
+                        style={{ width: `${graphBuildProgress}%` }}
+                      ></div>
+                    </div>
+                    <div className="progress-text">构建进度: {Math.round(graphBuildProgress)}%</div>
+                  </div>
+                )}
+                
+                {graphBuildError && (
+                  <div className="notification error">
+                    <span className="notification-icon">❌</span>
+                    <span className="notification-text">{graphBuildError}</span>
+                    <button className="notification-close" onClick={() => setGraphBuildError('')}>×</button>
+                  </div>
+                )}
+                
+                {graphBuildSuccess && (
+                  <div className="notification success">
+                    <span className="notification-icon">✅</span>
+                    <span className="notification-text">{graphBuildSuccess}</span>
+                    <button className="notification-close" onClick={() => setGraphBuildSuccess('')}>×</button>
+                  </div>
+                )}
+                
+                <div className="knowledge-graph-container">
+                  <KnowledgeGraph 
+                    graphData={graphData} 
+                    width={1000} 
+                    height={600} 
+                  />
+                </div>
+                
+                {/* 知识图谱统计信息 */}
+                {graphStatistics && (
+                  <div className="knowledge-graph-stats">
+                    <h4>知识图谱统计</h4>
+                    <div className="stats-grid">
+                      <div className="stat-item">
+                        <span className="stat-label">实体数量:</span>
+                        <span className="stat-value">{graphStatistics.entities_count}</span>
+                      </div>
+                      <div className="stat-item">
+                        <span className="stat-label">关系数量:</span>
+                        <span className="stat-value">{graphStatistics.relationships_count}</span>
+                      </div>
+                      <div className="stat-item">
+                        <span className="stat-label">实体类型:</span>
+                        <span className="stat-value">{graphStatistics.entity_types_count}</span>
+                      </div>
+                      <div className="stat-item">
+                        <span className="stat-label">关系类型:</span>
+                        <span className="stat-value">{graphStatistics.relationship_types_count}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* 知识图谱分析结果 */}
+                {graphAnalysis && (
+                  <div className="knowledge-graph-analysis">
+                    <h4>知识图谱分析</h4>
+                    <div className="analysis-content">
+                      <h5>核心实体</h5>
+                      <ul>
+                        {graphAnalysis.core_entities.map((entity, index) => (
+                          <li key={index}>{entity.name} ({entity.type}) - 连接度: {entity.degree}</li>
+                        ))}
+                      </ul>
+                      
+                      <h5>重要关系</h5>
+                      <ul>
+                        {graphAnalysis.important_relationships.map((rel, index) => (
+                          <li key={index}>{rel.source} → {rel.target}: {rel.relationship_type}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="empty-state">
+                <p>请选择一个知识库查看知识图谱</p>
+              </div>
+            )}
+          </div>
         )}
         
         {/* 实体配置管理界面 */}
@@ -2460,7 +2632,24 @@ const Knowledge = () => {
                         </>
                       ) : (
                         <div className="empty-chunks">
-                          <span>当前文档没有向量片段</span>
+                          <div className="empty-icon">📋</div>
+                          <p>当前文档没有向量片段</p>
+                          {!selectedDocument.is_vectorized && (
+                            <div className="empty-details">
+                              <p>文档尚未进行向量化处理</p>
+                              <ul>
+                                <li>向量化可以将文档内容转换为计算机可理解的向量表示</li>
+                                <li>向量片段是语义搜索和智能问答的基础</li>
+                              </ul>
+                              <button 
+                                className="btn-vectorize btn-primary" 
+                                onClick={() => handleVectorizeDocument(selectedDocument.id)} 
+                                disabled={updatingDocument || previewLoading}
+                              >
+                                启动向量化
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

@@ -12,14 +12,19 @@ class ChromaService:
         if storage_path is None:
             # 确保使用正确的绝对路径，无论从哪个目录启动
             current_dir = os.path.dirname(os.path.abspath(__file__))
-            # 计算从当前文件到frontend/public/knowledge/chromadb的绝对路径
-            # 路径结构: backend/app/services/knowledge/chroma_service.py -> frontend/public/knowledge/chromadb
-            storage_path = os.path.abspath(os.path.join(
-                current_dir, 
-                "../../../../frontend/public", 
-                "knowledge", 
+            # 获取backend目录
+            backend_dir = os.path.abspath(os.path.join(current_dir, "../../../.."))  # 从当前文件向上4级: knowledge -> services -> app -> backend
+            # 获取项目根目录（backend的父目录）
+            project_root = os.path.abspath(os.path.join(backend_dir, ".."))
+            # 构建完整的存储路径
+            storage_path = os.path.join(
+                project_root, 
+                "frontend",
+                "public",
+                "knowledges", 
                 "chromadb"
-            ))
+            )
+            storage_path = os.path.normpath(storage_path)  # 规范化路径
         
         # 确保路径存在
         os.makedirs(storage_path, exist_ok=True)

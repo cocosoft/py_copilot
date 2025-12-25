@@ -3,11 +3,47 @@ import * as d3 from 'd3';
 import { request } from '../utils/apiUtils';
 import './KnowledgeGraph.css';
 
-const KnowledgeGraph = ({ documentId, textContent, graphData, width = 800, height = 600 }) => {
+const KnowledgeGraph = ({ documentId, textContent, graphData, width = 800, height = 600, responsive = true }) => {
   const svgRef = useRef();
+  const containerRef = useRef();
   const [internalGraphData, setInternalGraphData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [dimensions, setDimensions] = useState({ width, height });
+  
+  // 响应式调整SVG尺寸
+  useEffect(() => {
+    if (!responsive || !containerRef.current) return;
+    
+    // 获取容器尺寸
+    const updateDimensions = () => {
+      const container = containerRef.current;
+      if (container) {
+        const { clientWidth, clientHeight } = container;
+        setDimensions({ 
+          width: clientWidth - 40, // 减去padding
+          height: clientHeight - 40 // 减去padding
+        });
+      }
+    };
+    
+    // 初始设置
+    updateDimensions();
+    
+    // 监听窗口大小变化
+    window.addEventListener('resize', updateDimensions);
+    
+    return () => {
+      window.removeEventListener('resize', updateDimensions);
+    };
+  }, [responsive]);
+  
+  // 当传入的width或height变化时更新
+  useEffect(() => {
+    if (!responsive) {
+      setDimensions({ width, height });
+    }
+  }, [width, height, responsive]);
 
   // 加载知识图谱数据
   useEffect(() => {
@@ -57,6 +93,26 @@ const KnowledgeGraph = ({ documentId, textContent, graphData, width = 800, heigh
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove(); // 清空SVG
 
+    // 创建一个g元素用于容纳所有知识图谱元素，这样zoom变换可以应用到整个组
+    const g = svg.append("g")
+      .attr("class", "graph-content");
+
+    // 设置zoom行为
+    const zoom = d3.zoom()
+      .scaleExtent([0.1, 4]) // 设置缩放范围，最小0.1倍，最大4倍
+      .on("zoom", (event) => {
+        g.attr("transform", event.transform);
+      });
+
+    // 应用zoom行为到svg
+    svg.call(zoom);
+    
+    // 确保SVG容器可以捕获鼠标事件
+    svg.style("cursor", "grab")
+      .on("mousedown", () => svg.style("cursor", "grabbing"))
+      .on("mouseup", () => svg.style("cursor", "grab"))
+      .on("mouseleave", () => svg.style("cursor", "default"));
+
     // 确保dataToRender有必要的字段，兼容nodes/links和entities/relationships两种格式
     const entities = dataToRender.nodes || dataToRender.entities || [];
     const relationships = dataToRender.links || dataToRender.relationships || [];
@@ -64,9 +120,9 @@ const KnowledgeGraph = ({ documentId, textContent, graphData, width = 800, heigh
     // 检查数据是否为空
     if (entities.length === 0 && relationships.length === 0) {
       // 显示空状态消息
-      svg.append("text")
-        .attr("x", width / 2)
-        .attr("y", height / 2)
+      g.append("text")
+        .attr("x", dimensions.width / 2)
+        .attr("y", dimensions.height / 2)
         .attr("text-anchor", "middle")
         .attr("fill", "#999")
         .text("暂无知识图谱数据");
@@ -110,11 +166,11 @@ const KnowledgeGraph = ({ documentId, textContent, graphData, width = 800, heigh
     const simulation = d3.forceSimulation(processedEntities)
       .force("link", d3.forceLink(processedRelationships).id(d => d.id).distance(100))
       .force("charge", d3.forceManyBody().strength(-300))
-      .force("center", d3.forceCenter(width / 2, height / 2))
+      .force("center", d3.forceCenter(dimensions.width / 2, dimensions.height / 2))
       .force("collision", d3.forceCollide().radius(50));
 
     // 创建连线
-    const link = svg.append("g")
+    const link = g.append("g")
       .attr("class", "links")
       .selectAll("line")
       .data(processedRelationships)
@@ -124,15 +180,34 @@ const KnowledgeGraph = ({ documentId, textContent, graphData, width = 800, heigh
       .attr("stroke-width", d => Math.sqrt(d.confidence || 1));
 
     // 创建节点
-    const node = svg.append("g")
+    const node = g.append("g")
       .attr("class", "nodes")
       .selectAll("g")
       .data(processedEntities)
       .enter().append("g")
       .call(d3.drag()
-        .on("start", dragstarted)
-        .on("drag", dragged)
-        .on("end", dragended));
+        .on("start", (event) => {
+          // 防止拖拽节点时触发zoom
+          event.sourceEvent?.stopPropagation();
+          dragstarted(event, event.subject);
+        })
+        .on("drag", (event) => {
+          // 防止拖拽节点时触发zoom
+          event.sourceEvent?.stopPropagation();
+          dragged(event, event.subject);
+        })
+        .on("end", (event) => {
+          dragended(event, event.subject);
+        }));
+        
+    // 确保节点可以捕获点击事件而不触发zoom
+    node.on("mousedown", (event) => {
+      event.stopPropagation();
+    });
+    
+    node.on("click", (event) => {
+      event.stopPropagation();
+    });
 
     // 节点圆圈
     node.append("circle")
@@ -168,7 +243,7 @@ const KnowledgeGraph = ({ documentId, textContent, graphData, width = 800, heigh
       .attr("fill", "#2c3e50");
 
     // 关系标签
-    const linkText = svg.append("g")
+    const linkText = g.append("g")
       .attr("class", "link-labels")
       .selectAll("text")
       .data(processedRelationships)
@@ -213,6 +288,10 @@ const KnowledgeGraph = ({ documentId, textContent, graphData, width = 800, heigh
 
     // 双击节点放大显示
     node.on("dblclick", (event, d) => {
+      // 阻止事件冒泡，避免触发zoom的dblclick
+      event.stopPropagation();
+      event.preventDefault();
+      
       // 放大显示该节点及其关联节点
       const connectedNodes = new Set([d.id]);
       relationships.forEach(rel => {
@@ -227,12 +306,19 @@ const KnowledgeGraph = ({ documentId, textContent, graphData, width = 800, heigh
     });
 
     // 双击空白处重置视图
-    svg.on("dblclick", () => {
+    g.on("dblclick", (event) => {
+      // 阻止事件冒泡和默认行为
+      event.stopPropagation();
+      event.preventDefault();
+      
       node.style("opacity", 1);
       link.style("opacity", 1);
     });
+    
+    // 确保SVG的双击不会触发默认缩放行为
+    svg.on("dblclick.zoom", null);
 
-  }, [graphData, width, height]);
+  }, [graphData, dimensions]);
 
   if (loading) {
     return (
@@ -314,7 +400,7 @@ const KnowledgeGraph = ({ documentId, textContent, graphData, width = 800, heigh
   };
 
   return (
-    <div className="knowledge-graph-container">
+    <div className="knowledge-graph-container" ref={containerRef}>
       <div className="graph-header">
         <h3>知识图谱</h3>
         <div className="graph-stats">
@@ -338,9 +424,15 @@ const KnowledgeGraph = ({ documentId, textContent, graphData, width = 800, heigh
 
       <svg
         ref={svgRef}
-        width={width}
-        height={height}
+        width={dimensions.width}
+        height={dimensions.height}
         className="knowledge-graph-svg"
+        style={{ 
+          minWidth: '400px', 
+          minHeight: '400px',
+          width: responsive ? '100%' : undefined,
+          height: responsive ? '100%' : undefined
+        }}
       />
     </div>
   );

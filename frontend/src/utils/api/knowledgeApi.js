@@ -33,7 +33,7 @@ export const updateKnowledgeBase = async (knowledgeBaseId, name, description) =>
 };
 
 export const deleteKnowledgeBase = async (knowledgeBaseId) => {
-    const response = await request(`/api/v1/knowledge/knowledge-bases/${knowledgeBaseId}`, {
+    const response = await request(`/v1/knowledge/knowledge-bases/${knowledgeBaseId}`, {
         method: 'DELETE'
     });
     return response;
@@ -101,7 +101,7 @@ export const updateDocument = async (documentId, file) => {
     const formData = new FormData();
     formData.append('file', file);
     
-    const response = await request(`/api/v1/knowledge/documents/${documentId}`, {
+    const response = await request(`/v1/knowledge/documents/${documentId}`, {
         method: 'PUT',
         body: formData,
         headers: {
@@ -136,7 +136,7 @@ export const getKnowledgeBasePermissions = async (knowledgeBaseId) => {
 };
 
 export const updateKnowledgeBasePermissions = async (knowledgeBaseId, permissions) => {
-    const response = await request(`/api/v1/knowledge/knowledge-bases/${knowledgeBaseId}/permissions`, {
+    const response = await request(`/v1/knowledge/knowledge-bases/${knowledgeBaseId}/permissions`, {
         method: 'PUT',
         data: { permissions }
     });
@@ -144,7 +144,7 @@ export const updateKnowledgeBasePermissions = async (knowledgeBaseId, permission
 };
 
 export const addKnowledgeBasePermission = async (knowledgeBaseId, userId, role) => {
-    const response = await request(`/api/v1/knowledge/knowledge-bases/${knowledgeBaseId}/permissions`, {
+    const response = await request(`/v1/knowledge/knowledge-bases/${knowledgeBaseId}/permissions`, {
         method: 'POST',
         data: { user_id: userId, role }
     });
@@ -152,7 +152,7 @@ export const addKnowledgeBasePermission = async (knowledgeBaseId, userId, role) 
 };
 
 export const removeKnowledgeBasePermission = async (knowledgeBaseId, permissionId) => {
-    const response = await request(`/api/v1/knowledge/knowledge-bases/${knowledgeBaseId}/permissions/${permissionId}`, {
+    const response = await request(`/v1/knowledge/knowledge-bases/${knowledgeBaseId}/permissions/${permissionId}`, {
         method: 'DELETE'
     });
     return response;
@@ -167,7 +167,7 @@ export const getDocumentTags = async (documentId) => {
 };
 
 export const addDocumentTag = async (documentId, tagName) => {
-    const response = await request(`/api/v1/knowledge/documents/${documentId}/tags`, {
+    const response = await request(`/v1/knowledge/documents/${documentId}/tags`, {
         method: 'POST',
         data: { tag_name: tagName }
     });

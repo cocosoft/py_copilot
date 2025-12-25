@@ -28,7 +28,7 @@ class DocumentProcessor:
         from app.services.knowledge.knowledge_graph_service import KnowledgeGraphService
         self.knowledge_graph_service = KnowledgeGraphService()
     
-    async def process_document(self, file_path: str, file_type: str, document_id: int, db: Session = None) -> Dict[str, Any]:
+    def process_document(self, file_path: str, file_type: str, document_id: int, db: Session = None) -> Dict[str, Any]:
         """完整文档处理流程 - 集成图谱化操作"""
         try:
             # 1. 解析文档
@@ -119,24 +119,6 @@ class DocumentProcessor:
                 "success": False,
                 "error": str(e)
             }
-    
-    def process_document_sync(self, file_path: str, file_type: str, document_id: int, db: Session = None) -> Dict[str, Any]:
-        """同步版本的文档处理流程"""
-        import asyncio
-        try:
-            # 检查是否在事件循环中运行
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # 如果事件循环正在运行，使用create_task
-                task = loop.create_task(self.process_document(file_path, file_type, document_id, db))
-                # 等待任务完成
-                return loop.run_until_complete(task)
-            else:
-                # 如果没有运行的事件循环，使用asyncio.run
-                return asyncio.run(self.process_document(file_path, file_type, document_id, db))
-        except RuntimeError:
-            # 如果没有事件循环，使用asyncio.run
-            return asyncio.run(self.process_document(file_path, file_type, document_id, db))
     
     def search_documents(self, query: str, n_results: int = 10, 
                         knowledge_base_id: Optional[int] = None, 
