@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { request } from '../utils/apiUtils';
 import './settings.css';
 import IntegratedModelManagement from '../components/ModelManagement/IntegratedModelManagement';
-import ParameterManagementMain from '../components/ModelManagement/ParameterManagementMain';
 import Agent from './Agent';
 import Knowledge from './Knowledge';
 import Workflow from './Workflow';
@@ -147,22 +146,6 @@ const Settings = () => {
           </div>
         );
       
-      case 'parameters':
-        return (
-          <div className="settings-content">
-            <div className="content-header">
-              <h2>参数管理</h2>
-              <p>管理系统各层级的参数配置</p>
-            </div>
-            <div className="parameters-management-container">
-              <ParameterManagementMain 
-                selectedSupplier={null} 
-                onBack={() => setActiveSection('model')} 
-              />
-            </div>
-          </div>
-        );
-      
       case 'search':
         return (
           <div className="settings-content">
@@ -268,14 +251,6 @@ const Settings = () => {
             >
               <span className="nav-icon">🔄</span>
               <span className="nav-text">工作流管理</span>
-            </button>
-            
-            <button 
-              className={`nav-item ${activeSection === 'parameters' ? 'active' : ''}`}
-              onClick={() => setActiveSection('parameters')}
-            >
-              <span className="nav-icon">⚙️</span>
-              <span className="nav-text">参数管理</span>
             </button>
             
             <button 

@@ -806,10 +806,7 @@ const ParameterManagementMain = ({ selectedSupplier, onBack, selectedModel }) =>
       {/* 头部 */}
       <div className="section-header">
         <div className="header-left">
-          <h2>参数管理主界面</h2>
-          <button className="btn btn-secondary" onClick={onBack}>
-            返回
-          </button>
+          <h2>参数管理</h2>
         </div>
         <div className="header-right">
           <select

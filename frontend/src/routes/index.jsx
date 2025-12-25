@@ -14,6 +14,7 @@ import PersonalCenter from '../pages/PersonalCenter';
 import HelpCenter from '../pages/HelpCenter';
 import ModelCapabilityManagement from '../components/CapabilityManagement/ModelCapabilityManagement';
 import ModelCapabilityAssociation from '../components/CapabilityManagement/ModelCapabilityAssociation';
+import CapabilityManagementMain from '../components/CapabilityManagement/CapabilityManagementMain';
 
 const AppRoutes = () => {
   return (
@@ -33,6 +34,7 @@ const AppRoutes = () => {
       <Route path="/help/*" element={<HelpCenter />} />
       <Route path="/model-capabilities" element={<ModelCapabilityManagement />} />
       <Route path="/model-capability-association" element={<ModelCapabilityAssociation />} />
+      <Route path="/capability-management" element={<CapabilityManagementMain />} />
     </Routes>
   );
 };
