@@ -384,3 +384,5 @@ update_old_documents.py
 valid_test.docx
 valid_test.pdf
 test_files/sample.txt
+updateknewledgegraph.md
+backend/test_entity_config.py

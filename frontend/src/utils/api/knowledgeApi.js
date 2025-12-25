@@ -229,3 +229,43 @@ export const importKnowledgeBase = async (knowledgeBaseData) => {
     });
     return response;
 };
+
+// Knowledge Graph API
+export const buildKnowledgeGraph = async (documentId = null, knowledgeBaseId = null) => {
+    const response = await request('/v1/knowledge-graph/build-graph', {
+        method: 'POST',
+        data: {
+            document_id: documentId,
+            knowledge_base_id: knowledgeBaseId
+        }
+    });
+    return response;
+};
+
+export const getDocumentGraphData = async (documentId) => {
+    const response = await request(`/v1/knowledge-graph/documents/${documentId}/graph`, {
+        method: 'GET'
+    });
+    return response;
+};
+
+export const getKnowledgeBaseGraphData = async (knowledgeBaseId) => {
+    const response = await request(`/v1/knowledge-graph/knowledge-bases/${knowledgeBaseId}/graph`, {
+        method: 'GET'
+    });
+    return response;
+};
+
+export const analyzeKnowledgeGraph = async (graphId) => {
+    const response = await request(`/v1/knowledge-graph/graphs/${graphId}/analyze`, {
+        method: 'GET'
+    });
+    return response;
+};
+
+export const getGraphStatistics = async (graphId) => {
+    const response = await request(`/v1/knowledge-graph/graphs/${graphId}/statistics`, {
+        method: 'GET'
+    });
+    return response;
+};

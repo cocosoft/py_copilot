@@ -20,6 +20,7 @@ from app.api.v1.agents import router as agents_router
 from app.api.v1.agent_categories import router as agent_categories_router
 from app.modules.knowledge.api.knowledge import router as knowledge_router
 from app.modules.knowledge.api.knowledge_graph_api import router as knowledge_graph_router
+from app.modules.knowledge.api.entity_config_api import router as entity_config_router
 from app.modules.workflow.api.workflow import router as workflow_router
 from app.api.v1.search_management import router as search_management_router
 from app.api.v1.supplier_model import router as supplier_model_v1_router
@@ -53,5 +54,6 @@ api_router.include_router(agents_router, prefix="/agents", tags=["agents"])
 api_router.include_router(agent_categories_router, prefix="/agent-categories", tags=["agent-categories"])
 api_router.include_router(knowledge_router, prefix="/knowledge", tags=["knowledge"])
 api_router.include_router(knowledge_graph_router, prefix="/knowledge-graph", tags=["knowledge-graph"])
+api_router.include_router(entity_config_router, tags=["entity-config"])
 api_router.include_router(workflow_router, tags=["workflows"])
 api_router.include_router(search_management_router)

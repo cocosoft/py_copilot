@@ -35,7 +35,8 @@ const EnhancedKnowledgeGraph = ({
       performSemanticSearch(searchQuery);
     } else {
       setSearchResults([]);
-      setFilteredEntities(graphData?.entities || []);
+        const entities = graphData?.entities || graphData?.nodes || [];
+        setFilteredEntities(entities);
     }
   }, [searchQuery, graphData]);
 
@@ -47,8 +48,8 @@ const EnhancedKnowledgeGraph = ({
       let data;
       
       if (documentId) {
-        const response = await fetch(`/v1/knowledge-graph/document/${documentId}/entities`);
-        if (!response.ok) throw new Error('获取文档实体失败');
+        const response = await fetch(`/v1/knowledge-graph/documents/${documentId}/graph`);
+        if (!response.ok) throw new Error('获取文档知识图谱数据失败');
         data = await response.json();
       } else if (textContent) {
         const response = await fetch('/v1/knowledge-graph/extract-entities', {
@@ -61,7 +62,9 @@ const EnhancedKnowledgeGraph = ({
       }
       
       setGraphData(data);
-      setFilteredEntities(data?.entities || []);
+      // 适配后端数据格式
+      const entities = data?.entities || data?.nodes || [];
+      setFilteredEntities(entities);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -87,7 +90,8 @@ const EnhancedKnowledgeGraph = ({
         
         // 高亮匹配的实体
         const matchedEntityIds = results.map(result => result.entity_id);
-        const filtered = graphData.entities.filter(entity => 
+        const entities = graphData.entities || graphData.nodes || [];
+        const filtered = entities.filter(entity => 
           matchedEntityIds.includes(entity.id) || 
           entity.text.toLowerCase().includes(query.toLowerCase())
         );
@@ -105,7 +109,9 @@ const EnhancedKnowledgeGraph = ({
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
 
-    const { entities, relationships } = graphData;
+    // 适配后端数据格式：nodes -> entities, links -> relationships
+    const entities = graphData.entities || graphData.nodes || [];
+    const relationships = graphData.relationships || graphData.links || [];
     
     // 预处理数据
     const processedEntities = entities.map((entity, index) => ({
@@ -127,6 +133,14 @@ const EnhancedKnowledgeGraph = ({
       .force("charge", d3.forceManyBody().strength(-300))
       .force("center", d3.forceCenter(width / 2, height / 2))
       .force("collision", d3.forceCollide().radius(50));
+
+    // 处理单实体情况：如果没有关系，手动设置节点位置
+    if (processedRelationships.length === 0 && processedEntities.length === 1) {
+      processedEntities[0].x = width / 2;
+      processedEntities[0].y = height / 2;
+      processedEntities[0].fx = width / 2;
+      processedEntities[0].fy = height / 2;
+    }
 
     setSimulation(newSimulation);
 
@@ -262,6 +276,10 @@ const EnhancedKnowledgeGraph = ({
     if (entity.type === 'PERSON') return 10;
     if (entity.type === 'ORGANIZATION' || entity.type === 'ORG') return 12;
     if (entity.type === 'LOCATION' || entity.type === 'LOC') return 8;
+    if (entity.type === 'TECH') return 9;
+    if (entity.type === 'PRODUCT') return 11;
+    if (entity.type === 'EVENT') return 10;
+    if (entity.type === 'CONCEPT') return 8;
     return 6;
   };
 
@@ -273,8 +291,10 @@ const EnhancedKnowledgeGraph = ({
       case 'ORG': return '#4ecdc4';
       case 'LOCATION':
       case 'LOC': return '#45b7d1';
-      case 'DATE': return '#96ceb4';
-      case 'MONEY': return '#feca57';
+      case 'TECH': return '#96ceb4';
+      case 'PRODUCT': return '#feca57';
+      case 'EVENT': return '#ff9ff3';
+      case 'CONCEPT': return '#54a0ff';
       default: return '#a29bfe';
     }
   };
@@ -296,6 +316,34 @@ const EnhancedKnowledgeGraph = ({
     link.href = url;
     link.download = 'knowledge-graph.svg';
     link.click();
+  };
+
+  // 获取实际的实体类型
+  const getActualEntityTypes = () => {
+    if (!graphData) return [];
+    
+    const entities = graphData.entities || graphData.nodes || [];
+    const entityTypes = [...new Set(entities.map(entity => entity.type || entity.group || '未知'))];
+    
+    // 实体类型映射到中文显示名称
+    const typeMapping = {
+      'PERSON': '人物',
+      'ORG': '组织',
+      'LOC': '地点',
+      'TECH': '技术术语',
+      'PRODUCT': '产品',
+      'EVENT': '事件',
+      'CONCEPT': '概念',
+      'DATE': '日期',
+      'MONEY': '金额',
+      '未知': '未知类型'
+    };
+    
+    return entityTypes.map(type => ({
+      type,
+      displayName: typeMapping[type] || type,
+      cssClass: type.toLowerCase()
+    }));
   };
 
   if (loading) {
@@ -332,8 +380,8 @@ const EnhancedKnowledgeGraph = ({
       <div className="graph-header">
         <h3>增强知识图谱</h3>
         <div className="graph-stats">
-          <span>实体: {graphData.entities?.length || 0}</span>
-          <span>关系: {graphData.relationships?.length || 0}</span>
+          <span>实体: {(graphData.entities || graphData.nodes || [])?.length || 0}</span>
+        <span>关系: {(graphData.relationships || graphData.links || [])?.length || 0}</span>
           {searchQuery && <span>搜索结果: {searchResults.length}</span>}
         </div>
         <div className="graph-controls">
@@ -345,30 +393,18 @@ const EnhancedKnowledgeGraph = ({
       </div>
       
       <div className="graph-legend">
-        <div className="legend-item">
-          <span className="legend-color person"></span>
-          <span>人物</span>
-        </div>
-        <div className="legend-item">
-          <span className="legend-color organization"></span>
-          <span>组织</span>
-        </div>
-        <div className="legend-item">
-          <span className="legend-color location"></span>
-          <span>地点</span>
-        </div>
-        <div className="legend-item">
-          <span className="legend-color date"></span>
-          <span>日期</span>
-        </div>
-        <div className="legend-item">
-          <span className="legend-color money"></span>
-          <span>金额</span>
-        </div>
-        <div className="legend-item">
-          <span className="legend-color highlighted"></span>
-          <span>搜索结果</span>
-        </div>
+        {getActualEntityTypes().map(entityType => (
+          <div key={entityType.type} className="legend-item">
+            <span className={`legend-color ${entityType.cssClass}`}></span>
+            <span>{entityType.displayName}</span>
+          </div>
+        ))}
+        {searchQuery && (
+          <div className="legend-item">
+            <span className="legend-color highlighted"></span>
+            <span>搜索结果</span>
+          </div>
+        )}
       </div>
 
       <div className="graph-details">

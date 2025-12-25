@@ -109,12 +109,32 @@
   background-color: #45b7d1;
 }
 
-.legend-color.date {
+.legend-color.tech {
   background-color: #96ceb4;
 }
 
-.legend-color.money {
+.legend-color.product {
   background-color: #feca57;
+}
+
+.legend-color.event {
+  background-color: #ff9ff3;
+}
+
+.legend-color.concept {
+  background-color: #54a0ff;
+}
+
+.legend-color.date {
+  background-color: #a29bfe;
+}
+
+.legend-color.money {
+  background-color: #fd79a8;
+}
+
+.legend-color.未知类型 {
+  background-color: #636e72;
 }
 
 .legend-color.highlighted {

@@ -7,6 +7,7 @@ from app.modules.knowledge.models.knowledge_document import (
     DocumentEntity, EntityRelationship, DocumentChunk, KnowledgeDocument
 )
 from app.services.knowledge.advanced_text_processor import AdvancedTextProcessor
+from app.services.knowledge.graph_builder import KnowledgeGraphBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,7 @@ class KnowledgeGraphService:
     
     def __init__(self):
         self.text_processor = AdvancedTextProcessor()
+        self.graph_builder = KnowledgeGraphBuilder()
     
     def extract_and_store_entities(self, db: Session, document: KnowledgeDocument) -> Dict[str, Any]:
         """从文档中提取实体并存储到数据库"""
@@ -310,3 +312,472 @@ class KnowledgeGraphService:
             "top_keywords": keywords[:10],
             "semantic_richness": min(1.0, len(entities) / 10)  # 语义丰富度评分
         }
+    
+    def build_document_graph(self, document_id: int, db: Session) -> Dict[str, Any]:
+        """构建单个文档的知识图谱"""
+        try:
+            # 检查文档是否存在
+            document = db.query(KnowledgeDocument).filter(KnowledgeDocument.id == document_id).first()
+            if not document:
+                return {"error": "文档不存在"}
+            
+            # 1. 检查文档是否已进行实体提取，如果没有则先执行实体提取
+            entities = self.get_document_entities(db, document_id)
+            relationships = self.get_document_relationships(db, document_id)
+            
+            if not entities and not relationships:
+                logger.info(f"文档 {document_id} 未进行实体提取，开始执行实体提取...")
+                
+                # 执行实体提取
+                extraction_result = self.extract_and_store_entities(db, document)
+                if not extraction_result.get("success", False):
+                    logger.warning(f"文档 {document_id} 实体提取失败: {extraction_result.get('error', '未知错误')}")
+                    return {"error": f"实体提取失败: {extraction_result.get('error', '未知错误')}"}
+                
+                # 重新获取实体和关系
+                entities = self.get_document_entities(db, document_id)
+                relationships = self.get_document_relationships(db, document_id)
+                
+                # 检查实体提取是否真的成功
+                if not entities:
+                    logger.warning(f"文档 {document_id} 实体提取后仍然没有实体")
+                    return {"error": "实体提取后没有发现任何实体"}
+                
+                logger.info(f"文档 {document_id} 实体提取成功，提取到 {len(entities)} 个实体和 {len(relationships)} 个关系")
+            else:
+                logger.info(f"文档 {document_id} 已有 {len(entities)} 个实体和 {len(relationships)} 个关系，直接构建知识图谱")
+            
+            # 2. 使用图谱构建器构建图谱
+            graph = self.graph_builder.build_graph_from_document(document_id, db)
+            
+            # 3. 检查图谱构建结果是否有效
+            if "error" in graph:
+                logger.error(f"图谱构建失败: {graph['error']}")
+                return graph
+            
+            # 4. 添加统计信息
+            nodes = graph.get("nodes", [])
+            edges = graph.get("edges", [])
+            
+            if not nodes:
+                logger.warning(f"文档 {document_id} 构建的知识图谱没有节点")
+                return {"error": "知识图谱构建成功但没有发现任何节点"}
+            
+            # 计算社区数量
+            communities_count = len(set(node.get("community", 0) for node in nodes))
+            
+            graph.update({
+                "nodes_count": len(nodes),
+                "edges_count": len(edges),
+                "communities_count": communities_count,
+                "statistics": self.get_graph_statistics(graph)
+            })
+            
+            logger.info(f"成功构建文档 {document_id} 的知识图谱，包含 {len(nodes)} 个节点和 {len(edges)} 条边")
+            return graph
+            
+        except Exception as e:
+            logger.error(f"构建文档 {document_id} 的知识图谱失败: {e}")
+            return {"error": str(e)}
+    
+    def build_knowledge_base_graph(self, knowledge_base_id: int, db: Session) -> Dict[str, Any]:
+        """构建整个知识库的知识图谱"""
+        try:
+            # 检查知识库是否存在
+            knowledge_base = db.query(KnowledgeDocument.knowledge_base_id).filter(
+                KnowledgeDocument.knowledge_base_id == knowledge_base_id
+            ).first()
+            
+            if not knowledge_base:
+                return {"error": "知识库不存在或没有文档"}
+            
+            # 使用图谱构建器构建全局图谱
+            graph = self.graph_builder.build_cross_document_graph(knowledge_base_id, db)
+            
+            # 记录图谱构建日志
+            if "error" not in graph:
+                logger.info(f"成功构建知识库 {knowledge_base_id} 的全局知识图谱")
+            
+            return graph
+            
+        except Exception as e:
+            logger.error(f"构建知识库 {knowledge_base_id} 的全局知识图谱失败: {e}")
+            return {"error": str(e)}
+    
+    def get_graph_statistics(self, graph: Dict[str, Any]) -> Dict[str, Any]:
+        """获取图谱统计信息"""
+        if "error" in graph:
+            return {"error": graph["error"]}
+        
+        nodes = graph.get("nodes", [])
+        edges = graph.get("edges", [])
+        metadata = graph.get("metadata", {})
+        
+        # 按实体类型统计
+        entity_types = {}
+        for node in nodes:
+            entity_type = node.get("type", "未知")
+            if entity_type not in entity_types:
+                entity_types[entity_type] = 0
+            entity_types[entity_type] += 1
+        
+        # 按关系类型统计
+        relationship_types = {}
+        for edge in edges:
+            rel_type = edge.get("label", "未知")
+            if rel_type not in relationship_types:
+                relationship_types[rel_type] = 0
+            relationship_types[rel_type] += 1
+        
+        # 计算中心性统计
+        centrality_stats = self._calculate_centrality_statistics(nodes)
+        
+        return {
+            "total_nodes": len(nodes),
+            "total_edges": len(edges),
+            "entity_types": entity_types,
+            "relationship_types": relationship_types,
+            "centrality_statistics": centrality_stats,
+            "graph_metadata": metadata
+        }
+    
+    def _calculate_centrality_statistics(self, nodes: List[Dict]) -> Dict[str, Any]:
+        """计算中心性统计信息"""
+        if not nodes:
+            return {}
+        
+        degrees = []
+        closeness = []
+        betweenness = []
+        
+        for node in nodes:
+            centrality = node.get("centrality", {})
+            degrees.append(centrality.get("degree", 0))
+            closeness.append(centrality.get("closeness", 0))
+            betweenness.append(centrality.get("betweenness", 0))
+        
+        return {
+            "degree": {
+                "max": max(degrees) if degrees else 0,
+                "min": min(degrees) if degrees else 0,
+                "avg": sum(degrees) / len(degrees) if degrees else 0
+            },
+            "closeness": {
+                "max": max(closeness) if closeness else 0,
+                "min": min(closeness) if closeness else 0,
+                "avg": sum(closeness) / len(closeness) if closeness else 0
+            },
+            "betweenness": {
+                "max": max(betweenness) if betweenness else 0,
+                "min": min(betweenness) if betweenness else 0,
+                "avg": sum(betweenness) / len(betweenness) if betweenness else 0
+            }
+        }
+    
+    def find_entity_paths(self, graph: Dict[str, Any], source_entity_id: str, target_entity_id: str, max_depth: int = 3) -> List[List[str]]:
+        """查找两个实体之间的路径"""
+        if "error" in graph:
+            return []
+        
+        # 将图转换为networkx格式
+        import networkx as nx
+        nx_graph = nx.Graph()
+        
+        # 添加节点
+        for node in graph["nodes"]:
+            nx_graph.add_node(node["id"], **node)
+        
+        # 添加边
+        for edge in graph["edges"]:
+            nx_graph.add_edge(edge["source"], edge["target"], **edge)
+        
+        # 查找所有简单路径
+        try:
+            paths = list(nx.all_simple_paths(nx_graph, source_entity_id, target_entity_id, cutoff=max_depth))
+            return paths
+        except:
+            return []
+    
+    def get_entity_neighbors(self, graph: Dict[str, Any], entity_id: str, depth: int = 1) -> Dict[str, Any]:
+        """获取实体的邻居节点"""
+        if "error" in graph:
+            return {"error": graph["error"]}
+        
+        # 将图转换为networkx格式
+        import networkx as nx
+        nx_graph = nx.Graph()
+        
+        # 添加节点
+        for node in graph["nodes"]:
+            nx_graph.add_node(node["id"], **node)
+        
+        # 添加边
+        for edge in graph["edges"]:
+            nx_graph.add_edge(edge["source"], edge["target"], **edge)
+        
+        # 查找邻居节点
+        try:
+            neighbors = {}
+            for i in range(1, depth + 1):
+                neighbors[f"depth_{i}"] = []
+                
+                # 获取第i层邻居
+                if i == 1:
+                    # 直接邻居
+                    for neighbor_id in nx_graph.neighbors(entity_id):
+                        neighbor_node = next((n for n in graph["nodes"] if n["id"] == neighbor_id), None)
+                        if neighbor_node:
+                            neighbors[f"depth_{i}"].append(neighbor_node)
+                else:
+                    # 多层邻居
+                    for node_id in nx_graph.nodes():
+                        try:
+                            if nx.shortest_path_length(nx_graph, entity_id, node_id) == i:
+                                neighbor_node = next((n for n in graph["nodes"] if n["id"] == node_id), None)
+                                if neighbor_node:
+                                    neighbors[f"depth_{i}"].append(neighbor_node)
+                        except:
+                            continue
+            
+            return neighbors
+            
+        except Exception as e:
+            logger.error(f"获取实体 {entity_id} 的邻居失败: {e}")
+            return {"error": str(e)}
+
+    def get_document_graph_data(self, db: Session, document_id: int) -> Dict[str, Any]:
+        """获取文档的知识图谱数据"""
+        try:
+            # 检查文档是否存在
+            document = db.query(KnowledgeDocument).filter(KnowledgeDocument.id == document_id).first()
+            if not document:
+                return {"error": "文档不存在"}
+            
+            # 构建图谱
+            graph = self.build_document_graph(document_id, db)
+            if "error" in graph:
+                return graph
+            
+            # 获取统计信息
+            statistics = self.get_graph_statistics(graph)
+            
+            return {
+                "nodes": graph.get("nodes", []),
+                "links": graph.get("edges", []),
+                "statistics": statistics
+            }
+            
+        except Exception as e:
+            logger.error(f"获取文档 {document_id} 的图谱数据失败: {e}")
+            return {"error": str(e)}
+
+    def get_knowledge_base_graph_data(self, db: Session, knowledge_base_id: int) -> Dict[str, Any]:
+        """获取知识库的知识图谱数据"""
+        try:
+            # 构建知识库图谱
+            graph = self.build_knowledge_base_graph(knowledge_base_id, db)
+            if "error" in graph:
+                return graph
+            
+            # 获取统计信息
+            statistics = self.get_graph_statistics(graph)
+            
+            return {
+                "nodes": graph.get("nodes", []),
+                "links": graph.get("edges", []),
+                "statistics": statistics
+            }
+            
+        except Exception as e:
+            logger.error(f"获取知识库 {knowledge_base_id} 的图谱数据失败: {e}")
+            return {"error": str(e)}
+
+    def analyze_graph(self, graph_id: str, db: Session) -> Dict[str, Any]:
+        """分析知识图谱"""
+        try:
+            # 根据graph_id获取图谱数据
+            # 这里简化处理，实际应该根据graph_id从数据库或缓存中获取图谱
+            if graph_id.startswith("doc_"):
+                document_id = int(graph_id.replace("doc_", ""))
+                graph_data = self.get_document_graph_data(db, document_id)
+            elif graph_id.startswith("kb_"):
+                knowledge_base_id = int(graph_id.replace("kb_", ""))
+                graph_data = self.get_knowledge_base_graph_data(db, knowledge_base_id)
+            else:
+                return {"error": "无效的图谱ID"}
+            
+            if "error" in graph_data:
+                return graph_data
+            
+            # 进行图谱分析
+            analysis = self._perform_graph_analysis(graph_data)
+            
+            return {
+                "graph_id": graph_id,
+                "analysis": analysis,
+                "communities": graph_data.get("communities", []),
+                "central_nodes": graph_data.get("central_nodes", [])
+            }
+            
+        except Exception as e:
+            logger.error(f"分析图谱 {graph_id} 失败: {e}")
+            return {"error": str(e)}
+
+    def _perform_graph_analysis(self, graph_data: Dict[str, Any]) -> Dict[str, Any]:
+        """执行图谱分析"""
+        nodes = graph_data.get("nodes", [])
+        links = graph_data.get("links", [])
+        statistics = graph_data.get("statistics", {})
+        
+        # 计算网络密度
+        n_nodes = len(nodes)
+        n_edges = len(links)
+        max_possible_edges = n_nodes * (n_nodes - 1) / 2
+        density = n_edges / max_possible_edges if max_possible_edges > 0 else 0
+        
+        # 计算平均度
+        avg_degree = (2 * n_edges) / n_nodes if n_nodes > 0 else 0
+        
+        # 计算连通分量
+        import networkx as nx
+        nx_graph = nx.Graph()
+        
+        for node in nodes:
+            nx_graph.add_node(node["id"], **node)
+        
+        for link in links:
+            nx_graph.add_edge(link["source"], link["target"], **link)
+        
+        connected_components = list(nx.connected_components(nx_graph))
+        
+        return {
+            "network_density": round(density, 3),
+            "average_degree": round(avg_degree, 2),
+            "connected_components": len(connected_components),
+            "largest_component_size": max(len(comp) for comp in connected_components) if connected_components else 0,
+            **statistics
+        }
+
+    def find_similar_nodes(self, graph_id: str, node_id: str, max_results: int, db: Session) -> Dict[str, Any]:
+        """查找相似节点"""
+        try:
+            # 获取图谱数据
+            if graph_id.startswith("doc_"):
+                document_id = int(graph_id.replace("doc_", ""))
+                graph_data = self.get_document_graph_data(db, document_id)
+            elif graph_id.startswith("kb_"):
+                knowledge_base_id = int(graph_id.replace("kb_", ""))
+                graph_data = self.get_knowledge_base_graph_data(db, knowledge_base_id)
+            else:
+                return {"error": "无效的图谱ID"}
+            
+            if "error" in graph_data:
+                return graph_data
+            
+            # 查找目标节点
+            target_node = next((node for node in graph_data["nodes"] if node["id"] == node_id), None)
+            if not target_node:
+                return {"error": "节点不存在"}
+            
+            # 基于节点属性和邻居关系计算相似度
+            similar_nodes = self._calculate_similar_nodes(graph_data, target_node, max_results)
+            
+            return similar_nodes
+            
+        except Exception as e:
+            logger.error(f"查找相似节点失败: {e}")
+            return {"error": str(e)}
+
+    def _calculate_similar_nodes(self, graph_data: Dict[str, Any], target_node: Dict, max_results: int) -> List[Dict]:
+        """计算相似节点"""
+        nodes = graph_data.get("nodes", [])
+        links = graph_data.get("links", [])
+        
+        # 构建邻接表
+        adjacency = {}
+        for link in links:
+            source, target = link["source"], link["target"]
+            if source not in adjacency:
+                adjacency[source] = []
+            adjacency[source].append(target)
+            
+            if target not in adjacency:
+                adjacency[target] = []
+            adjacency[target].append(source)
+        
+        # 计算相似度得分
+        similar_nodes = []
+        for node in nodes:
+            if node["id"] == target_node["id"]:
+                continue
+            
+            # 基于类型相似度
+            type_similarity = 1.0 if node.get("type") == target_node.get("type") else 0.0
+            
+            # 基于邻居相似度
+            target_neighbors = set(adjacency.get(target_node["id"], []))
+            node_neighbors = set(adjacency.get(node["id"], []))
+            
+            neighbor_intersection = len(target_neighbors.intersection(node_neighbors))
+            neighbor_union = len(target_neighbors.union(node_neighbors))
+            neighbor_similarity = neighbor_intersection / neighbor_union if neighbor_union > 0 else 0
+            
+            # 综合相似度
+            total_similarity = 0.6 * type_similarity + 0.4 * neighbor_similarity
+            
+            similar_nodes.append({
+                "node": node,
+                "similarity_score": round(total_similarity, 3),
+                "type_similarity": type_similarity,
+                "neighbor_similarity": neighbor_similarity
+            })
+        
+        # 按相似度排序并返回前max_results个
+        similar_nodes.sort(key=lambda x: x["similarity_score"], reverse=True)
+        return similar_nodes[:max_results]
+
+    def find_path_between_nodes(self, graph_id: str, source_node: str, target_node: str, max_path_length: int, db: Session) -> Dict[str, Any]:
+        """查找两个节点之间的路径"""
+        try:
+            # 获取图谱数据
+            if graph_id.startswith("doc_"):
+                document_id = int(graph_id.replace("doc_", ""))
+                graph_data = self.get_document_graph_data(db, document_id)
+            elif graph_id.startswith("kb_"):
+                knowledge_base_id = int(graph_id.replace("kb_", ""))
+                graph_data = self.get_knowledge_base_graph_data(db, knowledge_base_id)
+            else:
+                return {"error": "无效的图谱ID"}
+            
+            if "error" in graph_data:
+                return graph_data
+            
+            # 查找路径
+            paths = self.find_entity_paths(graph_data, source_node, target_node, max_path_length)
+            
+            # 格式化路径结果
+            formatted_paths = []
+            for path in paths:
+                formatted_path = []
+                for node_id in path:
+                    node = next((n for n in graph_data["nodes"] if n["id"] == node_id), None)
+                    if node:
+                        formatted_path.append(node)
+                
+                if len(formatted_path) >= 2:  # 至少需要两个节点才能形成路径
+                    formatted_paths.append({
+                        "path": formatted_path,
+                        "length": len(formatted_path) - 1,
+                        "nodes": [n["text"] for n in formatted_path]
+                    })
+            
+            return {
+                "source_node": source_node,
+                "target_node": target_node,
+                "paths": formatted_paths,
+                "total_paths": len(formatted_paths)
+            }
+            
+        except Exception as e:
+            logger.error(f"查找路径失败: {e}")
+            return {"error": str(e)}

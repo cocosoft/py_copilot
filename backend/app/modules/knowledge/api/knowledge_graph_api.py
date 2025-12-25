@@ -51,6 +51,32 @@ class KnowledgeGraphDataResponse(BaseModel):
     statistics: Dict[str, Any]
 
 
+class GraphBuildRequest(BaseModel):
+    document_id: Optional[int] = None
+    knowledge_base_id: Optional[int] = None
+    rebuild: bool = False
+    
+    class Config:
+        extra = "forbid"  # 禁止额外的字段
+
+
+class GraphBuildResponse(BaseModel):
+    success: bool
+    graph_id: Optional[str] = None
+    nodes_count: int = 0
+    edges_count: int = 0
+    communities_count: int = 0
+    statistics: Dict[str, Any] = {}
+    error: Optional[str] = None
+
+
+class GraphAnalysisResponse(BaseModel):
+    graph_id: str
+    analysis: Dict[str, Any]
+    communities: List[Dict[str, Any]]
+    central_nodes: List[Dict[str, Any]]
+
+
 class DocumentSemanticsResponse(BaseModel):
     text_length: int
     word_count: int
@@ -270,6 +296,156 @@ async def get_document_keywords(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"提取关键词失败: {str(e)}")
+
+
+@router.post("/build-graph", response_model=GraphBuildResponse)
+async def build_knowledge_graph(
+    request: GraphBuildRequest,
+    db: Session = Depends(get_db)
+):
+    """构建知识图谱"""
+    try:
+        # 验证参数
+        if not request.document_id and not request.knowledge_base_id:
+            raise HTTPException(status_code=400, detail="必须提供document_id或knowledge_base_id参数")
+        
+        if request.document_id:
+            # 构建单个文档的知识图谱
+            result = knowledge_graph_service.build_document_graph(request.document_id, db)
+        else:
+            # 构建整个知识库的知识图谱
+            result = knowledge_graph_service.build_knowledge_base_graph(request.knowledge_base_id, db)
+        
+        if "error" in result:
+            raise HTTPException(status_code=500, detail=result["error"])
+        
+        return GraphBuildResponse(
+            success=True,
+            graph_id=result.get("graph_id"),
+            nodes_count=result.get("nodes_count", 0),
+            edges_count=result.get("edges_count", 0),
+            communities_count=result.get("communities_count", 0),
+            statistics=result.get("statistics", {})
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"构建知识图谱失败: {str(e)}")
+
+
+@router.get("/documents/{document_id}/graph")
+async def get_document_graph(
+    document_id: int,
+    db: Session = Depends(get_db)
+):
+    """获取文档的知识图谱数据"""
+    try:
+        document = db.query(KnowledgeDocument).filter(
+            KnowledgeDocument.id == document_id
+        ).first()
+        
+        if not document:
+            raise HTTPException(status_code=404, detail="文档不存在")
+        
+        graph_data = knowledge_graph_service.get_document_graph_data(db, document_id)
+        
+        if "error" in graph_data:
+            raise HTTPException(status_code=500, detail=graph_data["error"])
+        
+        return KnowledgeGraphDataResponse(**graph_data)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取文档图谱数据失败: {str(e)}")
+
+
+@router.get("/knowledge-bases/{knowledge_base_id}/graph")
+async def get_knowledge_base_graph(
+    knowledge_base_id: int,
+    db: Session = Depends(get_db)
+):
+    """获取知识库的知识图谱数据"""
+    try:
+        graph_data = knowledge_graph_service.get_knowledge_base_graph_data(db, knowledge_base_id)
+        
+        if "error" in graph_data:
+            raise HTTPException(status_code=500, detail=graph_data["error"])
+        
+        return KnowledgeGraphDataResponse(**graph_data)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取知识库图谱数据失败: {str(e)}")
+
+
+@router.get("/graphs/{graph_id}/analyze", response_model=GraphAnalysisResponse)
+async def analyze_graph(
+    graph_id: str,
+    db: Session = Depends(get_db)
+):
+    """分析知识图谱"""
+    try:
+        analysis_result = knowledge_graph_service.analyze_graph(graph_id, db)
+        
+        if "error" in analysis_result:
+            raise HTTPException(status_code=500, detail=analysis_result["error"])
+        
+        return GraphAnalysisResponse(**analysis_result)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"分析知识图谱失败: {str(e)}")
+
+
+@router.get("/graphs/{graph_id}/similar-nodes")
+async def find_similar_nodes(
+    graph_id: str,
+    node_id: str,
+    max_results: int = Query(10, ge=1, le=50, description="最大返回结果数量"),
+    db: Session = Depends(get_db)
+):
+    """查找相似节点"""
+    try:
+        similar_nodes = knowledge_graph_service.find_similar_nodes(graph_id, node_id, max_results, db)
+        
+        if "error" in similar_nodes:
+            raise HTTPException(status_code=500, detail=similar_nodes["error"])
+        
+        return {"similar_nodes": similar_nodes}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"查找相似节点失败: {str(e)}")
+
+
+@router.get("/graphs/{graph_id}/path")
+async def find_path_between_nodes(
+    graph_id: str,
+    source_node: str,
+    target_node: str,
+    max_path_length: int = Query(5, ge=1, le=10, description="最大路径长度"),
+    db: Session = Depends(get_db)
+):
+    """查找两个节点之间的路径"""
+    try:
+        path_result = knowledge_graph_service.find_path_between_nodes(
+            graph_id, source_node, target_node, max_path_length, db
+        )
+        
+        if "error" in path_result:
+            raise HTTPException(status_code=500, detail=path_result["error"])
+        
+        return {"path": path_result}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"查找路径失败: {str(e)}")
 
 
 @router.get("/documents/{document_id}/semantics")

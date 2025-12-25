@@ -4,6 +4,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
 import { FaDownload } from 'react-icons/fa';
 import KnowledgeGraph from '../components/KnowledgeGraph';
+import EntityConfigManagement from '../components/EntityConfigManagement';
 import {  
   uploadDocument, 
   searchDocuments, 
@@ -28,7 +29,12 @@ import {
   vectorizeDocument,
   getDocumentChunks,
   exportKnowledgeBase,
-  importKnowledgeBase
+  importKnowledgeBase,
+  buildKnowledgeGraph,
+  getDocumentGraphData,
+  getKnowledgeBaseGraphData,
+  analyzeKnowledgeGraph,
+  getGraphStatistics
 } from '../utils/api/knowledgeApi';
 
 // 设置PDF.js工作路径 - 使用本地worker文件
@@ -106,6 +112,9 @@ const Knowledge = () => {
   const [newPermission, setNewPermission] = useState({ userId: '', role: 'viewer' });
   const [activeTab, setActiveTab] = useState('basic'); // 'basic' 或 'permissions'
   
+  // 主界面标签页状态
+  const [mainActiveTab, setMainActiveTab] = useState('documents'); // 'documents' 或 'entity-config'
+  
   // 标签管理相关状态
   const [tags, setTags] = useState([]);
   const [documentTags, setDocumentTags] = useState([]);
@@ -133,6 +142,15 @@ const Knowledge = () => {
   
   // 搜索结果缓存
   const [searchCache, setSearchCache] = useState(new Map());
+  
+  // 知识图谱相关状态
+  const [buildingGraph, setBuildingGraph] = useState(false);
+  const [graphBuildProgress, setGraphBuildProgress] = useState(0);
+  const [graphData, setGraphData] = useState(null);
+  const [graphStatistics, setGraphStatistics] = useState(null);
+  const [graphAnalysis, setGraphAnalysis] = useState(null);
+  const [graphBuildError, setGraphBuildError] = useState('');
+  const [graphBuildSuccess, setGraphBuildSuccess] = useState('');
   
   // 初始化加载
   useEffect(() => {
@@ -218,6 +236,13 @@ const Knowledge = () => {
       setTags([]);
     }
   }, [selectedKnowledgeBase, documentsPerPage]);
+
+  // 当切换到知识图谱标签页时，自动加载知识图谱数据
+  useEffect(() => {
+    if (documentDetailActiveTab === 'knowledge-graph' && selectedDocument?.id) {
+      loadDocumentGraphData(selectedDocument.id);
+    }
+  }, [documentDetailActiveTab, selectedDocument?.id]);
   
   // 当知识库列表分页参数变化时，重新加载知识库
   useEffect(() => {
@@ -1208,6 +1233,102 @@ const Knowledge = () => {
     }
   };
 
+  // 构建知识图谱
+  const handleBuildKnowledgeGraph = async (documentId = null, knowledgeBaseId = null) => {
+    setBuildingGraph(true);
+    setGraphBuildProgress(0);
+    setGraphBuildError('');
+    setGraphBuildSuccess('');
+    
+    try {
+      // 显示初始进度
+      setGraphBuildProgress(10);
+      
+      const result = await buildKnowledgeGraph(documentId, knowledgeBaseId);
+      
+      // 检查构建结果
+      if (!result.success) {
+        throw new Error(result.error || "构建知识图谱失败");
+      }
+      
+      // 检查是否有实体被提取
+      if (result.nodes_count === 0) {
+        throw new Error("知识图谱构建成功但没有发现任何实体。请检查文档内容是否包含可识别的实体（如人名、组织名、地点等）。");
+      }
+      
+      setGraphBuildProgress(100);
+      
+      setGraphBuildSuccess(`知识图谱构建成功！节点数: ${result.nodes_count}, 边数: ${result.edges_count}, 社区数: ${result.communities_count}`);
+      
+      // 短暂显示成功信息后重置进度
+      setTimeout(() => {
+        setGraphBuildProgress(0);
+      }, 2000);
+      
+      // 加载图谱数据
+      if (documentId) {
+        await loadDocumentGraphData(documentId);
+      } else if (knowledgeBaseId) {
+        await loadKnowledgeBaseGraphData(knowledgeBaseId);
+      }
+      
+    } catch (error) {
+      setGraphBuildError(`构建知识图谱失败: ${error.response?.data?.detail || error.message || error.message}`);
+      setGraphBuildProgress(0);
+    } finally {
+      setBuildingGraph(false);
+    }
+  };
+
+  // 加载文档知识图谱数据
+  const loadDocumentGraphData = async (documentId) => {
+    try {
+      const data = await getDocumentGraphData(documentId);
+      setGraphData(data);
+      
+      // 加载统计信息
+      if (data.graph_id) {
+        const stats = await getGraphStatistics(data.graph_id);
+        setGraphStatistics(stats);
+        
+        // 加载分析结果
+        const analysis = await analyzeKnowledgeGraph(data.graph_id);
+        setGraphAnalysis(analysis);
+      }
+    } catch (error) {
+      console.error('加载知识图谱数据失败:', error);
+    }
+  };
+
+  // 加载知识库知识图谱数据
+  const loadKnowledgeBaseGraphData = async (knowledgeBaseId) => {
+    try {
+      const data = await getKnowledgeBaseGraphData(knowledgeBaseId);
+      setGraphData(data);
+      
+      // 加载统计信息
+      if (data.graph_id) {
+        const stats = await getGraphStatistics(data.graph_id);
+        setGraphStatistics(stats);
+        
+        // 加载分析结果
+        const analysis = await analyzeKnowledgeGraph(data.graph_id);
+        setGraphAnalysis(analysis);
+      }
+    } catch (error) {
+      console.error('加载知识图谱数据失败:', error);
+    }
+  };
+
+  // 重置知识图谱状态
+  const resetGraphState = () => {
+    setGraphData(null);
+    setGraphStatistics(null);
+    setGraphAnalysis(null);
+    setGraphBuildError('');
+    setGraphBuildSuccess('');
+  };
+
   return (
     <div className="knowledge-container">
       <div className="content-header">
@@ -1426,6 +1547,22 @@ const Knowledge = () => {
           </div>
         </div>
         
+        {/* 主界面标签页导航 */}
+        <div className="main-tab-navigation">
+          <button 
+            className={`main-tab-btn ${mainActiveTab === 'documents' ? 'active' : ''}`}
+            onClick={() => setMainActiveTab('documents')}
+          >
+            文档管理
+          </button>
+          <button 
+            className={`main-tab-btn ${mainActiveTab === 'entity-config' ? 'active' : ''}`}
+            onClick={() => setMainActiveTab('entity-config')}
+          >
+            实体配置
+          </button>
+        </div>
+        
         {/* 标签云区域 */}
         {selectedKnowledgeBase && !searchQuery && (
           <div className="tags-cloud-section">
@@ -1479,8 +1616,11 @@ const Knowledge = () => {
           </div>
         )}
         
-        {/* 搜索结果展示 */}
-        {(searchQuery || searchResults.length > 0) && (
+        {/* 主界面内容区域 */}
+        {mainActiveTab === 'documents' && (
+          <>
+            {/* 搜索结果展示 */}
+            {(searchQuery || searchResults.length > 0) && (
           <div className="search-results">
             {searching ? (
               <div className="loading-container">
@@ -1863,6 +2003,13 @@ const Knowledge = () => {
               </div>
             )}
           </>
+        )}
+          </>
+        )}
+        
+        {/* 实体配置管理界面 */}
+        {mainActiveTab === 'entity-config' && (
+          <EntityConfigManagement />
         )}
       </div>
       
@@ -2322,13 +2469,93 @@ const Knowledge = () => {
                   {/* 知识图谱标签页 */}
                   {documentDetailActiveTab === 'knowledge-graph' && (
                     <div className="knowledge-graph-tab">
+                      {/* 构建状态显示 */}
+                      {buildingGraph && (
+                        <div className="graph-build-status">
+                          <div className="progress-container">
+                            <div className="progress-bar">
+                              <div 
+                                className="progress-fill" 
+                                style={{ width: `${graphBuildProgress}%` }}
+                              ></div>
+                            </div>
+                            <span className="progress-text">{graphBuildProgress}%</span>
+                          </div>
+                          <p>正在构建知识图谱，请稍候...</p>
+                        </div>
+                      )}
+                      
+                      {/* 构建结果消息 */}
+                      {graphBuildSuccess && (
+                        <div className="success-message">
+                          <span className="success-icon">✓</span>
+                          {graphBuildSuccess}
+                        </div>
+                      )}
+                      
+                      {graphBuildError && (
+                        <div className="error-message">
+                          <span className="error-icon">✗</span>
+                          {graphBuildError}
+                        </div>
+                      )}
+                      
+                      {/* 知识图谱可视化 */}
                       <KnowledgeGraph 
                         documentId={selectedDocument.id}
                         width={700}
                         height={400}
+                        graphData={graphData}
                       />
                       
                       {/* 知识图谱统计信息 */}
+                      {graphStatistics && (
+                        <div className="graph-statistics">
+                          <h4>知识图谱统计</h4>
+                          <div className="stats-grid">
+                            <div className="stat-item">
+                              <span className="stat-label">节点总数</span>
+                              <span className="stat-value">{graphStatistics.nodes_count}</span>
+                            </div>
+                            <div className="stat-item">
+                              <span className="stat-label">边总数</span>
+                              <span className="stat-value">{graphStatistics.edges_count}</span>
+                            </div>
+                            <div className="stat-item">
+                              <span className="stat-label">社区数量</span>
+                              <span className="stat-value">{graphStatistics.communities_count}</span>
+                            </div>
+                            <div className="stat-item">
+                              <span className="stat-label">平均度</span>
+                              <span className="stat-value">{graphStatistics.average_degree?.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* 知识图谱分析结果 */}
+                      {graphAnalysis && (
+                        <div className="graph-analysis">
+                          <h4>图谱分析</h4>
+                          <div className="analysis-section">
+                            <h5>中心性分析</h5>
+                            <div className="centrality-stats">
+                              <div className="centrality-item">
+                                <span>度中心性最高节点:</span>
+                                <span>{graphAnalysis.top_degree_centrality?.node || 'N/A'}</span>
+                                <span>({graphAnalysis.top_degree_centrality?.value?.toFixed(3) || '0.000'})</span>
+                              </div>
+                              <div className="centrality-item">
+                                <span>介数中心性最高节点:</span>
+                                <span>{graphAnalysis.top_betweenness_centrality?.node || 'N/A'}</span>
+                                <span>({graphAnalysis.top_betweenness_centrality?.value?.toFixed(3) || '0.000'})</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* 知识图谱说明 */}
                       <div className="graph-info-section">
                         <h4>知识图谱说明</h4>
                         <ul>
@@ -2356,6 +2583,13 @@ const Knowledge = () => {
                   启动向量化
                 </button>
               )}
+              <button 
+                className="btn-graph" 
+                onClick={() => handleBuildKnowledgeGraph(selectedDocument.id, null)} 
+                disabled={buildingGraph || updatingDocument || previewLoading}
+              >
+                {buildingGraph ? '构建中...' : '构建知识图谱'}
+              </button>
               <button className="btn-secondary" onClick={closeAllModals}>关闭</button>
             </div>
           </div>

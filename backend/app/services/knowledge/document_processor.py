@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 logger = logging.getLogger(__name__)
 
 class DocumentProcessor:
-    """文档处理核心模块，负责文档解析、分块和向量化"""
+    """文档处理核心模块，负责文档解析、分块、向量化和图谱化"""
     
     def __init__(self):
         # 使用现有的文档解析器
@@ -23,9 +23,13 @@ class DocumentProcessor:
         # 使用现有的检索服务
         from app.services.knowledge.retrieval_service import RetrievalService
         self.retrieval_service = RetrievalService()
+        
+        # 使用知识图谱服务
+        from app.services.knowledge.knowledge_graph_service import KnowledgeGraphService
+        self.knowledge_graph_service = KnowledgeGraphService()
     
-    async def process_document(self, file_path: str, file_type: str, document_id: int) -> Dict[str, Any]:
-        """完整文档处理流程"""
+    async def process_document(self, file_path: str, file_type: str, document_id: int, db: Session = None) -> Dict[str, Any]:
+        """完整文档处理流程 - 集成图谱化操作"""
         try:
             # 1. 解析文档
             raw_text = self.parser.parse_document(file_path)
@@ -67,12 +71,45 @@ class DocumentProcessor:
             
             logger.info(f"向量化处理完成，共处理 {len(vector_results)} 个块")
             
+            # 6. ✨ 新增：图谱化操作（如果提供了数据库连接）
+            graph_data = None
+            if db:
+                try:
+                    # 导入KnowledgeDocument模型
+                    from app.modules.knowledge.models.knowledge_document import KnowledgeDocument
+                    
+                    # 获取文档对象
+                    document = db.query(KnowledgeDocument).filter(KnowledgeDocument.id == document_id).first()
+                    if document:
+                        # 提取并存储实体关系
+                        entity_result = self.knowledge_graph_service.extract_and_store_entities(db, document)
+                        
+                        if entity_result.get("success"):
+                            # 构建知识图谱
+                            graph_data = self.knowledge_graph_service.build_document_graph(document_id, db)
+                            
+                            if "error" not in graph_data:
+                                logger.info(f"图谱化操作完成，构建了包含 {len(graph_data.get('nodes', []))} 个节点和 {len(graph_data.get('edges', []))} 条边的知识图谱")
+                            else:
+                                logger.warning(f"图谱构建失败: {graph_data.get('error')}")
+                        else:
+                            logger.warning(f"实体提取失败: {entity_result.get('error')}")
+                    else:
+                        logger.warning(f"未找到文档 {document_id}，跳过图谱化操作")
+                        
+                except Exception as graph_error:
+                    logger.error(f"图谱化操作失败: {graph_error}")
+                    # 图谱化失败不影响文档处理流程继续
+            else:
+                logger.info("未提供数据库连接，跳过图谱化操作")
+            
             return {
                 "text": cleaned_text,
                 "chunks": chunks,
                 "entities": entities,
                 "relationships": relationships,
                 "vectors": vector_results,
+                "graph_data": graph_data,
                 "success": True
             }
             
@@ -83,10 +120,23 @@ class DocumentProcessor:
                 "error": str(e)
             }
     
-    def process_document_sync(self, file_path: str, file_type: str, document_id: int) -> Dict[str, Any]:
+    def process_document_sync(self, file_path: str, file_type: str, document_id: int, db: Session = None) -> Dict[str, Any]:
         """同步版本的文档处理流程"""
         import asyncio
-        return asyncio.run(self.process_document(file_path, file_type, document_id))
+        try:
+            # 检查是否在事件循环中运行
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # 如果事件循环正在运行，使用create_task
+                task = loop.create_task(self.process_document(file_path, file_type, document_id, db))
+                # 等待任务完成
+                return loop.run_until_complete(task)
+            else:
+                # 如果没有运行的事件循环，使用asyncio.run
+                return asyncio.run(self.process_document(file_path, file_type, document_id, db))
+        except RuntimeError:
+            # 如果没有事件循环，使用asyncio.run
+            return asyncio.run(self.process_document(file_path, file_type, document_id, db))
     
     def search_documents(self, query: str, n_results: int = 10, 
                         knowledge_base_id: Optional[int] = None, 

@@ -42,6 +42,40 @@
   gap: 16px;
 }
 
+/* 主界面标签页导航 */
+.main-tab-navigation {
+  display: flex;
+  border-bottom: 2px solid #e8e8e8;
+  margin-bottom: 20px;
+  background-color: #ffffff;
+  border-radius: 8px 8px 0 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.main-tab-btn {
+  padding: 16px 32px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  color: #666;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.main-tab-btn.active {
+  color: #1890ff;
+  border-bottom-color: #1890ff;
+  background-color: #f0f8ff;
+}
+
+.main-tab-btn:hover:not(.active) {
+  color: #1890ff;
+  background-color: #fafafa;
+}
+
 /* 知识库导航栏 */
 .knowledge-nav {
   background-color: #ffffff;

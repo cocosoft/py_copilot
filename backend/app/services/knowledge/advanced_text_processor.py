@@ -2,13 +2,17 @@ import re
 import logging
 import jieba
 from typing import List, Dict, Any, Tuple, Optional
+from .entity_config_manager import EntityConfigManager
 
 logger = logging.getLogger(__name__)
 
 class AdvancedTextProcessor:
     """高级文本处理模块，提供智能分块、实体识别等功能"""
     
-    def __init__(self):
+    def __init__(self, config_file: str = "entity_config.json"):
+        # 初始化配置管理器
+        self.config_manager = EntityConfigManager(config_file)
+        
         # 初始化jieba中文分词器
         try:
             # 初始化jieba
@@ -181,7 +185,10 @@ class AdvancedTextProcessor:
         entities = []
         relationships = []
         
-        # 更精确的中文人名识别
+        # 1. 基于配置的自定义实体识别（重构）
+        entities.extend(self._extract_custom_entities(text))
+        
+        # 2. 更精确的中文人名识别
         # 常见中文姓氏（扩展列表）
         common_surnames = ['张', '王', '李', '赵', '刘', '陈', '杨', '黄', '周', '吴', '徐', '孙', '胡', '朱', '高', '林', '何', '郭', '马', '罗',
                           '梁', '宋', '郑', '谢', '韩', '唐', '冯', '于', '董', '萧', '程', '曹', '袁', '邓', '许', '傅', '沈', '曾', '彭', '吕']
@@ -192,13 +199,13 @@ class AdvancedTextProcessor:
         # 先找到所有可能的人名
         potential_names = []
         for match in re.finditer(name_pattern, text):
-            name = match.group(1)  # 获取第一个捕获组的内容
+            name = match.group(0).strip()  # 获取整个匹配的文本并去除空格
             # 检查是否在常见人名列表中，并且不是以"在"、"和"等词结尾
             if len(name) >= 2 and len(name) <= 3 and not name.endswith(('在', '和', '经', '于')):
                 potential_names.append({
                     'text': name,
-                    'start': match.start(1),
-                    'end': match.end(1)
+                    'start': match.start(),
+                    'end': match.end()
                 })
         
         # 去重并添加到实体列表
@@ -231,33 +238,33 @@ class AdvancedTextProcessor:
         # 改进的组织名识别
         org_keywords = ['公司', '集团', '企业', '机构', '组织', '大学', '学院', '医院', '学校', '研究所', '实验室', '中心', '部门', '局', '委员会']
         
-        # 组织名模式：2-6个汉字 + 组织关键词，使用更宽松的边界匹配
-        org_pattern = r'(?:^|\s)([\u4e00-\u9fff]{2,6}(' + '|'.join(org_keywords) + r'))(?=\s|$|[，。！？])'
+        # 组织名模式：1-8个汉字 + 组织关键词，使用更宽松的边界匹配
+        org_pattern = r'(?:^|\s)([\u4e00-\u9fff]{1,8}(' + '|'.join(org_keywords) + r'))(?=\s|$|[，。！？])'
         
         for match in re.finditer(org_pattern, text):
-            org_name = match.group(1)  # 获取第一个捕获组的内容
+            org_name = match.group(0).strip()  # 获取整个匹配的文本并去除空格
             # 过滤掉明显不是组织名的
             if not any(bad_word in org_name for bad_word in ['方向', '研究', '技术', '项目', '会议', '方法', '系统', '平台']):
                 entities.append({
                     "text": org_name,
                     "type": "ORG",
-                    "start_pos": match.start(1),
-                    "end_pos": match.end(1)
+                    "start_pos": match.start(),
+                    "end_pos": match.end()
                 })
         
         # 改进的地点识别
         location_keywords = ['省', '市', '区', '县', '街道', '路', '号', '村', '镇', '乡', '州', '盟', '旗', '自治州']
-        location_pattern = r'(?:^|\s)([\u4e00-\u9fff]{2,4}(' + '|'.join(location_keywords) + r'))(?=\s|$|[，。！？])'
+        location_pattern = r'(?:^|\s)([\u4e00-\u9fff]{1,6}(' + '|'.join(location_keywords) + r'))(?=\s|$|[，。！？])'
         
         for match in re.finditer(location_pattern, text):
-            location_name = match.group(1)  # 获取第一个捕获组的内容
+            location_name = match.group(0).strip()  # 获取整个匹配的文本并去除空格
             # 过滤掉明显不是地点的
             if not any(bad_word in location_name for bad_word in ['方向', '区域', '范围', '位置']):
                 entities.append({
                     "text": location_name,
                     "type": "LOC",
-                    "start_pos": match.start(1),
-                    "end_pos": match.end(1)
+                    "start_pos": match.start(),
+                    "end_pos": match.end()
                 })
         
         # 补充：基于常见组织名的精确匹配
@@ -335,6 +342,39 @@ class AdvancedTextProcessor:
         elif entity1['type'] == 'PERSON' and entity2['type'] == 'LOC':
             return '位于'
         
+        # 新增：专业术语相关关系
+        elif entity1['type'] in ['TECH', 'PRODUCT', 'CONCEPT'] and entity2['type'] in ['TECH', 'PRODUCT', 'CONCEPT']:
+            if '基于' in sentence or '使用' in sentence or '依赖' in sentence:
+                return '基于'
+            elif '包含' in sentence or '包括' in sentence or '集成' in sentence:
+                return '包含'
+            elif '替代' in sentence or '取代' in sentence or '替代品' in sentence:
+                return '替代'
+            elif '类似' in sentence or '相似' in sentence or '同类' in sentence:
+                return '类似'
+            
+        elif entity1['type'] == 'PERSON' and entity2['type'] in ['TECH', 'PRODUCT', 'CONCEPT']:
+            if '开发' in sentence or '发明' in sentence or '创建' in sentence:
+                return '开发'
+            elif '使用' in sentence or '应用' in sentence or '采用' in sentence:
+                return '使用'
+            elif '研究' in sentence or '探索' in sentence or '分析' in sentence:
+                return '研究'
+            
+        elif entity1['type'] == 'ORG' and entity2['type'] in ['TECH', 'PRODUCT', 'CONCEPT']:
+            if '开发' in sentence or '发布' in sentence or '推出' in sentence:
+                return '开发'
+            elif '使用' in sentence or '应用' in sentence or '采用' in sentence:
+                return '使用'
+            elif '支持' in sentence or '维护' in sentence or '提供' in sentence:
+                return '支持'
+            
+        elif entity1['type'] == 'EVENT' and entity2['type'] in ['TECH', 'PRODUCT', 'CONCEPT']:
+            if '讨论' in sentence or '介绍' in sentence or '展示' in sentence:
+                return '讨论'
+            elif '发布' in sentence or '宣布' in sentence or '推出' in sentence:
+                return '发布'
+        
         # 默认关系
         return '相关'
     
@@ -365,6 +405,102 @@ class AdvancedTextProcessor:
         # 返回前top_n个关键词
         top_keywords = word_freq.most_common(top_n)
         return [{"word": word, "frequency": freq} for word, freq in top_keywords]
+    
+    def _extract_custom_entities(self, text: str) -> List[Dict[str, Any]]:
+        """基于配置提取自定义实体（重构版本）"""
+        entities = []
+        seen_terms = set()
+        
+        # 1. 从词典中提取实体
+        entity_types = self.config_manager.get_entity_types()
+        
+        for entity_type, type_config in entity_types.items():
+            if not type_config.get('enabled', True):
+                continue
+                
+            # 提取词典中的术语
+            dictionary = self.config_manager.get_dictionary(entity_type)
+            for term in dictionary:
+                if term in text and term not in seen_terms:
+                    # 找到所有出现的位置
+                    for match in re.finditer(re.escape(term), text):
+                        entities.append({
+                            "text": term,
+                            "type": entity_type,
+                            "start_pos": match.start(),
+                            "end_pos": match.end(),
+                            "description": type_config.get('description', '自定义实体')
+                        })
+                        seen_terms.add(term)
+        
+        # 2. 使用正则表达式规则提取实体
+        extraction_rules = self.config_manager.get_extraction_rules()
+        
+        for rule in extraction_rules:
+            if not rule.get('enabled', True):
+                continue
+                
+            pattern = rule.get('pattern', '')
+            if not pattern:
+                continue
+                
+            try:
+                for match in re.finditer(pattern, text):
+                    term = match.group()
+                    if term not in seen_terms:
+                        # 确定实体类型
+                        entity_type = self._determine_entity_type_from_rule(rule, term)
+                        
+                        entities.append({
+                            "text": term,
+                            "type": entity_type,
+                            "start_pos": match.start(),
+                            "end_pos": match.end(),
+                            "description": rule.get('description', '规则提取的实体')
+                        })
+                        seen_terms.add(term)
+            except re.error as e:
+                logger.warning(f"正则表达式规则执行失败: {pattern}, 错误: {e}")
+        
+        # 去重（基于文本和位置）
+        unique_entities = []
+        seen_positions = set()
+        
+        for entity in entities:
+            pos_key = (entity['text'], entity['start_pos'], entity['end_pos'])
+            if pos_key not in seen_positions:
+                unique_entities.append(entity)
+                seen_positions.add(pos_key)
+        
+        logger.info(f"基于配置提取到 {len(unique_entities)} 个自定义实体")
+        return unique_entities
+    
+    def _determine_entity_type_from_rule(self, rule: Dict[str, Any], term: str) -> str:
+        """根据规则确定实体类型"""
+        # 如果规则中指定了实体类型，使用它
+        entity_type = rule.get('entity_type')
+        if entity_type and entity_type in self.config_manager.get_entity_types():
+            return entity_type
+        
+        # 否则根据规则名称推断
+        rule_name = rule.get('name', '').lower()
+        if 'person' in rule_name or '人名' in rule_name:
+            return 'PERSON'
+        elif 'org' in rule_name or '组织' in rule_name:
+            return 'ORG'
+        elif 'loc' in rule_name or '地点' in rule_name:
+            return 'LOC'
+        elif 'tech' in rule_name or '技术' in rule_name:
+            return 'TECH'
+        elif 'product' in rule_name or '产品' in rule_name:
+            return 'PRODUCT'
+        elif 'event' in rule_name or '事件' in rule_name:
+            return 'EVENT'
+        elif 'concept' in rule_name or '概念' in rule_name:
+            return 'CONCEPT'
+        
+        # 默认返回TECH
+        return 'TECH'
     
     def calculate_similarity(self, text1: str, text2: str) -> float:
         """计算文本相似度"""

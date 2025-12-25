@@ -3,18 +3,22 @@ import * as d3 from 'd3';
 import { request } from '../utils/apiUtils';
 import './KnowledgeGraph.css';
 
-const KnowledgeGraph = ({ documentId, textContent, width = 800, height = 600 }) => {
+const KnowledgeGraph = ({ documentId, textContent, graphData, width = 800, height = 600 }) => {
   const svgRef = useRef();
-  const [graphData, setGraphData] = useState(null);
+  const [internalGraphData, setInternalGraphData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   // 加载知识图谱数据
   useEffect(() => {
-    if (documentId || textContent) {
+    if (graphData) {
+      // 如果提供了graphData，直接使用
+      setInternalGraphData(graphData);
+    } else if (documentId || textContent) {
+      // 否则从API加载数据
       loadGraphData();
     }
-  }, [documentId, textContent]);
+  }, [documentId, textContent, graphData]);
 
   const loadGraphData = async () => {
     setLoading(true);
@@ -25,7 +29,7 @@ const KnowledgeGraph = ({ documentId, textContent, width = 800, height = 600 }) 
       
       if (documentId) {
         // 从文档ID获取知识图谱数据
-        data = await request(`/v1/knowledge-graph/document/${documentId}/entities`, {
+        data = await request(`/v1/knowledge-graph/documents/${documentId}/graph`, {
           method: 'GET'
         });
       } else if (textContent) {
@@ -36,7 +40,7 @@ const KnowledgeGraph = ({ documentId, textContent, width = 800, height = 600 }) 
         });
       }
       
-      setGraphData(data);
+      setInternalGraphData(data);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -46,26 +50,61 @@ const KnowledgeGraph = ({ documentId, textContent, width = 800, height = 600 }) 
 
   // 渲染知识图谱
   useEffect(() => {
-    if (!graphData || !svgRef.current) return;
+    // 使用internalGraphData作为主要数据源，如果外部提供了graphData则优先使用
+    const dataToRender = graphData || internalGraphData;
+    if (!dataToRender || !svgRef.current) return;
 
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove(); // 清空SVG
 
-    const { entities, relationships } = graphData;
+    // 确保dataToRender有必要的字段，兼容nodes/links和entities/relationships两种格式
+    const entities = dataToRender.nodes || dataToRender.entities || [];
+    const relationships = dataToRender.links || dataToRender.relationships || [];
+    
+    // 检查数据是否为空
+    if (entities.length === 0 && relationships.length === 0) {
+      // 显示空状态消息
+      svg.append("text")
+        .attr("x", width / 2)
+        .attr("y", height / 2)
+        .attr("text-anchor", "middle")
+        .attr("fill", "#999")
+        .text("暂无知识图谱数据");
+      return;
+    }
     
     // 预处理数据：为实体添加id和name字段
     const processedEntities = entities.map((entity, index) => ({
       ...entity,
-      id: index,
-      name: entity.text || entity.name || `实体${index}`
+      id: entity.id || `entity_${entity.entity_id || index}`,
+      name: entity.label || entity.text || entity.name || `实体${index}`
     }));
     
     // 预处理关系：确保source和target是对象引用
-    const processedRelationships = (relationships || []).map(rel => ({
-      ...rel,
-      source: processedEntities.find(e => e.text === rel.subject) || { id: -1 },
-      target: processedEntities.find(e => e.text === rel.object) || { id: -1 }
-    })).filter(rel => rel.source.id !== -1 && rel.target.id !== -1);
+    const entityMap = {};
+    processedEntities.forEach(entity => {
+      entityMap[entity.id] = entity;
+    });
+    
+    const processedRelationships = relationships.map(rel => {
+      let source = rel.source;
+      let target = rel.target;
+      
+      // 如果source/target是字符串ID，查找对应的实体对象
+      if (typeof source === 'string' || typeof source === 'number') {
+        source = entityMap[source] || null;
+      }
+      if (typeof target === 'string' || typeof target === 'number') {
+        target = entityMap[target] || null;
+      }
+      
+      return {
+        ...rel,
+        source,
+        target,
+        relation: rel.label || rel.relation || '相关'
+      };
+    }).filter(rel => rel.source && rel.target);
     
     // 创建力导向图模拟
     const simulation = d3.forceSimulation(processedEntities)
@@ -231,7 +270,10 @@ const KnowledgeGraph = ({ documentId, textContent, width = 800, height = 600 }) 
     );
   }
 
-  if (!graphData) {
+  // 使用internalGraphData作为主要数据源，如果外部提供了graphData则优先使用
+  const dataToRender = graphData || internalGraphData;
+  
+  if (!dataToRender) {
     return (
       <div className="knowledge-graph-empty">
         <div className="empty-icon">📊</div>
@@ -241,13 +283,43 @@ const KnowledgeGraph = ({ documentId, textContent, width = 800, height = 600 }) 
     );
   }
 
+  // 获取实际的实体类型
+  const getActualEntityTypes = () => {
+    if (!dataToRender) return [];
+    
+    const entities = dataToRender.nodes || dataToRender.entities || [];
+    const entityTypes = [...new Set(entities.map(entity => entity.type || entity.group || '未知'))];
+    
+    // 实体类型映射到中文显示名称
+    const typeMapping = {
+      'PERSON': '人物',
+      'ORG': '组织',
+      'ORGANIZATION': '组织',
+      'LOC': '地点',
+      'LOCATION': '地点',
+      'TECH': '技术术语',
+      'PRODUCT': '产品',
+      'EVENT': '事件',
+      'CONCEPT': '概念',
+      'DATE': '日期',
+      'MONEY': '金额',
+      '未知': '未知类型'
+    };
+    
+    return entityTypes.map(type => ({
+      type,
+      displayName: typeMapping[type] || type,
+      cssClass: type.toLowerCase()
+    }));
+  };
+
   return (
     <div className="knowledge-graph-container">
       <div className="graph-header">
         <h3>知识图谱</h3>
         <div className="graph-stats">
-          <span>实体: {graphData.entities?.length || 0}</span>
-          <span>关系: {graphData.relationships?.length || 0}</span>
+          <span>实体: {(dataToRender.entities || dataToRender.nodes || []).length || 0}</span>
+          <span>关系: {(dataToRender.relationships || dataToRender.links || []).length || 0}</span>
         </div>
         <div className="graph-controls">
           <button onClick={loadGraphData} className="refresh-btn">刷新</button>
@@ -256,26 +328,12 @@ const KnowledgeGraph = ({ documentId, textContent, width = 800, height = 600 }) 
       </div>
       
       <div className="graph-legend">
-        <div className="legend-item">
-          <span className="legend-color person"></span>
-          <span>人物</span>
-        </div>
-        <div className="legend-item">
-          <span className="legend-color organization"></span>
-          <span>组织</span>
-        </div>
-        <div className="legend-item">
-          <span className="legend-color location"></span>
-          <span>地点</span>
-        </div>
-        <div className="legend-item">
-          <span className="legend-color date"></span>
-          <span>日期</span>
-        </div>
-        <div className="legend-item">
-          <span className="legend-color money"></span>
-          <span>金额</span>
-        </div>
+        {getActualEntityTypes().map(entityType => (
+          <div key={entityType.type} className="legend-item">
+            <span className={`legend-color ${entityType.cssClass}`}></span>
+            <span>{entityType.displayName}</span>
+          </div>
+        ))}
       </div>
 
       <svg

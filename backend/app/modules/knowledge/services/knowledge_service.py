@@ -1,5 +1,6 @@
 import os
 import uuid
+import logging
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from fastapi import UploadFile, HTTPException
@@ -8,6 +9,8 @@ from app.modules.knowledge.models.knowledge_document import KnowledgeBase, Knowl
 from app.services.knowledge.document_parser import DocumentParser
 from app.services.knowledge.text_processor import KnowledgeTextProcessor
 from app.services.knowledge.retrieval_service import RetrievalService
+
+logger = logging.getLogger(__name__)
 
 class KnowledgeService:
     def __init__(self):
@@ -95,23 +98,16 @@ class KnowledgeService:
             with open(file_path, 'wb') as f:
                 f.write(content)
             
-            # 解析文档
-            text_content = self.document_parser.parse_document(file_path)
-            
-            # 处理文本
-            chunks = self.text_processor.process_document_text(text_content)
-            
             # 创建数据库记录
             document = KnowledgeDocument(
                 title=file.filename,
                 knowledge_base_id=knowledge_base_id,
                 file_path=file_path,
                 file_type=os.path.splitext(file.filename)[1].lower(),
-                content=text_content,  # 保存完整文本内容
+                content="",  # 初始为空，将在处理过程中填充
                 document_metadata={
                     "original_filename": file.filename,
                     "file_size": file.size,
-                    "chunks_count": len(chunks),
                     "knowledge_base_id": knowledge_base_id,
                     "knowledge_base_name": knowledge_base.name
                 }
@@ -121,26 +117,41 @@ class KnowledgeService:
             db.commit()
             db.refresh(document)
             
-            # 添加到向量索引（每个chunk作为一个文档）
-            try:
-                for i, chunk in enumerate(chunks):
-                    chunk_id = f"{document.id}_chunk_{i}"
-                    metadata = {
-                        "title": file.filename,
-                        "document_id": document.id,
-                        "chunk_index": i,
-                        "total_chunks": len(chunks)
-                    }
-                    self.retrieval_service.add_document_to_index(chunk_id, chunk, metadata)
+            # 使用DocumentProcessor进行完整文档处理（包括图谱化）
+            from app.services.knowledge.document_processor import DocumentProcessor
+            document_processor = DocumentProcessor()
+            
+            # 同步处理文档（因为异步处理在FastAPI中可能有问题）
+            processing_result = document_processor.process_document_sync(
+                file_path, 
+                document.file_type, 
+                document.id, 
+                db
+            )
+            
+            if processing_result.get("success"):
+                # 更新文档内容
+                document.content = processing_result.get("text", "")
+                document.document_metadata["chunks_count"] = len(processing_result.get("chunks", []))
+                document.document_metadata["entities_count"] = len(processing_result.get("entities", []))
+                document.document_metadata["relationships_count"] = len(processing_result.get("relationships", []))
+                document.document_metadata["graph_data_available"] = processing_result.get("graph_data") is not None
                 
                 # 更新向量ID
                 document.vector_id = f"doc_{document.id}"
                 db.commit()
-            except Exception as e:
-                # 向量索引失败，但文档仍然保存到数据库
-                print(f"向量索引失败，但文档已保存到数据库: {str(e)}")
+                
+                logger.info(f"文档处理完成，包含 {len(processing_result.get('chunks', []))} 个片段和 {len(processing_result.get('entities', []))} 个实体")
+                
+                if processing_result.get("graph_data"):
+                    logger.info(f"图谱化完成，构建了包含 {len(processing_result['graph_data'].get('nodes', []))} 个节点的知识图谱")
+            else:
+                # 处理失败，记录错误信息
+                error_msg = processing_result.get("error", "未知错误")
+                document.document_metadata["processing_error"] = error_msg
                 document.vector_id = None
                 db.commit()
+                logger.error(f"文档处理失败: {error_msg}")
             
             return document
             
@@ -322,8 +333,31 @@ class KnowledgeService:
                             file_path = temp_path
                             print(f"找到文件: {file_path}")
                         else:
-                            print(f"文档向量化失败: 文件 {document.file_path} 不存在")
-                            return False
+                            # 情况4: 尝试在uploads目录中查找匹配UUID前缀的文件
+                            # 这是针对中文特殊字符问题的修复
+                            upload_dir = os.path.join(backend_dir, "uploads")
+                            if os.path.exists(upload_dir):
+                                # 提取UUID前缀（文件名的前36个字符）
+                                original_filename = os.path.basename(file_path)
+                                if len(original_filename) >= 36 and original_filename[8] == '-':
+                                    uuid_prefix = original_filename[:36]
+                                    # 在uploads目录中查找以该UUID开头的文件
+                                    for filename in os.listdir(upload_dir):
+                                        if filename.startswith(uuid_prefix):
+                                            temp_path = os.path.join(upload_dir, filename)
+                                            if os.path.exists(temp_path):
+                                                file_path = temp_path
+                                                print(f"通过UUID前缀匹配找到文件: {file_path}")
+                                                break
+                                    else:
+                                        print(f"文档向量化失败: 文件 {document.file_path} 不存在")
+                                        return False
+                                else:
+                                    print(f"文档向量化失败: 文件 {document.file_path} 不存在")
+                                    return False
+                            else:
+                                print(f"文档向量化失败: 文件 {document.file_path} 不存在")
+                                return False
             
             print(f"开始向量化文档: {document.title} (ID: {document_id})")
             print(f"文件路径: {file_path}")
