@@ -396,3 +396,10 @@ backend/test_agent_parameter_management.py
 backend/tests/test_parameter_integration.py
 backend/tests/test_parameter_management.py
 dev_plan/parameter_management_optimization.md
+模型编辑对话框优化建议书.md
+test_complete_dimension_functionality.py
+test_dimension_isolation.py
+test_dimension_simple.py
+test_parameter_inheritance.py
+frontend/test-model-modal.html
+frontend/src/utils/testModelModal.js

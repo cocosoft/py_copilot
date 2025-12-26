@@ -91,6 +91,7 @@ const ModelCategoryManagement = () => {
   });
   const [parameterLoading, setParameterLoading] = useState(false);
   const [parameterError, setParameterError] = useState(null);
+  const [showParameterPanelModal, setShowParameterPanelModal] = useState(false); // 控制参数配置面板模态框
   
   // 获取所有分类
   const loadCategories = async () => {
@@ -405,6 +406,8 @@ const ModelCategoryManagement = () => {
       });
     }
     
+    // 关闭参数配置面板模态框，打开参数编辑模态框
+    setShowParameterPanelModal(false);
     setShowParameterModal(true);
   };
   
@@ -418,6 +421,11 @@ const ModelCategoryManagement = () => {
       parameter_type: 'string',
       description: ''
     });
+    
+    // 重新打开参数配置面板模态框
+    if (selectedCategoryForParams) {
+      setShowParameterPanelModal(true);
+    }
   };
   
   // 处理参数表单输入变化
@@ -478,7 +486,18 @@ const ModelCategoryManagement = () => {
       
       // 重新加载参数列表
       await loadCategoryParameters(selectedCategoryForParams.id);
+      
+      // 关闭模态框并重新打开参数配置面板模态框
       setShowParameterModal(false);
+      setEditingParameter(null);
+      setParameterFormData({
+        parameter_name: '',
+        parameter_value: '',
+        parameter_type: 'string',
+        description: ''
+      });
+      setShowParameterPanelModal(true);
+      
       setSuccess('参数配置成功');
       // 3秒后自动清除成功消息
       setTimeout(() => setSuccess(null), 3000);
@@ -515,6 +534,14 @@ const ModelCategoryManagement = () => {
     setSelectedCategoryForParams(category);
     // 加载分类参数
     loadCategoryParameters(category.id);
+    // 显示参数配置模态框
+    setShowParameterPanelModal(true);
+  };
+
+  // 关闭参数配置面板模态框
+  const handleCloseParameterPanelModal = () => {
+    setShowParameterPanelModal(false);
+    setSelectedCategoryForParams(null);
   };
 
   // 监听selectedCategoryForParams状态变化
@@ -959,70 +986,7 @@ const ModelCategoryManagement = () => {
         </div>
       )}
       
-      {/* 参数配置面板 */}
-      {selectedCategoryForParams && (
-        <div className="category-parameter-panel" style={{ marginTop: '20px', padding: '20px' }}>
-          <div className="parameter-panel-header">
-            <h3>{selectedCategoryForParams.display_name} - 参数配置</h3>
-            <button 
-              className="btn btn-primary btn-small"
-              onClick={() => handleOpenParameterModal(selectedCategoryForParams, 'add')}
-            >
-              添加参数
-            </button>
-          </div>
-          
-          {parameterLoading ? (
-            <div className="loading">加载中...</div>
-          ) : parameterError ? (
-            <div className="error-message">{parameterError}</div>
-          ) : (
-            <div className="parameter-table-container">
-              <table className="parameter-table">
-                <thead>
-                  <tr>
-                    <th>参数名称</th>
-                    <th>参数值</th>
-                    <th>参数类型</th>
-                    <th>描述</th>
-                    <th>操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {categoryParameters[selectedCategoryForParams.id]?.length > 0 ? (
-                    categoryParameters[selectedCategoryForParams.id].map((param, index) => (
-                      <tr key={index}>
-                        <td>{param.parameter_name}</td>
-                        <td>{param.parameter_value}</td>
-                        <td>{param.parameter_type}</td>
-                        <td>{param.description || '-'}</td>
-                        <td>
-                          <button 
-                            className="btn btn-small btn-warning mr-1"
-                            onClick={() => handleOpenParameterModal(selectedCategoryForParams, 'edit', param)}
-                          >
-                            编辑
-                          </button>
-                          <button 
-                            className="btn btn-small btn-danger"
-                            onClick={() => handleDeleteParameter(selectedCategoryForParams.id, param.parameter_name)}
-                          >
-                            删除
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="5" style={{ textAlign: 'center' }}>暂无参数配置</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
+
       
       {/* 参数配置模态框 */}
       {showParameterModal && selectedCategoryForParams && (
@@ -1092,6 +1056,78 @@ const ModelCategoryManagement = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 参数配置面板模态框 */}
+      {showParameterPanelModal && selectedCategoryForParams && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: '90%', maxWidth: '1200px', maxHeight: '80vh' }}>
+            <div className="modal-header">
+              <h3>{selectedCategoryForParams.display_name} - 参数配置</h3>
+              <button className="btn-close" onClick={handleCloseParameterPanelModal}>×</button>
+            </div>
+            <div className="modal-content" style={{ overflow: 'auto' }}>
+              <div className="parameter-panel-header" style={{ marginBottom: '20px' }}>
+                <button 
+                  className="btn btn-primary btn-small"
+                  onClick={() => handleOpenParameterModal(selectedCategoryForParams, 'add')}
+                >
+                  添加参数
+                </button>
+              </div>
+              
+              {parameterLoading ? (
+                <div className="loading">加载中...</div>
+              ) : parameterError ? (
+                <div className="error-message">{parameterError}</div>
+              ) : (
+                <div className="parameter-table-container">
+                  <table className="parameter-table">
+                    <thead>
+                      <tr>
+                        <th>参数名称</th>
+                        <th>参数值</th>
+                        <th>参数类型</th>
+                        <th>描述</th>
+                        <th>操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {categoryParameters[selectedCategoryForParams.id]?.length > 0 ? (
+                        categoryParameters[selectedCategoryForParams.id].map((param, index) => (
+                          <tr key={index}>
+                            <td>{param.parameter_name}</td>
+                            <td>{param.parameter_value}</td>
+                            <td>{param.parameter_type}</td>
+                            <td>{param.description || '-'}</td>
+                            <td>
+                              <button 
+                                className="btn btn-small btn-warning mr-1"
+                                onClick={() => handleOpenParameterModal(selectedCategoryForParams, 'edit', param)}
+                              >
+                                编辑
+                              </button>
+                              <button 
+                                className="btn btn-small btn-danger"
+                                onClick={() => handleDeleteParameter(selectedCategoryForParams.id, param.parameter_name)}
+                              >
+                                删除
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="5" style={{ textAlign: 'center' }}>暂无参数配置</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

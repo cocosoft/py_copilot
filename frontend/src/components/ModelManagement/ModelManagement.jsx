@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getImageUrl, DEFAULT_IMAGES } from '../../config/imageConfig';
-import ModelModal from './ModelModal';
+import ModelModalV2 from './ModelModalV2';
 import ModelParameterModal from './ModelParameterModal';
 import SupplierDetail from '../SupplierManagement/SupplierDetail';
 import ModelCapabilityAssociation from '../CapabilityManagement/ModelCapabilityAssociation';
@@ -404,23 +404,95 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
       setSaving(true);
       let savedModel;
       
+      // 处理新的ModelModalV2数据格式
+      const modelBasicData = {
+        model_id: modelData.model_id,
+        model_name: modelData.model_name,
+        description: modelData.description,
+        context_window: modelData.contextWindow || modelData.context_window,
+        max_tokens: modelData.maxTokens || modelData.max_tokens,
+        is_default: modelData.isDefault || modelData.is_default,
+        is_active: modelData.is_active !== false
+      };
+      
       // 保存模型基本信息
       if (modelModalMode === 'add') {
-        savedModel = await api.modelApi.create(selectedSupplier.id, { ...modelData, logo });
+        savedModel = await api.modelApi.create(selectedSupplier.id, { ...modelBasicData, logo });
         setSuccess('模型添加成功');
       } else {
-        savedModel = await api.modelApi.update(selectedSupplier.id, editingModel.id, { ...modelData, logo });
+        savedModel = await api.modelApi.update(selectedSupplier.id, editingModel.id, { ...modelBasicData, logo });
         setSuccess('模型更新成功');
       }
       
-      // 如果选择了参数模板，同步模型参数与模板
+      // 处理维度配置和分类关联（ModelModalV2新增功能）
+      if (modelData.dimensionConfigs && modelData.categoryAssociations) {
+        const modelId = savedModel.id || (modelModalMode === 'edit' ? editingModel.id : null);
+        
+        // 为每个维度配置添加模型到分类关联
+        for (const association of modelData.categoryAssociations) {
+          try {
+            await api.dimensionHierarchyApi.addModelToDimensionCategory(
+              modelId,
+              association.dimension,
+              association.category_id
+            );
+          } catch (err) {
+            console.warn(`添加模型到维度分类失败: ${association.dimension} - ${association.category_id}`, err);
+          }
+        }
+        
+        // 处理维度特定的参数模板（使用现有的参数管理API）
+        for (const [dimension, config] of Object.entries(modelData.dimensionConfigs)) {
+          if (config.selectedTemplate) {
+            try {
+              // 获取模板参数并应用到模型
+              const templateParams = await api.parameterTemplatesApi.getTemplateParameters(config.selectedTemplate);
+              
+              // 为每个参数创建模型参数
+              for (const param of templateParams) {
+                await api.modelApi.createParameter(
+                  selectedSupplier.id,
+                  modelId,
+                  {
+                    parameter_name: param.parameter_name,
+                    parameter_value: param.parameter_value,
+                    parameter_type: param.parameter_type,
+                    description: param.description,
+                    dimension: dimension
+                  },
+                  'model'
+                );
+              }
+            } catch (err) {
+              console.warn(`应用维度参数模板失败: ${dimension}`, err);
+            }
+          }
+        }
+      }
+      
+      // 兼容旧的数据格式：如果选择了参数模板，应用参数模板
       if (modelData.parameterTemplateId) {
-        await api.modelApi.syncModelParametersWithTemplate(
-          selectedSupplier.id, 
-          savedModel.id || (modelModalMode === 'edit' ? editingModel.id : null), 
-          modelData.parameterTemplateId
-        );
-        setSuccess('模型保存成功并与参数模板同步');
+        try {
+          const templateParams = await api.parameterTemplatesApi.getTemplateParameters(modelData.parameterTemplateId);
+          const modelId = savedModel.id || (modelModalMode === 'edit' ? editingModel.id : null);
+          
+          for (const param of templateParams) {
+            await api.modelApi.createParameter(
+              selectedSupplier.id,
+              modelId,
+              {
+                parameter_name: param.parameter_name,
+                parameter_value: param.parameter_value,
+                parameter_type: param.parameter_type,
+                description: param.description
+              },
+              'model'
+            );
+          }
+          setSuccess('模型保存成功并与参数模板同步');
+        } catch (err) {
+          console.warn('应用参数模板失败:', err);
+        }
       }
       
       await loadModels();
@@ -866,7 +938,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
       )}
 
       {/* 模型模态窗口 */}
-      <ModelModal
+      <ModelModalV2
         isOpen={isModelModalOpen}
         onClose={handleCloseModelModal}
         onSave={handleSaveModelData}

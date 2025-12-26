@@ -23,6 +23,14 @@ export { capabilityApi };
 import { conversationApi } from './api/conversationApi';
 export { conversationApi };
 
+// 从维度层次API模块导入
+import dimensionHierarchyApi from './api/dimensionHierarchyApi';
+export { dimensionHierarchyApi };
+
+// 从参数模板API模块导入
+import parameterTemplatesApi from './api/parameterTemplatesApi';
+export { parameterTemplatesApi };
+
 // 添加调试日志包装函数
 const withDebugLog = (apiModule, moduleName) => {
   const wrapped = {};
@@ -64,6 +72,8 @@ export default {
   categoryApi: withDebugLog(categoryApi, 'categoryApi'),
   capabilityApi: withDebugLog(capabilityApi, 'capabilityApi'),
   conversationApi: withDebugLog(conversationApi, 'conversationApi'),
+  dimensionHierarchyApi: withDebugLog(dimensionHierarchyApi, 'dimensionHierarchyApi'),
+  parameterTemplatesApi: withDebugLog(parameterTemplatesApi, 'parameterTemplatesApi'),
   getDefaultModel
 };
 

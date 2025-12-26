@@ -11,6 +11,7 @@ class ParameterTemplateBase(BaseModel):
     description: Optional[str] = Field(None, description="模板描述")
     parameters: Union[List[Dict[str, Any]], Dict[str, Any]] = Field(default_factory=list, description="参数配置")
     is_active: bool = Field(default=True, description="是否激活")
+    level: str = Field(default="system", description="模板层级：system|model_type|model|agent")
 
 
 class ParameterTemplateCreate(ParameterTemplateBase):

@@ -18,6 +18,7 @@ class ParameterTemplate(Base):
     description = Column(Text, nullable=True)
     parameters = Column(JSON, nullable=False)
     is_active = Column(Boolean, default=True)
+    level = Column(String(50), nullable=False, default="system")  # 模板层级：system|model_type|model|agent
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

@@ -15,16 +15,17 @@ class ParameterManager:
     """参数管理器，负责模型参数的继承、覆盖和合并逻辑"""
     
     @staticmethod
-    def get_model_parameters(db: Session, model_id: int) -> List[Dict[str, Any]]:
+    def get_model_parameters(db: Session, model_id: int, dimension: str = None) -> List[Dict[str, Any]]:
         """
-        获取模型的完整参数配置，包括继承自类型的默认参数和模型自身的参数
+        获取模型的完整参数配置，支持维度隔离的参数继承
         
         Args:
             db: 数据库会话
             model_id: 模型ID
+            dimension: 维度标识，如果提供则只返回该维度下的参数
             
         Returns:
-            合并后的完整参数配置列表，每个参数包含inherited字段
+            合并后的完整参数配置列表，每个参数包含inherited字段和dimension字段
         """
         # 获取模型信息
         model = db.query(ModelDB).filter(ModelDB.id == model_id).first()
@@ -34,13 +35,42 @@ class ParameterManager:
         # 基础参数列表
         parameters_list = []
         
-        # 1. 获取模型类型的默认参数
+        # 1. 获取模型在指定维度下的分类关联
+        model_categories = []
+        if dimension:
+            # 获取模型在指定维度下的所有分类
+            from app.models.model_category import ModelCategoryAssociation
+            associations = db.query(ModelCategoryAssociation).filter(
+                ModelCategoryAssociation.model_id == model_id
+            ).all()
+            
+            for association in associations:
+                category = db.query(ModelCategory).filter(
+                    ModelCategory.id == association.category_id,
+                    ModelCategory.dimension == dimension
+                ).first()
+                if category:
+                    model_categories.append(category)
+        else:
+            # 如果没有指定维度，获取所有分类
+            from app.models.model_category import ModelCategoryAssociation
+            associations = db.query(ModelCategoryAssociation).filter(
+                ModelCategoryAssociation.model_id == model_id
+            ).all()
+            
+            for association in associations:
+                category = db.query(ModelCategory).filter(
+                    ModelCategory.id == association.category_id
+                ).first()
+                if category:
+                    model_categories.append(category)
+        
+        # 2. 获取分类的默认参数（维度隔离）
         default_params_dict = {}
-        if model.model_type_id:
-            model_type = db.query(ModelCategory).filter(ModelCategory.id == model.model_type_id).first()
-            if model_type and model_type.default_parameters:
+        for category in model_categories:
+            if category and category.default_parameters:
                 # 处理默认参数（兼容不同的数据库JSON字段处理方式）
-                default_params = model_type.default_parameters
+                default_params = category.default_parameters
                 if isinstance(default_params, str):
                     import json
                     default_params = json.loads(default_params)
@@ -66,9 +96,12 @@ class ParameterManager:
                             "created_at": datetime.now(),
                             "updated_at": datetime.now(),
                             "inherited": True,
-                            "parameter_source": "model_type",
+                            "parameter_source": "model_category",
                             "is_default": True,
-                            "is_override": False
+                            "is_override": False,
+                            "dimension": category.dimension,
+                            "category_id": category.id,
+                            "category_name": category.name
                         })
                         default_params_dict[param_name] = param_value
                         temp_id_counter -= 1
@@ -86,14 +119,17 @@ class ParameterManager:
                             "created_at": datetime.now(),
                             "updated_at": datetime.now(),
                             "inherited": True,
-                            "parameter_source": "model_type",
+                            "parameter_source": "model_category",
                             "is_default": True,
-                            "is_override": False
+                            "is_override": False,
+                            "dimension": category.dimension,
+                            "category_id": category.id,
+                            "category_name": category.name
                         })
                         default_params_dict[param_name] = param_value
                         temp_id_counter -= 1
         
-        # 2. 获取模型自身的参数（覆盖类型默认参数）
+        # 3. 获取模型自身的参数（覆盖分类默认参数）
         model_params = db.query(ModelParameter).filter(ModelParameter.model_id == model_id).all()
         
         # 创建一个集合存储模型自身的参数名
@@ -118,86 +154,98 @@ class ParameterManager:
                 "inherited": False,
                 "parameter_source": param.parameter_source,
                 "is_default": param.is_default,
-                "is_override": param.is_override
+                "is_override": param.is_override,
+                "dimension": "model_specific"  # 模型特定参数不属于任何维度
             })
             
             model_param_names.add(param.parameter_name)
         
-        # 3. 如果模型自身的参数覆盖了默认参数，将默认参数标记为非继承
+        # 4. 如果模型自身的参数覆盖了默认参数，将默认参数标记为非继承
         for param in parameters_list:
             if param["inherited"] and param["parameter_name"] in model_param_names:
                 param["inherited"] = False
         
+        # 5. 如果指定了维度，过滤只返回该维度下的参数
+        if dimension:
+            parameters_list = [param for param in parameters_list 
+                             if param.get("dimension") == dimension or 
+                                param.get("dimension") == "model_specific"]
+        
         return parameters_list
     
     @staticmethod
-    def update_model_type_default_parameters(
+    def update_model_category_default_parameters(
         db: Session, 
-        model_type_id: int, 
+        category_id: int, 
         parameters: Dict[str, Any]
     ) -> Optional[ModelCategory]:
         """
-        更新模型类型的默认参数，并级联更新所有相关模型的继承参数
+        更新模型分类的默认参数，并级联更新所有关联模型的继承参数（维度隔离）
         
         Args:
             db: 数据库会话
-            model_type_id: 模型类型ID
+            category_id: 模型分类ID
             parameters: 要更新的默认参数
             
         Returns:
-            更新后的模型类型对象，或None
+            更新后的模型分类对象，或None
         """
-        model_type = db.query(ModelCategory).filter(ModelCategory.id == model_type_id).first()
-        if not model_type:
+        category = db.query(ModelCategory).filter(ModelCategory.id == category_id).first()
+        if not category:
             return None
         
         # 处理默认参数（兼容不同的数据库JSON字段处理方式）
-        if model_type.default_parameters is None:
+        if category.default_parameters is None:
             current_params = {}
-        elif isinstance(model_type.default_parameters, str):
-            current_params = json.loads(model_type.default_parameters)
+        elif isinstance(category.default_parameters, str):
+            current_params = json.loads(category.default_parameters)
         else:
-            current_params = model_type.default_parameters.copy()
+            current_params = category.default_parameters.copy()
             
         current_params.update(parameters)
-        model_type.default_parameters = current_params
+        category.default_parameters = current_params
         
-        # 为模型类型创建或更新类型级参数记录
+        # 为模型分类创建或更新分类级参数记录
         for param_name, param_value in parameters.items():
             param_type = type(param_value).__name__
             
-            # 检查类型级参数是否已存在
-            type_param = db.query(ModelParameter).filter(
+            # 检查分类级参数是否已存在
+            category_param = db.query(ModelParameter).filter(
                 ModelParameter.parameter_name == param_name,
-                ModelParameter.parameter_source == "model_type"
-                # 注意：由于inherit_from列不存在，暂时简化查询条件
-                # ModelParameter.inherit_from == f"model_type:{model_type_id}"
+                ModelParameter.parameter_source == "model_category"
             ).first()
             
-            if type_param:
-                # 更新现有类型级参数
-                type_param.parameter_value = str(param_value)
-                type_param.parameter_type = param_type
-                type_param.description = f"Default {param_type} parameter for {model_type.name}"
-                type_param.parameter_source = "model_type"
-                type_param.is_default = True
+            if category_param:
+                # 更新现有分类级参数
+                category_param.parameter_value = str(param_value)
+                category_param.parameter_type = param_type
+                category_param.description = f"Default {param_type} parameter for {category.name}"
+                category_param.parameter_source = "model_category"
+                category_param.is_default = True
             else:
-                # 创建新的类型级参数
-                type_param = ModelParameter(
+                # 创建新的分类级参数
+                category_param = ModelParameter(
                     parameter_name=param_name,
                     parameter_value=str(param_value),
                     parameter_type=param_type,
-                    description=f"Default {param_type} parameter for {model_type.name}",
-                    parameter_source="model_type",
+                    description=f"Default {param_type} parameter for {category.name}",
+                    parameter_source="model_category",
                     is_default=True
                 )
-                db.add(type_param)
+                db.add(category_param)
         
-        # 级联更新所有关联模型的继承参数
-        # 获取所有使用该模型类型的模型
-        models = db.query(ModelDB).filter(ModelDB.model_type_id == model_type_id).all()
+        # 级联更新所有关联模型的继承参数（维度隔离）
+        # 获取所有关联该分类的模型
+        from app.models.model_category import ModelCategoryAssociation
+        associations = db.query(ModelCategoryAssociation).filter(
+            ModelCategoryAssociation.category_id == category_id
+        ).all()
         
-        for model in models:
+        for association in associations:
+            model = db.query(ModelDB).filter(ModelDB.id == association.model_id).first()
+            if not model:
+                continue
+                
             # 获取模型的所有参数
             model_params = db.query(ModelParameter).filter(
                 ModelParameter.model_id == model.id
@@ -206,22 +254,20 @@ class ParameterManager:
             # 创建参数名称集合以便快速查找
             existing_param_names = set(p.parameter_name for p in model_params)
             
-            # 更新继承自模型类型的参数（仅更新未被覆盖的参数）
+            # 更新继承自模型分类的参数（仅更新未被覆盖的参数）
             for param_name, param_value in parameters.items():
                 param_type = type(param_value).__name__
                 
-                # 查找类型级参数作为父参数
+                # 查找分类级参数作为父参数
                 parent_param = db.query(ModelParameter).filter(
                     ModelParameter.parameter_name == param_name,
-                    ModelParameter.parameter_source == "model_type"
-                    # 注意：由于inherit_from列不存在，暂时简化查询条件
-                    # ModelParameter.inherit_from == f"model_type:{model_type_id}"
+                    ModelParameter.parameter_source == "model_category"
                 ).first()
                 
                 # 查找该模型中对应的继承参数
                 inherited_param = next((p for p in model_params 
                                      if p.parameter_name == param_name and 
-                                     p.parameter_source == "model_type" and 
+                                     p.parameter_source == "model_category" and 
                                      not p.is_override), None)
                 
                 if inherited_param:
@@ -236,55 +282,55 @@ class ParameterManager:
                         parameter_name=param_name,
                         parameter_value=str(param_value),
                         parameter_type=param_type,
-                        parameter_source="model_type",
+                        parameter_source="model_category",
                         is_override=False
                     )
                     db.add(new_param)
         
         db.commit()
-        db.refresh(model_type)
-        return model_type
+        db.refresh(category)
+        return category
     
     @staticmethod
     def cascade_update_parameters(
         db: Session,
-        source_type: str,  # 'model_type' 或 'model'
+        source_type: str,  # 'model_category' 或 'model'
         source_id: int,    # 来源ID
-        parameter_updates: Dict[str, Any]
+        parameter_updates: Dict[str, Any],
+        dimension: str = None  # 新增维度参数
     ) -> List[ModelParameter]:
         """
-        级联更新参数，支持从类型到模型的级联更新
+        级联更新参数，支持维度隔离的参数继承链
         
         Args:
             db: 数据库会话
-            source_type: 来源类型 ('model_type' 或 'model')
+            source_type: 来源类型 ('model_category' 或 'model')
             source_id: 来源ID
             parameter_updates: 参数更新字典 {参数名: 新值}
+            dimension: 维度标识，用于维度隔离
             
         Returns:
             更新的参数列表
         """
         updated_params = []
         
-        if source_type == 'model_type':
-            # 类型级参数更新，级联更新所有使用该类型的模型
-            model_type = db.query(ModelCategory).filter(ModelCategory.id == source_id).first()
-            if not model_type:
-                raise ValueError(f"模型类型ID {source_id} 不存在")
+        if source_type == 'model_category':
+            # 分类级参数更新，级联更新所有关联该分类的模型
+            category = db.query(ModelCategory).filter(ModelCategory.id == source_id).first()
+            if not category:
+                raise ValueError(f"模型分类ID {source_id} 不存在")
             
-            # 更新模型类型的默认参数
-            updated_model_type = ParameterManager.update_model_type_default_parameters(
+            # 更新模型分类的默认参数
+            updated_category = ParameterManager.update_model_category_default_parameters(
                 db, source_id, parameter_updates
             )
             
-            if updated_model_type:
+            if updated_category:
                 # 获取所有受影响的参数
                 for param_name in parameter_updates.keys():
                     param = db.query(ModelParameter).filter(
                         ModelParameter.parameter_name == param_name,
-                        ModelParameter.parameter_source == "model_type"
-                        # 注意：由于inherit_from列不存在，暂时简化查询条件
-                        # ModelParameter.inherit_from == f"model_type:{source_id}"
+                        ModelParameter.parameter_source == "model_category"
                     ).first()
                     if param:
                         updated_params.append(param)
@@ -347,6 +393,58 @@ class ParameterManager:
             db.commit()
         
         return updated_params
+    
+    @staticmethod
+    def get_parameters_by_dimension(db: Session, model_id: int, dimension: str) -> List[Dict[str, Any]]:
+        """
+        获取指定模型在特定维度下的参数配置
+        
+        Args:
+            db: 数据库会话
+            model_id: 模型ID
+            dimension: 维度标识
+            
+        Returns:
+            该维度下的参数配置列表
+        """
+        return ParameterManager.get_model_parameters(db, model_id, dimension)
+    
+    @staticmethod
+    def get_all_dimension_parameters(db: Session, model_id: int) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        获取模型在所有维度下的参数配置
+        
+        Args:
+            db: 数据库会话
+            model_id: 模型ID
+            
+        Returns:
+            按维度分组的参数配置字典
+        """
+        # 获取模型的所有维度
+        from app.models.model_category import ModelCategoryAssociation
+        associations = db.query(ModelCategoryAssociation).filter(
+            ModelCategoryAssociation.model_id == model_id
+        ).all()
+        
+        dimensions = set()
+        for association in associations:
+            category = db.query(ModelCategory).filter(ModelCategory.id == association.category_id).first()
+            if category and category.dimension:
+                dimensions.add(category.dimension)
+        
+        # 获取每个维度下的参数
+        result = {}
+        for dimension in dimensions:
+            result[dimension] = ParameterManager.get_model_parameters(db, model_id, dimension)
+        
+        # 添加模型特定参数（不属于任何维度）
+        model_specific_params = [param for param in ParameterManager.get_model_parameters(db, model_id) 
+                               if param.get("dimension") == "model_specific"]
+        if model_specific_params:
+            result["model_specific"] = model_specific_params
+        
+        return result
     
     @staticmethod
     def update_parameter_inheritance_chain(

@@ -108,7 +108,8 @@ const modelApi = {
       endpoint += `?level=${level}`;
     }
     
-    return request(endpoint, { method: 'GET' });
+    const response = await request(endpoint, { method: 'GET' });
+    return response.templates || [];
   },
 
   /**
@@ -227,11 +228,12 @@ const modelApi = {
 
   /**
    * 更新模型
+   * @param {number} supplierId - 供应商ID
    * @param {number} modelId - 模型ID
    * @param {object} modelData - 模型数据
    */
-  async update(modelId, modelData) {
-    return request(`/v1/model-management/models/${modelId}`, { method: 'PUT', body: JSON.stringify(modelData), headers: { 'Content-Type': 'application/json' } });
+  async update(supplierId, modelId, modelData) {
+    return request(`/v1/model-management/suppliers/${supplierId}/models/${modelId}`, { method: 'PUT', body: JSON.stringify(modelData), headers: { 'Content-Type': 'application/json' } });
   },
 
   /**

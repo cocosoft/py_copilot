@@ -556,6 +556,13 @@ async def update_model(
     if 'model_type' in update_data:
         del update_data['model_type']
     
+    # 确保logo字段不会是对象类型，不管是否有文件上传
+    if "logo" in update_data:
+        if isinstance(update_data["logo"], dict):
+            del update_data["logo"]
+        elif not isinstance(update_data["logo"], str):
+            del update_data["logo"]
+    
     # 保存logo文件（如果有）
     if logo:
         logo_filename = await save_upload_file(logo)
@@ -568,8 +575,11 @@ async def update_model(
             ModelDB.id != model_id
         ).update({ModelDB.is_default: False})
     
+    # 过滤掉不应该直接保存到模型表的复杂字段
+    model_fields = [c.key for c in ModelDB.__table__.columns]
     for field, value in update_data.items():
-        setattr(model, field, value)
+        if field in model_fields:
+            setattr(model, field, value)
     
     try:
         db.commit()

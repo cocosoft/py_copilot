@@ -221,12 +221,13 @@ def delete_parameter_template(
             detail="参数模板不存在"
         )
     
-    # 检查是否有子模板
-    child_templates = db.query(ParameterTemplate).filter(ParameterTemplate.parent_id == template_id).count()
-    if child_templates > 0:
+    # 检查是否有模型关联该模板
+    from app.models.supplier_db import ModelDB
+    associated_models = db.query(ModelDB).filter(ModelDB.parameter_template_id == template_id).count()
+    if associated_models > 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="该模板存在子模板，无法删除"
+            detail="该模板已被模型使用，无法删除"
         )
     
     db.delete(template)
