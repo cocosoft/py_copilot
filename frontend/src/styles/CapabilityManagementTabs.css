@@ -50,6 +50,135 @@
   min-height: calc(100vh - 160px);
 }
 
+/* 能力类型相关样式 */
+.capability-management-tabs .types-panel {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.capability-management-tabs .panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e4e7ed;
+}
+
+.capability-management-tabs .panel-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #303133;
+}
+
+.capability-management-tabs .capability-types-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.capability-management-tabs .capability-type-card {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #e8f0fe;
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.3s ease;
+}
+
+.capability-management-tabs .capability-type-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  border-color: #3498db;
+}
+
+.capability-management-tabs .type-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.capability-management-tabs .type-header h4 {
+  margin: 0;
+  font-size: 16px;
+  color: #2c3e50;
+  text-transform: capitalize;
+}
+
+.capability-management-tabs .type-count {
+  background-color: #e8f4fd;
+  color: #3498db;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.capability-management-tabs .type-capabilities {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.capability-management-tabs .type-capabilities li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.capability-management-tabs .type-capabilities li:last-child {
+  border-bottom: none;
+}
+
+.capability-management-tabs .cap-name {
+  font-size: 14px;
+  color: #34495e;
+}
+
+.capability-management-tabs .cap-status {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.capability-management-tabs .cap-status.active {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.capability-management-tabs .cap-status.inactive {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.capability-management-tabs .more-items {
+  color: #6c757d;
+  font-style: italic;
+  font-size: 13px;
+  justify-content: center;
+  padding-top: 10px;
+}
+
+.capability-management-tabs .empty-state {
+  text-align: center;
+  padding: 40px 0;
+  color: #6c757d;
+  font-style: italic;
+}
+
+.capability-management-tabs .loading-state {
+  text-align: center;
+  padding: 40px 0;
+  color: #6c757d;
+  font-style: italic;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
   .sub-tab-navigation {
@@ -66,5 +195,9 @@
   .sub-tab-content {
     padding: 15px;
     min-height: calc(100vh - 140px);
+  }
+  
+  .capability-management-tabs .capability-types-grid {
+    grid-template-columns: 1fr;
   }
 }
