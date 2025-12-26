@@ -1,5 +1,5 @@
 """供应商和模型数据库模型"""
-from sqlalchemy import Column, Integer, String, Boolean, Text, ForeignKey, DateTime, func
+from sqlalchemy import Column, Integer, String, Boolean, Text, ForeignKey, DateTime, func, JSON
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 from app.core.encryption import encrypt_string, decrypt_string
@@ -14,18 +14,17 @@ class SupplierDB(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), unique=True, index=True)
-    display_name = Column(String(200))  # 新增display_name字段，与name保持一致
+    display_name = Column(String(200))
     description = Column(Text, nullable=True)
     api_endpoint = Column(String(255), nullable=True)
     api_key_required = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    # 新增字段
-    logo = Column(String(255), nullable=True)  # Logo存储路径或URL，现在可选
+    logo = Column(String(255), nullable=True)
     category = Column(String(100), nullable=True)
     website = Column(String(255), nullable=True)
     api_docs = Column(String(255), nullable=True)
-    _api_key = Column("api_key", String(255), nullable=True)  # 实际存储加密后的API密钥
+    _api_key = Column("api_key", String(255), nullable=True)
     is_active = Column(Boolean, default=True)
     
     @property

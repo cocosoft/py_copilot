@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './agent.css';
 import { createAgent, getAgents, deleteAgent, getPublicAgents, getRecommendedAgents, updateAgent } from '../services/agentService';
 import { createAgentCategory, getAgentCategories, updateAgentCategory, deleteAgentCategory, getAgentCategoryTree } from '../services/agentCategoryService';
+import AgentParameterManagement from '../components/ModelManagement/AgentParameterManagement';
 
 const Agent = () => {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -23,6 +24,10 @@ const Agent = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalAgents, setTotalAgents] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+
+  // 参数管理视图状态
+  const [showParameterManagement, setShowParameterManagement] = useState(false);
+  const [selectedAgentForParams, setSelectedAgentForParams] = useState(null);
 
   // 分类相关状态
   const [agentCategories, setAgentCategories] = useState([]);
@@ -155,7 +160,23 @@ const Agent = () => {
   // 测试智能体
   const handleTestAgent = async (agent) => {
     alert(`测试智能体: ${agent.name}`);
-    // 这里可以添加实际的测试逻辑，例如打开测试窗口或导航到测试页面
+  };
+
+  // 打开参数管理
+  const handleManageParameters = (agent) => {
+    setSelectedAgentForParams(agent);
+    setShowParameterManagement(true);
+  };
+
+  // 返回智能体列表
+  const handleBackToAgentList = () => {
+    setShowParameterManagement(false);
+    setSelectedAgentForParams(null);
+  };
+
+  // 刷新智能体数据
+  const handleRefreshAgent = () => {
+    fetchAgents();
   };
 
   // 处理分类切换
@@ -499,6 +520,12 @@ const Agent = () => {
                       编辑
                     </button>
                     <button
+                      className="param-btn"
+                      onClick={() => handleManageParameters(agent)}
+                    >
+                      参数
+                    </button>
+                    <button
                       className="del-btn"
                       onClick={() => handleDeleteAgent(agent.id)}
                     >
@@ -807,6 +834,15 @@ const Agent = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* 参数管理视图 */}
+      {showParameterManagement && selectedAgentForParams && (
+        <AgentParameterManagement
+          agent={selectedAgentForParams}
+          onBack={handleBackToAgentList}
+          onRefreshAgent={handleRefreshAgent}
+        />
       )}
     </div>
   );

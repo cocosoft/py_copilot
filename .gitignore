@@ -391,3 +391,8 @@ backend/fix_document_chunks.py
 frontend/public/knowledges/
 test_path_fix.py
 backend/clean_knowledge_base.py
+dev_plan/parameter_management_optimization.md
+backend/test_agent_parameter_management.py
+backend/tests/test_parameter_integration.py
+backend/tests/test_parameter_management.py
+dev_plan/parameter_management_optimization.md

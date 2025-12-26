@@ -41,7 +41,9 @@ async def text_completion(
             n=request.n,
             stop=request.stop,
             frequency_penalty=request.frequency_penalty,
-            presence_penalty=request.presence_penalty
+            presence_penalty=request.presence_penalty,
+            db=db,
+            agent_id=request.agent_id
         )
         
         # 记录请求历史
@@ -102,7 +104,8 @@ async def chat_completion(
             stop=request.stop,
             frequency_penalty=request.frequency_penalty,
             presence_penalty=request.presence_penalty,
-            db=db
+            db=db,
+            agent_id=request.agent_id
         )
         
         # 记录请求历史

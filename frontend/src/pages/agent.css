@@ -722,6 +722,14 @@
   background-color: #c0392b !important;
 }
 
+.param-btn {
+  background-color: #9b59b6 !important;
+}
+
+.param-btn:hover {
+  background-color: #8e44ad !important;
+}
+
 .more-btn {
   background: none;
   border: 1px solid #e1e8ed;

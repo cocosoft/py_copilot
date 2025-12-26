@@ -34,5 +34,8 @@ class Agent(Base):
     # 与对话的关系
     conversations = relationship("Conversation", back_populates="agent", cascade="all, delete-orphan")
     
+    # 与参数的关系
+    parameters = relationship("AgentParameter", back_populates="agent", cascade="all, delete-orphan")
+    
     def __repr__(self):
         return f"<Agent(id={self.id}, name='{self.name}')>"

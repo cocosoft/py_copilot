@@ -8,6 +8,7 @@ from app.services.model_query_service import model_query_service
 from app.models.supplier_db import SupplierDB as ModelSupplier
 from app.services.search_management_service import SearchManagementService
 from app.services.web_search_service import WebSearchService
+from app.services.parameter_management.parameter_passing_service import ParameterPassingService
 
 # 导入自定义日志配置
 from app.core.logging_config import logger
@@ -134,17 +135,48 @@ class LLMService:
         self,
         prompt: str,
         model_name: Optional[str] = None,
-        max_tokens: int = 1000,
-        temperature: float = 0.7,
+        max_tokens: int = None,
+        temperature: float = None,
         top_p: float = 1.0,
         n: int = 1,
         stop: Optional[List[str]] = None,
-        frequency_penalty: float = 0.0,
-        presence_penalty: float = 0.0
+        frequency_penalty: float = None,
+        presence_penalty: float = None,
+        db: Optional[Any] = None,
+        agent_id: Optional[int] = None
     ) -> Dict[str, Any]:
-        """文本补全功能 - 简化版本"""
+        """文本补全功能 - 集成参数管理系统，支持从智能体配置中获取参数"""
         start_time = time.time()
         model = model_name or self.default_model
+        
+        if db and agent_id:
+            logger.info(f"从参数管理系统获取agent_id={agent_id}的配置")
+            param_kwargs = ParameterPassingService.get_text_completion_kwargs(
+                db=db,
+                agent_id=agent_id,
+                model_name=model_name,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                top_p=top_p,
+                frequency_penalty=frequency_penalty,
+                presence_penalty=presence_penalty
+            )
+            
+            model = param_kwargs.get("model_name", model)
+            max_tokens = param_kwargs.get("max_tokens", max_tokens)
+            temperature = param_kwargs.get("temperature", temperature)
+            top_p = param_kwargs.get("top_p", top_p)
+            frequency_penalty = param_kwargs.get("frequency_penalty", frequency_penalty)
+            presence_penalty = param_kwargs.get("presence_penalty", presence_penalty)
+        
+        if max_tokens is None:
+            max_tokens = 1000
+        if temperature is None:
+            temperature = 0.7
+        if frequency_penalty is None:
+            frequency_penalty = 0.0
+        if presence_penalty is None:
+            presence_penalty = 0.0
         
         try:
             # 检查是否有openai模块
@@ -207,24 +239,58 @@ class LLMService:
         self,
         messages: List[Dict[str, str]],
         model_name: Optional[str] = None,
-        max_tokens: int = 1000,
-        temperature: float = 0.7,
-        top_p: float = 1.0,
+        max_tokens: int = None,
+        temperature: float = None,
+        top_p: float = None,
         n: int = 1,
         stop: Optional[List[str]] = None,
-        frequency_penalty: float = 0.0,
-        presence_penalty: float = 0.0,
-        db: Optional[Any] = None
+        frequency_penalty: float = None,
+        presence_penalty: float = None,
+        db: Optional[Any] = None,
+        agent_id: Optional[int] = None
     ) -> Dict[str, Any]:
-        """聊天补全功能 - 支持OpenAI和DeepSeek模型，优先使用数据库中的模型配置"""
+        """聊天补全功能 - 支持OpenAI和DeepSeek模型，优先使用数据库中的模型配置
+           集成参数管理系统，支持从智能体配置中获取参数
+        """
         start_time = time.time()
         
-        # 添加详细的调试日志
         logger.info(f"chat_completion方法调用开始")
-        logger.info(f"参数: model_name={model_name}, db={db is not None}")
+        logger.info(f"参数: model_name={model_name}, agent_id={agent_id}, db={db is not None}")
         logger.info(f"messages: {messages}")
         
-        # 优先从数据库获取默认模型
+        if db and agent_id:
+            logger.info(f"从参数管理系统获取agent_id={agent_id}的配置")
+            param_kwargs = ParameterPassingService.get_chat_completion_kwargs(
+                db=db,
+                agent_id=agent_id,
+                model_name=model_name,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                top_p=top_p,
+                frequency_penalty=frequency_penalty,
+                presence_penalty=presence_penalty
+            )
+            
+            model_name = param_kwargs.get("model_name", model_name)
+            max_tokens = param_kwargs.get("max_tokens", max_tokens)
+            temperature = param_kwargs.get("temperature", temperature)
+            top_p = param_kwargs.get("top_p", top_p)
+            frequency_penalty = param_kwargs.get("frequency_penalty", frequency_penalty)
+            presence_penalty = param_kwargs.get("presence_penalty", presence_penalty)
+            
+            logger.info(f"从参数管理系统获取的参数: model_name={model_name}, temperature={temperature}, max_tokens={max_tokens}")
+        
+        if max_tokens is None:
+            max_tokens = 1000
+        if temperature is None:
+            temperature = 0.7
+        if top_p is None:
+            top_p = 1.0
+        if frequency_penalty is None:
+            frequency_penalty = 0.0
+        if presence_penalty is None:
+            presence_penalty = 0.0
+        
         if not model_name and db:
             logger.info(f"没有提供model_name，尝试从数据库获取默认模型")
             default_model = model_query_service.get_default_model(db, "chat")

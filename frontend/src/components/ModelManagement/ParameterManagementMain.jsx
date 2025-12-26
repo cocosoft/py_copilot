@@ -9,7 +9,7 @@ const ParameterManagementMain = ({ selectedSupplier, onBack, selectedModel }) =>
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [parameters, setParameters] = useState([]);
-  const [selectedLevel, setSelectedLevel] = useState('supplier'); // 系统/供应商/模型类型/模型能力/模型/代理
+  const [selectedLevel, setSelectedLevel] = useState('model_type'); // 模型类型/模型/代理
   const [selectedParameterTemplate, setSelectedParameterTemplate] = useState(null);
   const [parameterTemplates, setParameterTemplates] = useState([]); // 参数模板列表
   const [isParameterModalOpen, setIsParameterModalOpen] = useState(false);
@@ -30,19 +30,15 @@ const ParameterManagementMain = ({ selectedSupplier, onBack, selectedModel }) =>
   const [editingTemplate, setEditingTemplate] = useState(null);
   // 模板搜索和过滤状态
   const [templateSearchTerm, setTemplateSearchTerm] = useState('');
-  const [templateFilterLevel, setTemplateFilterLevel] = useState('');
   // 参数版本控制相关状态
   const [isVersionHistoryModalOpen, setIsVersionHistoryModalOpen] = useState(false);
   const [selectedParameterForVersion, setSelectedParameterForVersion] = useState(null);
   const [parameterVersions, setParameterVersions] = useState([]);
   const [versionHistoryLoading, setVersionHistoryLoading] = useState(false);
 
-  // 层级选项
+  // 层级选项 - 更新后只包含保留的参数级别
   const levelOptions = [
-    { value: 'system', label: '系统级别' },
-    { value: 'supplier', label: '供应商级别' },
     { value: 'model_type', label: '模型类型级别' },
-    { value: 'model_capability', label: '模型能力级别' },
     { value: 'model', label: '模型级别' },
     { value: 'agent', label: '代理级别' }
   ];
@@ -55,21 +51,9 @@ const ParameterManagementMain = ({ selectedSupplier, onBack, selectedModel }) =>
       let params = [];
       
       switch (selectedLevel) {
-        case 'supplier':
-          if (selectedSupplier) {
-            params = await api.modelApi.getParameters(selectedSupplier.id, null, 'supplier');
-          } else {
-            // 没有选择供应商时，显示空数据
-            params = [];
-          }
-          break;
         case 'model_type':
           // 加载模型类型参数模板
           params = await api.modelApi.getParameters(selectedSupplier?.id || null, null, 'model_type');
-          break;
-        case 'model_capability':
-          // 加载模型能力参数模板
-          params = await api.modelApi.getParameters(selectedSupplier?.id || null, null, 'model_capability');
           break;
         case 'model':
           // 加载模型参数模板
@@ -84,14 +68,17 @@ const ParameterManagementMain = ({ selectedSupplier, onBack, selectedModel }) =>
           params = await api.modelApi.getParameters(selectedSupplier?.id || null, null, 'agent');
           break;
         default:
-          // 加载系统参数模板
-          params = await api.modelApi.getParameters(null, null, 'system');
+          // 默认加载模型类型参数模板
+          params = await api.modelApi.getParameters(selectedSupplier?.id || null, null, 'model_type');
       }
       
-      setParameters(params);
+      // 确保params是一个数组，如果API返回的是对象，提取data属性
+      const parametersArray = Array.isArray(params) ? params : (params?.data || params?.parameters || []);
+      setParameters(parametersArray);
     } catch (err) {
       console.error('加载参数模板失败:', err);
       setError('加载参数模板失败，请重试');
+      setParameters([]); // 出错时设置为空数组
     } finally {
       setLoading(false);
     }
@@ -293,14 +280,8 @@ const ParameterManagementMain = ({ selectedSupplier, onBack, selectedModel }) =>
   // 获取继承来源的显示名称
   const getInheritanceSourceName = (sourceType, sourceId) => {
     switch (sourceType) {
-      case 'system':
-        return '系统默认';
-      case 'supplier':
-        return selectedSupplier?.name || '供应商';
       case 'model_type':
         return '模型类型';
-      case 'model_capability':
-        return '模型能力';
       case 'model':
         return '模型';
       case 'agent':
@@ -310,81 +291,44 @@ const ParameterManagementMain = ({ selectedSupplier, onBack, selectedModel }) =>
     }
   };
 
-  // 模拟继承树数据
+  // 模拟继承树数据 - 更新后只包含保留的参数级别
   const getMockInheritanceTree = () => {
     return {
-      level: 'system',
-      name: '系统级别',
+      level: 'model_type',
+      name: '聊天模型',
       parameters: [
-        { id: 'sys-param-1', parameter_name: 'max_tokens', parameter_value: 1000, parameter_type: 'integer', inherited: false, override: false },
-        { id: 'sys-param-2', parameter_name: 'temperature', parameter_value: 0.5, parameter_type: 'float', inherited: false, override: false },
-        { id: 'sys-param-3', parameter_name: 'top_p', parameter_value: 0.9, parameter_type: 'float', inherited: false, override: false }
+        { id: 'mt-param-1', parameter_name: 'max_tokens', parameter_value: 3000, parameter_type: 'integer', inherited: false, override: false },
+        { id: 'mt-param-2', parameter_name: 'temperature', parameter_value: 0.7, parameter_type: 'float', inherited: false, override: false },
+        { id: 'mt-param-3', parameter_name: 'top_p', parameter_value: 0.95, parameter_type: 'float', inherited: false, override: false },
+        { id: 'mt-param-4', parameter_name: 'stop_sequences', parameter_value: '["\n", "\n\n"]', parameter_type: 'array', inherited: false, override: false },
+        { id: 'mt-param-5', parameter_name: 'chat_history_window', parameter_value: 10, parameter_type: 'integer', inherited: false, override: false }
       ],
       children: [
         {
-          level: 'supplier',
-          name: selectedSupplier?.name || '供应商',
+          level: 'model',
+          name: 'GPT-4',
           parameters: [
-            { id: 'sup-param-1', parameter_name: 'max_tokens', parameter_value: 2000, parameter_type: 'integer', inherited: true, override: true, source: 'system' },
-            { id: 'sup-param-2', parameter_name: 'temperature', parameter_value: 0.6, parameter_type: 'float', inherited: true, override: true, source: 'system' },
-            { id: 'sup-param-3', parameter_name: 'top_p', parameter_value: 0.95, parameter_type: 'float', inherited: true, override: true, source: 'system' },
-            { id: 'sup-param-4', parameter_name: 'stop_sequences', parameter_value: '["\n"]', parameter_type: 'array', inherited: false, override: false }
+            { id: 'md-param-1', parameter_name: 'max_tokens', parameter_value: 8000, parameter_type: 'integer', inherited: true, override: true, source: 'model_type' },
+            { id: 'md-param-2', parameter_name: 'temperature', parameter_value: 0.7, parameter_type: 'float', inherited: true, override: true, source: 'model_type' },
+            { id: 'md-param-3', parameter_name: 'top_p', parameter_value: 0.95, parameter_type: 'float', inherited: true, override: false, source: 'model_type' },
+            { id: 'md-param-4', parameter_name: 'stop_sequences', parameter_value: '["\n", "\n\n"]', parameter_type: 'array', inherited: true, override: false, source: 'model_type' },
+            { id: 'md-param-5', parameter_name: 'chat_history_window', parameter_value: 15, parameter_type: 'integer', inherited: true, override: true, source: 'model_type' },
+            { id: 'md-param-6', parameter_name: 'response_format', parameter_value: 'json', parameter_type: 'string', inherited: true, override: false, source: 'model_type' },
+            { id: 'md-param-7', parameter_name: 'function_calling', parameter_value: 'auto', parameter_type: 'string', inherited: false, override: false }
           ],
           children: [
             {
-              level: 'model_type',
-              name: '聊天模型',
+              level: 'agent',
+              name: '客服代理',
               parameters: [
-                { id: 'mt-param-1', parameter_name: 'max_tokens', parameter_value: 3000, parameter_type: 'integer', inherited: true, override: true, source: 'supplier' },
-                { id: 'mt-param-2', parameter_name: 'temperature', parameter_value: 0.7, parameter_type: 'float', inherited: true, override: true, source: 'supplier' },
-                { id: 'mt-param-3', parameter_name: 'top_p', parameter_value: 0.95, parameter_type: 'float', inherited: true, override: false, source: 'supplier' },
-                { id: 'mt-param-4', parameter_name: 'stop_sequences', parameter_value: '["\n", "\n\n"]', parameter_type: 'array', inherited: true, override: true, source: 'supplier' },
-                { id: 'mt-param-5', parameter_name: 'chat_history_window', parameter_value: 10, parameter_type: 'integer', inherited: false, override: false }
-              ],
-              children: [
-                {
-                  level: 'model_capability',
-                  name: '文本生成',
-                  parameters: [
-                    { id: 'mc-param-1', parameter_name: 'max_tokens', parameter_value: 4000, parameter_type: 'integer', inherited: true, override: true, source: 'model_type' },
-                    { id: 'mc-param-2', parameter_name: 'temperature', parameter_value: 0.8, parameter_type: 'float', inherited: true, override: true, source: 'model_type' },
-                    { id: 'mc-param-3', parameter_name: 'top_p', parameter_value: 0.95, parameter_type: 'float', inherited: true, override: false, source: 'model_type' },
-                    { id: 'mc-param-4', parameter_name: 'stop_sequences', parameter_value: '["\n", "\n\n"]', parameter_type: 'array', inherited: true, override: false, source: 'model_type' },
-                    { id: 'mc-param-5', parameter_name: 'chat_history_window', parameter_value: 10, parameter_type: 'integer', inherited: true, override: false, source: 'model_type' },
-                    { id: 'mc-param-6', parameter_name: 'response_format', parameter_value: 'json', parameter_type: 'string', inherited: false, override: false }
-                  ],
-                  children: [
-                    {
-                      level: 'model',
-                      name: 'GPT-4',
-                      parameters: [
-                        { id: 'md-param-1', parameter_name: 'max_tokens', parameter_value: 8000, parameter_type: 'integer', inherited: true, override: true, source: 'model_capability' },
-                        { id: 'md-param-2', parameter_name: 'temperature', parameter_value: 0.7, parameter_type: 'float', inherited: true, override: true, source: 'model_capability' },
-                        { id: 'md-param-3', parameter_name: 'top_p', parameter_value: 0.95, parameter_type: 'float', inherited: true, override: false, source: 'model_capability' },
-                        { id: 'md-param-4', parameter_name: 'stop_sequences', parameter_value: '["\n", "\n\n"]', parameter_type: 'array', inherited: true, override: false, source: 'model_capability' },
-                        { id: 'md-param-5', parameter_name: 'chat_history_window', parameter_value: 15, parameter_type: 'integer', inherited: true, override: true, source: 'model_capability' },
-                        { id: 'md-param-6', parameter_name: 'response_format', parameter_value: 'json', parameter_type: 'string', inherited: true, override: false, source: 'model_capability' },
-                        { id: 'md-param-7', parameter_name: 'function_calling', parameter_value: 'auto', parameter_type: 'string', inherited: false, override: false }
-                      ],
-                      children: [
-                        {
-                          level: 'agent',
-                          name: '客服代理',
-                          parameters: [
-                            { id: 'ag-param-1', parameter_name: 'max_tokens', parameter_value: 6000, parameter_type: 'integer', inherited: true, override: true, source: 'model' },
-                            { id: 'ag-param-2', parameter_name: 'temperature', parameter_value: 0.3, parameter_type: 'float', inherited: true, override: true, source: 'model' },
-                            { id: 'ag-param-3', parameter_name: 'top_p', parameter_value: 0.9, parameter_type: 'float', inherited: true, override: true, source: 'model' },
-                            { id: 'ag-param-4', parameter_name: 'stop_sequences', parameter_value: '["\n", "\n\n"]', parameter_type: 'array', inherited: true, override: false, source: 'model' },
-                            { id: 'ag-param-5', parameter_name: 'chat_history_window', parameter_value: 15, parameter_type: 'integer', inherited: true, override: false, source: 'model' },
-                            { id: 'ag-param-6', parameter_name: 'response_format', parameter_value: 'json', parameter_type: 'string', inherited: true, override: false, source: 'model' },
-                            { id: 'ag-param-7', parameter_name: 'function_calling', parameter_value: 'auto', parameter_type: 'string', inherited: true, override: false, source: 'model' },
-                            { id: 'ag-param-8', parameter_name: 'custom_greeting', parameter_value: '您好，有什么可以帮助您的？', parameter_type: 'string', inherited: false, override: false }
-                          ]
-                        }
-                      ]
-                    }
-                  ]
-                }
+                { id: 'ag-param-1', parameter_name: 'max_tokens', parameter_value: 6000, parameter_type: 'integer', inherited: true, override: true, source: 'model' },
+                { id: 'ag-param-2', parameter_name: 'temperature', parameter_value: 0.3, parameter_type: 'float', inherited: true, override: true, source: 'model' },
+                { id: 'ag-param-3', parameter_name: 'top_p', parameter_value: 0.9, parameter_type: 'float', inherited: true, override: true, source: 'model' },
+                { id: 'ag-param-4', parameter_name: 'stop_sequences', parameter_value: '["\n", "\n\n"]', parameter_type: 'array', inherited: true, override: false, source: 'model' },
+                { id: 'ag-param-5', parameter_name: 'chat_history_window', parameter_value: 15, parameter_type: 'integer', inherited: true, override: false, source: 'model' },
+                { id: 'ag-param-6', parameter_name: 'response_format', parameter_value: 'json', parameter_type: 'string', inherited: true, override: false, source: 'model' },
+                { id: 'ag-param-7', parameter_name: 'function_calling', parameter_value: 'auto', parameter_type: 'string', inherited: true, override: false, source: 'model' },
+                { id: 'ag-param-8', parameter_name: 'custom_greeting', parameter_value: '您好，有什么可以帮助您的？', parameter_type: 'string', inherited: false, override: false }
               ]
             }
           ]
@@ -497,33 +441,8 @@ const ParameterManagementMain = ({ selectedSupplier, onBack, selectedModel }) =>
       setLoading(true);
       setError(null);
       
-      // 根据当前层级获取可用的模板
-      let templateLevel;
-      switch (selectedLevel) {
-        case 'system':
-          templateLevel = 'system'; // 系统级使用系统级模板
-          break;
-        case 'supplier':
-          templateLevel = 'system'; // 供应商级使用系统级模板
-          break;
-        case 'model_type':
-          templateLevel = 'supplier'; // 模型类型级使用供应商级模板
-          break;
-        case 'model_capability':
-          templateLevel = 'model_type'; // 模型能力级使用模型类型级模板
-          break;
-        case 'model':
-          templateLevel = 'model_capability'; // 模型级使用模型能力级模板
-          break;
-        case 'agent':
-          templateLevel = 'model'; // 代理级使用模型级模板
-          break;
-        default:
-          templateLevel = 'system';
-      }
-      
-      // 无论是否有selectedSupplier，都可以加载参数模板
-      const templates = await api.modelApi.getParameterTemplates(templateLevel);
+      // 获取所有参数模板
+      const templates = await api.modelApi.getParameterTemplates();
       // 确保parameterTemplates始终是一个数组
       setParameterTemplates(Array.isArray(templates) ? templates : []);
     } catch (err) {
@@ -558,32 +477,12 @@ const ParameterManagementMain = ({ selectedSupplier, onBack, selectedModel }) =>
       // 根据当前层级调用不同的API
       let result;
       switch (selectedLevel) {
-        case 'system':
-          // 系统级参数模板应用
-          result = await api.modelApi.applyParameterTemplate(null, null, selectedParameterTemplate);
-          break;
-        case 'supplier':
-          if (!selectedSupplier) {
-            setError('请先选择供应商');
-            return;
-          }
-          // 供应商级参数模板应用
-          result = await api.modelApi.applyParameterTemplate(selectedSupplier.id, null, selectedParameterTemplate);
-          break;
         case 'model_type':
           if (!selectedSupplier) {
             setError('请先选择供应商');
             return;
           }
           // 模型类型级参数模板应用
-          result = await api.modelApi.applyParameterTemplate(selectedSupplier.id, null, selectedParameterTemplate);
-          break;
-        case 'model_capability':
-          if (!selectedSupplier) {
-            setError('请先选择供应商');
-            return;
-          }
-          // 模型能力级参数模板应用
           result = await api.modelApi.applyParameterTemplate(selectedSupplier.id, null, selectedParameterTemplate);
           break;
         case 'model':
@@ -682,11 +581,19 @@ const ParameterManagementMain = ({ selectedSupplier, onBack, selectedModel }) =>
       setSaving(true);
       setError(null);
       
+      // 转换数据格式为后端期望的格式
+      const formattedData = {
+        name: templateData.template_name,
+        description: templateData.description,
+        parameters: templateData.parameters,
+        is_active: true
+      };
+      
       if (templateModalMode === 'add') {
-        await api.modelApi.createParameterTemplate(templateData);
+        await api.modelApi.createParameterTemplate(formattedData);
         setSuccess('参数模板创建成功');
       } else {
-        await api.modelApi.updateParameterTemplate(editingTemplate.id, templateData);
+        await api.modelApi.updateParameterTemplate(editingTemplate.id, formattedData);
         setSuccess('参数模板更新成功');
       }
       
@@ -834,13 +741,10 @@ const ParameterManagementMain = ({ selectedSupplier, onBack, selectedModel }) =>
           <h3>{levelOptions.find(option => option.value === selectedLevel)?.label}参数模板</h3>
           <div className="template-actions">
             {/* 参数模板选择和应用 */}
-            {((selectedLevel === 'system') || 
-              (selectedSupplier && 
-               (selectedLevel === 'supplier' || 
-                selectedLevel === 'model_type' || 
-                selectedLevel === 'model_capability' || 
-                selectedLevel === 'model' || 
-                selectedLevel === 'agent'))) && 
+            {selectedSupplier && 
+             (selectedLevel === 'model_type' || 
+              selectedLevel === 'model' || 
+              selectedLevel === 'agent') && 
              parameterTemplates.length > 0 && (
               <div className="template-selection">
                 <select
@@ -886,7 +790,7 @@ const ParameterManagementMain = ({ selectedSupplier, onBack, selectedModel }) =>
           </div>
         </div>
 
-        {/* 模板搜索和过滤 */}
+        {/* 模板搜索 */}
         <div className="template-filters">
           <div className="search-input-container">
             <input
@@ -897,21 +801,6 @@ const ParameterManagementMain = ({ selectedSupplier, onBack, selectedModel }) =>
               className="search-input"
               disabled={loading}
             />
-          </div>
-          <div className="filter-select-container">
-            <select
-              value={templateFilterLevel}
-              onChange={(e) => setTemplateFilterLevel(e.target.value)}
-              className="filter-select"
-              disabled={loading}
-            >
-              <option value="">所有级别</option>
-              {levelOptions.map(option => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
           </div>
         </div>
         
@@ -927,14 +816,7 @@ const ParameterManagementMain = ({ selectedSupplier, onBack, selectedModel }) =>
             if (templateSearchTerm.trim()) {
               const searchTerm = templateSearchTerm.toLowerCase().trim();
               filteredTemplates = filteredTemplates.filter(template => 
-                template.template_name?.toLowerCase().includes(searchTerm)
-              );
-            }
-            
-            // 按级别过滤
-            if (templateFilterLevel) {
-              filteredTemplates = filteredTemplates.filter(template => 
-                template.template_level === templateFilterLevel
+                template.name?.toLowerCase().includes(searchTerm)
               );
             }
             
@@ -949,18 +831,16 @@ const ParameterManagementMain = ({ selectedSupplier, onBack, selectedModel }) =>
                     <table className="templates-table">
                       <thead>
                         <tr>
-                          <th>模板名称</th>
-                          <th>模板级别</th>
-                          <th>参数数量</th>
-                          <th>描述</th>
-                          <th>操作</th>
-                        </tr>
+                      <th>模板名称</th>
+                      <th>参数数量</th>
+                      <th>描述</th>
+                      <th>操作</th>
+                    </tr>
                       </thead>
                       <tbody>
                         {filteredTemplates.map((template) => (
                     <tr key={template.id}>
-                      <td>{template.template_name || `模板 ${template.id}`}</td>
-                      <td>{levelOptions.find(opt => opt.value === template.template_level)?.label}</td>
+                      <td>{template.name || `模板 ${template.id}`}</td>
                       <td>{template.parameters?.length || 0}</td>
                       <td>{template.description || '-'}</td>
                       <td>

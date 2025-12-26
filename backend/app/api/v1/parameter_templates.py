@@ -18,7 +18,6 @@ from app.schemas.parameter_template import (
 )
 
 from app.services.parameter_management.parameter_manager import ParameterManager
-from app.services.parameter_management.system_parameter_manager import SystemParameterManager
 from app.services.parameter_management.parameter_normalizer import ParameterNormalizer
 
 # 创建模拟用户类用于测试
@@ -95,8 +94,6 @@ def create_parameter_template(
 def get_parameter_templates(
     skip: int = 0,
     limit: int = 100,
-    level: Optional[str] = None,
-    level_id: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: MockUser = Depends(get_mock_user)
 ) -> Any:
@@ -106,8 +103,6 @@ def get_parameter_templates(
     Args:
         skip: 跳过的记录数
         limit: 返回的最大记录数
-        level: 筛选特定层级的模板
-        level_id: 筛选特定层级ID的模板
         db: 数据库会话
         current_user: 当前用户
         
@@ -115,12 +110,6 @@ def get_parameter_templates(
         参数模板列表
     """
     query = db.query(ParameterTemplate)
-    
-    # 应用筛选条件
-    if level:
-        query = query.filter(ParameterTemplate.level == level)
-    if level_id:
-        query = query.filter(ParameterTemplate.level_id == level_id)
     
     templates = query.offset(skip).limit(limit).all()
     total = query.count()
@@ -256,7 +245,7 @@ def get_parameter_templates_by_level(
     获取指定层级的所有参数模板
     
     Args:
-        level: 模板层级（system|supplier|model_type|model_capability|model|agent）
+        level: 模板层级（model_type|model|agent）
         skip: 跳过的记录数
         limit: 返回的最大记录数
         db: 数据库会话
@@ -266,7 +255,7 @@ def get_parameter_templates_by_level(
         指定层级的参数模板列表
     """
     # 验证层级参数的有效性
-    valid_levels = ["system", "supplier", "model_type", "model_capability", "model", "agent"]
+    valid_levels = ["model_type", "model", "agent"]
     if level not in valid_levels:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -297,8 +286,8 @@ def get_parameter_templates_by_level_and_id(
     获取指定层级和ID的参数模板
     
     Args:
-        level: 模板层级（system|supplier|model_type|model_capability|model|agent）
-        level_id: 层级特定ID（如供应商ID、模型ID等）
+        level: 模板层级（model_type|model|agent）
+        level_id: 层级特定ID（如模型类型ID、模型ID等）
         skip: 跳过的记录数
         limit: 返回的最大记录数
         db: 数据库会话
@@ -308,7 +297,7 @@ def get_parameter_templates_by_level_and_id(
         指定层级和ID的参数模板列表
     """
     # 验证层级参数的有效性
-    valid_levels = ["system", "supplier", "model_type", "model_capability", "model", "agent"]
+    valid_levels = ["model_type", "model", "agent"]
     if level not in valid_levels:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -383,232 +372,7 @@ def get_merged_parameters(
     )
 
 
-@router.get("/suppliers/{supplier_id}/models/{model_id}/parameter-template", response_model=ParameterTemplateResponse)
-def get_model_parameter_template(
-    supplier_id: int,
-    model_id: int,
-    db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
-) -> Any:
-    """
-    获取与特定模型关联的参数模板
-    
-    Args:
-        supplier_id: 供应商ID
-        model_id: 模型ID
-        db: 数据库会话
-        current_user: 当前用户
-        
-    Returns:
-        与模型关联的参数模板
-    """
-    from app.models.supplier_db import ModelDB
-    
-    # 验证模型是否存在
-    model = db.query(ModelDB).filter(
-        ModelDB.id == model_id,
-        ModelDB.supplier_id == supplier_id
-    ).first()
-    if not model:
-        raise HTTPException(status_code=404, detail="模型不存在")
-    
-    # 获取与模型关联的参数模板
-    template = db.query(ParameterTemplate).filter(
-        ParameterTemplate.level == "model",
-        ParameterTemplate.level_id == model_id
-    ).first()
-    
-    if not template:
-        raise HTTPException(status_code=404, detail="该模型未关联任何参数模板")
-    
-    return template
 
-
-@router.post("/suppliers/{supplier_id}/models/{model_id}/parameter-template", response_model=ParameterTemplateLinkResponse)
-def link_model_to_template(
-    supplier_id: int,
-    model_id: int,
-    link_data: ParameterTemplateLinkRequest,
-    db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
-) -> Any:
-    """
-    将模型与参数模板关联
-    
-    Args:
-        supplier_id: 供应商ID
-        model_id: 模型ID
-        link_data: 关联数据（包含template_id）
-        db: 数据库会话
-        current_user: 当前用户
-        
-    Returns:
-        关联结果
-    """
-    from app.models.supplier_db import ModelDB
-    
-    # 验证模型是否存在
-    model = db.query(ModelDB).filter(
-        ModelDB.id == model_id,
-        ModelDB.supplier_id == supplier_id
-    ).first()
-    if not model:
-        raise HTTPException(status_code=404, detail="模型不存在")
-    
-    # 验证参数模板是否存在
-    template = db.query(ParameterTemplate).filter(
-        ParameterTemplate.id == link_data.template_id,
-        ParameterTemplate.level == "model"
-    ).first()
-    if not template:
-        raise HTTPException(status_code=404, detail="模型参数模板不存在")
-    
-    # 更新参数模板的level_id为model_id
-    template.level_id = model_id
-    
-    try:
-        db.commit()
-        return ParameterTemplateLinkResponse(
-            success=True,
-            message="模型与参数模板关联成功",
-            model_id=model_id,
-            supplier_id=supplier_id,
-            template_id=link_data.template_id
-        )
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"关联失败: {str(e)}"
-        )
-
-
-@router.put("/suppliers/{supplier_id}/models/{model_id}/parameter-template", response_model=ParameterTemplateLinkResponse)
-def update_model_template_association(
-    supplier_id: int,
-    model_id: int,
-    link_data: ParameterTemplateLinkRequest,
-    db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
-) -> Any:
-    """
-    更新模型与参数模板的关联关系
-    
-    Args:
-        supplier_id: 供应商ID
-        model_id: 模型ID
-        link_data: 关联数据（包含template_id）
-        db: 数据库会话
-        current_user: 当前用户
-        
-    Returns:
-        关联结果
-    """
-    from app.models.supplier_db import ModelDB
-    
-    # 验证模型是否存在
-    model = db.query(ModelDB).filter(
-        ModelDB.id == model_id,
-        ModelDB.supplier_id == supplier_id
-    ).first()
-    if not model:
-        raise HTTPException(status_code=404, detail="模型不存在")
-    
-    # 验证参数模板是否存在
-    template = db.query(ParameterTemplate).filter(
-        ParameterTemplate.id == link_data.template_id,
-        ParameterTemplate.level == "model"
-    ).first()
-    if not template:
-        raise HTTPException(status_code=404, detail="模型参数模板不存在")
-    
-    # 查找并更新该模型的所有参数模板关联
-    existing_templates = db.query(ParameterTemplate).filter(
-        ParameterTemplate.level == "model",
-        ParameterTemplate.level_id == model_id
-    ).all()
-    
-    # 清除现有关联
-    for existing_template in existing_templates:
-        existing_template.level_id = None
-    
-    # 更新新模板的level_id为model_id
-    template.level_id = model_id
-    
-    try:
-        db.commit()
-        return ParameterTemplateLinkResponse(
-            success=True,
-            message="模型与参数模板关联更新成功",
-            model_id=model_id,
-            supplier_id=supplier_id,
-            template_id=link_data.template_id
-        )
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"关联更新失败: {str(e)}"
-        )
-
-
-@router.post("/suppliers/{supplier_id}/models/{model_id}/apply-parameter-template", response_model=ParameterTemplateLinkResponse)
-def apply_parameter_template(
-    supplier_id: int,
-    model_id: int,
-    link_data: ParameterTemplateLinkRequest,
-    db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
-) -> Any:
-    """
-    将参数模板应用到模型，并同步参数到ModelParameter表
-    
-    Args:
-        supplier_id: 供应商ID
-        model_id: 模型ID
-        link_data: 应用数据（包含template_id）
-        db: 数据库会话
-        current_user: 当前用户
-        
-    Returns:
-        应用结果
-    """
-    from app.models.supplier_db import ModelDB
-    
-    # 验证模型是否存在
-    model = db.query(ModelDB).filter(
-        ModelDB.id == model_id,
-        ModelDB.supplier_id == supplier_id
-    ).first()
-    if not model:
-        raise HTTPException(status_code=404, detail="模型不存在")
-    
-    try:
-        # 应用参数模板到模型
-        updated_model = ParameterManager.apply_parameter_template_to_model(
-            db=db,
-            model_id=model_id,
-            template_id=link_data.template_id
-        )
-        
-        return ParameterTemplateLinkResponse(
-            success=True,
-            message="参数模板应用成功，参数已同步到模型",
-            model_id=model_id,
-            supplier_id=supplier_id,
-            template_id=link_data.template_id
-        )
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"应用失败: {str(e)}"
-        )
 
 
 @router.post("/suppliers/{supplier_id}/models/{model_id}/parameters/convert", response_model=Dict[str, Any])
@@ -942,131 +706,4 @@ def sync_model_parameters(
         )
 
 
-# 系统参数管理接口
-@router.get("/system/parameter-templates", response_model=ParameterTemplateListResponse)
-def get_system_parameter_templates(
-    skip: int = 0,
-    limit: int = 100,
-    db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
-) -> Any:
-    """
-    获取系统级参数模板列表
-    
-    Args:
-        skip: 跳过的记录数
-        limit: 返回的最大记录数
-        db: 数据库会话
-        current_user: 当前用户
-        
-    Returns:
-        系统级参数模板列表
-    """
-    templates = SystemParameterManager.get_system_parameter_templates(db, skip=skip, limit=limit)
-    return ParameterTemplateListResponse(
-        templates=templates,
-        total=len(templates)
-    )
 
-
-@router.get("/system/parameter-templates/active", response_model=Optional[ParameterTemplateResponse])
-def get_active_system_parameter_template(
-    db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
-) -> Any:
-    """
-    获取当前激活的系统级参数模板
-    
-    Args:
-        db: 数据库会话
-        current_user: 当前用户
-        
-    Returns:
-        当前激活的系统级参数模板，或None
-    """
-    template = SystemParameterManager.get_active_system_parameter_template(db)
-    return template
-
-
-@router.post("/system/parameter-templates/{template_id}/activate", response_model=ParameterTemplateResponse)
-def activate_system_parameter_template(
-    template_id: int,
-    db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
-) -> Any:
-    """
-    激活系统级参数模板
-    
-    Args:
-        template_id: 参数模板ID
-        db: 数据库会话
-        current_user: 当前用户
-        
-    Returns:
-        激活的系统级参数模板
-    """
-    try:
-        template = SystemParameterManager.activate_system_parameter_template(db, template_id)
-        return template
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
-
-
-@router.get("/system/parameters", response_model=List[Dict[str, Any]])
-def get_system_parameters(
-    db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
-) -> Any:
-    """
-    获取当前系统参数配置
-    
-    Args:
-        db: 数据库会话
-        current_user: 当前用户
-        
-    Returns:
-        当前系统参数配置列表
-    """
-    return SystemParameterManager.get_system_parameters(db)
-
-
-@router.put("/system/parameters/{param_name}", response_model=ParameterTemplateResponse)
-def update_system_parameter(
-    param_name: str,
-    param_value: Any,
-    param_type: str = "string",
-    description: str = "",
-    db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
-) -> Any:
-    """
-    更新单个系统参数
-    
-    Args:
-        param_name: 参数名称
-        param_value: 参数值
-        param_type: 参数类型
-        description: 参数描述
-        db: 数据库会话
-        current_user: 当前用户
-        
-    Returns:
-        更新后的系统参数模板
-    """
-    try:
-        template = SystemParameterManager.update_system_parameter(
-            db=db,
-            param_name=param_name,
-            param_value=param_value,
-            param_type=param_type,
-            description=description
-        )
-        return template
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )

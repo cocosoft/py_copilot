@@ -9,11 +9,7 @@ class ParameterTemplateBase(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
     name: str = Field(..., min_length=1, max_length=200, description="模板名称")
     description: Optional[str] = Field(None, description="模板描述")
-    level: str = Field(..., pattern="^(system|supplier|model_type|model_capability|model|agent)$", description="模板层级")
-    parent_id: Optional[int] = Field(None, description="父模板ID")
-    level_id: Optional[int] = Field(None, description="层级特定ID")
     parameters: Union[List[Dict[str, Any]], Dict[str, Any]] = Field(default_factory=list, description="参数配置")
-    version: str = Field(default="1.0.0", description="模板版本")
     is_active: bool = Field(default=True, description="是否激活")
 
 
@@ -26,11 +22,7 @@ class ParameterTemplateUpdate(BaseModel):
     """更新参数模板请求模型"""
     name: Optional[str] = Field(None, min_length=1, max_length=200, description="模板名称")
     description: Optional[str] = Field(None, description="模板描述")
-    level: Optional[str] = Field(None, pattern="^(system|supplier|model_type|model_capability|model|agent)$", description="模板层级")
-    parent_id: Optional[int] = Field(None, description="父模板ID")
-    level_id: Optional[int] = Field(None, description="层级特定ID")
     parameters: Optional[Union[List[Dict[str, Any]], Dict[str, Any]]] = Field(None, description="参数配置")
-    version: Optional[str] = Field(None, description="模板版本")
     is_active: Optional[bool] = Field(None, description="是否激活")
 
 

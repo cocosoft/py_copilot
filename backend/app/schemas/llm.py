@@ -19,6 +19,7 @@ class LLMTextCompletionRequest(LLMRequest):
     stop: Optional[List[str]] = None
     frequency_penalty: float = Field(default=0.0, ge=-2.0, le=2.0)
     presence_penalty: float = Field(default=0.0, ge=-2.0, le=2.0)
+    agent_id: Optional[int] = None
 
 
 class LLMMessage(BaseModel):
@@ -38,6 +39,7 @@ class LLMChatCompletionRequest(BaseModel):
     stop: Optional[List[str]] = None
     frequency_penalty: float = Field(default=0.0, ge=-2.0, le=2.0)
     presence_penalty: float = Field(default=0.0, ge=-2.0, le=2.0)
+    agent_id: Optional[int] = None
 
 
 class LLMResponse(BaseModel):

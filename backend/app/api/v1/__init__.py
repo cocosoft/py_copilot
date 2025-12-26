@@ -22,6 +22,7 @@ from app.modules.knowledge.api.knowledge import router as knowledge_router
 from app.modules.knowledge.api.knowledge_graph_api import router as knowledge_graph_router
 from app.modules.knowledge.api.entity_config_api import router as entity_config_router
 from app.modules.workflow.api.workflow import router as workflow_router
+from app.api.v1.agent_parameters import router as agent_parameters_router
 from app.api.v1.search_management import router as search_management_router
 from app.api.v1.supplier_model import router as supplier_model_v1_router
 
@@ -51,6 +52,7 @@ api_router.include_router(model_categories_router, tags=["model-categories"])
 # 再注册category_router作为备用（如果有冲突，前者会优先匹配）
 api_router.include_router(category_router, tags=["category"])
 api_router.include_router(agents_router, prefix="/agents", tags=["agents"])
+api_router.include_router(agent_parameters_router, prefix="/agents", tags=["agent-parameters"])
 api_router.include_router(agent_categories_router, prefix="/agent-categories", tags=["agent-categories"])
 api_router.include_router(knowledge_router, prefix="/knowledge", tags=["knowledge"])
 api_router.include_router(knowledge_graph_router, prefix="/knowledge-graph", tags=["knowledge-graph"])

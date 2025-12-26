@@ -17,7 +17,6 @@ export default defineConfig(({ mode }) => {
             target: apiBaseUrl,
             changeOrigin: true,
             secure: false,
-            rewrite: (path) => path.replace(/^\/api/, ''),
             configure: (proxy, options) => {
               proxy.on('error', (err, req, res) => {
                 console.log('proxy error', err);

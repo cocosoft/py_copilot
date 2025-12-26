@@ -48,25 +48,50 @@ class ParameterManager:
                 # 添加默认参数到列表中，标记为继承
                 from datetime import datetime
                 temp_id_counter = -1  # 为默认参数生成临时负ID
-                for param_name, param_value in default_params.items():
-                    parameters_list.append({
-                        "id": temp_id_counter,  # 使用临时负ID
-                        "parameter_name": param_name,
-                        "parameter_value": str(param_value),
-                        "parameter_type": "string",  # 默认类型
-                        "default_value": param_value,
-                        "description": "",
-                        "is_required": False,
-                        "model_id": model_id,
-                        "created_at": datetime.now(),  # 添加当前时间
-                        "updated_at": datetime.now(),  # 添加当前时间
-                        "inherited": True,
-                        "parameter_source": "model_type",
-                        "is_default": True,
-                        "is_override": False
-                    })
-                    default_params_dict[param_name] = param_value
-                    temp_id_counter -= 1
+                
+                # 兼容列表和字典两种格式
+                if isinstance(default_params, list):
+                    for param in default_params:
+                        param_name = param.get("name")
+                        param_value = param.get("default_value", param.get("value"))
+                        parameters_list.append({
+                            "id": temp_id_counter,
+                            "parameter_name": param_name,
+                            "parameter_value": str(param_value),
+                            "parameter_type": param.get("type", "string"),
+                            "default_value": param_value,
+                            "description": param.get("description", ""),
+                            "is_required": param.get("is_required", False),
+                            "model_id": model_id,
+                            "created_at": datetime.now(),
+                            "updated_at": datetime.now(),
+                            "inherited": True,
+                            "parameter_source": "model_type",
+                            "is_default": True,
+                            "is_override": False
+                        })
+                        default_params_dict[param_name] = param_value
+                        temp_id_counter -= 1
+                elif isinstance(default_params, dict):
+                    for param_name, param_value in default_params.items():
+                        parameters_list.append({
+                            "id": temp_id_counter,
+                            "parameter_name": param_name,
+                            "parameter_value": str(param_value),
+                            "parameter_type": "string",
+                            "default_value": param_value,
+                            "description": "",
+                            "is_required": False,
+                            "model_id": model_id,
+                            "created_at": datetime.now(),
+                            "updated_at": datetime.now(),
+                            "inherited": True,
+                            "parameter_source": "model_type",
+                            "is_default": True,
+                            "is_override": False
+                        })
+                        default_params_dict[param_name] = param_value
+                        temp_id_counter -= 1
         
         # 2. 获取模型自身的参数（覆盖类型默认参数）
         model_params = db.query(ModelParameter).filter(ModelParameter.model_id == model_id).all()
@@ -1398,16 +1423,12 @@ class ParameterManager:
             parameter_name: 参数名称
             
         Returns:
-            参数继承树结构，包含system, supplier, model_type, model_capability, model, agent等层级
+            参数继承树结构，包含model_type, model, agent等层级
         """
         # 获取模型信息
         model = db.query(ModelDB).filter(ModelDB.id == model_id).first()
         if not model:
             return {}  # 返回空结构
-        
-        # 获取供应商信息
-        supplier = model.supplier
-        supplier_name = supplier.name if supplier else "未知供应商"
         
         # 获取模型类型信息
         model_type = model.model_type
@@ -1415,50 +1436,18 @@ class ParameterManager:
         
         # 构建继承树结构
         inheritance_tree = {
-            "level": "system",
-            "name": "系统级别",
+            "level": "model_type",
+            "name": model_type_name,
             "parameters": [],
             "children": [
                 {
-                    "level": "supplier",
-                    "name": supplier_name,
+                    "level": "model",
+                    "name": model.model_name,
                     "parameters": [],
-                    "children": [
-                        {
-                            "level": "model_type",
-                            "name": model_type_name,
-                            "parameters": [],
-                            "children": [
-                                {
-                                    "level": "model_capability",
-                                    "name": "模型能力级别",
-                                    "parameters": [],
-                                    "children": [
-                                        {
-                                            "level": "model",
-                                            "name": model.model_name,
-                                            "parameters": [],
-                                            "children": []
-                                        }
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
+                    "children": []
                 }
             ]
         }
-        
-        # 获取系统级参数模板
-        system_template = db.query(ParameterTemplate).filter(
-            ParameterTemplate.level == "system"
-        ).order_by(ParameterTemplate.id.desc()).first()  # 使用最新的系统模板
-        
-        # 获取供应商级参数模板
-        supplier_template = db.query(ParameterTemplate).filter(
-            ParameterTemplate.level == "supplier",
-            ParameterTemplate.level_id == model.supplier_id
-        ).first()
         
         # 获取模型类型级参数模板
         model_type_template = db.query(ParameterTemplate).filter(
@@ -1479,56 +1468,8 @@ class ParameterManager:
         ).first()
         
         # 查找各层级的参数值
-        # 系统级参数
-        system_param_value = None
-        if system_template and system_template.parameters:
-            for param in system_template.parameters:
-                if param.get("name") == parameter_name:
-                    system_param_value = param.get("default_value")
-                    inheritance_tree["parameters"].append({
-                        "id": f"sys-{parameter_name}",
-                        "parameter_name": parameter_name,
-                        "parameter_value": str(system_param_value),
-                        "parameter_type": param.get("type", "string"),
-                        "inherited": False,
-                        "override": False
-                    })
-                    break
-        
-        # 供应商级参数
-        supplier_param_value = system_param_value  # 默认继承系统参数
-        supplier_override = False
-        
-        if supplier_template and supplier_template.parameters:
-            for param in supplier_template.parameters:
-                if param.get("name") == parameter_name:
-                    supplier_param_value = param.get("default_value")
-                    supplier_override = True
-                    inheritance_tree["children"][0]["parameters"].append({
-                        "id": f"sup-{parameter_name}",
-                        "parameter_name": parameter_name,
-                        "parameter_value": str(supplier_param_value),
-                        "parameter_type": param.get("type", "string"),
-                        "inherited": system_param_value is not None,
-                        "override": supplier_override,
-                        "source": "system" if system_param_value is not None else None
-                    })
-                    break
-        else:
-            # 如果没有供应商模板参数，显示继承的系统参数
-            if system_param_value is not None:
-                inheritance_tree["children"][0]["parameters"].append({
-                    "id": f"sup-{parameter_name}",
-                    "parameter_name": parameter_name,
-                    "parameter_value": str(system_param_value),
-                    "parameter_type": "string",
-                    "inherited": True,
-                    "override": False,
-                    "source": "system"
-                })
-        
         # 模型类型级参数
-        model_type_param_value = supplier_param_value  # 默认继承供应商参数
+        model_type_param_value = None
         model_type_override = False
         
         if model_type_template and model_type_template.parameters:
@@ -1536,43 +1477,17 @@ class ParameterManager:
                 if param.get("name") == parameter_name:
                     model_type_param_value = param.get("default_value")
                     model_type_override = True
-                    inheritance_tree["children"][0]["children"][0]["parameters"].append({
+                    inheritance_tree["parameters"].append({
                         "id": f"mt-{parameter_name}",
                         "parameter_name": parameter_name,
                         "parameter_value": str(model_type_param_value),
                         "parameter_type": param.get("type", "string"),
-                        "inherited": supplier_param_value is not None,
-                        "override": model_type_override,
-                        "source": "supplier" if supplier_param_value is not None else None
+                        "inherited": False,
+                        "override": False
                     })
                     break
-        else:
-            # 如果没有模型类型模板参数，显示继承的供应商参数
-            if supplier_param_value is not None:
-                inheritance_tree["children"][0]["children"][0]["parameters"].append({
-                    "id": f"mt-{parameter_name}",
-                    "parameter_name": parameter_name,
-                    "parameter_value": str(supplier_param_value),
-                    "parameter_type": "string",
-                    "inherited": True,
-                    "override": False,
-                    "source": "supplier"
-                })
         
-        # 模型能力级参数 - 暂时使用默认值
-        model_capability_param_value = model_type_param_value
-        inheritance_tree["children"][0]["children"][0]["children"][0]["parameters"].append({
-            "id": f"mc-{parameter_name}",
-            "parameter_name": parameter_name,
-            "parameter_value": str(model_capability_param_value),
-            "parameter_type": "string",
-            "inherited": True,
-            "override": False,
-            "source": "model_type"
-        })
-        
-        # 模型级参数
-        model_param_value = model_capability_param_value  # 默认继承模型能力参数
+        model_param_value = model_type_param_value
         model_override = False
         
         if model_template and model_template.parameters:
@@ -1586,14 +1501,14 @@ class ParameterManager:
             model_param_value = model_params.parameter_value
             model_override = True
         
-        inheritance_tree["children"][0]["children"][0]["children"][0]["children"][0]["parameters"].append({
+        inheritance_tree["children"][0]["parameters"].append({
             "id": f"md-{parameter_name}",
             "parameter_name": parameter_name,
             "parameter_value": str(model_param_value),
             "parameter_type": model_params.parameter_type if model_params else "string",
-            "inherited": model_capability_param_value is not None,
+            "inherited": model_type_param_value is not None,
             "override": model_override,
-            "source": "model_capability" if model_capability_param_value is not None else None
+            "source": "model_type" if model_type_param_value is not None else None
         })
         
         return inheritance_tree

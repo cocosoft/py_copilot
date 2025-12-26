@@ -23,9 +23,7 @@ class SystemParameterManager:
         Returns:
             系统级参数模板列表
         """
-        return db.query(ParameterTemplate).filter(
-            ParameterTemplate.level == "system"
-        ).offset(skip).limit(limit).all()
+        return db.query(ParameterTemplate).offset(skip).limit(limit).all()
     
     @staticmethod
     def get_active_system_parameter_template(db: Session) -> Optional[ParameterTemplate]:
@@ -39,7 +37,6 @@ class SystemParameterManager:
             激活的系统级参数模板，或None
         """
         return db.query(ParameterTemplate).filter(
-            ParameterTemplate.level == "system",
             ParameterTemplate.is_active == True
         ).first()
     
@@ -59,16 +56,16 @@ class SystemParameterManager:
             创建的系统级参数模板
             
         Raises:
-            ValueError: 当template_data.level不是"system"时
+            ValueError: 当参数无效时
         """
-        if template_data.level != "system":
-            raise ValueError("系统参数模板的level必须是'system'")
-        
         # 验证参数的有效性
         SystemParameterManager.validate_parameters(template_data.parameters)
         
         # 创建新的系统参数模板
-        db_template = ParameterTemplate(**template_data.model_dump())
+        template_dict = template_data.model_dump(exclude_unset=True)
+        template_dict.pop('level', None)
+        template_dict.pop('level_id', None)
+        db_template = ParameterTemplate(**template_dict)
         db.add(db_template)
         db.commit()
         db.refresh(db_template)
@@ -97,8 +94,7 @@ class SystemParameterManager:
         """
         # 获取模板
         template = db.query(ParameterTemplate).filter(
-            ParameterTemplate.id == template_id,
-            ParameterTemplate.level == "system"
+            ParameterTemplate.id == template_id
         ).first()
         
         if not template:
@@ -255,17 +251,14 @@ class SystemParameterManager:
         """
         # 获取模板
         template = db.query(ParameterTemplate).filter(
-            ParameterTemplate.id == template_id,
-            ParameterTemplate.level == "system"
+            ParameterTemplate.id == template_id
         ).first()
         
         if not template:
             raise ValueError(f"系统参数模板ID {template_id} 不存在")
         
-        # 将所有系统模板设置为非激活状态
-        db.query(ParameterTemplate).filter(
-            ParameterTemplate.level == "system"
-        ).update({"is_active": False})
+        # 将所有模板设置为非激活状态
+        db.query(ParameterTemplate).update({"is_active": False})
         
         # 激活指定的模板
         template.is_active = True

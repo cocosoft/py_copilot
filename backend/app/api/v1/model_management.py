@@ -865,7 +865,7 @@ def get_parameters(
     Args:
         supplier_id: 供应商ID
         model_id: 模型ID
-        level: 参数级别 (system, supplier, model_type, model_capability, model, agent)
+        level: 参数级别 (model_type, model, agent)
         db: 数据库会话
         current_user: 当前用户
         
@@ -875,24 +875,12 @@ def get_parameters(
     try:
         parameters = []
         
-        if level == "system":
-            # 系统级别参数
-            from app.services.parameter_management.system_parameter_manager import SystemParameterManager
-            parameters = SystemParameterManager.get_system_parameters(db)
-        elif level == "model" and supplier_id and model_id:
+        if level == "model" and supplier_id and model_id:
             # 模型级别参数
             parameters = ParameterManager.get_model_parameters_with_templates(db, model_id)
-        elif level == "supplier" and supplier_id:
-            # 供应商级别参数
-            # TODO: 实现供应商级别参数查询
-            parameters = []
         elif level == "model_type" and supplier_id:
             # 模型类型级别参数
             # TODO: 实现模型类型级别参数查询
-            parameters = []
-        elif level == "model_capability" and supplier_id:
-            # 模型能力级别参数
-            # TODO: 实现模型能力级别参数查询
             parameters = []
         elif level == "agent" and supplier_id:
             # 代理级别参数

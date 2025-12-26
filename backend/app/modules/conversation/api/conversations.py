@@ -241,10 +241,12 @@ async def send_message(
                 model_name = request.model_name or "gpt-3.5-turbo"
                 print(f"调用llm_service.chat_completion，模型: {model_name}")
                 print(f"聊天消息: {chat_messages}")
+                print(f"传递的agent_id参数: {conversation.get('agent_id')}")
                 llm_response = llm_service.chat_completion(
                     messages=chat_messages,
                     model_name=model_name,
-                    db=db
+                    db=db,
+                    agent_id=conversation.get("agent_id")
                 )
                 print(f"LLM响应: {llm_response}")
                 ai_content = llm_response.get("generated_text", "抱歉，我无法生成回复。")
@@ -253,7 +255,7 @@ async def send_message(
                 print(f"chat_completion调用失败: {str(e)}")
                 # 尝试使用chat方法
                 try:
-                    llm_response = llm_service.chat(chat_messages, model_name=model_name, db=db)
+                    llm_response = llm_service.chat(chat_messages, model_name=model_name, db=db, agent_id=conversation.get("agent_id"))
                     ai_content = llm_response.get("content", "抱歉，我无法生成回复。")
                 except Exception as e:
                     print(f"LLM chat方法调用失败: {str(e)}")

@@ -266,5 +266,5 @@ async def proxy_image(url: str = Query(..., description="要代理的外部图�
 
 # 导入路由 - 使用动态导入避免循环导入
 from app.api import api_router
-app.include_router(api_router)
+app.include_router(api_router, prefix="/api")
 

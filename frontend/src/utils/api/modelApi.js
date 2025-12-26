@@ -7,7 +7,7 @@ const modelApi = {
    * 获取参数列表
    * @param {number|null} supplierId - 供应商ID
    * @param {number|null} modelId - 模型ID
-   * @param {string} level - 参数级别 (system, supplier, model_type, model_capability, model, agent)
+   * @param {string} level - 参数级别 (model, agent)
    */
   async getParameters(supplierId, modelId, level) {
     let endpoint = '/v1/model-management/parameters';
@@ -99,7 +99,7 @@ const modelApi = {
   
   /**
    * 获取参数模板列表
-   * @param {string} level - 模板级别 (system, supplier, model_type, model_capability, model, agent)
+   * @param {string} level - 模板级别 (model_type, model, agent)
    */
   async getParameterTemplates(level) {
     let endpoint = '/v1/parameter-templates';

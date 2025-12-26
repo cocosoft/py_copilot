@@ -329,193 +329,195 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
           <button className="modal-close" onClick={onClose}>&times;</button>
         </div>
         <form onSubmit={handleSubmit} className="modal-form">
-          <div className="form-group">
-            <label htmlFor="parameter_name">参数名称 *</label>
-            {renderInputComponent('parameter_name', formData.parameter_name, handleChange)}
-            {showValidation && errors.parameter_name && (
-              <div className="error-message">{errors.parameter_name}</div>
-            )}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="parameter_value">参数值 {formData.is_required ? '*' : ''}</label>
-            {renderInputComponent('parameter_value', formData.parameter_value, handleChange)}
-            {showValidation && errors.parameter_value && (
-              <div className="error-message">{errors.parameter_value}</div>
-            )}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="parameter_type">参数类型</label>
-            <select
-              id="parameter_type"
-              name="parameter_type"
-              value={formData.parameter_type}
-              onChange={handleChange}
-            >
-              <option value="string">字符串</option>
-              <option value="number">数字</option>
-              <option value="boolean">布尔值</option>
-              <option value="array">数组</option>
-              <option value="object">对象</option>
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="default_value">默认值</label>
-            {renderInputComponent('default_value', formData.default_value, handleChange)}
-            {showValidation && errors.default_value && (
-              <div className="error-message">{errors.default_value}</div>
-            )}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="description">描述</label>
-            <textarea
-              id="description"
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              placeholder="参数的详细描述"
-              rows="3"
-            ></textarea>
-          </div>
-
-          <div className="form-group checkbox-group">
-            <input
-              type="checkbox"
-              id="is_required"
-              name="is_required"
-              checked={formData.is_required}
-              onChange={handleChange}
-            />
-            <label htmlFor="is_required">必填参数</label>
-          </div>
-
-          <div className="form-section">
-            <h3>验证规则</h3>
-            
-            {/* 数字类型验证规则 */}
-            {formData.parameter_type === 'number' && (
-              <>
-                <div className="form-row">
-                  <div className="form-group half-width">
-                    <label htmlFor="validation_rules.min">最小值</label>
-                    <input
-                      type="number"
-                      id="validation_rules.min"
-                      name="validation_rules.min"
-                      value={formData.validation_rules.min}
-                      onChange={handleChange}
-                      placeholder="例如: 0.1"
-                      step="any"
-                    />
-                    {showValidation && errors['validation_rules.min'] && (
-                      <div className="error-message">{errors['validation_rules.min']}</div>
-                    )}
-                  </div>
-                  
-                  <div className="form-group half-width">
-                    <label htmlFor="validation_rules.max">最大值</label>
-                    <input
-                      type="number"
-                      id="validation_rules.max"
-                      name="validation_rules.max"
-                      value={formData.validation_rules.max}
-                      onChange={handleChange}
-                      placeholder="例如: 1.0"
-                      step="any"
-                    />
-                    {showValidation && errors['validation_rules.max'] && (
-                      <div className="error-message">{errors['validation_rules.max']}</div>
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
-            
-            {/* 字符串类型验证规则 */}
-            {formData.parameter_type === 'string' && (
-              <>
-                <div className="form-group">
-                  <label htmlFor="validation_rules.regex">正则表达式</label>
-                  <input
-                    type="text"
-                    id="validation_rules.regex"
-                    name="validation_rules.regex"
-                    value={formData.validation_rules.regex}
-                    onChange={handleChange}
-                    placeholder="例如: ^[a-zA-Z0-9]+$"
-                  />
-                  {showValidation && errors['validation_rules.regex'] && (
-                    <div className="error-message">{errors['validation_rules.regex']}</div>
-                  )}
-                </div>
-                
-                <div className="form-row">
-                  <div className="form-group half-width">
-                    <label htmlFor="validation_rules.min_length">最小长度</label>
-                    <input
-                      type="number"
-                      id="validation_rules.min_length"
-                      name="validation_rules.min_length"
-                      value={formData.validation_rules.min_length}
-                      onChange={handleChange}
-                      placeholder="例如: 3"
-                    />
-                    {showValidation && errors['validation_rules.min_length'] && (
-                      <div className="error-message">{errors['validation_rules.min_length']}</div>
-                    )}
-                  </div>
-                  
-                  <div className="form-group half-width">
-                    <label htmlFor="validation_rules.max_length">最大长度</label>
-                    <input
-                      type="number"
-                      id="validation_rules.max_length"
-                      name="validation_rules.max_length"
-                      value={formData.validation_rules.max_length}
-                      onChange={handleChange}
-                      placeholder="例如: 20"
-                    />
-                    {showValidation && errors['validation_rules.max_length'] && (
-                      <div className="error-message">{errors['validation_rules.max_length']}</div>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="validation_rules.enum_values">枚举值 (JSON数组)</label>
-                  <input
-                    type="text"
-                    id="validation_rules.enum_values"
-                    name="validation_rules.enum_values"
-                    value={formData.validation_rules.enum_values}
-                    onChange={handleChange}
-                    placeholder='例如: ["option1", "option2"]'
-                  />
-                  {showValidation && errors['validation_rules.enum_values'] && (
-                    <div className="error-message">{errors['validation_rules.enum_values']}</div>
-                  )}
-                </div>
-              </>
-            )}
-            
-            {/* 通用验证规则 */}
+          <div className="modal-body">
             <div className="form-group">
-              <label htmlFor="validation_rules.custom_message">自定义错误信息</label>
-              <input
-                type="text"
-                id="validation_rules.custom_message"
-                name="validation_rules.custom_message"
-                value={formData.validation_rules.custom_message}
+              <label htmlFor="parameter_name">参数名称 *</label>
+              {renderInputComponent('parameter_name', formData.parameter_name, handleChange)}
+              {showValidation && errors.parameter_name && (
+                <div className="error-message">{errors.parameter_name}</div>
+              )}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="parameter_value">参数值 {formData.is_required ? '*' : ''}</label>
+              {renderInputComponent('parameter_value', formData.parameter_value, handleChange)}
+              {showValidation && errors.parameter_value && (
+                <div className="error-message">{errors.parameter_value}</div>
+              )}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="parameter_type">参数类型</label>
+              <select
+                id="parameter_type"
+                name="parameter_type"
+                value={formData.parameter_type}
                 onChange={handleChange}
-                placeholder="例如: 请输入有效的值"
+              >
+                <option value="string">字符串</option>
+                <option value="number">数字</option>
+                <option value="boolean">布尔值</option>
+                <option value="array">数组</option>
+                <option value="object">对象</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="default_value">默认值</label>
+              {renderInputComponent('default_value', formData.default_value, handleChange)}
+              {showValidation && errors.default_value && (
+                <div className="error-message">{errors.default_value}</div>
+              )}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="description">描述</label>
+              <textarea
+                id="description"
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                placeholder="参数的详细描述"
+                rows="3"
+              ></textarea>
+            </div>
+
+            <div className="form-group checkbox-group">
+              <input
+                type="checkbox"
+                id="is_required"
+                name="is_required"
+                checked={formData.is_required}
+                onChange={handleChange}
               />
+              <label htmlFor="is_required">必填参数</label>
+            </div>
+
+            <div className="form-section">
+              <h3>验证规则</h3>
+              
+              {/* 数字类型验证规则 */}
+              {formData.parameter_type === 'number' && (
+                <>
+                  <div className="form-row">
+                    <div className="form-group half-width">
+                      <label htmlFor="validation_rules.min">最小值</label>
+                      <input
+                        type="number"
+                        id="validation_rules.min"
+                        name="validation_rules.min"
+                        value={formData.validation_rules.min}
+                        onChange={handleChange}
+                        placeholder="例如: 0.1"
+                        step="any"
+                      />
+                      {showValidation && errors['validation_rules.min'] && (
+                        <div className="error-message">{errors['validation_rules.min']}</div>
+                      )}
+                    </div>
+                    
+                    <div className="form-group half-width">
+                      <label htmlFor="validation_rules.max">最大值</label>
+                      <input
+                        type="number"
+                        id="validation_rules.max"
+                        name="validation_rules.max"
+                        value={formData.validation_rules.max}
+                        onChange={handleChange}
+                        placeholder="例如: 1.0"
+                        step="any"
+                      />
+                      {showValidation && errors['validation_rules.max'] && (
+                        <div className="error-message">{errors['validation_rules.max']}</div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+              
+              {/* 字符串类型验证规则 */}
+              {formData.parameter_type === 'string' && (
+                <>
+                  <div className="form-group">
+                    <label htmlFor="validation_rules.regex">正则表达式</label>
+                    <input
+                      type="text"
+                      id="validation_rules.regex"
+                      name="validation_rules.regex"
+                      value={formData.validation_rules.regex}
+                      onChange={handleChange}
+                      placeholder="例如: ^[a-zA-Z0-9]+$"
+                    />
+                    {showValidation && errors['validation_rules.regex'] && (
+                      <div className="error-message">{errors['validation_rules.regex']}</div>
+                    )}
+                  </div>
+                  
+                  <div className="form-row">
+                    <div className="form-group half-width">
+                      <label htmlFor="validation_rules.min_length">最小长度</label>
+                      <input
+                        type="number"
+                        id="validation_rules.min_length"
+                        name="validation_rules.min_length"
+                        value={formData.validation_rules.min_length}
+                        onChange={handleChange}
+                        placeholder="例如: 3"
+                      />
+                      {showValidation && errors['validation_rules.min_length'] && (
+                        <div className="error-message">{errors['validation_rules.min_length']}</div>
+                      )}
+                    </div>
+                    
+                    <div className="form-group half-width">
+                      <label htmlFor="validation_rules.max_length">最大长度</label>
+                      <input
+                        type="number"
+                        id="validation_rules.max_length"
+                        name="validation_rules.max_length"
+                        value={formData.validation_rules.max_length}
+                        onChange={handleChange}
+                        placeholder="例如: 20"
+                      />
+                      {showValidation && errors['validation_rules.max_length'] && (
+                        <div className="error-message">{errors['validation_rules.max_length']}</div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="form-group">
+                    <label htmlFor="validation_rules.enum_values">枚举值 (JSON数组)</label>
+                    <input
+                      type="text"
+                      id="validation_rules.enum_values"
+                      name="validation_rules.enum_values"
+                      value={formData.validation_rules.enum_values}
+                      onChange={handleChange}
+                      placeholder='例如: ["option1", "option2"]'
+                    />
+                    {showValidation && errors['validation_rules.enum_values'] && (
+                      <div className="error-message">{errors['validation_rules.enum_values']}</div>
+                    )}
+                  </div>
+                </>
+              )}
+              
+              {/* 通用验证规则 */}
+              <div className="form-group">
+                <label htmlFor="validation_rules.custom_message">自定义错误信息</label>
+                <input
+                  type="text"
+                  id="validation_rules.custom_message"
+                  name="validation_rules.custom_message"
+                  value={formData.validation_rules.custom_message}
+                  onChange={handleChange}
+                  placeholder="例如: 请输入有效的值"
+                />
+              </div>
             </div>
           </div>
 
-          <div className="modal-actions">
+          <div className="modal-footer">
             <button type="button" className="btn btn-secondary" onClick={onClose}>
               取消
             </button>
