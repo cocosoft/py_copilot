@@ -18,7 +18,11 @@
   padding: 20px;
   background-color: #f8f9fa;
   border-radius: 8px;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
 }
+
 .success {
   background-color: #d4edda;
   color: #155724;
@@ -314,18 +318,54 @@
   text-align: center;
 }
 
-/* 模型管理样式 */
-.models-container {
+/* 模型管理样式 - 自适应网格布局 */
+.model-details-container .model-management-container .model-management-section .model-section .models-container,
+.model-management-container .model-management-section .model-section .models-container,
+.model-section .models-container {
   margin-top: 15px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
-  gap: 24px;
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)) !important;
+  gap: 24px !important;
+  width: 100% !important;
+  padding: 0 !important;
+  max-width: none !important;
+  box-sizing: border-box !important;
+  align-items: start !important;
+}
+
+/* 确保没有其他样式覆盖 */
+.models-container {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)) !important;
+  width: 100% !important;
+  max-width: none !important;
+}
+
+/* 确保模型管理容器宽度不受限制 */
+.model-management-container {
+  width: 100% !important;
+  max-width: none !important;
+  box-sizing: border-box !important;
+}
+
+/* 确保模型管理区域宽度不受限制 */
+.model-management-section {
+  width: 100% !important;
+  max-width: none !important;
+  box-sizing: border-box !important;
+}
+
+/* 确保模型部分宽度不受限制 */
+.model-section {
+  width: 100% !important;
+  max-width: none !important;
+  box-sizing: border-box !important;
 }
 
 .model-card {
   border: 1px solid #e8f0fe;
   border-radius: 16px;
-  padding: 24px;
+  padding: 20px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
@@ -334,6 +374,34 @@
   height: 100%;
   position: relative;
   overflow: hidden;
+  animation: float 6s ease-in-out infinite;
+  min-width: 280px;
+  max-width: 400px;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+/* 响应式调整：在大屏幕上调整最小和最大宽度 */
+@media (min-width: 1200px) {
+  .model-card {
+    min-width: 320px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .model-card {
+    min-width: 350px;
+  }
+}
+
+/* 上下浮动动画 */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 .model-card::before {
@@ -349,9 +417,10 @@
 }
 
 .model-card:hover {
-  transform: translateY(-6px) scale(1.02);
+  transform: translateY(-16px) scale(1.02);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
   border-color: #3498db;
+  animation-play-state: paused;
 }
 
 .model-card:hover::before {
