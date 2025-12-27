@@ -209,11 +209,11 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
           return getImageUrl('providers', supplier.logo);
         }
       }
-      // 没有logo时的默认路径
-      return DEFAULT_IMAGES.provider;
+      // 没有logo时返回空字符串
+      return '';
     } catch (error) {
       console.error('获取供应商logo失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
-      return DEFAULT_IMAGES.provider;
+      return '';
     }
   };
 
@@ -415,8 +415,8 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
             src={getSupplierLogo(selectedSupplier)}
             alt={`${selectedSupplier.name} Logo`}
             onError={(e) => {
-              // 图片加载失败时显示默认占位
-              e.target.src = DEFAULT_IMAGES.provider;
+              // 图片加载失败时隐藏图片
+              e.target.style.display = 'none';
             }}
           />
           <h2>{selectedSupplier.name}</h2>

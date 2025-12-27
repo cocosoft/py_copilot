@@ -52,12 +52,6 @@ const Navbar = () => {
       name: '翻译', 
       icon: <FaLanguage className="nav-svg" />,
       iconCollapsed: <FaLanguage className="nav-svg" />
-    },
-    { 
-      path: '/capability-management', 
-      name: '能力管理', 
-      icon: <FaCog className="nav-svg" />,
-      iconCollapsed: <FaCog className="nav-svg" />
     }
   ];
   

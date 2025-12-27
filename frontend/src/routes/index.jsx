@@ -32,9 +32,6 @@ const AppRoutes = () => {
       <Route path="/settings" element={<Settings />} />
       <Route path="/personal/*" element={<PersonalCenter />} />
       <Route path="/help/*" element={<HelpCenter />} />
-      <Route path="/model-capabilities" element={<ModelCapabilityManagement />} />
-      <Route path="/model-capability-association" element={<ModelCapabilityAssociation />} />
-      <Route path="/capability-management" element={<CapabilityManagementMain />} />
     </Routes>
   );
 };

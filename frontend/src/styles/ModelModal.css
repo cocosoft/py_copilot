@@ -470,6 +470,79 @@
   margin-top: 16px;
 }
 
+/* 主Tab标签样式 */
+.main-tabs {
+  display: flex;
+  border-bottom: 1px solid #e1e5e9;
+  margin-bottom: 24px;
+}
+
+.main-tab-button {
+  background: none;
+  border: none;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #64748b;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.main-tab-button:hover {
+  color: #3b82f6;
+  background-color: #f8fafc;
+}
+
+.main-tab-button.active {
+  color: #3b82f6;
+  border-bottom-color: #3b82f6;
+  background-color: #f0f9ff;
+}
+
+/* 维度配置内的次级Tab标签样式 */
+.dimension-tabs {
+  display: flex;
+  border-bottom: 1px solid #e1e5e9;
+  margin-bottom: 16px;
+}
+
+.dimension-tab-button {
+  background: none;
+  border: none;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.dimension-tab-button:hover {
+  color: #3b82f6;
+  background-color: #f8fafc;
+}
+
+.dimension-tab-button.active {
+  color: #3b82f6;
+  border-bottom-color: #3b82f6;
+  background-color: #f0f9ff;
+}
+
+/* 能力发现占位符样式 */
+.capability-placeholder {
+  padding: 24px;
+  background-color: #f8fafc;
+  border-radius: 8px;
+  text-align: center;
+  color: #64748b;
+}
+
+.capability-placeholder p {
+  margin: 8px 0;
+}
+
 /* 维度配置头部样式 */
 .dimension-config-header {
   display: flex;

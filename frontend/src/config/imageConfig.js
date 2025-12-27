@@ -43,10 +43,11 @@ const getImageUrl = (type, filename) => {
   const baseDir = IMAGE_DIRS[type];
   if (!baseDir) {
     console.warn(`未知的图片类型: ${type}`);
-    return DEFAULT_IMAGES.provider;
+    return '';
   }
   
-  return filename ? `${baseDir}/${filename}` : DEFAULT_IMAGES[type] || DEFAULT_IMAGES.provider;
+  // 如果没有提供文件名，返回空字符串，不使用默认图片
+  return filename ? `${baseDir}/${filename}` : '';
 };
 
 export {

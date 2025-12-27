@@ -18,41 +18,34 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
   
   // 获取模型LOGO，如果模型没有LOGO，则使用供应商LOGO
   const getModelLogo = (model, supplier) => {
-    if (!model && !supplier) return DEFAULT_IMAGES.provider;
-    
-    try {
-      // 优先使用模型LOGO
-      if (model && model.logo) {
-        // 检测是否为外部URL
-        if (model.logo.startsWith('http')) {
-          // 使用后端代理端点处理外部URL，避免ORB安全限制
-          const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(model.logo)}`;
-          return proxyUrl;
-        } else {
-          // 使用配置的图片路径生成函数
-          return getImageUrl('models', model.logo);
-        }
+    // 优先使用模型LOGO
+    if (model && model.logo) {
+      // 检测是否为外部URL
+      if (model.logo.startsWith('http')) {
+        // 使用后端代理端点处理外部URL，避免ORB安全限制
+        const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(model.logo)}`;
+        return proxyUrl;
+      } else {
+        // 从public/logos/models文件夹加载对应的文件
+        return getImageUrl('models', model.logo);
       }
-      
-      // 如果模型没有LOGO，使用供应商LOGO
-      if (supplier && supplier.logo) {
-        // 检测是否为外部URL
-        if (supplier.logo.startsWith('http')) {
-          // 使用后端代理端点处理外部URL，避免ORB安全限制
-          const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(supplier.logo)}`;
-          return proxyUrl;
-        } else {
-          // 使用配置的图片路径生成函数
-          return getImageUrl('providers', supplier.logo);
-        }
-      }
-      
-      // 没有logo时的默认路径
-      return DEFAULT_IMAGES.provider;
-    } catch (error) {
-      console.error('获取模型logo失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
-      return DEFAULT_IMAGES.provider;
     }
+    
+    // 如果模型没有LOGO，使用供应商LOGO
+    if (supplier && supplier.logo) {
+      // 检测是否为外部URL
+      if (supplier.logo.startsWith('http')) {
+        // 使用后端代理端点处理外部URL，避免ORB安全限制
+        const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(supplier.logo)}`;
+        return proxyUrl;
+      } else {
+        // 从public/logos/providers文件夹加载对应的文件
+        return getImageUrl('providers', supplier.logo);
+      }
+    }
+    
+    // 如果都没有LOGO，返回空字符串或不返回（让img标签的onError处理）
+    return '';
   };
   
   // 模型模态框相关状态
@@ -416,17 +409,55 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
       };
       
       // 保存模型基本信息
-      if (modelModalMode === 'add') {
-        savedModel = await api.modelApi.create(selectedSupplier.id, { ...modelBasicData, logo });
-        setSuccess('模型添加成功');
-      } else {
-        savedModel = await api.modelApi.update(selectedSupplier.id, editingModel.id, { ...modelBasicData, logo });
-        setSuccess('模型更新成功');
+      try {
+        if (modelModalMode === 'add') {
+          // 如果有logo文件，使用FormData处理
+          if (logo) {
+            const formData = new FormData();
+            // 将模型基本数据作为JSON字符串添加
+            formData.append('model_data', JSON.stringify(modelBasicData));
+            // 添加logo文件
+            formData.append('logo', logo);
+            savedModel = await api.modelApi.create(selectedSupplier.id, formData);
+          } else {
+            // 没有logo文件，使用普通JSON
+            savedModel = await api.modelApi.create(selectedSupplier.id, modelBasicData);
+          }
+          setSuccess('模型添加成功');
+        } else {
+          // 如果有logo文件，使用FormData处理
+          if (logo) {
+            const formData = new FormData();
+            // 将模型基本数据作为JSON字符串添加
+            formData.append('model_data', JSON.stringify(modelBasicData));
+            // 添加logo文件
+            formData.append('logo', logo);
+            savedModel = await api.modelApi.update(selectedSupplier.id, editingModel.id, formData);
+          } else {
+            // 没有logo文件，使用普通JSON
+            savedModel = await api.modelApi.update(selectedSupplier.id, editingModel.id, modelBasicData);
+          }
+          setSuccess('模型更新成功');
+        }
+      } catch (error) {
+        console.error('保存模型基本信息失败:', error);
+        throw error;
       }
       
       // 处理维度配置和分类关联（ModelModalV2新增功能）
       if (modelData.dimensionConfigs && modelData.categoryAssociations) {
         const modelId = savedModel.id || (modelModalMode === 'edit' ? editingModel.id : null);
+        
+        // 编辑模式下：先删除该模型所有现有的分类关联，避免重复导致409错误
+        if (modelModalMode === 'edit') {
+          try {
+            await api.dimensionHierarchyApi.removeAllModelCategoryAssociations(modelId);
+            console.log(`成功删除模型 ${modelId} 的所有现有分类关联`);
+          } catch (err) {
+            console.warn(`删除模型现有分类关联失败:`, err);
+            // 继续执行，尝试添加新的关联
+          }
+        }
         
         // 为每个维度配置添加模型到分类关联
         for (const association of modelData.categoryAssociations) {
@@ -441,57 +472,66 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
           }
         }
         
-        // 处理维度特定的参数模板（使用现有的参数管理API）
+        // 处理维度特定的参数模板
+        const errorList = [];
         for (const [dimension, config] of Object.entries(modelData.dimensionConfigs)) {
           if (config.selectedTemplate) {
             try {
-              // 获取模板参数并应用到模型
-              const templateParams = await api.parameterTemplatesApi.getTemplateParameters(config.selectedTemplate);
-              
-              // 为每个参数创建模型参数
-              for (const param of templateParams) {
-                await api.modelApi.createParameter(
-                  selectedSupplier.id,
-                  modelId,
-                  {
-                    parameter_name: param.parameter_name,
-                    parameter_value: param.parameter_value,
-                    parameter_type: param.parameter_type,
-                    description: param.description,
-                    dimension: dimension
-                  },
-                  'model'
-                );
-              }
+              // 使用applyParameterTemplate函数一次性应用整个模板
+              await api.modelApi.applyParameterTemplate(
+                selectedSupplier.id,
+                modelId,
+                config.selectedTemplate
+              );
+              console.log(`成功应用维度参数模板 ${config.selectedTemplate} 到模型 ${modelId}，维度: ${dimension}`);
             } catch (err) {
-              console.warn(`应用维度参数模板失败: ${dimension}`, err);
+              const errorMsg = err.response?.data?.message || err.message || '模板应用失败';
+              console.error(`应用维度参数模板失败 - 维度: ${dimension}`, {
+                error: err,
+                templateId: config.selectedTemplate,
+                modelId: modelId,
+                dimension: dimension,
+                timestamp: new Date().toISOString()
+              });
+              // 收集错误信息，统一展示给用户
+              errorList.push(`维度 ${dimension}: ${errorMsg}`);
             }
           }
+        }
+
+        // 统一展示错误信息
+        if (errorList.length > 0) {
+          const errorMessage = `部分模板应用失败:\n${errorList.join('\n')}`;
+          console.error(errorMessage);
+          // 这里可以使用UI库的提示组件，如Ant Design的message.error
+          alert(errorMessage);
         }
       }
       
       // 兼容旧的数据格式：如果选择了参数模板，应用参数模板
       if (modelData.parameterTemplateId) {
         try {
-          const templateParams = await api.parameterTemplatesApi.getTemplateParameters(modelData.parameterTemplateId);
           const modelId = savedModel.id || (modelModalMode === 'edit' ? editingModel.id : null);
           
-          for (const param of templateParams) {
-            await api.modelApi.createParameter(
-              selectedSupplier.id,
-              modelId,
-              {
-                parameter_name: param.parameter_name,
-                parameter_value: param.parameter_value,
-                parameter_type: param.parameter_type,
-                description: param.description
-              },
-              'model'
-            );
-          }
+          // 使用applyParameterTemplate函数一次性应用整个模板
+          await api.modelApi.applyParameterTemplate(
+            selectedSupplier.id,
+            modelId,
+            modelData.parameterTemplateId
+          );
+          
+          console.log(`成功应用参数模板 ${modelData.parameterTemplateId} 到模型 ${modelId}`);
           setSuccess('模型保存成功并与参数模板同步');
         } catch (err) {
-          console.warn('应用参数模板失败:', err);
+          const errorMsg = err.response?.data?.message || err.message || '模板应用失败';
+          console.error('应用参数模板失败:', {
+            error: err,
+            templateId: modelData.parameterTemplateId,
+            modelId: modelId,
+            timestamp: new Date().toISOString()
+          });
+          // 使用警告而不是错误，因为这不是关键步骤
+          setSuccess('模型保存成功，但应用参数模板失败: ' + errorMsg);
         }
       }
       
@@ -821,8 +861,15 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
                             alt="模型LOGO" 
                             className="model-logo-image"
                             onError={(e) => {
-                              e.target.src = DEFAULT_IMAGES.provider;
-                              e.target.alt = '默认LOGO';
+                              // 如果模型LOGO加载失败，尝试使用供应商LOGO
+                              if (selectedSupplier && selectedSupplier.logo) {
+                                e.target.src = selectedSupplier.logo.startsWith('http') ? 
+                                  `/api/proxy-image?url=${encodeURIComponent(selectedSupplier.logo)}` : 
+                                  getImageUrl('providers', selectedSupplier.logo);
+                              } else {
+                                // 如果都没有LOGO，隐藏图片
+                                e.target.style.display = 'none';
+                              }
                             }}
                           />
                         </div>
@@ -851,14 +898,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
                           </div>
                         ) : (
                           <span className="model-type-badge">
-                            {model.modelTypeLogo && (
-                              <div 
-                                dangerouslySetInnerHTML={{__html: model.modelTypeLogo}}
-                                className="model-type-logo"
-                                title={model.modelTypeDisplayName || model.modelTypeName}
-                              />
-                            )}
-                            {model.modelTypeDisplayName || model.modelTypeName || model.modelType || '未分类'}
+                            未分类
                           </span>
                         )}
                       </div>

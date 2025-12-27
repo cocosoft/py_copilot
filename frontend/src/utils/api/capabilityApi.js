@@ -72,7 +72,7 @@ export const capabilityApi = {
   // 更新能力
   update: async (capabilityId, capabilityData) => {
     try {
-      return await request(`/api/v1/capabilities/${capabilityId}`, {
+      return await request(`/v1/capabilities/${capabilityId}`, {
         method: 'PUT',
         body: JSON.stringify(capabilityData),
         headers: {
@@ -88,7 +88,7 @@ export const capabilityApi = {
   // 删除能力
   delete: async (capabilityId) => {
     try {
-      return await request(`/api/v1/capabilities/${capabilityId}`, {
+      return await request(`/v1/capabilities/${capabilityId}`, {
         method: 'DELETE'
       });
     } catch (error) {
@@ -114,12 +114,18 @@ export const capabilityApi = {
     try {
       return await request('/v1/capabilities/associations', {
         method: 'POST',
-        body: JSON.stringify({ model_id: modelId, capability_id: capabilityId, value: value }),
+        body: JSON.stringify({ id: modelId, capability_id: capabilityId, value: value }),
+        
         headers: {
           'Content-Type': 'application/json'
         }
       });
     } catch (error) {
+      // 如果是409错误（关联已存在），不抛出异常，返回空对象
+      if (error.message && error.message.includes('409')) {
+        console.warn(`模型 ${modelId} 与能力 ${capabilityId} 的关联已存在，跳过重复添加`);
+        return {};
+      }
       console.error('添加模型能力关联失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
@@ -128,8 +134,8 @@ export const capabilityApi = {
   // 添加能力到模型（别名，保持向后兼容）
   addCapabilityToModel: async (associationData) => {
     try {
-      const { model_id, capability_id, config, value } = associationData;
-      return await capabilityApi.addModelCapability(model_id, capability_id, value || config);
+      const { id: modelId, capability_id, config, value } = associationData;
+      return await capabilityApi.addModelCapability(modelId, capability_id, value || config);
     } catch (error) {
       console.error('添加能力到模型失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
@@ -156,7 +162,7 @@ export const capabilityApi = {
   // 更新模型能力值
   updateModelCapabilityValue: async (modelId, capabilityId, value) => {
     try {
-      return await request(`/api/v1/capabilities/associations/model/${modelId}/capability/${capabilityId}`, {
+      return await request(`/v1/capabilities/associations/model/${modelId}/capability/${capabilityId}`, {
         method: 'PUT',
         body: JSON.stringify({ value: value }),
         headers: {

@@ -196,6 +196,22 @@ const Settings = () => {
               </div>
             )}
           </div>
+        );
+        
+      case 'defaultModel':
+        return (
+          <div className="settings-content">
+            <div className="content-header">
+              <h2>默认模型</h2>
+              <p>设置系统默认使用的AI模型</p>
+            </div>
+            
+            <div className="setting-card">
+              <div className="placeholder-text">
+                该功能正在开发中，设计完成后将上线。
+              </div>
+            </div>
+          </div>
         );      
            
       default:
@@ -267,6 +283,14 @@ const Settings = () => {
             >
               <span className="nav-icon">🔍</span>
               <span className="nav-text">搜索管理</span>
+            </button>
+            
+            <button 
+              className={`nav-item ${activeSection === 'defaultModel' ? 'active' : ''}`}
+              onClick={() => setActiveSection('defaultModel')}
+            >
+              <span className="nav-icon">🔤</span>
+              <span className="nav-text">默认模型</span>
             </button>
               
 

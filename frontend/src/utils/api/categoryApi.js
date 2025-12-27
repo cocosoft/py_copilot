@@ -134,12 +134,17 @@ export const categoryApi = {
     try {
       return await request('/v1/categories/associations', {
         method: 'POST',
-        body: JSON.stringify({ model_id: modelId, category_id: categoryId }),
+        body: JSON.stringify({ id: modelId, category_id: categoryId }),
         headers: {
           'Content-Type': 'application/json'
         }
       });
     } catch (error) {
+      // 如果是409错误（关联已存在），不抛出异常，返回空对象
+      if (error.message && error.message.includes('409')) {
+        console.warn(`模型 ${modelId} 与分类 ${categoryId} 的关联已存在，跳过重复添加`);
+        return {};
+      }
       console.error('添加模型分类关联失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }

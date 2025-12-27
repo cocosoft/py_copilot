@@ -8,7 +8,23 @@ const SimplifiedCategorySelector = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDimension, setSelectedDimension] = useState('');
-  const [selectedCategories, setSelectedCategories] = useState(initialSelections);
+  // 初始化为每个维度支持多个分类的结构
+  const initializeSelections = () => {
+    const selections = {};
+    if (initialSelections) {
+      Object.entries(initialSelections).forEach(([dimension, selection]) => {
+        // 如果初始选择是单个分类，转换为数组格式
+        if (selection && typeof selection === 'object' && 'categoryId' in selection) {
+          selections[dimension] = [selection];
+        } else if (Array.isArray(selection)) {
+          selections[dimension] = selection;
+        }
+      });
+    }
+    return selections;
+  };
+  
+  const [selectedCategories, setSelectedCategories] = useState(initializeSelections);
   const [showAllDimensions, setShowAllDimensions] = useState(false);
 
   // 过滤后的分类列表
@@ -57,24 +73,53 @@ const SimplifiedCategorySelector = ({
       .slice(0, 8); // 显示前8个常用分类
   }, [categoriesByDimension]);
 
-  // 处理分类选择
+  // 处理分类选择（支持同一维度多选）
   const handleCategorySelect = (dimension, categoryId, categoryName) => {
-    const newSelections = {
-      ...selectedCategories,
-      [dimension]: {
-        categoryId,
-        categoryName
+    const newSelections = {...selectedCategories};
+    
+    // 确保该维度的分类列表存在
+    if (!newSelections[dimension]) {
+      newSelections[dimension] = [];
+    }
+    
+    const category = { categoryId, categoryName };
+    const existingIndex = newSelections[dimension].findIndex(item => item.categoryId === categoryId);
+    
+    if (existingIndex >= 0) {
+      // 如果已存在，移除（取消选择）
+      newSelections[dimension].splice(existingIndex, 1);
+      // 如果该维度没有分类了，删除该维度的记录
+      if (newSelections[dimension].length === 0) {
+        delete newSelections[dimension];
       }
-    };
+    } else {
+      // 如果不存在，添加（选择）
+      newSelections[dimension].push(category);
+    }
     
     setSelectedCategories(newSelections);
     onSelectionChange(newSelections);
   };
 
-  // 处理分类移除
+  // 处理分类移除（移除指定维度下的所有分类）
   const handleCategoryRemove = (dimension) => {
     const newSelections = { ...selectedCategories };
     delete newSelections[dimension];
+    
+    setSelectedCategories(newSelections);
+    onSelectionChange(newSelections);
+  };
+  
+  // 处理单个分类移除（从指定维度下移除特定分类）
+  const handleSingleCategoryRemove = (dimension, categoryId) => {
+    const newSelections = { ...selectedCategories };
+    if (newSelections[dimension]) {
+      newSelections[dimension] = newSelections[dimension].filter(item => item.categoryId !== categoryId);
+      // 如果该维度没有分类了，删除该维度的记录
+      if (newSelections[dimension].length === 0) {
+        delete newSelections[dimension];
+      }
+    }
     
     setSelectedCategories(newSelections);
     onSelectionChange(newSelections);
@@ -148,16 +193,29 @@ const SimplifiedCategorySelector = ({
         <div className="selected-categories">
           <h4>已选择的分类:</h4>
           <div className="selected-list">
-            {Object.entries(selectedCategories).map(([dimension, selection]) => (
-              <div key={dimension} className="selected-item">
+            {Object.entries(selectedCategories).map(([dimension, selections]) => (
+              <div key={dimension} className="selected-dimension-group">
                 <span className="dimension-badge">{dimension}</span>
-                <span className="category-name">{selection.categoryName}</span>
+                <div className="category-list">
+                  {selections.map((selection) => (
+                    <div key={`${dimension}-${selection.categoryId}`} className="selected-item">
+                      <span className="category-name">{selection.categoryName}</span>
+                      <button 
+                        type="button"
+                        onClick={() => handleSingleCategoryRemove(dimension, selection.categoryId)}
+                        className="remove-btn"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
                 <button 
                   type="button"
                   onClick={() => handleCategoryRemove(dimension)}
-                  className="remove-btn"
+                  className="remove-dimension-btn"
                 >
-                  ×
+                  移除维度
                 </button>
               </div>
             ))}
@@ -194,7 +252,8 @@ const SimplifiedCategorySelector = ({
           <div className="categories-grid">
             {filteredCategories.map(category => {
               const dimension = selectedDimension || category.dimension;
-              const isSelected = selectedCategories[dimension]?.categoryId === category.id;
+              // 检查该分类是否在同一维度的已选列表中
+              const isSelected = selectedCategories[dimension]?.some(item => item.categoryId === category.id);
               
               return (
                 <div 
@@ -227,7 +286,12 @@ const SimplifiedCategorySelector = ({
 
       {/* 统计信息 */}
       <div className="selection-stats">
-        已选择 {Object.keys(selectedCategories).length} 个维度，共 {filteredCategories.length} 个分类可用
+        {(() => {
+          // 计算已选择的分类总数
+          const totalSelected = Object.values(selectedCategories)
+            .reduce((count, categories) => count + (categories?.length || 0), 0);
+          return `已选择 ${totalSelected} 个分类，共 ${filteredCategories.length} 个分类可用`;
+        })()}
       </div>
     </div>
   );

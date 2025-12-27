@@ -14,7 +14,8 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
     contextWindow: 8000,
     max_tokens: 1000,
     isDefault: false,
-    is_active: true
+    is_active: true,
+    logo: '' // 保存logo文件路径
   });
   
   // 维度配置状态
@@ -24,15 +25,39 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
   const [categorySelections, setCategorySelections] = useState({});
   
   // UI状态
-  const [logo, setLogo] = useState(null);
+  const [logoFile, setLogoFile] = useState(null); // 保存实际的文件对象
   const [logoPreview, setLogoPreview] = useState(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+  // 主Tab标签状态
+  const [activeMainTab, setActiveMainTab] = useState('basic');
+  const mainTabs = [
+    { id: 'basic', label: '基础信息' },
+    { id: 'dimension', label: '维度配置' },
+    { id: 'capability', label: '能力发现' }
+  ];
+  
+  // 维度配置内的次级Tab标签状态
+  const [activeDimensionTab, setActiveDimensionTab] = useState('category');
+  const dimensionTabs = [
+    { id: 'category', label: '分类配置' },
+    { id: 'template', label: '参数模板' }
+  ];
   
   // 模板预览状态
   const [templatePreview, setTemplatePreview] = useState({
     isOpen: false,
     template: null
+  });
+
+  // 模板应用状态管理
+  const [templateApplicationState, setTemplateApplicationState] = useState({
+    loading: false,
+    error: null,
+    success: null,
+    appliedTemplates: {}, // 记录已应用的模板
+    originalParameters: {} // 记录原始参数用于回滚
   });
   
   // 数据状态
@@ -227,7 +252,7 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
     }
   };
 
-  // 初始化维度配置
+  // 初始化维度配置（支持单一维度多选）
   const initializeDimensionConfigs = (dimensionsData, categoriesData) => {
     const configs = {};
     
@@ -238,7 +263,7 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
       // 确保维度名称是有效的字符串
       if (typeof dimension === 'string' && dimension.trim()) {
         configs[dimension] = {
-          selectedCategory: '',
+          selectedCategories: [], // 改为数组支持多选
           selectedTemplate: '',
           parameters: {},
           isActive: true
@@ -286,17 +311,31 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
         console.log('model_name:', modelData.model_name, modelData.name, modelData.modelName);
       }
       
+      // 设置LOGO预览
+      let logoPath = modelData.logo || null;
+      // 处理不同格式的logo数据
+      if (logoPath) {
+        // 如果logo是对象格式（包含name和dataUrl）
+        if (typeof logoPath === 'object') {
+          formData.logo = logoPath.name;
+          setLogoPreview(logoPath.dataUrl);
+        } else if (typeof logoPath === 'string') {
+          // 如果logo是字符串格式（路径）
+          formData.logo = logoPath;
+          if (!logoPath.startsWith('http')) {
+            logoPath = getImageUrl('models', logoPath);
+          }
+          setLogoPreview(logoPath);
+        }
+      } else {
+        formData.logo = '';
+        setLogoPreview(null);
+      }
+
       // 调试：输出设置到表单的数据
       console.log('设置到表单的数据:', formData);
       
       setFormData(formData);
-
-      // 设置LOGO预览
-      let logoPath = modelData.logo || null;
-      if (logoPath && !logoPath.startsWith('http')) {
-        logoPath = getImageUrl('models', logoPath);
-      }
-      setLogoPreview(logoPath);
 
       // 获取模型ID用于加载维度配置
       const modelId = modelData.model_id || modelData.id || modelData.modelId;
@@ -314,7 +353,7 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
     }
   };
 
-  // 加载模型的维度配置
+  // 加载模型的维度配置（支持单一维度多选）
   const loadModelDimensionConfigs = async (modelId, initialConfigs = null) => {
     try {
       // 使用初始配置或当前配置
@@ -327,77 +366,133 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
         configs = {};
       }
       
-      try {
-        // 获取模型的维度信息
-        const modelDimensions = await dimensionHierarchyApi.getModelDimensions(modelId);
-        console.log('模型维度信息:', modelDimensions);
+      // 首先检查model.categories字段（根据修复文档，分类信息现在应该存储在这里）
+      if (model && model.categories && Array.isArray(model.categories)) {
+        console.log('从model.categories加载分类信息:', model.categories);
+        
+        // 按维度分组分类
+        const categoriesByDimension = {};
+        model.categories.forEach(category => {
+          if (!categoriesByDimension[category.dimension]) {
+            categoriesByDimension[category.dimension] = [];
+          }
+          categoriesByDimension[category.dimension].push(category);
+        });
         
         // 处理每个维度的配置
         for (const dimension of Object.keys(configs)) {
           // 确保维度配置存在
           if (!configs[dimension]) {
             configs[dimension] = {
-              selectedCategory: '',
+              selectedCategories: [],
               selectedTemplate: '',
               parameters: {},
               isActive: true
             };
           }
           
-          // 获取该维度下的模型分类关联
-          const dimensionAssociations = modelDimensions.dimensions?.[dimension] || [];
+          // 获取该维度下的所有分类
+          const dimensionCategories = categoriesByDimension[dimension] || [];
           
-          if (dimensionAssociations.length > 0) {
-            // 使用第一个关联的分类（支持多分类时可根据权重选择）
-            const primaryAssociation = dimensionAssociations[0];
-            configs[dimension].selectedCategory = primaryAssociation.category_id;
+          if (dimensionCategories.length > 0) {
+            // 保存该维度下的所有分类ID
+            configs[dimension].selectedCategories = dimensionCategories.map(category => category.id);
             configs[dimension].isActive = true; // 有分类关联的维度自动激活
             
-            // 同时更新简化选择器状态
-            const category = categoriesByDimension[dimension]?.find(c => c.id === primaryAssociation.category_id);
-            if (category) {
-              selections[dimension] = {
-                categoryId: category.id,
-                categoryName: category.display_name || category.name
+            // 同时更新简化选择器状态（支持多个分类）
+            selections[dimension] = dimensionCategories.map(category => ({
+              categoryId: category.id,
+              categoryName: category.display_name || category.name
+            }));
+          } else {
+            // 没有分类关联的维度，清空选择但保持激活状态
+            configs[dimension].selectedCategories = [];
+            // 保持维度激活，让用户可以手动选择分类
+          }
+        }
+      } else {
+        try {
+          // 获取模型的维度信息
+          const modelDimensions = await dimensionHierarchyApi.getModelDimensions(modelId);
+          console.log('模型维度信息:', modelDimensions);
+          
+          // 处理每个维度的配置
+          for (const dimension of Object.keys(configs)) {
+            // 确保维度配置存在
+            if (!configs[dimension]) {
+              configs[dimension] = {
+                selectedCategories: [],
+                selectedTemplate: '',
+                parameters: {},
+                isActive: true
               };
             }
             
-            // 获取该维度下的参数配置
-            try {
-              const dimensionParameters = await modelApi.getModelParameters(modelId, dimension);
-              const paramsObj = {};
-              if (Array.isArray(dimensionParameters)) {
-                dimensionParameters.forEach(param => {
-                  if (param && param.parameter_name) {
-                    paramsObj[param.parameter_name] = param.parameter_value || '';
-                  }
-                });
+            // 获取该维度下的模型分类关联
+            const dimensionAssociations = modelDimensions.dimensions?.[dimension] || [];
+            
+            if (dimensionAssociations.length > 0) {
+              // 使用该维度下的所有关联分类
+              configs[dimension].selectedCategories = dimensionAssociations.map(association => association.category_id);
+              configs[dimension].isActive = true; // 有分类关联的维度自动激活
+              
+              // 同时更新简化选择器状态（支持多个分类）
+              selections[dimension] = dimensionAssociations
+                .map(association => {
+                  const category = categoriesByDimension[dimension]?.find(c => c.id === association.category_id);
+                  return category ? {
+                    categoryId: category.id,
+                    categoryName: category.display_name || category.name
+                  } : null;
+                })
+                .filter(Boolean);
+              
+              // 获取该维度下的参数配置
+              try {
+                const dimensionParameters = await modelApi.getModelParameters(modelId, dimension);
+                const paramsObj = {};
+                if (Array.isArray(dimensionParameters)) {
+                  dimensionParameters.forEach(param => {
+                    if (param && param.parameter_name) {
+                      paramsObj[param.parameter_name] = param.parameter_value || '';
+                    }
+                  });
+                }
+                configs[dimension].parameters = paramsObj;
+              } catch (paramError) {
+                console.warn(`获取维度 ${dimension} 参数失败:`, paramError);
+                configs[dimension].parameters = {};
               }
-              configs[dimension].parameters = paramsObj;
-            } catch (paramError) {
-              console.warn(`获取维度 ${dimension} 参数失败:`, paramError);
-              configs[dimension].parameters = {};
+            } else {
+              // 没有分类关联的维度，清空选择但保持激活状态
+              configs[dimension].selectedCategories = [];
+              // 保持维度激活，让用户可以手动选择分类
             }
-          } else {
-            // 没有分类关联的维度，清空选择并停用
-            configs[dimension].selectedCategory = '';
-            configs[dimension].isActive = false;
+          }
+        } catch (modelDimensionsError) {
+          console.error('获取模型维度信息失败:', modelDimensionsError);
+          // 如果获取模型维度信息失败，尝试从模型数据本身获取
+          if (model && model.dimensionConfigs) {
+            console.log('尝试从模型数据中获取维度配置:', model.dimensionConfigs);
+            Object.keys(model.dimensionConfigs).forEach(dimension => {
+              if (configs[dimension]) {
+                // 确保与新的配置结构兼容
+                const oldConfig = model.dimensionConfigs[dimension];
+                configs[dimension] = {
+                  ...configs[dimension],
+                  selectedCategories: oldConfig.selectedCategory ? [oldConfig.selectedCategory] : [],
+                  selectedTemplate: oldConfig.selectedTemplate,
+                  parameters: oldConfig.parameters
+                };
+              }
+            });
           }
         }
-      } catch (modelDimensionsError) {
-        console.error('获取模型维度信息失败:', modelDimensionsError);
-        // 如果获取模型维度信息失败，尝试从模型数据本身获取
-        if (model && model.dimensionConfigs) {
-          console.log('尝试从模型数据中获取维度配置:', model.dimensionConfigs);
-          Object.keys(model.dimensionConfigs).forEach(dimension => {
-            if (configs[dimension]) {
-              configs[dimension] = {
-                ...configs[dimension],
-                ...model.dimensionConfigs[dimension]
-              };
-            }
-          });
-        }
+      }
+      
+      // 确保所有维度都处于激活状态，让用户可以手动选择分类
+      for (const dimension in configs) {
+        configs[dimension].isActive = true;
       }
       
       // 记录维度配置加载状态
@@ -423,20 +518,65 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
     }));
   };
 
-  // 处理维度配置变化
+  // 处理维度配置变化（支持多选）
   const handleDimensionConfigChange = (dimension, field, value) => {
+    setDimensionConfigs(prev => {
+      const newConfigs = {
+        ...prev,
+        [dimension]: {
+          ...prev[dimension],
+          [field]: value
+        }
+      };
+      
+      // 当选择参数模板时，自动加载模板参数
+      if (field === 'selectedTemplate' && value) {
+        const selectedTemplate = parameterTemplates.find(t => t.id == value);
+        if (selectedTemplate && selectedTemplate.parameters) {
+          // 保存原始参数
+          setTemplateApplicationState(prev => ({
+            ...prev,
+            originalParameters: {
+              ...prev.originalParameters,
+              [dimension]: { ...prev[dimension]?.parameters || {} }
+            }
+          }));
+          
+          // 更新参数
+          newConfigs[dimension].parameters = { ...selectedTemplate.parameters };
+          newConfigs[dimension].originalParameters = { ...prev[dimension].parameters };
+          
+          // 更新模板应用状态
+          setTemplateApplicationState(prev => ({
+            ...prev,
+            appliedTemplates: {
+              ...prev.appliedTemplates,
+              [dimension]: selectedTemplate.id
+            }
+          }));
+        } else {
+          newConfigs[dimension].parameters = {};
+        }
+      }
+      
+      return newConfigs;
+    });
+  };
+  
+  // 处理分类多选变化
+  const handleCategoryMultiSelectChange = (dimension, selectedCategoryIds) => {
     setDimensionConfigs(prev => ({
       ...prev,
       [dimension]: {
         ...prev[dimension],
-        [field]: value
+        selectedCategories: selectedCategoryIds
       }
     }));
   };
 
   // 打开模板预览
   const openTemplatePreview = (templateId) => {
-    const template = parameterTemplates.find(t => t.id === templateId);
+    const template = parameterTemplates.find(t => t.id == templateId);
     if (template) {
       setTemplatePreview({
         isOpen: true,
@@ -453,18 +593,157 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
     });
   };
 
-  // 应用模板参数
-  const applyTemplateParameters = (template) => {
-    if (activeDimension) {
-      setDimensionConfigs(prev => ({
+  // 辅助函数：显示错误信息
+  const showError = (message) => {
+    console.error(message);
+    // 这里可以使用UI库的提示组件，如Ant Design的message.error
+    alert(`错误: ${message}`);
+  };
+
+  // 辅助函数：显示成功信息
+  const showSuccess = (message) => {
+    console.log(message);
+    // 这里可以使用UI库的提示组件，如Ant Design的message.success
+    alert(`成功: ${message}`);
+  };
+
+  // 辅助函数：根据维度获取支持的参数列表
+  const getSupportedParametersForDimension = (dimension) => {
+    // 根据维度返回支持的参数列表
+    const supportedParamsMap = {
+      'tasks': ['task_type', 'complexity', 'max_steps'],
+      'languages': ['language_code', 'translation_direction', 'accuracy'],
+      'licenses': ['license_type', 'commercial_use', 'distribution'],
+      'technologies': ['tech_stack', 'version', 'compatibility']
+      // 其他维度...
+    };
+    return supportedParamsMap[dimension] || [];
+  };
+
+  // 辅助函数：获取参数的预期类型
+  const getExpectedParameterType = (paramName) => {
+    // 返回参数的预期类型
+    const paramTypeMap = {
+      'task_type': 'string',
+      'complexity': 'number',
+      'max_steps': 'number',
+      'language_code': 'string',
+      'translation_direction': 'string',
+      'accuracy': 'number',
+      'license_type': 'string',
+      'commercial_use': 'boolean',
+      'distribution': 'string',
+      'tech_stack': 'string',
+      'version': 'string',
+      'compatibility': 'string'
+      // 其他参数...
+    };
+    return paramTypeMap[paramName];
+  };
+
+  // 辅助函数：验证模板参数
+  const validateTemplateParameters = (templateParameters, dimension) => {
+    const errors = [];
+    const supportedParams = getSupportedParametersForDimension(dimension);
+    
+    // 验证参数名称是否存在
+    for (const paramName in templateParameters) {
+      if (!supportedParams.includes(paramName)) {
+        errors.push(`参数 "${paramName}" 不支持当前维度`);
+      }
+    }
+    
+    // 验证参数类型
+    for (const paramName in templateParameters) {
+      const paramValue = templateParameters[paramName];
+      const expectedType = getExpectedParameterType(paramName);
+      
+      if (expectedType && typeof paramValue !== expectedType) {
+        errors.push(`参数 "${paramName}" 类型错误，期望 ${expectedType}，实际 ${typeof paramValue}`);
+      }
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  };
+
+  // 辅助函数：回滚到原始参数
+  const revertToOriginalParameters = (dimension) => {
+    setDimensionConfigs(prev => {
+      if (prev[dimension]?.originalParameters) {
+        return {
+          ...prev,
+          [dimension]: {
+            ...prev[dimension],
+            parameters: { ...prev[dimension].originalParameters },
+            selectedTemplate: null,
+            originalParameters: undefined
+          }
+        };
+      }
+      return prev;
+    });
+  };
+
+  // 统一管理模板应用流程
+  const manageTemplateApplication = (dimension, template) => {
+    setTemplateApplicationState(prev => ({ ...prev, loading: true, error: null, success: null }));
+    
+    try {
+      // 保存原始参数
+      setTemplateApplicationState(prev => ({
         ...prev,
-        [activeDimension]: {
-          ...prev[activeDimension],
-          selectedTemplate: template.id,
-          parameters: { ...template.parameters }
+        originalParameters: {
+          ...prev.originalParameters,
+          [dimension]: { ...dimensionConfigs[dimension].parameters }
         }
       }));
+      
+      // 应用模板
+      applyTemplateParameters(dimension, template);
+      
+      setTemplateApplicationState(prev => ({
+        ...prev,
+        loading: false,
+        success: `模板已成功应用到维度 ${dimensionDisplayNames[dimension] || dimension}`,
+        appliedTemplates: {
+          ...prev.appliedTemplates,
+          [dimension]: template.id
+        }
+      }));
+    } catch (err) {
+      setTemplateApplicationState(prev => ({
+        ...prev,
+        loading: false,
+        error: `应用模板失败: ${err.message || '未知错误'}`
+      }));
     }
+  };
+
+  // 应用模板参数 - 增强版
+  const applyTemplateParameters = (dimension, template) => {
+    if (!dimension) {
+      throw new Error("请先选择维度");
+    }
+    
+    // 模板参数验证
+    const validationResult = validateTemplateParameters(template.parameters, dimension);
+    if (!validationResult.isValid) {
+      throw new Error(`模板参数验证失败: ${validationResult.errors.join(', ')}`);
+    }
+    
+    // 更新本地状态，保存原始参数用于回滚
+    setDimensionConfigs(prev => ({
+      ...prev,
+      [dimension]: {
+        ...prev[dimension],
+        selectedTemplate: template.id,
+        parameters: { ...template.parameters },
+        originalParameters: { ...prev[dimension].parameters } // 保存原始参数用于回滚
+      }
+    }));
   };
 
   // 编辑模板（跳转到模板管理页面）
@@ -474,7 +753,7 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
     // window.location.href = `/template-management/${template.id}`;
   };
 
-  // 处理简化分类选择器变化
+  // 处理简化分类选择器变化（支持多选）
   const handleCategorySelectionsChange = (selections) => {
     setCategorySelections(selections);
     
@@ -483,14 +762,14 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
     
     // 根据简化选择器设置分类，同时保持其他配置不变
     Object.keys(newConfigs).forEach(dimension => {
-      if (selections[dimension]) {
-        // 如果简化选择器中有该维度的选择，更新分类
-        newConfigs[dimension].selectedCategory = selections[dimension].categoryId;
+      if (selections[dimension] && Array.isArray(selections[dimension]) && selections[dimension].length > 0) {
+        // 如果简化选择器中有该维度的选择（数组格式），更新分类
+        newConfigs[dimension].selectedCategories = selections[dimension].map(selection => selection.categoryId);
         newConfigs[dimension].isActive = true; // 自动激活有选择的维度
       } else {
-        // 如果简化选择器中没有该维度的选择，清空分类并停用
-        newConfigs[dimension].selectedCategory = '';
-        newConfigs[dimension].isActive = false;
+        // 如果简化选择器中没有该维度的选择，清空分类但保持激活
+        newConfigs[dimension].selectedCategories = [];
+        newConfigs[dimension].isActive = true; // 保持激活状态，让用户可以手动选择
       }
     });
     
@@ -515,10 +794,27 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
   const handleLogoChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setLogo(file);
+      // 检查文件类型
+      if (!file.type.startsWith('image/')) {
+        alert('请选择图片文件');
+        return;
+      }
+
+      // 检查文件大小（限制为2MB）
+      if (file.size > 2 * 1024 * 1024) {
+        alert('图片大小不能超过2MB');
+        return;
+      }
+
+      setLogoFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setLogoPreview(reader.result);
+        // 更新formData中的logo字段为文件名
+        setFormData(prev => ({
+          ...prev,
+          logo: file.name
+        }));
       };
       reader.readAsDataURL(file);
     }
@@ -526,8 +822,12 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
 
   // 处理移除LOGO
   const handleRemoveLogo = () => {
-    setLogo(null);
+    setLogoFile(null);
     setLogoPreview(null);
+    setFormData(prev => ({
+      ...prev,
+      logo: ''
+    }));
   };
 
   // 处理表单提交
@@ -541,9 +841,13 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
     }
     
 
-    // 验证至少有一个维度配置
+    // 验证至少有一个维度配置了分类
     const activeDimensions = Object.entries(dimensionConfigs)
-      .filter(([dimension, config]) => config.selectedCategory && config.isActive);
+      .filter(([dimension, config]) => 
+        config.selectedCategories && 
+        config.selectedCategories.length > 0 && 
+        config.isActive
+      );
     
     if (activeDimensions.length === 0) {
       alert('请至少配置一个维度的分类');
@@ -563,21 +867,23 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
         // 维度配置
         dimensionConfigs: dimensionConfigs,
         
-        // 分类关联（从维度配置中提取）
+        // 分类关联（从维度配置中提取，支持多选）
         categoryAssociations: activeDimensions
-          .map(([dimension, config]) => ({
-            category_id: config.selectedCategory,
-            dimension: dimension
-          }))
+          .flatMap(([dimension, config]) => 
+            config.selectedCategories.map(category_id => ({
+              category_id,
+              dimension
+            }))
+          )
       };
       
-      // 确保logo字段不是空对象
+      // 确保submitData中的logo字段只保存文件名或路径，不保存文件对象
       if (submitData.logo && typeof submitData.logo === 'object') {
         delete submitData.logo;
       }
       
-      // 调用父组件的保存函数
-      await onSave(submitData, logo);
+      // 调用父组件的保存函数，传递文件对象而不是logo
+      await onSave(submitData, logoFile);
       onClose();
       
     } catch (error) {
@@ -645,69 +951,93 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
         
         {config.isActive !== false && (
           <>
-            {/* 分类选择 */}
-            <div className="form-group">
-              <label className="form-label-with-count">
-                选择分类
-                {categories.length > 0 && (
-                  <span className="count-badge">{categories.length} 个分类</span>
-                )}
-              </label>
-              <select 
-                value={config.selectedCategory || ''}
-                onChange={(e) => handleDimensionConfigChange(dimension, 'selectedCategory', e.target.value)}
-                disabled={categories.length === 0}
-                className={config.selectedCategory ? 'has-selection' : ''}
-              >
-                <option value="">
-                  {categories.length === 0 ? '暂无分类' : '请选择分类'}
-                </option>
-                {categories.map(category => (
-                  <option key={category.id} value={category.id}>
-                    {category.display_name || category.name}
-                  </option>
-                ))}
-              </select>
-              {categories.length === 0 && (
-                <div className="field-hint">该维度下暂无可用分类</div>
-              )}
-              {config.selectedCategory && (
-                <div className="selection-hint">
-                  ✓ 已选择分类
-                </div>
-              )}
+            {/* 次级Tab标签 */}
+            <div className="dimension-tabs">
+              {dimensionTabs.map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  className={`dimension-tab-button ${activeDimensionTab === tab.id ? 'active' : ''}`}
+                  onClick={() => setActiveDimensionTab(tab.id)}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
             
-            {/* 参数模板选择 */}
-            <div className="form-group">
-              <label>参数模板:</label>
-              <div className="template-selector">
+            {/* 分类配置 Tab 内容 */}
+            {activeDimensionTab === 'category' && (
+              <div className="form-group">
+                <label className="form-label-with-count">
+                  选择分类
+                  {categories.length > 0 && (
+                    <span className="count-badge">{categories.length} 个分类</span>
+                  )}
+                </label>
                 <select 
-                  value={config.selectedTemplate || ''}
-                  onChange={(e) => handleDimensionConfigChange(dimension, 'selectedTemplate', e.target.value)}
-                  disabled={parameterTemplates.length === 0}
+                  multiple
+                  value={config.selectedCategories || []}
+                  onChange={(e) => {
+                    // 获取所有选中的选项值
+                    const selectedValues = Array.from(e.target.selectedOptions, option => option.value);
+                    handleCategoryMultiSelectChange(dimension, selectedValues);
+                  }}
+                  disabled={categories.length === 0}
+                  className={`category-multiselect ${(config.selectedCategories || []).length > 0 ? 'has-selection' : ''}`}
+                  size={Math.min(6, categories.length + 1)}
                 >
-                  <option value="">
-                    {parameterTemplates.length === 0 ? '暂无模板' : '请选择模板'}
-                  </option>
-                  {parameterTemplates.map(template => (
-                    <option key={template.id} value={template.id}>
-                      {template.name}
+                  {categories.map(category => (
+                    <option key={category.id} value={category.id}>
+                      {category.display_name || category.name}
                     </option>
                   ))}
                 </select>
-                {config.selectedTemplate && (
-                  <button 
-                    type="button"
-                    className="btn-preview"
-                    onClick={() => openTemplatePreview(config.selectedTemplate)}
-                    title="预览模板参数"
-                  >
-                    预览
-                  </button>
+                <div className="multiselect-hint">
+                  按住 Ctrl (Windows) 或 Command (Mac) 键可选择多个分类
+                </div>
+                {categories.length === 0 && (
+                  <div className="field-hint">该维度下暂无可用分类</div>
+                )}
+                {(config.selectedCategories || []).length > 0 && (
+                  <div className="selection-hint">
+                    ✓ 已选择 {(config.selectedCategories || []).length} 个分类
+                  </div>
                 )}
               </div>
-            </div>
+            )}
+            
+            {/* 参数模板 Tab 内容 */}
+            {activeDimensionTab === 'template' && (
+              <div className="form-group">
+                <label>参数模板:</label>
+                <div className="template-selector">
+                  <select 
+                    value={config.selectedTemplate || ''}
+                    onChange={(e) => handleDimensionConfigChange(dimension, 'selectedTemplate', e.target.value)}
+                    disabled={parameterTemplates.length === 0}
+                  >
+                    <option value="">
+                      {parameterTemplates.length === 0 ? '暂无模板' : '请选择模板'}
+                    </option>
+                    {parameterTemplates.map(template => (
+                      <option key={template.id} value={template.id}>
+                        {template.name}
+                      </option>
+                    ))}
+                  </select>
+                  {config.selectedTemplate && (
+                    <button 
+                      type="button"
+                      className="btn-preview"
+                      onClick={() => openTemplatePreview(config.selectedTemplate)}
+                      title="预览模板参数"
+                    >
+                      预览
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
             
             {/* 参数配置 */}
             {Object.keys(config.parameters || {}).length > 0 && (
@@ -734,11 +1064,11 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
               <div className="status-item">
                 <span className="status-label">分类:</span>
                 <span className="status-value">
-                  {config.selectedCategory ? 
-                    categories.find(c => c.id === config.selectedCategory)?.display_name || 
-                    categories.find(c => c.id === config.selectedCategory)?.name || 
-                    '未知分类' : 
-                    '未选择'
+                  {config.selectedCategories && config.selectedCategories.length > 0 ? 
+                    config.selectedCategories.map(categoryId => {
+                      const category = categories.find(c => c.id === categoryId);
+                      return category ? category.display_name || category.name : '未知分类';
+                    }).join(', ') : '未选择'
                   }
                 </span>
               </div>
@@ -746,7 +1076,7 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
                 <span className="status-label">模板:</span>
                 <span className="status-value">
                   {config.selectedTemplate ? 
-                    parameterTemplates.find(t => t.id === config.selectedTemplate)?.name || 
+                    parameterTemplates.find(t => t.id == config.selectedTemplate)?.name || 
                     '未知模板' : 
                     '未选择'
                   }
@@ -843,10 +1173,24 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
           <div className="loading">加载中...</div>
         ) : (
           <form onSubmit={handleSubmit} className="modal-form">
+            {/* 主Tab标签 */}
+            <div className="main-tabs">
+              {mainTabs.map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  className={`main-tab-button ${activeMainTab === tab.id ? 'active' : ''}`}
+                  onClick={() => setActiveMainTab(tab.id)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
             
-            {/* 基础信息 */}
-            <div className="form-section">
-              <h4>基础信息</h4>
+            {/* 基础信息 Tab 内容 */}
+            {activeMainTab === 'basic' && (
+              <div className="form-section">
+                <h4>基础信息</h4>
               
               <div className="form-row">
                 <div className="form-group">
@@ -948,9 +1292,11 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
                 </div>
               </div>
             </div>
+            )}
             
-            {/* 维度配置 */}
-            <div className="form-section">
+            {/* 维度配置 Tab 内容 */}
+            {activeMainTab === 'dimension' && (
+              <div className="form-section">
               <div className="dimension-config-header">
                 <h4>维度配置</h4>
                 <div className="selector-toggle">
@@ -967,6 +1313,18 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
               
               {renderDimensionSelector()}
             </div>
+            )}
+            
+            {/* 能力发现 Tab 内容 */}
+            {activeMainTab === 'capability' && (
+              <div className="form-section">
+                <h4>能力发现</h4>
+                <div className="capability-placeholder">
+                  <p>能力发现功能正在开发中...</p>
+                  <p>此功能将帮助您自动发现和配置模型的各项能力。</p>
+                </div>
+              </div>
+            )}
             
             {/* 操作按钮 */}
             <div className="modal-actions">
@@ -986,7 +1344,7 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
         isOpen={templatePreview.isOpen}
         onClose={closeTemplatePreview}
         template={templatePreview.template}
-        onApplyTemplate={applyTemplateParameters}
+        onApplyTemplate={(template) => manageTemplateApplication(activeDimension, template)}
         onEditTemplate={editTemplate}
       />
     </div>
