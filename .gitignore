@@ -403,3 +403,8 @@ test_dimension_simple.py
 test_parameter_inheritance.py
 frontend/test-model-modal.html
 frontend/src/utils/testModelModal.js
+模型分类显示修复文档.md
+模型编辑对话框分类显示修复计划.md
+model_parameter_template_issue.md
+frontend/public/logos/models/20251227_102702_831766.png
+dev_plan/default-model-management.md

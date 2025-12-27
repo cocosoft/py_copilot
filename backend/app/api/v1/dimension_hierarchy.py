@@ -357,6 +357,59 @@ async def remove_model_from_dimension_category(
         )
 
 
+@router.delete("/models/{model_id}/categories",
+           response_model=Dict[str, Any],
+           responses={
+               200: {"description": "成功删除所有模型关联"},
+               400: {"description": "请求参数错误", "model": ErrorResponse},
+               404: {"description": "模型不存在", "model": ErrorResponse},
+               500: {"description": "服务器内部错误", "model": ErrorResponse}
+           })
+async def remove_all_model_category_associations(
+    model_id: int = ...,
+    db: Session = Depends(get_db)
+):
+    """
+    删除模型的所有分类关联
+    
+    Args:
+        model_id: 模型ID
+        
+    Returns:
+        删除结果
+    """
+    try:
+        success = DimensionHierarchyService.remove_all_model_category_associations(
+            db, model_id
+        )
+        
+        return {
+            "success": True,
+            "message": "成功删除模型的所有分类关联",
+            "data": {"model_id": model_id}
+        }
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error": "model_not_found",
+                "message": str(e),
+                "details": {"model_id": model_id}
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": "associations_removal_error",
+                "message": "删除模型所有分类关联失败",
+                "details": {"error": str(e), "model_id": model_id}
+            }
+        )
+
+
 @router.get("/dimensions/{dimension}/constraints/{model_id}")
 async def validate_dimension_constraints(
     dimension: str = ...,

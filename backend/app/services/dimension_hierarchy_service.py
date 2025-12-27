@@ -333,3 +333,27 @@ class DimensionHierarchyService:
         ]
         
         return len(primary_associations) <= 1
+    
+    @staticmethod
+    def remove_all_model_category_associations(db: Session, model_id: int) -> bool:
+        """
+        删除模型的所有分类关联
+        
+        Args:
+            model_id: 模型ID
+            
+        Returns:
+            是否成功删除
+        """
+        # 验证模型是否存在
+        model = db.query(ModelDB).filter(ModelDB.id == model_id).first()
+        if not model:
+            raise ValueError(f"模型ID {model_id} 不存在")
+        
+        # 删除所有关联
+        db.query(ModelCategoryAssociation).filter(
+            ModelCategoryAssociation.model_id == model_id
+        ).delete()
+        
+        db.commit()
+        return True

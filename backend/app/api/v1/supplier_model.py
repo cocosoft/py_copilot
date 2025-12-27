@@ -11,7 +11,10 @@ from app.core.dependencies import get_db
 from app.models.supplier_db import SupplierDB, ModelDB
 from app.schemas.supplier_model import (
     SupplierCreate, SupplierResponse,
-    ModelCreate, ModelResponse, ModelListResponse
+    ModelCreate
+)
+from app.schemas.model_management import (
+    ModelResponse, ModelListResponse, ModelWithSupplierResponse
 )
 
 router = APIRouter()
@@ -392,42 +395,70 @@ def delete_supplier(supplier_id: int, db: Session = Depends(get_db)):
 @router.get("/suppliers/{supplier_id}/models", response_model=ModelListResponse)
 def get_supplier_models(supplier_id: int, db: Session = Depends(get_db)):
     """获取指定供应商的模型列表"""
-    # 验证供应商是否存在 - 使用原始SQL查询避免ORM关系映射问题
-    from sqlalchemy import text
-    result = db.execute(text("SELECT id FROM suppliers WHERE id = :supplier_id"), {
-        "supplier_id": supplier_id
-    })
-    supplier = result.fetchone()
+    # 验证供应商是否存在
+    from sqlalchemy import text, join, select
+    from app.models.supplier_db import ModelDB, SupplierDB
+    from app.models.model_category import ModelCategoryAssociation, ModelCategory
+    
+    # 获取供应商信息
+    supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
     if not supplier:
         raise HTTPException(status_code=404, detail="供应商不存在")
     
-    # 获取该供应商的所有模型 - 使用原始SQL查询避免ORM关系映射错误
-    result = db.execute(text("""
-        SELECT id, model_id, model_name, description, supplier_id, 
-               context_window, max_tokens, is_default, is_active
-        FROM models 
-        WHERE supplier_id = :supplier_id
-    """), {"supplier_id": supplier_id})
-    models = result.fetchall()
-    total = len(models)
+    # 使用ORM查询获取模型及其分类
+    models = db.query(ModelDB).filter(ModelDB.supplier_id == supplier_id).all()
     
-    # 转换为响应格式
-    model_responses = [
-        ModelResponse(
+    if not models:
+        return ModelListResponse(models=[], total=0)
+    
+    # 为每个模型获取分类
+    model_responses = []
+    for model in models:
+        # 获取模型关联的所有分类
+        categories = db.query(ModelCategory).join(ModelCategoryAssociation).filter(
+            ModelCategoryAssociation.model_id == model.id
+        ).all()
+        
+        # 转换为响应格式
+        model_response = ModelWithSupplierResponse(
             id=model.id,
             model_id=model.model_id,
             model_name=model.model_name,
             description=model.description,
-            supplier_id=model.supplier_id,
-            context_window=model.context_window,
-            max_tokens=model.max_tokens,
+            type="chat",  # 默认值，因为数据库中没有此字段
+            context_window=model.context_window or 8000,
+            default_temperature=0.7,
+            default_max_tokens=model.max_tokens or 1000,
+            default_top_p=1.0,
+            default_frequency_penalty=0.0,
+            default_presence_penalty=0.0,
+            custom_params=None,
+            is_active=model.is_active,
             is_default=model.is_default,
-            is_active=model.is_active
+            logo=model.logo,
+            supplier_id=model.supplier_id,
+            created_at=model.created_at,
+            updated_at=model.updated_at,
+            categories=categories,
+            supplier=SupplierResponse(
+                id=supplier.id,
+                name=supplier.name,
+                display_name=supplier.display_name if supplier.display_name is not None else supplier.name,
+                description=supplier.description,
+                logo=supplier.logo,
+                website=supplier.website,
+                api_endpoint=supplier.api_endpoint,
+                api_key_required=supplier.api_key_required if supplier.api_key_required is not None else False,
+                category=supplier.category,
+                api_docs=supplier.api_docs,
+                created_at=supplier.created_at,
+                updated_at=supplier.updated_at,
+                is_active=supplier.is_active
+            )
         )
-        for model in models
-    ]
+        model_responses.append(model_response)
     
-    return ModelListResponse(models=model_responses, total=total)
+    return ModelListResponse(models=model_responses, total=len(model_responses))
 
 @router.get("/suppliers/{supplier_id}/models/{model_id}", response_model=ModelResponse)
 def get_model(supplier_id: int, model_id: int, db: Session = Depends(get_db)):

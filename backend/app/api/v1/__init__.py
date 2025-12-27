@@ -47,7 +47,7 @@ api_router.include_router(parameter_mappings_router, tags=["parameter-mappings"]
 api_router.include_router(system_parameters_router, tags=["system-parameters"])
 # 注册维度层次结构路由
 from app.api.v1.dimension_hierarchy import router as dimension_hierarchy_router
-api_router.include_router(dimension_hierarchy_router, prefix="/dimension_hierarchy", tags=["dimension-hierarchy"])
+api_router.include_router(dimension_hierarchy_router, prefix="/dimension-hierarchy", tags=["dimension-hierarchy"])
 api_router.include_router(model_capabilities_router, tags=["model_capabilities"])
 api_router.include_router(capability_router, tags=["capability"])
 # 先注册支持文件上传的model_categories_router

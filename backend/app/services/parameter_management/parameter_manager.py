@@ -1380,7 +1380,11 @@ class ParameterManager:
         template_param_names = set()
         
         for template_param in template_params:
-            param_name = template_param['name']
+            # 确保参数有名称字段
+            param_name = template_param.get('name')
+            if not param_name:
+                continue  # 跳过没有名称的参数
+                
             template_param_names.add(param_name)
             
             # 转换模板参数到ModelParameter格式
