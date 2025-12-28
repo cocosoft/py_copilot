@@ -28,7 +28,7 @@ class DocumentProcessor:
         from app.services.knowledge.knowledge_graph_service import KnowledgeGraphService
         self.knowledge_graph_service = KnowledgeGraphService()
     
-    def process_document(self, file_path: str, file_type: str, document_id: int, db: Session = None) -> Dict[str, Any]:
+    def process_document(self, file_path: str, file_type: str, document_id: int, knowledge_base_id: Optional[int] = None, db: Session = None) -> Dict[str, Any]:
         """完整文档处理流程 - 集成图谱化操作"""
         try:
             # 1. 解析文档
@@ -55,6 +55,7 @@ class DocumentProcessor:
                 chunk_id = f"{document_id}_chunk_{i}"
                 metadata = {
                     "document_id": document_id,
+                    "knowledge_base_id": knowledge_base_id,
                     "chunk_index": i,
                     "total_chunks": len(chunks),
                     "title": f"文档 {document_id} 第 {i+1} 块"

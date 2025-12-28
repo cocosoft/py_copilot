@@ -725,6 +725,83 @@ class ParameterManager:
             return {}
         
         return model_type.default_parameters or {}
+
+    @staticmethod
+    def get_inherited_parameters(db: Session, model_id: int) -> Dict[str, Any]:
+        """
+        获取模型继承的参数，实现系统级→分类级→模型级的完整继承链
+        
+        Args:
+            db: 数据库会话
+            model_id: 模型ID
+            
+        Returns:
+            合并后的完整参数字典
+        """
+        from app.services.parameter_management.system_parameter_manager import SystemParameterManager
+        
+        parameters = {}
+        
+        # 1. 获取系统级参数
+        system_params = SystemParameterManager.get_system_parameters(db)
+        for param in system_params:
+            param_name = param.get("name")
+            param_value = param.get("default_value")
+            parameters[param_name] = {
+                "value": param_value,
+                "type": param.get("type", "string"),
+                "description": param.get("description", ""),
+                "source": "system"
+            }
+        
+        # 2. 获取模型类型（主分类）的参数
+        model = db.query(ModelDB).filter(ModelDB.id == model_id).first()
+        if not model:
+            return parameters
+        
+        if model.model_type_id:
+            category_params = ParameterManager.get_model_type_parameters(db, model.model_type_id)
+            # 处理不同格式的默认参数
+            if isinstance(category_params, dict):
+                for param_name, param_value in category_params.items():
+                    # 兼容字符串值和包含type的对象值
+                    if isinstance(param_value, dict):
+                        parameters[param_name] = {
+                            "value": param_value.get("value"),
+                            "type": param_value.get("type", "string"),
+                            "description": param_value.get("description", ""),
+                            "source": "category"
+                        }
+                    else:
+                        parameters[param_name] = {
+                            "value": param_value,
+                            "type": "string",
+                            "description": "",
+                            "source": "category"
+                        }
+            elif isinstance(category_params, list):
+                for param in category_params:
+                    param_name = param.get("name")
+                    if param_name:
+                        parameters[param_name] = {
+                            "value": param.get("default_value", param.get("value")),
+                            "type": param.get("type", "string"),
+                            "description": param.get("description", ""),
+                            "source": "category"
+                        }
+        
+        # 3. 获取模型级参数（覆盖）
+        model_params = db.query(ModelParameter).filter(ModelParameter.model_id == model_id).all()
+        for param in model_params:
+            param_value = ParameterManager._convert_parameter_value(param.parameter_value, param.parameter_type)
+            parameters[param.parameter_name] = {
+                "value": param_value,
+                "type": param.parameter_type,
+                "description": param.description,
+                "source": "model"
+            }
+        
+        return parameters
     
     @staticmethod
     def _convert_parameter_value(value: str, type_name: str) -> Any:

@@ -659,8 +659,17 @@ const ModelCategoryManagement = () => {
                       ? categories.find(cat => cat.id === category.parent_id)
                       : null;
                     
+                    // 判断是否为主分类（没有父分类的分类）
+                    const isPrimaryCategory = category.parent_id === null;
+                    
                     return (
-                      <tr key={category.id} className={category.is_system ? 'system-category-row' : ''}>
+                      <tr 
+                        key={category.id} 
+                        className={`
+                          ${category.is_system ? 'system-category-row' : ''}
+                          ${isPrimaryCategory ? 'primary-category' : 'sub-category'}
+                        `}
+                      >
                         <td>{category.id}</td>
                         <td>
                           {category.logo ? (
@@ -693,7 +702,9 @@ const ModelCategoryManagement = () => {
                             </div>
                           )}
                         </td>
-                        <td>{category.name}</td>
+                        <td className={isPrimaryCategory ? 'primary-category-name' : ''}>
+                          {category.name}
+                        </td>
                         <td>{category.display_name}</td>
                         <td>{category.dimension}</td>
                         <td>{parentCategory ? parentCategory.display_name : '-'}</td>

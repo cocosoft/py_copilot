@@ -62,9 +62,21 @@ class KnowledgeService:
         if not knowledge_base:
             return False
         
-        # 删除知识库时会自动删除所有关联的文档（通过cascade设置）
+        # 1. 从向量索引中删除该知识库的所有文档
+        try:
+            self.retrieval_service.delete_documents_by_metadata({
+                "knowledge_base_id": knowledge_base_id
+            })
+            logger.info(f"成功从向量索引中删除知识库 {knowledge_base_id} 的所有文档")
+        except Exception as e:
+            logger.error(f"向量索引删除失败: {str(e)}")
+            import traceback
+            logger.error(f"错误堆栈: {traceback.format_exc()}")
+        
+        # 2. 删除知识库时会自动删除所有关联的文档（通过cascade设置）
         db.delete(knowledge_base)
         db.commit()
+        logger.info(f"成功删除知识库: ID={knowledge_base_id}, 名称={knowledge_base.name}")
         return True
     
     async def process_uploaded_file(self, file: UploadFile, knowledge_base_id: int, db: Session) -> KnowledgeDocument:
@@ -135,6 +147,7 @@ class KnowledgeService:
                 file_path, 
                 document.file_type, 
                 document.id, 
+                document.knowledge_base_id,  # 传递knowledge_base_id
                 db
             )
             

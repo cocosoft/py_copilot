@@ -4,6 +4,7 @@ import '../../styles/CapabilityManagement.css';
 
 const CapabilityParameterTemplateManagement = () => {
   const [templates, setTemplates] = useState([]);
+  const [filteredTemplates, setFilteredTemplates] = useState([]);
   const [capabilities, setCapabilities] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -11,6 +12,7 @@ const CapabilityParameterTemplateManagement = () => {
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState('add'); // 'add' or 'edit'
   const [currentTemplate, setCurrentTemplate] = useState(null);
+  const [searchKeyword, setSearchKeyword] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     display_name: '',
@@ -27,6 +29,28 @@ const CapabilityParameterTemplateManagement = () => {
     loadAllData();
   }, []);
 
+  // 过滤模板（基于搜索关键词和选择的能力）
+  useEffect(() => {
+    let result = [...templates];
+    
+    // 按搜索关键词过滤
+    if (searchKeyword.trim()) {
+      const keyword = searchKeyword.toLowerCase().trim();
+      result = result.filter(template => 
+        (template.name && template.name.toLowerCase().includes(keyword)) ||
+        (template.display_name && template.display_name.toLowerCase().includes(keyword)) ||
+        (template.description && template.description.toLowerCase().includes(keyword))
+      );
+    }
+    
+    // 按选择的能力过滤
+    if (formData.capability_id) {
+      result = result.filter(template => template.capability_id === parseInt(formData.capability_id));
+    }
+    
+    setFilteredTemplates(result);
+  }, [templates, searchKeyword, formData.capability_id]);
+
   const loadAllData = async () => {
     try {
       setLoading(true);
@@ -39,9 +63,20 @@ const CapabilityParameterTemplateManagement = () => {
         : capabilitiesResponse;
       setCapabilities(processedCapabilities);
       
-      // 加载所有参数模板（这里需要根据后端API调整）
-      // 暂时为空，因为后端可能还没有提供获取所有模板的API
-      setTemplates([]);
+      // 加载所有参数模板
+      try {
+        const templatesResponse = await capabilityApi.getParameterTemplates();
+        const processedTemplates = Array.isArray(templatesResponse?.templates)
+          ? templatesResponse.templates
+          : Array.isArray(templatesResponse) ? templatesResponse : [];
+        setTemplates(processedTemplates);
+        setFilteredTemplates(processedTemplates); // 同时更新过滤后的模板
+      } catch (templatesErr) {
+        console.warn('加载所有参数模板失败:', templatesErr);
+        // 如果加载所有模板失败，暂时不显示错误，因为可能没有这个API
+        setTemplates([]);
+        setFilteredTemplates([]); // 同时更新过滤后的模板
+      }
     } catch (err) {
       console.error('加载数据失败:', err);
       setError('加载数据失败，请重试');
@@ -57,9 +92,11 @@ const CapabilityParameterTemplateManagement = () => {
       setError(null);
       
       const response = await capabilityApi.getParameterTemplatesByCapability(capabilityId);
-      const processedTemplates = Array.isArray(response?.data)
+      const processedTemplates = Array.isArray(response?.templates)
+        ? response.templates
+        : Array.isArray(response?.data)
         ? response.data
-        : response;
+        : Array.isArray(response) ? response : [];
       
       setTemplates(processedTemplates);
     } catch (err) {
@@ -210,7 +247,7 @@ const CapabilityParameterTemplateManagement = () => {
   }
 
   return (
-    <div className="capability-parameter-template-management">
+    <div className="capability-management-main">
       <div className="section-header">
         <h3>能力参数模板管理</h3>
         <div className="header-actions">
@@ -237,34 +274,56 @@ const CapabilityParameterTemplateManagement = () => {
         </div>
       )}
 
-      {/* 能力选择器 */}
-      <div className="capability-selector">
-        <label htmlFor="capability-select">选择能力:</label>
-        <select
-          id="capability-select"
-          value={formData.capability_id}
-          onChange={(e) => {
-            setFormData(prev => ({ ...prev, capability_id: e.target.value }));
-            if (e.target.value) {
-              loadTemplatesByCapability(e.target.value);
-            }
-          }}
-        >
-          <option value="">所有能力</option>
-          {capabilities.map(capability => (
-            <option key={capability.id} value={capability.id}>
-              {capability.display_name || capability.name}
-            </option>
-          ))}
-        </select>
+      {/* 搜索和筛选区域 */}
+      <div className="search-filter-container">
+        <div className="search-box">
+          <input
+            type="text"
+            placeholder="搜索模板名称、描述..."
+            value={searchKeyword}
+            onChange={(e) => setSearchKeyword(e.target.value)}
+            className="search-input"
+          />
+          {searchKeyword && (
+            <button 
+              className="search-clear-btn"
+              onClick={() => setSearchKeyword('')}
+            >
+              ×
+            </button>
+          )}
+        </div>
+        
+        <div className="capability-selector">
+          <label htmlFor="capability-select">选择能力:</label>
+          <select
+            id="capability-select"
+            value={formData.capability_id}
+            onChange={(e) => {
+              setFormData(prev => ({ ...prev, capability_id: e.target.value }));
+              if (e.target.value) {
+                loadTemplatesByCapability(e.target.value);
+              }
+            }}
+          >
+            <option value="">所有能力</option>
+            {capabilities.map(capability => (
+              <option key={capability.id} value={capability.id}>
+                {capability.display_name || capability.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      <div className="templates-container">
-        {templates.length === 0 ? (
-          <div className="empty-state">暂无参数模板数据</div>
+      <div className="parameter-templates-container">
+        {filteredTemplates.length === 0 ? (
+          <div className="empty-state">
+            {searchKeyword || formData.capability_id ? '未找到匹配的参数模板' : '暂无参数模板数据'}
+          </div>
         ) : (
           <div className="templates-grid">
-            {templates.map(template => (
+            {filteredTemplates.map(template => (
               <div key={template.id} className="template-card">
                 <div className="template-header">
                   <div>
@@ -305,6 +364,28 @@ const CapabilityParameterTemplateManagement = () => {
                     </span>
                   </div>
                 </div>
+                <div className="template-parameters">
+                  <h5>核心参数</h5>
+                  <div className="parameters-list">
+                    {template.parameters && typeof template.parameters === 'object' && Object.keys(template.parameters).length > 0 ? (
+                      Object.entries(template.parameters)
+                        .slice(0, 3) // 只显示前3个核心参数
+                        .map(([key, value]) => (
+                          <div key={key} className="parameter-item">
+                            <span className="parameter-key">{key}:</span>
+                            <span className="parameter-value">
+                              {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                            </span>
+                          </div>
+                        ))
+                    ) : (
+                      <div className="no-parameters">暂无参数配置</div>
+                    )}
+                    {template.parameters && typeof template.parameters === 'object' && Object.keys(template.parameters).length > 3 && (
+                      <div className="more-parameters">+{Object.keys(template.parameters).length - 3} 个参数...</div>
+                    )}
+                  </div>
+                </div>
               </div>
             ))}
           </div>
@@ -322,38 +403,45 @@ const CapabilityParameterTemplateManagement = () => {
               <button className="btn-close" onClick={closeModal}>×</button>
             </div>
             <form onSubmit={handleSubmit} className="modal-form">
-              <div className="form-group">
-                <label>名称 *</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  placeholder="输入模板名称（英文，如：text_generation_template）"
-                  required
-                />
+              <div className="form-grid">
+                <div className="form-group">
+                  <label>名称 *</label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    placeholder="输入模板名称（英文，如：text_generation_template）"
+                    required
+                  />
+                  <div className="form-hint">仅允许英文字母、数字、下划线和连字符</div>
+                </div>
+                
+                <div className="form-group">
+                  <label>显示名称 *</label>
+                  <input
+                    type="text"
+                    name="display_name"
+                    value={formData.display_name}
+                    onChange={handleInputChange}
+                    placeholder="输入模板显示名称（中文，如：文本生成参数模板）"
+                    required
+                  />
+                  <div className="form-hint">用于界面展示的友好名称</div>
+                </div>
               </div>
-              <div className="form-group">
-                <label>显示名称 *</label>
-                <input
-                  type="text"
-                  name="display_name"
-                  value={formData.display_name}
-                  onChange={handleInputChange}
-                  placeholder="输入模板显示名称（中文，如：文本生成参数模板）"
-                  required
-                />
-              </div>
+              
               <div className="form-group">
                 <label>描述</label>
                 <textarea
                   name="description"
                   value={formData.description}
                   onChange={handleInputChange}
-                  placeholder="输入模板描述"
+                  placeholder="输入模板的详细描述，说明其用途和特点"
                   rows="3"
                 />
               </div>
+              
               <div className="form-group">
                 <label>关联能力 *</label>
                 <select
@@ -361,6 +449,7 @@ const CapabilityParameterTemplateManagement = () => {
                   value={formData.capability_id}
                   onChange={handleInputChange}
                   required
+                  className="full-width-select"
                 >
                   <option value="">请选择能力</option>
                   {capabilities.map(capability => (
@@ -369,19 +458,28 @@ const CapabilityParameterTemplateManagement = () => {
                     </option>
                   ))}
                 </select>
+                <div className="form-hint">选择此模板适用的模型能力</div>
               </div>
+              
               <div className="form-group">
-                <label>参数配置（JSON格式）</label>
-                <textarea
-                  name="parameters"
-                  value={JSON.stringify(formData.parameters, null, 2)}
-                  onChange={handleParametersChange}
-                  placeholder='输入JSON格式的参数配置，如：{"temperature": 0.7, "max_tokens": 1000}'
-                  rows="6"
-                  className="json-editor"
-                />
+                <label>参数配置（JSON格式） *</label>
+                <div className="json-editor-container">
+                  <textarea
+                    name="parameters"
+                    value={JSON.stringify(formData.parameters, null, 2)}
+                    onChange={handleParametersChange}
+                    placeholder='输入JSON格式的参数配置，如：{"temperature": 0.7, "max_tokens": 1000}'
+                    rows="8"
+                    className="json-editor"
+                    required
+                  />
+                  <div className="form-hint">
+                    支持的参数取决于模型能力，常见参数如：temperature、max_tokens、top_p等
+                  </div>
+                </div>
               </div>
-              <div className="form-row">
+              
+              <div className="form-grid">
                 <div className="form-group">
                   <label>级别</label>
                   <select
@@ -394,7 +492,9 @@ const CapabilityParameterTemplateManagement = () => {
                     <option value="advanced">高级</option>
                     <option value="expert">专家</option>
                   </select>
+                  <div className="form-hint">模板的复杂度级别</div>
                 </div>
+                
                 <div className="form-group">
                   <label>版本</label>
                   <input
@@ -404,8 +504,10 @@ const CapabilityParameterTemplateManagement = () => {
                     onChange={handleInputChange}
                     placeholder="如：1.0.0"
                   />
+                  <div className="form-hint">遵循语义化版本控制（如：主版本.次版本.修订号）</div>
                 </div>
               </div>
+              
               <div className="form-group form-check">
                 <input
                   type="checkbox"
@@ -415,7 +517,9 @@ const CapabilityParameterTemplateManagement = () => {
                   onChange={handleInputChange}
                 />
                 <label htmlFor="is_active">启用</label>
+                <div className="form-hint">启用后模板可在系统中使用</div>
               </div>
+              
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={closeModal}>
                   取消

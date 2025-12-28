@@ -188,6 +188,40 @@ def get_category_tree(
     
     return root_categories
 
+@router.get("/model/categories/primary")
+def get_primary_categories(
+    dimension: Optional[str] = "task_type",
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    """获取所有主分类（原模型类型）
+    
+    参数:
+    - dimension: 分类维度，默认为"task_type"
+    
+    返回:
+    - 指定维度的顶级分类列表
+    """
+    try:
+        primary_categories = db.query(ModelCategory).filter(
+            ModelCategory.dimension == dimension,
+            ModelCategory.parent_id.is_(None),
+            ModelCategory.is_active == True
+        ).all()
+        
+        return [{
+            "id": cat.id,
+            "name": cat.name,
+            "display_name": cat.display_name,
+            "description": cat.description,
+            "dimension": cat.dimension,
+            "is_active": cat.is_active,
+            "logo": cat.logo,
+            "children": []
+        } for cat in primary_categories]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"错误: {str(e)}")
+
 @router.put("/model/categories/{category_id}")
 async def update_model_category(
     category_id: int,

@@ -181,6 +181,26 @@
   background-color: #f5f7fa;
 }
 
+/* 主分类和子分类样式 */
+.category-table tr.primary-category {
+  background-color: #ecf5ff;
+  font-weight: 500;
+}
+
+.category-table tr.sub-category {
+  padding-left: 20px;
+}
+
+.category-table tr.sub-category td {
+  padding-left: 30px;
+  border-left: 3px solid #e6f7ff;
+}
+
+.primary-category-name {
+  font-weight: 600;
+  color: #409eff;
+}
+
 /* 徽章样式 */
 .category-type-badge,
 .status-badge {

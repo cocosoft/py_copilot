@@ -473,6 +473,51 @@
   margin-bottom: 20px;
 }
 
+.capability-management-main .modal-form .form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.capability-management-main .modal-form .form-hint {
+  font-size: 12px;
+  color: #6c757d;
+  margin-top: 6px;
+  margin-left: 1px;
+  font-style: italic;
+}
+
+.capability-management-main .modal-form .full-width-select {
+  width: 100%;
+}
+
+.capability-management-main .modal-form .json-editor-container {
+  position: relative;
+}
+
+.capability-management-main .modal-form .json-editor {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  background-color: #f8f9fa;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  padding: 12px;
+  resize: vertical;
+  transition: border-color 0.3s ease;
+}
+
+.capability-management-main .modal-form .json-editor:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.25);
+  background-color: white;
+}
+
+.capability-management-main .modal-form .json-editor::placeholder {
+  color: #9ca3af;
+}
+
 .capability-management-main .modal-form .form-group label {
   display: block;
   margin-bottom: 6px;
@@ -632,6 +677,280 @@
   font-size: 12px;
   color: #6c757d;
   display: block;
+}
+
+/* 参数模板管理样式 */
+.capability-management-main .search-filter-container {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.capability-management-main .search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background-color: white;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.capability-management-main .search-input {
+  flex: 1;
+  padding: 10px 12px 10px 40px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  font-size: 14px;
+  background-color: white;
+  transition: border-color 0.3s ease;
+}
+
+.capability-management-main .search-input::placeholder {
+  color: #6c757d;
+}
+
+.capability-management-main .search-input:hover {
+  border-color: #3498db;
+}
+
+.capability-management-main .search-input:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.25);
+}
+
+.capability-management-main .search-box::before {
+  content: "🔍";
+  position: absolute;
+  left: 25px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #a0aec0;
+  font-size: 16px;
+  z-index: 1;
+}
+
+.capability-management-main .search-clear-btn {
+  position: absolute;
+  right: 25px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #a0aec0;
+  cursor: pointer;
+  padding: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.2s ease;
+  z-index: 1;
+}
+
+.capability-management-main .search-clear-btn:hover {
+  background-color: #e2e8f0;
+  color: #4a5568;
+}
+
+.capability-management-main .capability-selector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.capability-management-main .capability-selector label {
+  font-weight: 500;
+  color: #495057;
+  min-width: 70px;
+}
+
+.capability-management-main .capability-selector select {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  font-size: 14px;
+  background-color: white;
+  cursor: pointer;
+  transition: border-color 0.3s ease;
+}
+
+.capability-management-main .capability-selector select:hover {
+  border-color: #3498db;
+}
+
+.capability-management-main .capability-selector select:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.25);
+}
+
+.capability-management-main .parameter-templates-container {
+  margin-top: 20px;
+}
+
+.capability-management-main .templates-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 20px;
+}
+
+.capability-management-main .template-card {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #e8f0fe;
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.capability-management-main .template-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  border-color: #3498db;
+}
+
+.capability-management-main .template-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 15px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.capability-management-main .template-header h4 {
+  margin: 0 0 5px 0;
+  font-size: 16px;
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+.capability-management-main .template-description {
+  font-size: 13px;
+  color: #6c757d;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.capability-management-main .template-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.capability-management-main .status-badge {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.capability-management-main .status-badge.active {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.capability-management-main .status-badge.inactive {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.capability-management-main .template-details {
+  margin-bottom: 15px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.capability-management-main .detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 13px;
+}
+
+.capability-management-main .detail-label {
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.capability-management-main .detail-value {
+  color: #2c3e50;
+  font-weight: 500;
+}
+
+.capability-management-main .template-parameters {
+  margin-top: 15px;
+}
+
+.capability-management-main .template-parameters h5 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: #34495e;
+  font-weight: 600;
+}
+
+.capability-management-main .parameters-list {
+  font-size: 13px;
+}
+
+.capability-management-main .parameter-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 5px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.capability-management-main .parameter-item:last-child {
+  border-bottom: none;
+}
+
+.capability-management-main .parameter-key {
+  color: #6c757d;
+  font-weight: 500;
+  min-width: 100px;
+  word-break: break-word;
+}
+
+.capability-management-main .parameter-value {
+  color: #2c3e50;
+  text-align: right;
+  word-break: break-all;
+  flex: 1;
+}
+
+.capability-management-main .no-parameters {
+  color: #6c757d;
+  font-style: italic;
+  text-align: center;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+}
+
+.capability-management-main .more-parameters {
+  color: #3498db;
+  font-style: italic;
+  text-align: right;
+  margin-top: 5px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.capability-management-main .more-parameters:hover {
+  text-decoration: underline;
 }
 
 /* 分类默认能力管理样式 */
@@ -1113,7 +1432,43 @@
   100% { transform: rotate(360deg); }
 }
 
-/* 响应式设计 */
+/* 参数模板管理响应式设计 */
+@media (max-width: 768px) {
+  .capability-management-main .templates-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .capability-management-main .search-filter-container {
+    flex-direction: column;
+  }
+  
+  .capability-management-main .modal-form .form-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .capability-management-main .modal {
+    width: 95%;
+    margin: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .capability-management-main .capability-selector {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .capability-management-main .capability-selector label {
+    min-width: auto;
+    margin-bottom: 8px;
+  }
+  
+  .capability-management-main .capability-selector select {
+    width: 100%;
+  }
+}
+
+/* 通用响应式设计 */
 @media (max-width: 768px) {
   .capability-management-main .section-header {
     flex-direction: column;

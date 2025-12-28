@@ -177,3 +177,21 @@ class ChromaService:
         except Exception as e:
             logger.error(f"根据元数据查询文档失败: {str(e)}")
             return {"ids": [[]], "documents": [[]], "metadatas": [[]]}
+    
+    def delete_all_documents(self) -> None:
+        """删除所有文档"""
+        self._initialize()
+        if not self.available or self.collection is None:
+            logger.warning("ChromaDB不可用，跳过文档删除")
+            return
+        
+        try:
+            # 获取所有文档的ID
+            all_documents = self.collection.get()
+            if all_documents['ids']:
+                self.collection.delete(ids=all_documents['ids'])
+                logger.info(f"向量数据库所有 {len(all_documents['ids'])} 个文档已成功删除")
+            else:
+                logger.info("向量数据库已经是空的")
+        except Exception as e:
+            logger.error(f"删除向量数据库所有文档失败: {str(e)}")

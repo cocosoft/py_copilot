@@ -248,6 +248,18 @@ export const categoryApi = {
       console.error('按维度获取分类失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
+  },
+
+  // 获取主分类
+  getPrimaryCategories: async (dimension = 'task_type') => {
+    try {
+      return await request(`/v1/model/categories/primary?dimension=${dimension}`, {
+        method: 'GET'
+      });
+    } catch (error) {
+      console.error('获取主分类失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+      throw error;
+    }
   }
 };
 
