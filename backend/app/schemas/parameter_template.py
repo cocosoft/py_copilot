@@ -12,6 +12,16 @@ class ParameterTemplateBase(BaseModel):
     parameters: Union[List[Dict[str, Any]], Dict[str, Any]] = Field(default_factory=list, description="参数配置")
     is_active: bool = Field(default=True, description="是否激活")
     level: str = Field(default="system", description="模板层级：system|model_type|model|agent")
+    
+    # 能力维度关联字段
+    dimension_id: Optional[int] = Field(None, ge=1, description="能力维度ID")
+    subdimension_id: Optional[int] = Field(None, ge=1, description="能力子维度ID")
+    capability_id: Optional[int] = Field(None, ge=1, description="模型能力ID")
+    
+    # 版本管理字段
+    version: str = Field(default="1.0.0", description="模板版本号")
+    level_id: Optional[int] = Field(None, ge=1, description="层级特定ID")
+    parent_id: Optional[int] = Field(None, ge=1, description="父模板ID")
 
 
 class ParameterTemplateCreate(ParameterTemplateBase):
@@ -25,6 +35,17 @@ class ParameterTemplateUpdate(BaseModel):
     description: Optional[str] = Field(None, description="模板描述")
     parameters: Optional[Union[List[Dict[str, Any]], Dict[str, Any]]] = Field(None, description="参数配置")
     is_active: Optional[bool] = Field(None, description="是否激活")
+    level: Optional[str] = Field(None, description="模板层级")
+    
+    # 能力维度关联字段
+    dimension_id: Optional[int] = Field(None, ge=1, description="能力维度ID")
+    subdimension_id: Optional[int] = Field(None, ge=1, description="能力子维度ID")
+    capability_id: Optional[int] = Field(None, ge=1, description="模型能力ID")
+    
+    # 版本管理字段
+    version: Optional[str] = Field(None, description="模板版本号")
+    level_id: Optional[int] = Field(None, ge=1, description="层级特定ID")
+    parent_id: Optional[int] = Field(None, ge=1, description="父模板ID")
 
 
 class ParameterTemplateResponse(ParameterTemplateBase):

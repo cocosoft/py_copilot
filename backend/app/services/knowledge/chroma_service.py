@@ -26,20 +26,37 @@ class ChromaService:
             )
             storage_path = os.path.normpath(storage_path)  # 规范化路径
         
-        # 确保路径存在
-        os.makedirs(storage_path, exist_ok=True)
+        self.storage_path = storage_path
+        self.client = None
+        self.collection = None
+        self.available = False
+        self.initialized = False
         
+        logger.info("ChromaDB服务初始化完成，向量数据库将在首次使用时加载")
+    
+    def _initialize(self):
+        """延迟初始化ChromaDB"""
+        if self.initialized:
+            return
+            
         try:
-            self.client = chromadb.PersistentClient(path=storage_path)
+            # 确保路径存在
+            os.makedirs(self.storage_path, exist_ok=True)
+            
+            self.client = chromadb.PersistentClient(path=self.storage_path)
             self.collection = self.client.get_or_create_collection("documents")
             self.available = True
+            logger.info("ChromaDB向量数据库加载成功")
         except Exception as e:
             logger.error(f"ChromaDB初始化失败: {str(e)}")
             self.available = False
             self.collection = None
+        finally:
+            self.initialized = True
     
     def add_document(self, document_id: str, text: str, metadata: Dict[str, Any]) -> None:
         """添加文档到向量数据库"""
+        self._initialize()
         if not self.available or self.collection is None:
             logger.warning("ChromaDB不可用，跳过文档添加")
             return
@@ -55,6 +72,7 @@ class ChromaService:
     
     def search_similar(self, query: str, n_results: int = 5, where_filter: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """相似性搜索"""
+        self._initialize()
         if not self.available or self.collection is None:
             logger.warning("ChromaDB不可用，返回空搜索结果")
             return {"ids": [[]], "documents": [[]], "metadatas": [[]], "distances": [[]]}
@@ -76,6 +94,7 @@ class ChromaService:
     
     def delete_document(self, document_id: str) -> None:
         """删除文档"""
+        self._initialize()
         if not self.available or self.collection is None:
             logger.warning("ChromaDB不可用，跳过文档删除")
             return
@@ -87,6 +106,7 @@ class ChromaService:
     
     def update_document(self, document_id: str, text: str, metadata: Dict[str, Any]) -> None:
         """更新文档"""
+        self._initialize()
         if not self.available or self.collection is None:
             logger.warning("ChromaDB不可用，跳过文档更新")
             return
@@ -102,6 +122,7 @@ class ChromaService:
     
     def get_document_count(self) -> int:
         """获取文档数量"""
+        self._initialize()
         if not self.available or self.collection is None:
             return 0
         
@@ -113,6 +134,7 @@ class ChromaService:
     
     def list_documents(self, limit: int = 100) -> List[Dict[str, Any]]:
         """列出所有文档"""
+        self._initialize()
         if not self.available or self.collection is None:
             return []
         
@@ -132,6 +154,7 @@ class ChromaService:
     
     def delete_documents_by_metadata(self, where_filter: Dict[str, Any]) -> None:
         """根据元数据删除文档"""
+        self._initialize()
         if not self.available or self.collection is None:
             logger.warning("ChromaDB不可用，跳过文档删除")
             return
@@ -143,6 +166,7 @@ class ChromaService:
     
     def search_documents_by_metadata(self, where_filter: Dict[str, Any], limit: int = 100) -> Dict[str, Any]:
         """根据元数据查询文档"""
+        self._initialize()
         if not self.available or self.collection is None:
             logger.warning("ChromaDB不可用，返回空搜索结果")
             return {"ids": [[]], "documents": [[]], "metadatas": [[]]}

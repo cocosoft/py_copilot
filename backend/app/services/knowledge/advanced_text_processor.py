@@ -13,16 +13,25 @@ class AdvancedTextProcessor:
         # 初始化配置管理器
         self.config_manager = EntityConfigManager(config_file)
         
-        # 初始化jieba中文分词器
-        try:
-            # 初始化jieba
-            jieba.initialize()
-            self.use_jieba = True
-            logger.info("jieba中文分词器加载成功，启用中文处理功能")
-        except Exception as e:
-            # 如果jieba不可用，使用基于规则的简单处理
-            self.use_jieba = False
-            logger.warning(f"jieba初始化失败: {e}，使用基于规则的处理")
+        # 延迟初始化jieba中文分词器，避免启动时耗时
+        self.use_jieba = False
+        self.jieba_initialized = False
+        logger.info("高级文本处理器初始化成功，jieba分词器将在首次使用时加载")
+    
+    def _initialize_jieba(self):
+        """延迟初始化jieba中文分词器"""
+        if not self.jieba_initialized:
+            try:
+                # 初始化jieba
+                jieba.initialize()
+                self.use_jieba = True
+                self.jieba_initialized = True
+                logger.info("jieba中文分词器加载成功，启用中文处理功能")
+            except Exception as e:
+                # 如果jieba不可用，使用基于规则的简单处理
+                self.use_jieba = False
+                self.jieba_initialized = True
+                logger.warning(f"jieba初始化失败: {e}，使用基于规则的处理")
     
     def clean_text(self, text: str) -> str:
         """清理文本，移除多余空格和特殊字符"""
@@ -51,6 +60,7 @@ class AdvancedTextProcessor:
         Returns:
             分块后的文本列表
         """
+        self._initialize_jieba()
         if self.use_jieba:
             # 使用jieba分词优化的分块方法
             return self._jieba_semantic_chunking(text, max_chunk_size, min_chunk_size, overlap)
@@ -61,6 +71,7 @@ class AdvancedTextProcessor:
     def _jieba_semantic_chunking(self, text: str, max_chunk_size: int, 
                                 min_chunk_size: int, overlap: int = 100) -> List[str]:
         """使用jieba分词进行语义分块，包含重叠窗口优化"""
+        self._initialize_jieba()
         # 先使用句子边界分割
         sentences = re.split(r'[.!?。！？]+', text)
         sentences = [s.strip() for s in sentences if s.strip()]
@@ -163,6 +174,7 @@ class AdvancedTextProcessor:
     
     def _jieba_keyword_extraction(self, text: str, top_n: int = 10) -> List[Dict[str, Any]]:
         """使用jieba提取关键词"""
+        self._initialize_jieba()
         # 使用jieba的关键词提取功能
         from collections import Counter
         
@@ -380,6 +392,7 @@ class AdvancedTextProcessor:
     
     def extract_keywords(self, text: str, top_n: int = 10) -> List[Dict[str, Any]]:
         """提取关键词"""
+        self._initialize_jieba()
         if self.use_jieba:
             # 使用jieba提取关键词
             return self._jieba_keyword_extraction(text, top_n)
@@ -504,6 +517,7 @@ class AdvancedTextProcessor:
     
     def calculate_similarity(self, text1: str, text2: str) -> float:
         """计算文本相似度"""
+        self._initialize_jieba()
         # 使用基于Jaccard相似度的计算，结合jieba分词优化
         if self.use_jieba:
             # 分词后计算相似度
@@ -589,6 +603,7 @@ class AdvancedTextProcessor:
         Returns:
             分块后的文本列表
         """
+        self._initialize_jieba()
         if self.use_jieba:
             # 使用jieba优化的自适应分块
             return self._adaptive_jieba_chunking(text, target_chunk_size, min_chunk_size, max_chunk_size)

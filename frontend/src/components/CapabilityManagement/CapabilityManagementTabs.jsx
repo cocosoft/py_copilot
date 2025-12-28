@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import ModelCapabilityManagement from './ModelCapabilityManagement';
 import ModelCapabilityAssociation from './ModelCapabilityAssociation';
+import CapabilityDimensionManagement from './CapabilityDimensionManagement';
+import CapabilityParameterTemplateManagement from './CapabilityParameterTemplateManagement';
+import CategoryDefaultCapabilityManagement from './CategoryDefaultCapabilityManagement';
 import { capabilityApi } from '../../utils/api/capabilityApi';
 import '../../styles/CapabilityManagementTabs.css';
 
 const CapabilityManagementTabs = () => {
-  const [activeSubTab, setActiveSubTab] = useState('management'); // 'management', 'association', 'types'
+  const [activeSubTab, setActiveSubTab] = useState('management'); // 'management', 'association', 'types', 'dimensions'
   const [capabilities, setCapabilities] = useState([]);
   const [capabilityTypes, setCapabilityTypes] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -60,6 +63,24 @@ const CapabilityManagementTabs = () => {
         >
           模型能力关联
         </button>
+        <button 
+          className={`sub-tab-button ${activeSubTab === 'dimensions' ? 'active' : ''}`}
+          onClick={() => handleSubTabChange('dimensions')}
+        >
+          能力维度
+        </button>
+        <button 
+          className={`sub-tab-button ${activeSubTab === 'templates' ? 'active' : ''}`}
+          onClick={() => handleSubTabChange('templates')}
+        >
+          参数模板
+        </button>
+        <button 
+          className={`sub-tab-button ${activeSubTab === 'category-defaults' ? 'active' : ''}`}
+          onClick={() => handleSubTabChange('category-defaults')}
+        >
+          分类默认能力
+        </button>
       </div>
       
       {/* 子Tab内容区域 */}
@@ -112,6 +133,15 @@ const CapabilityManagementTabs = () => {
         )}
         {activeSubTab === 'association' && (
           <ModelCapabilityAssociation />
+        )}
+        {activeSubTab === 'dimensions' && (
+          <CapabilityDimensionManagement />
+        )}
+        {activeSubTab === 'templates' && (
+          <CapabilityParameterTemplateManagement />
+        )}
+        {activeSubTab === 'category-defaults' && (
+          <CategoryDefaultCapabilityManagement />
         )}
       </div>
     </div>

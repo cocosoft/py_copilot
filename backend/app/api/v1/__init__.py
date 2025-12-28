@@ -9,6 +9,8 @@ from app.modules.supplier_model_management.api.model_management import router as
 from app.modules.supplier_model_management.api.supplier_model import router as supplier_model_router
 from app.api.v1.model_capabilities import router as model_capabilities_router
 from app.api.v1.capability import router as capability_router
+from app.api.v1.capability_types import router as capability_types_router
+from app.api.v1.capability_dimensions import router as capability_dimensions_router
 from app.api.v1.model_management import router as model_management_v1_router
 from app.api.v1.parameter_templates import router as parameter_templates_router
 from app.api.v1.parameter_normalization_rules import router as parameter_normalization_rules_router
@@ -50,6 +52,8 @@ from app.api.v1.dimension_hierarchy import router as dimension_hierarchy_router
 api_router.include_router(dimension_hierarchy_router, prefix="/dimension-hierarchy", tags=["dimension-hierarchy"])
 api_router.include_router(model_capabilities_router, tags=["model_capabilities"])
 api_router.include_router(capability_router, tags=["capability"])
+api_router.include_router(capability_types_router, tags=["capability_types"])
+api_router.include_router(capability_dimensions_router, tags=["capability_dimensions"])
 # 先注册支持文件上传的model_categories_router
 api_router.include_router(model_categories_router, tags=["model-categories"])
 # 再注册category_router作为备用（如果有冲突，前者会优先匹配）

@@ -39,7 +39,7 @@ def create_model_category(
         "name": db_category.name,
         "display_name": db_category.display_name,
         "description": db_category.description,
-        "category_type": db_category.category_type,
+        "category_type": getattr(db_category, "category_type", "main"),
         "parent_id": db_category.parent_id,
         "is_active": db_category.is_active,
         "is_system": db_category.is_system,
@@ -67,7 +67,7 @@ def get_all_model_categories(
             "name": cat.name,
             "display_name": cat.display_name,
             "description": cat.description,
-            "category_type": cat.category_type,
+            "category_type": getattr(cat, "category_type", "main"),
             "parent_id": cat.parent_id,
             "is_active": cat.is_active,
             "dimension": cat.dimension,
@@ -100,9 +100,11 @@ def get_model_category(
         "name": category.name,
         "display_name": category.display_name,
         "description": category.description,
-        "category_type": category.category_type,
+        "category_type": getattr(category, "category_type", "main"),
         "parent_id": category.parent_id,
         "is_active": category.is_active,
+        "dimension": getattr(category, "dimension", "task_type"),
+        "is_system": getattr(category, "is_system", False),
         "children": []
     }
 
@@ -159,9 +161,11 @@ def update_model_category(
         "name": category.name,
         "display_name": category.display_name,
         "description": category.description,
-        "category_type": category.category_type,
+        "category_type": getattr(category, "category_type", "main"),
         "parent_id": category.parent_id,
         "is_active": category.is_active,
+        "dimension": getattr(category, "dimension", "task_type"),
+        "is_system": getattr(category, "is_system", False),
         "children": []
     }
 
@@ -192,3 +196,26 @@ def delete_model_category(
     db.commit()
     
     return {"message": "Category deleted successfully"}
+
+# 备用端点：获取分类的默认能力（兼容前端代码）
+from app.modules.capability_category.services.model_category_service import model_category_service
+from fastapi import status
+from app.core.logging_config import logger
+
+@router.get("/model/categories/{category_id}/capabilities")
+def get_model_category_capabilities(
+    category_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    """获取分类的默认能力（备用端点，兼容前端代码）"""
+    try:
+        return model_category_service.get_default_capabilities_by_category(db, category_id)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取分类默认能力失败: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取分类默认能力失败: {str(e)}"
+        )

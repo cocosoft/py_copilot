@@ -1,8 +1,6 @@
 """语言翻译工具模块"""
 from typing import Dict, List, Optional, Union
 
-from transformers import pipeline
-
 
 class Translator:
     """文本翻译器类，用于文本翻译"""
@@ -15,7 +13,8 @@ class Translator:
             model_name: 翻译模型名称，默认使用中文到英文的翻译模型
         """
         self.model_name = model_name
-        self.translator_pipeline = pipeline("translation", model=model_name)
+        # 临时注释掉需要下载大型模型的代码，使用简单实现
+        # self.translator_pipeline = pipeline("translation", model=model_name)
         self.current_model_direction = self._extract_language_direction(model_name)
 
     def _extract_language_direction(self, model_name: str) -> str:
@@ -45,8 +44,10 @@ class Translator:
         Returns:
             翻译后的文本
         """
-        result = self.translator_pipeline(text)[0]
-        return result["translation_text"]
+        # 临时使用简单实现，直接返回原文
+        # result = self.translator_pipeline(text)[0]
+        # return result["translation_text"]
+        return text
 
     def batch_translate(self, texts: List[str]) -> List[str]:
         """
@@ -58,8 +59,10 @@ class Translator:
         Returns:
             翻译后的文本列表
         """
-        results = self.translator_pipeline(texts)
-        return [result["translation_text"] for result in results]
+        # 临时注释掉翻译功能，直接返回原文列表
+        # results = self.translator_pipeline(texts)
+        # return [result["translation_text"] for result in results]
+        return texts
 
     def translate_with_metadata(self, text: str) -> Dict[str, Union[str, str]]:
         """
@@ -105,7 +108,8 @@ class Translator:
             model_name: 新的翻译模型名称
         """
         self.model_name = model_name
-        self.translator_pipeline = pipeline("translation", model=model_name)
+        # 临时注释掉模型加载代码
+        # self.translator_pipeline = pipeline("translation", model=model_name)
         self.current_model_direction = self._extract_language_direction(model_name)
 
 

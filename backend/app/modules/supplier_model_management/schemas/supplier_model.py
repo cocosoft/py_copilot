@@ -54,6 +54,27 @@ class ModelResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class ModelSupplierResponse(BaseModel):
+    id: int
+    name: str
+    display_name: Optional[str] = None
+    description: Optional[str] = None
+    is_active: bool = True
+    logo: Optional[str] = None
+    api_endpoint: Optional[str] = None
+    api_key_required: bool = False
+    category: Optional[str] = None
+    website: Optional[str] = None
+    api_docs: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
+class ModelWithSupplierResponse(ModelResponse):
+    supplier: ModelSupplierResponse
+
 class ModelListResponse(BaseModel):
     models: List[ModelResponse]
     total: int

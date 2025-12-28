@@ -18,7 +18,7 @@ from app.services.parameter_management.parameter_manager import ParameterManager
 # 从core导入数据库依赖
 from app.core.dependencies import get_db
 from app.modules.supplier_model_management.schemas.model_management import (
-    ModelCreate, ModelUpdate, ModelResponse,
+    ModelCreate, ModelUpdate, ModelResponse, ModelWithSupplierResponse,
     ModelListResponse,
     SetDefaultModelRequest
 )
@@ -161,7 +161,8 @@ async def get_all_models(
     
     print(f"返回 {len(models)} 个模型，总计 {total} 个模型")
     
-    # 返回数据库查询结果
+    # 返回数据库查询结果，注意：虽然ModelListResponse定义为List[ModelResponse]，但我们返回的是包含supplier信息的ModelDB实例
+    # SQLAlchemy会自动将关联的supplier信息加载到model对象中
     return ModelListResponse(
         models=models,
         total=total

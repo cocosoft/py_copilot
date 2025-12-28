@@ -26,11 +26,9 @@ from app.modules.capability_category.services.model_category_service import mode
 router = APIRouter(prefix="/categories", tags=["model_categories"])
 
 
-# 模拟用户认证依赖
-async def get_current_user():
-    """获取当前用户"""
-    # 实际项目中应该有真实的认证逻辑
-    return {"id": 1, "username": "admin"}
+# 导入实际的认证依赖
+from app.api.deps import get_current_user
+from app.models.user import User
 
 
 # 文件上传配置
@@ -92,7 +90,7 @@ async def save_upload_file(upload_file: UploadFile) -> str:
 @router.get("/dimensions/all")
 async def get_all_dimensions(
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """获取所有分类维度"""
     return model_category_service.get_all_dimensions(db)
@@ -102,7 +100,7 @@ async def get_all_dimensions(
 @router.get("/by-dimension")
 async def get_categories_by_dimension(
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """按维度分组获取所有分类"""
     categories_by_dim = model_category_service.get_all_categories_by_dimension(db)
@@ -121,11 +119,11 @@ async def get_categories_by_dimension(
                 "parent_id": category.parent_id,
                 "is_active": category.is_active,
                 "is_system": category.is_system,
-                "logo": category.logo,
+                "logo": getattr(category, "logo", None),
                 "dimension": category.dimension,
                 "level": getattr(category, "level", 0),
-                "created_at": category.created_at.isoformat() if category.created_at else None,
-                "updated_at": category.updated_at.isoformat() if category.updated_at else None
+                "created_at": category.created_at.isoformat() if hasattr(category, "created_at") and category.created_at else None,
+                "updated_at": category.updated_at.isoformat() if hasattr(category, "updated_at") and category.updated_at else None
             }
             serialized_categories.append(serialized)
         serialized_data[dimension] = serialized_categories
@@ -138,7 +136,7 @@ async def get_categories_by_dimension(
 async def create_category(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """创建新的模型分类，支持JSON和multipart/form-data请求"""
     # 根据Content-Type决定如何处理请求
@@ -159,7 +157,7 @@ async def create_category(
             name = json_data.get("name")
             display_name = json_data.get("display_name")
             description = json_data.get("description")
-            dimension = json_data.get("dimension", "task_type")
+            dimension = json_data.get("dimension", "tasks")
 
             parent_id = json_data.get("parent_id")
             # 处理parent_id，如果是空字符串则设为None
@@ -273,7 +271,7 @@ async def get_categories(
     sort_by: str = Query("weight", regex="^(weight|name|created_at)$"),
     sort_order: str = Query("desc", regex="^(asc|desc)$"),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """获取模型分类列表"""
     result = model_category_service.get_categories(
@@ -294,7 +292,7 @@ async def get_categories(
 async def get_category(
     category_id: int,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """获取单个模型分类"""
     db_category = model_category_service.get_category(db, category_id)
@@ -306,7 +304,7 @@ async def update_category(
     category_id: int,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """更新模型分类信息，支持JSON和multipart/form-data请求"""
     # 检查分类是否存在
@@ -429,7 +427,7 @@ async def update_category(
 async def delete_category(
     category_id: int,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """删除模型分类（软删除）"""
     model_category_service.delete_category(db, category_id)
@@ -439,7 +437,7 @@ async def delete_category(
 @router.get("/tree/all", response_model=List[ModelCategoryWithChildrenResponse])
 async def get_category_tree(
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """获取模型分类的树形结构"""
     tree = model_category_service.get_category_tree(db)
@@ -450,7 +448,7 @@ async def get_category_tree(
 async def create_model_category_association(
     association: ModelCategoryAssociationCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """创建模型和分类的关联"""
     db_association = model_category_service.add_category_to_model(
@@ -464,7 +462,7 @@ async def delete_model_category_association(
     model_id: int,
     category_id: int,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """删除模型和分类的关联"""
     model_category_service.remove_category_from_model(db, model_id, category_id)
@@ -475,7 +473,7 @@ async def delete_model_category_association(
 async def get_models_by_category(
     category_id: int,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """获取指定分类下的所有模型"""
     models = model_category_service.get_models_by_category(db, category_id)
@@ -486,7 +484,7 @@ async def get_models_by_category(
 async def get_categories_by_model(
     model_id: int,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """获取指定模型的所有分类"""
     categories = model_category_service.get_categories_by_model(db, model_id)
@@ -498,7 +496,7 @@ async def get_categories_by_model(
 async def get_category_parameters(
     category_id: int,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """获取分类默认参数"""
     category = model_category_service.get_category(db, category_id)
@@ -511,7 +509,7 @@ async def set_category_parameters(
     category_id: int,
     parameters: Dict[str, Any],
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """设置分类默认参数"""
     # 获取现有分类
@@ -540,7 +538,7 @@ async def delete_category_parameter(
     category_id: int,
     param_name: str,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """删除分类默认参数"""
     # 获取现有分类
@@ -573,7 +571,7 @@ async def delete_category_parameter(
 @router.get("/dimensions/all")
 async def get_all_dimensions(
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """获取所有分类维度"""
     return model_category_service.get_all_dimensions(db)
@@ -583,7 +581,7 @@ async def get_all_dimensions(
 @router.get("/by-dimension")
 async def get_categories_by_dimension(
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """按维度分组获取所有分类"""
     categories_by_dim = model_category_service.get_all_categories_by_dimension(db)
@@ -603,11 +601,11 @@ async def get_categories_by_dimension(
                 "parent_id": category.parent_id,
                 "is_active": category.is_active,
                 "is_system": category.is_system,
-                "logo": category.logo,
+                "logo": getattr(category, "logo", None),
                 "dimension": category.dimension,
                 "level": getattr(category, "level", 0),
-                "created_at": category.created_at.isoformat() if category.created_at else None,
-                "updated_at": category.updated_at.isoformat() if category.updated_at else None
+                "created_at": category.created_at.isoformat() if hasattr(category, "created_at") and category.created_at else None,
+                "updated_at": category.updated_at.isoformat() if hasattr(category, "updated_at") and category.updated_at else None
             }
             serialized_categories.append(serialized)
         serialized_data[dimension] = serialized_categories
@@ -620,7 +618,7 @@ async def get_categories_by_dimension(
 async def get_categories_by_dimension(
     dimension: str,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """根据维度获取分类"""
     categories = model_category_service.get_categories_by_dimension(db, dimension)
@@ -631,7 +629,7 @@ async def get_categories_by_dimension(
 async def get_model_parameters_by_hierarchy(
     model_id: int,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """根据模型分类层级获取参数（六级继承体系）"""
     parameters = model_category_service.get_model_parameters_by_category_hierarchy(db, model_id)
@@ -643,7 +641,7 @@ async def get_models_by_multiple_categories(
     category_ids: List[int] = Query(...),
     match_all: bool = Query(True, description="是否要求匹配所有分类（AND逻辑）"),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """根据多个分类获取模型（支持AND/OR逻辑）"""
     models = model_category_service.get_models_by_multiple_categories(
@@ -656,7 +654,7 @@ async def get_models_by_multiple_categories(
 async def get_category_hierarchy_parameters(
     category_id: int,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """获取分类层级参数（包括父分类的参数）"""
     category = model_category_service.get_category(db, category_id)
@@ -689,3 +687,4 @@ async def get_category_hierarchy_parameters(
     get_parent_parameters(category)
     
     return parameter_hierarchy
+

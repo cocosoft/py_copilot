@@ -14,7 +14,7 @@ from app.schemas.supplier_model import (
     ModelCreate
 )
 from app.schemas.model_management import (
-    ModelResponse, ModelListResponse, ModelWithSupplierResponse
+    ModelResponse, ModelListResponse, ModelWithSupplierResponse, ModelSupplierResponse
 )
 
 router = APIRouter()
@@ -392,6 +392,59 @@ def delete_supplier(supplier_id: int, db: Session = Depends(get_db)):
     return {"message": "供应商删除成功"}
 
 # 模型相关路由
+@router.get("/models", response_model=ModelListResponse)
+def get_all_models(db: Session = Depends(get_db)):
+    """获取所有模型（通用接口）"""
+    try:
+        import logging
+        logger = logging.getLogger()
+        # 获取所有模型，包括供应商信息
+        from sqlalchemy.orm import joinedload
+        from app.models.supplier_db import ModelDB
+        
+        models = db.query(ModelDB).options(joinedload(ModelDB.supplier)).all()
+        total = len(models)
+        
+        # 转换为响应格式
+        model_responses = []
+        for model in models:
+            # 创建ModelWithSupplierResponse对象
+            model_response = ModelWithSupplierResponse(
+                id=str(model.id),
+                model_id=str(model.model_id) if model.model_id is not None else "",
+                model_name=str(getattr(model, "model_name", model.model_id)) if getattr(model, "model_name", model.model_id) is not None else "",
+                description=str(model.description) if model.description is not None else None,
+                supplier_id=int(model.supplier_id),
+                context_window=int(model.context_window) if model.context_window is not None else None,
+                max_tokens=int(getattr(model, "max_tokens", model.default_max_tokens)) if getattr(model, "max_tokens", model.default_max_tokens) is not None else None,
+                is_default=bool(model.is_default),
+                is_active=bool(model.is_active),
+                supplier=ModelSupplierResponse(
+                    id=model.supplier.id,
+                    name=model.supplier.name,
+                    display_name=model.supplier.display_name,
+                    description=model.supplier.description,
+                    is_active=model.supplier.is_active,
+                    logo=model.supplier.logo,
+                    api_endpoint=model.supplier.api_endpoint,
+                    api_key_required=model.supplier.api_key_required,
+                    category=model.supplier.category,
+                    website=model.supplier.website,
+                    api_docs=model.supplier.api_docs,
+                    created_at=model.supplier.created_at,
+                    updated_at=model.supplier.updated_at
+                )
+            )
+            model_responses.append(model_response)
+        
+        return ModelListResponse(models=model_responses, total=total)
+    except Exception as e:
+        logger.error(f"获取所有模型失败: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"获取所有模型失败: {str(e)}"
+        )
+
 @router.get("/suppliers/{supplier_id}/models", response_model=ModelListResponse)
 def get_supplier_models(supplier_id: int, db: Session = Depends(get_db)):
     """获取指定供应商的模型列表"""

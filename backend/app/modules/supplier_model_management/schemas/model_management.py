@@ -119,7 +119,7 @@ class ModelSupplierListResponse(BaseModel):
 
 class ModelListResponse(BaseModel):
     """模型列表响应模型"""
-    models: List[ModelResponse]
+    models: List[ModelWithSupplierResponse]
     total: int
 
 

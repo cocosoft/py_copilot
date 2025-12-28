@@ -4,6 +4,7 @@ from app.models.conversation import Conversation, Message
 from app.models.llm import LLMRequestHistory, ModelConfiguration
 from app.models.model_capability import ModelCapability, ModelCapabilityAssociation
 from app.models.model_category import ModelCategory, ModelCategoryAssociation
+from app.models.category_capability_association import CategoryCapabilityAssociation
 from app.models.agent import Agent
 from app.models.agent_category import AgentCategory
 from app.models.agent_parameter import AgentParameter
@@ -19,6 +20,7 @@ __all__ = [
     "ModelCapabilityAssociation",
     "ModelCategory",
     "ModelCategoryAssociation",
+    "CategoryCapabilityAssociation",
     "Agent",
     "AgentCategory",
     "AgentParameter",

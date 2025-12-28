@@ -7,6 +7,7 @@
 import uvicorn
 import sys
 import logging
+import time
 from app.core.config import settings as config
 
 # 配置日志
@@ -18,11 +19,15 @@ logging.basicConfig(
     ]
 )
 
+logger = logging.getLogger("server_startup")
+
 if __name__ == "__main__":
-    print(f"启动简化版服务器，运行在 {config.server_host}:{config.server_port}...")
+    logger.info(f"开始服务器启动流程，运行在 {config.server_host}:{config.server_port}...")
+    start_time = time.time()
+    
     # 直接运行main.py中的应用，使用配置文件中的参数
     uvicorn.run(
-        "main:app",
+        "app.api.main:app",
         host=config.server_host,
         port=config.server_port,
         reload=config.server_reload,

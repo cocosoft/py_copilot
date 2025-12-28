@@ -19,6 +19,7 @@ from app.schemas.parameter_template import (
 
 from app.services.parameter_management.parameter_manager import ParameterManager
 from app.services.parameter_management.parameter_normalizer import ParameterNormalizer
+from app.services.parameter_management.template_manager import TemplateManager
 
 # 创建模拟用户类用于测试
 class MockUser:
@@ -52,27 +53,15 @@ def create_parameter_template(
     Returns:
         创建的参数模板信息
     """
-    # 验证参数模板的有效性
     try:
-        ParameterManager.validate_parameters(template_data.parameters)
+        # 使用TemplateManager创建参数模板
+        db_template = TemplateManager.create_template(db, template_data)
+        return db_template
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"参数验证失败: {str(e)}"
+            detail=f"创建参数模板失败: {str(e)}"
         )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"参数处理失败: {str(e)}"
-        )
-    
-    # 创建新参数模板
-    try:
-        db_template = ParameterTemplate(**template_data.model_dump())
-        db.add(db_template)
-        db.commit()
-        db.refresh(db_template)
-        return db_template
     except IntegrityError as e:
         db.rollback()
         raise HTTPException(
@@ -94,6 +83,12 @@ def create_parameter_template(
 def get_parameter_templates(
     skip: int = 0,
     limit: int = 100,
+    name: Optional[str] = None,
+    level: Optional[str] = None,
+    dimension_id: Optional[int] = None,
+    subdimension_id: Optional[int] = None,
+    capability_id: Optional[int] = None,
+    active_only: bool = True,
     db: Session = Depends(get_db),
     current_user: MockUser = Depends(get_mock_user)
 ) -> Any:
@@ -103,19 +98,35 @@ def get_parameter_templates(
     Args:
         skip: 跳过的记录数
         limit: 返回的最大记录数
+        name: 模板名称（模糊匹配）
+        level: 模板层级
+        dimension_id: 能力维度ID
+        subdimension_id: 能力子维度ID
+        capability_id: 模型能力ID
+        active_only: 是否只返回激活的模板
         db: 数据库会话
         current_user: 当前用户
         
     Returns:
         参数模板列表
     """
-    query = db.query(ParameterTemplate)
+    # 使用TemplateManager搜索模板
+    templates = TemplateManager.search_templates(
+        db, 
+        name=name, 
+        level=level, 
+        dimension_id=dimension_id, 
+        subdimension_id=subdimension_id, 
+        capability_id=capability_id, 
+        active_only=active_only
+    )
     
-    templates = query.offset(skip).limit(limit).all()
-    total = query.count()
+    # 分页
+    total = len(templates)
+    paginated_templates = templates[skip : skip + limit]
     
     return ParameterTemplateListResponse(
-        templates=templates,
+        templates=paginated_templates,
         total=total
     )
 
@@ -137,7 +148,8 @@ def get_parameter_template(
     Returns:
         参数模板信息
     """
-    template = db.query(ParameterTemplate).filter(ParameterTemplate.id == template_id).first()
+    # 使用TemplateManager获取模板
+    template = TemplateManager.get_template_by_id(db, template_id)
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -165,39 +177,102 @@ def update_parameter_template(
     Returns:
         更新后的参数模板信息
     """
-    template = db.query(ParameterTemplate).filter(ParameterTemplate.id == template_id).first()
-    if not template:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="参数模板不存在"
-        )
-    
-    # 更新模板字段
-    update_data = template_data.model_dump(exclude_unset=True)
-    
-    # 如果更新了参数列表，需要验证参数的有效性
-    if 'parameters' in update_data:
-        try:
-            ParameterManager.validate_parameters(update_data['parameters'])
-        except ValueError as e:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"参数验证失败: {str(e)}"
-            )
-    
-    for field, value in update_data.items():
-        setattr(template, field, value)
-    
     try:
-        db.commit()
-        db.refresh(template)
-        return template
+        # 使用TemplateManager更新参数模板
+        updated_template = TemplateManager.update_template(db, template_id, template_data)
+        return updated_template
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"更新参数模板失败: {str(e)}"
+        )
     except IntegrityError:
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="更新参数模板失败，请检查输入数据"
         )
+
+
+# 根据能力维度获取参数模板
+@router.get("/parameter-templates/dimension/{dimension_id}", response_model=ParameterTemplateListResponse)
+def get_templates_by_dimension(
+    dimension_id: int,
+    active_only: bool = True,
+    db: Session = Depends(get_db),
+    current_user: MockUser = Depends(get_mock_user)
+) -> Any:
+    """
+    根据能力维度获取参数模板
+    
+    Args:
+        dimension_id: 能力维度ID
+        active_only: 是否只返回激活的模板
+        db: 数据库会话
+        current_user: 当前用户
+        
+    Returns:
+        参数模板列表
+    """
+    templates = TemplateManager.get_templates_by_dimension(db, dimension_id, active_only)
+    return ParameterTemplateListResponse(
+        templates=templates,
+        total=len(templates)
+    )
+
+
+# 根据能力子维度获取参数模板
+@router.get("/parameter-templates/subdimension/{subdimension_id}", response_model=ParameterTemplateListResponse)
+def get_templates_by_subdimension(
+    subdimension_id: int,
+    active_only: bool = True,
+    db: Session = Depends(get_db),
+    current_user: MockUser = Depends(get_mock_user)
+) -> Any:
+    """
+    根据能力子维度获取参数模板
+    
+    Args:
+        subdimension_id: 能力子维度ID
+        active_only: 是否只返回激活的模板
+        db: 数据库会话
+        current_user: 当前用户
+        
+    Returns:
+        参数模板列表
+    """
+    templates = TemplateManager.get_templates_by_subdimension(db, subdimension_id, active_only)
+    return ParameterTemplateListResponse(
+        templates=templates,
+        total=len(templates)
+    )
+
+
+# 根据模型能力获取参数模板
+@router.get("/parameter-templates/capability/{capability_id}", response_model=ParameterTemplateListResponse)
+def get_templates_by_capability(
+    capability_id: int,
+    active_only: bool = True,
+    db: Session = Depends(get_db),
+    current_user: MockUser = Depends(get_mock_user)
+) -> Any:
+    """
+    根据模型能力获取参数模板
+    
+    Args:
+        capability_id: 模型能力ID
+        active_only: 是否只返回激活的模板
+        db: 数据库会话
+        current_user: 当前用户
+        
+    Returns:
+        参数模板列表
+    """
+    templates = TemplateManager.get_templates_by_capability(db, capability_id, active_only)
+    return ParameterTemplateListResponse(
+        templates=templates,
+        total=len(templates)
+    )
 
 
 @router.delete("/parameter-templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)

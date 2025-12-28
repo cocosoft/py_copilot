@@ -28,8 +28,8 @@ class ModelCapabilityBase(BaseModel):
     dependencies: Optional[Dict[str, Any]] = None
     
     capability_type: str = Field(default="standard", pattern="^(standard|advanced|specialized|domain_specific|creative|special)$")
-    input_types: Optional[str] = None
-    output_types: Optional[str] = None
+    input_types: Optional[List[str]] = None
+    output_types: Optional[List[str]] = None
     domain: str = Field(default="nlp", pattern="^(nlp|cv|audio|multimodal|data_analysis|reasoning|system_integration|advanced_ai|healthcare|finance|legal|education|customer_service|content_creation|special_features)$")
     is_active: bool = True
     is_system: bool = False

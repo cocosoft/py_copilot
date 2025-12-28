@@ -92,7 +92,7 @@ async def login(
         )
     
     # 创建访问令牌
-    access_token_expires = timedelta(minutes=config.settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_expires = timedelta(minutes=config.settings.access_token_expire_minutes)
     access_token = security.create_access_token(
         subject=user.id, expires_delta=access_token_expires
     )
@@ -141,7 +141,7 @@ async def login_json(
         )
     
     # 创建访问令牌
-    access_token_expires = timedelta(minutes=config.settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_expires = timedelta(minutes=config.settings.access_token_expire_minutes)
     access_token = security.create_access_token(
         subject=user.id, expires_delta=access_token_expires
     )

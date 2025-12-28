@@ -16,7 +16,7 @@ from app.models.supplier_db import SupplierDB, ModelDB
 from app.models.model_category import ModelCategory
 from app.modules.supplier_model_management.schemas.supplier_model import (
     SupplierCreate, SupplierResponse,
-    ModelCreate, ModelResponse, ModelListResponse
+    ModelCreate, ModelResponse, ModelWithSupplierResponse, ModelSupplierResponse, ModelListResponse
 )
 
 router = APIRouter()
@@ -426,13 +426,16 @@ def delete_model(supplier_id: int, model_id: int, db: Session = Depends(get_db))
 @router.get("/models", response_model=ModelListResponse)
 def get_all_models(db: Session = Depends(get_db)):
     """获取所有模型（通用接口）"""
-    # 获取所有模型
-    models = db.query(ModelDB).all()
+    # 获取所有模型，包括供应商信息
+    from sqlalchemy.orm import joinedload
+    models = db.query(ModelDB).options(joinedload(ModelDB.supplier)).all()
     total = len(models)
     
     # 转换为响应格式
-    model_responses = [
-        ModelResponse(
+    model_responses = []
+    for model in models:
+        # 创建ModelWithSupplierResponse对象
+        model_response = ModelWithSupplierResponse(
             id=str(model.id),
             model_id=str(model.model_id) if model.model_id is not None else "",
             model_name=str(getattr(model, "model_name", model.model_id)) if getattr(model, "model_name", model.model_id) is not None else "",
@@ -441,10 +444,24 @@ def get_all_models(db: Session = Depends(get_db)):
             context_window=int(model.context_window) if model.context_window is not None else None,
             max_tokens=int(getattr(model, "max_tokens", model.default_max_tokens)) if getattr(model, "max_tokens", model.default_max_tokens) is not None else None,
             is_default=bool(model.is_default),
-            is_active=bool(model.is_active)
+            is_active=bool(model.is_active),
+            supplier=ModelSupplierResponse(
+                id=model.supplier.id,
+                name=model.supplier.name,
+                display_name=model.supplier.display_name,
+                description=model.supplier.description,
+                is_active=model.supplier.is_active,
+                logo=model.supplier.logo,
+                api_endpoint=model.supplier.api_endpoint,
+                api_key_required=model.supplier.api_key_required,
+                category=model.supplier.category,
+                website=model.supplier.website,
+                api_docs=model.supplier.api_docs,
+                created_at=model.supplier.created_at,
+                updated_at=model.supplier.updated_at
+            )
         )
-        for model in models
-    ]
+        model_responses.append(model_response)
     
     return ModelListResponse(models=model_responses, total=total)
 

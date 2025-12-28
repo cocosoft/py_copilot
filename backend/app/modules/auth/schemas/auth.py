@@ -1,5 +1,6 @@
 """认证相关的Schema定义"""
 from typing import Optional
+from datetime import datetime
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -35,7 +36,7 @@ class UserResponse(BaseModel):
     username: str
     email: EmailStr
     is_active: bool
-    created_at: str
+    created_at: datetime
     
     class Config:
         from_attributes = True

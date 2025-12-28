@@ -17,14 +17,14 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.api_v1_str}/auth/login
 
 def get_current_user(
     db: Session = Depends(get_db),
-    token: str = Depends(oauth2_scheme)
+    token: Optional[str] = None
 ) -> User:
     """
     获取当前用户
     
     Args:
         db: 数据库会话
-        token: OAuth2令牌
+        token: 可选的OAuth2令牌，仅在启用认证时需要
     
     Returns:
         当前用户对象
@@ -32,6 +32,35 @@ def get_current_user(
     Raises:
         HTTPException: 认证失败时抛出
     """
+    # 如果未启用认证，返回一个模拟的用户对象
+    if not settings.enable_auth:
+        mock_user = User(
+            id=1,
+            username="admin",
+            email="admin@example.com",
+            hashed_password="",
+            full_name="管理员",
+            is_active=True,
+            is_superuser=True,
+            is_verified=True
+        )
+        # 设置__dict__确保SQLAlchemy模型的属性访问正常工作
+        mock_user.__dict__.update({
+            'id': 1,
+            'username': 'admin',
+            'email': 'admin@example.com',
+            'is_active': True,
+            'is_superuser': True,
+            'is_verified': True
+        })
+        return mock_user
+    
+    # 启用认证时，使用oauth2_scheme获取令牌
+    if not token:
+        from fastapi import Depends
+        token = Depends(oauth2_scheme)
+    
+    # 启用认证时的正常逻辑
     try:
         payload = jwt.decode(
             token, settings.secret_key, algorithms=[settings.algorithm]

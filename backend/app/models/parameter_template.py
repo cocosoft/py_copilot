@@ -1,5 +1,5 @@
 """参数模板数据库模型"""
-from sqlalchemy import Column, Integer, String, Boolean, Text, DateTime, func, JSON
+from sqlalchemy import Column, Integer, String, Boolean, Text, DateTime, func, JSON, ForeignKey
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -20,7 +20,25 @@ class ParameterTemplate(Base):
     is_active = Column(Boolean, default=True)
     level = Column(String(50), nullable=False, default="system")  # 模板层级：system|model_type|model|agent
     
+    # 与能力维度的关联
+    # dimension_id = Column(Integer, ForeignKey("capability_dimensions.id"), nullable=True)
+    # subdimension_id = Column(Integer, ForeignKey("capability_subdimensions.id"), nullable=True)
+    # capability_id = Column(Integer, ForeignKey("model_capabilities.id"), nullable=True)
+    
+    # 版本管理
+    version = Column(String(20), nullable=False, default="1.0.0")
+    level_id = Column(Integer, nullable=True)  # 层级特定ID
+    parent_id = Column(Integer, ForeignKey("parameter_templates.id"), nullable=True)
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     models = relationship("ModelDB", back_populates="parameter_template", lazy='select')
+    
+    # 能力维度关系
+    # dimension = relationship("CapabilityDimension", backref="parameter_templates")
+    # subdimension = relationship("CapabilitySubdimension", backref="parameter_templates")
+    # capability = relationship("ModelCapability", backref="parameter_templates")  # 已注释，因为没有对应的外键
+    
+    # 模板继承关系
+    parent = relationship("ParameterTemplate", remote_side=[id], backref="children")

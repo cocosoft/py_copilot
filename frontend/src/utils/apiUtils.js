@@ -4,6 +4,9 @@ export const API_BASE_URL = '/api';
 // 本地存储前缀
 export const STORAGE_PREFIX = 'llm_admin_';
 
+// 导入认证工具函数
+import { getAuthToken } from './authUtils';
+
 // 通用请求函数
 export const request = async (endpoint, options = {}) => {
   
@@ -36,6 +39,12 @@ export const request = async (endpoint, options = {}) => {
   let defaultHeaders = {};
   if (!isFormData) {
     defaultHeaders['Content-Type'] = 'application/json';
+  }
+  
+  // 添加认证令牌（如果存在）
+  const authToken = getAuthToken();
+  if (authToken) {
+    defaultHeaders['Authorization'] = `Bearer ${authToken}`;
   }
   
   const defaultOptions = {
@@ -114,6 +123,28 @@ export const request = async (endpoint, options = {}) => {
       
       // 添加强制性的状态码信息
       errorMessage += ` 状态码: ${statusCode}`;
+      
+      // 特别处理422错误，获取所有可能的详细信息
+      if (statusCode === 422 && responseText) {
+        try {
+          const errorData = JSON.parse(responseText);
+          if (errorData.detail && Array.isArray(errorData.detail)) {
+            const validationErrors = errorData.detail.map(err => 
+              err.msg || (err.loc && err.msg ? `${err.loc.join('.')}: ${err.msg}` : JSON.stringify(err))
+            ).join('; ');
+            errorMessage += ` 验证错误: ${validationErrors}`;
+          } else if (errorData.detail && typeof errorData.detail === 'string') {
+            errorMessage += ` 详细信息: ${errorData.detail}`;
+          } else if (errorData.errors) {
+            const fieldErrors = Object.entries(errorData.errors)
+              .map(([field, messages]) => `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`)
+              .join('; ');
+            errorMessage += ` 字段错误: ${fieldErrors}`;
+          }
+        } catch (e) {
+          // 如果无法解析响应文本，忽略此部分
+        }
+      }
       
       // 添加可选的响应文本信息（如果有且未包含在message中）
       if (responseText && !errorMessage.includes(responseText)) {

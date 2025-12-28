@@ -36,13 +36,23 @@ class TemplateManager:
         existing_template = db.query(ParameterTemplate).filter(
             and_(
                 ParameterTemplate.name == template_data.name,
-                ParameterTemplate.level == template_data.level,
-                ParameterTemplate.level_id == template_data.level_id
+                ParameterTemplate.level == template_data.level
             )
         ).first()
         
         if existing_template:
             raise ValueError(f"在层级 {template_data.level} 下已存在同名模板 '{template_data.name}'")
+        
+        # 验证能力维度关系
+        is_valid, errors = TemplateManager.validate_capability_relations(
+            db, 
+            template_data.dimension_id, 
+            template_data.subdimension_id, 
+            template_data.capability_id
+        )
+        
+        if not is_valid:
+            raise ValueError(f"能力维度关系验证失败: {', '.join(errors)}")
         
         # 创建新模板
         template = ParameterTemplate(
@@ -51,9 +61,14 @@ class TemplateManager:
             level=template_data.level,
             level_id=template_data.level_id,
             parameters=template_data.parameters,
-            version=template_data.version or "1.0.0",
-            is_active=template_data.is_active if template_data.is_active is not None else True,
-            parent_id=template_data.parent_id
+            version=template_data.version,
+            is_active=template_data.is_active,
+            parent_id=template_data.parent_id,
+            
+            # 能力维度关联字段
+            dimension_id=template_data.dimension_id,
+            subdimension_id=template_data.subdimension_id,
+            capability_id=template_data.capability_id
         )
         
         db.add(template)
@@ -83,25 +98,37 @@ class TemplateManager:
         if not template:
             raise ValueError(f"模板ID {template_id} 不存在")
         
+        # 获取当前模板的字段值作为默认值
+        current_data = template.__dict__.copy()
+        current_data.pop('_sa_instance_state')
+        
+        # 准备更新数据，使用当前值作为默认值
+        update_data = template_data.model_dump(exclude_unset=True)
+        
+        # 获取更新后的能力维度字段值
+        dimension_id = update_data.get('dimension_id', current_data.get('dimension_id'))
+        subdimension_id = update_data.get('subdimension_id', current_data.get('subdimension_id'))
+        capability_id = update_data.get('capability_id', current_data.get('capability_id'))
+        
+        # 验证能力维度关系
+        is_valid, errors = TemplateManager.validate_capability_relations(
+            db, dimension_id, subdimension_id, capability_id
+        )
+        
+        if not is_valid:
+            raise ValueError(f"能力维度关系验证失败: {', '.join(errors)}")
+        
         # 创建新版本（保留历史版本）
         old_version = template.version
         
         # 更新模板信息
-        if template_data.name is not None:
-            template.name = template_data.name
-        if template_data.description is not None:
-            template.description = template_data.description
-        if template_data.parameters is not None:
-            template.parameters = template_data.parameters
-        if template_data.is_active is not None:
-            template.is_active = template_data.is_active
-        if template_data.parent_id is not None:
-            template.parent_id = template_data.parent_id
+        for field, value in update_data.items():
+            setattr(template, field, value)
         
-        # 更新版本号（如果指定了版本号）
-        if template_data.version:
-            template.version = template_data.version
-        else:
+        # 更新版本号（如果指定了版本号或更新了参数）
+        if update_data.get('version'):
+            template.version = update_data.get('version')
+        elif 'parameters' in update_data:
             # 自动生成新版本号
             template.version = TemplateManager._generate_next_version(old_version)
         
@@ -275,7 +302,10 @@ class TemplateManager:
         name: Optional[str] = None,
         level: Optional[str] = None,
         description: Optional[str] = None,
-        active_only: bool = True
+        active_only: bool = True,
+        dimension_id: Optional[int] = None,
+        subdimension_id: Optional[int] = None,
+        capability_id: Optional[int] = None
     ) -> List[ParameterTemplate]:
         """
         搜索模板
@@ -286,6 +316,9 @@ class TemplateManager:
             level: 层级
             description: 描述（模糊匹配）
             active_only: 是否只返回激活的模板
+            dimension_id: 能力维度ID
+            subdimension_id: 能力子维度ID
+            capability_id: 模型能力ID
             
         Returns:
             匹配的模板列表
@@ -301,10 +334,145 @@ class TemplateManager:
         if description:
             query = query.filter(ParameterTemplate.description.ilike(f"%{description}%"))
         
+        if dimension_id:
+            query = query.filter(ParameterTemplate.dimension_id == dimension_id)
+        
+        if subdimension_id:
+            query = query.filter(ParameterTemplate.subdimension_id == subdimension_id)
+        
+        if capability_id:
+            query = query.filter(ParameterTemplate.capability_id == capability_id)
+        
         if active_only:
             query = query.filter(ParameterTemplate.is_active == True)
         
         return query.order_by(ParameterTemplate.created_at.desc()).all()
+    
+    @staticmethod
+    def get_templates_by_dimension(
+        db: Session,
+        dimension_id: int,
+        active_only: bool = True
+    ) -> List[ParameterTemplate]:
+        """
+        根据能力维度获取模板列表
+        
+        Args:
+            db: 数据库会话
+            dimension_id: 能力维度ID
+            active_only: 是否只返回激活的模板
+            
+        Returns:
+            匹配的模板列表
+        """
+        query = db.query(ParameterTemplate).filter(ParameterTemplate.dimension_id == dimension_id)
+        
+        if active_only:
+            query = query.filter(ParameterTemplate.is_active == True)
+        
+        return query.order_by(ParameterTemplate.created_at.desc()).all()
+    
+    @staticmethod
+    def get_templates_by_subdimension(
+        db: Session,
+        subdimension_id: int,
+        active_only: bool = True
+    ) -> List[ParameterTemplate]:
+        """
+        根据能力子维度获取模板列表
+        
+        Args:
+            db: 数据库会话
+            subdimension_id: 能力子维度ID
+            active_only: 是否只返回激活的模板
+            
+        Returns:
+            匹配的模板列表
+        """
+        query = db.query(ParameterTemplate).filter(ParameterTemplate.subdimension_id == subdimension_id)
+        
+        if active_only:
+            query = query.filter(ParameterTemplate.is_active == True)
+        
+        return query.order_by(ParameterTemplate.created_at.desc()).all()
+    
+    @staticmethod
+    def get_templates_by_capability(
+        db: Session,
+        capability_id: int,
+        active_only: bool = True
+    ) -> List[ParameterTemplate]:
+        """
+        根据模型能力获取模板列表
+        
+        Args:
+            db: 数据库会话
+            capability_id: 模型能力ID
+            active_only: 是否只返回激活的模板
+            
+        Returns:
+            匹配的模板列表
+        """
+        query = db.query(ParameterTemplate).filter(ParameterTemplate.capability_id == capability_id)
+        
+        if active_only:
+            query = query.filter(ParameterTemplate.is_active == True)
+        
+        return query.order_by(ParameterTemplate.created_at.desc()).all()
+    
+    @staticmethod
+    def validate_capability_relations(
+        db: Session,
+        dimension_id: Optional[int] = None,
+        subdimension_id: Optional[int] = None,
+        capability_id: Optional[int] = None
+    ) -> Tuple[bool, List[str]]:
+        """
+        验证能力维度、子维度和能力之间的关系
+        
+        Args:
+            db: 数据库会话
+            dimension_id: 能力维度ID
+            subdimension_id: 能力子维度ID
+            capability_id: 模型能力ID
+            
+        Returns:
+            (是否有效, 错误消息列表)
+        """
+        from app.models.capability_dimension import CapabilityDimension, CapabilitySubdimension
+        from app.models.model_capability import ModelCapability
+        
+        errors = []
+        
+        # 验证子维度是否属于指定的维度
+        if subdimension_id and dimension_id:
+            subdimension = db.query(CapabilitySubdimension).filter(
+                CapabilitySubdimension.id == subdimension_id
+            ).first()
+            
+            if not subdimension:
+                errors.append(f"能力子维度ID {subdimension_id} 不存在")
+            elif subdimension.dimension_id != dimension_id:
+                errors.append(f"能力子维度ID {subdimension_id} 不属于能力维度ID {dimension_id}")
+        
+        # 验证能力是否属于指定的维度和子维度
+        if capability_id:
+            capability = db.query(ModelCapability).filter(
+                ModelCapability.id == capability_id
+            ).first()
+            
+            if not capability:
+                errors.append(f"模型能力ID {capability_id} 不存在")
+            else:
+                # 验证能力与维度的关系
+                if dimension_id and capability.dimension_id != dimension_id:
+                    errors.append(f"模型能力ID {capability_id} 不属于能力维度ID {dimension_id}")
+                
+                # 验证能力与子维度的关系
+                if subdimension_id and capability.subdimension_id != subdimension_id:
+                    errors.append(f"模型能力ID {capability_id} 不属于能力子维度ID {subdimension_id}")
+        
+        return len(errors) == 0, errors
     
     @staticmethod
     def _generate_next_version(current_version: str) -> str:
@@ -411,6 +579,19 @@ class TemplateManager:
             if field not in template_data:
                 raise ValueError(f"导入数据缺少必需字段: {field}")
         
+        # 验证能力维度关系
+        dimension_id = template_data.get("dimension_id")
+        subdimension_id = template_data.get("subdimension_id")
+        capability_id = template_data.get("capability_id")
+        
+        if any([dimension_id, subdimension_id, capability_id]):
+            is_valid, errors = TemplateManager.validate_capability_relations(
+                db, dimension_id, subdimension_id, capability_id
+            )
+            
+            if not is_valid:
+                raise ValueError(f"能力维度关系验证失败: {', '.join(errors)}")
+        
         # 创建新模板
         template = ParameterTemplate(
             name=template_data["name"],
@@ -420,7 +601,12 @@ class TemplateManager:
             parameters=template_data["parameters"],
             version=template_data.get("version", "1.0.0"),
             is_active=template_data.get("is_active", True),
-            parent_id=template_data.get("parent_id")
+            parent_id=template_data.get("parent_id"),
+            
+            # 能力维度关联字段
+            dimension_id=dimension_id,
+            subdimension_id=subdimension_id,
+            capability_id=capability_id
         )
         
         db.add(template)

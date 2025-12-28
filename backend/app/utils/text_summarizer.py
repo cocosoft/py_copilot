@@ -1,21 +1,14 @@
-"""文本摘要工具模块"""
+"""简化的文本摘要工具模块（仅提供简单摘要）"""
 from typing import Dict, List, Optional, Union
-
-from transformers import pipeline
 
 
 class TextSummarizer:
-    """文本摘要器类，用于生成文本摘要"""
+    """简化的文本摘要器类，仅提供基于字符截断的摘要"""
 
-    def __init__(self, model_name: str = "facebook/bart-large-cnn"):
-        """
-        初始化文本摘要器
-
-        Args:
-            model_name: 摘要模型名称
-        """
-        self.model_name = model_name
-        self.summarizer_pipeline = pipeline("summarization", model=model_name)
+    def __init__(self):
+        """初始化文本摘要器"""
+        self.is_available = False
+        self.available = False
 
     def summarize(self,
                   text: str,
@@ -23,24 +16,18 @@ class TextSummarizer:
                   min_length: int = 30,
                   do_sample: bool = False) -> str:
         """
-        生成文本摘要
+        生成文本摘要（仅基于字符截断）
 
         Args:
             text: 要摘要的文本
             max_length: 摘要的最大长度
-            min_length: 摘要的最小长度
-            do_sample: 是否使用采样生成摘要
+            min_length: 摘要的最小长度（未使用）
+            do_sample: 是否使用采样生成摘要（未使用）
 
         Returns:
             生成的摘要文本
         """
-        result = self.summarizer_pipeline(
-            text,
-            max_length=max_length,
-            min_length=min_length,
-            do_sample=do_sample
-        )[0]
-        return result["summary_text"]
+        return text[:max_length] + ("..." if len(text) > max_length else "")
 
     def summarize_with_options(
         self,
@@ -94,19 +81,13 @@ class TextSummarizer:
         Args:
             texts: 要摘要的文本列表
             max_length: 摘要的最大长度
-            min_length: 摘要的最小长度
-            do_sample: 是否使用采样生成摘要
+            min_length: 摘要的最小长度（未使用）
+            do_sample: 是否使用采样生成摘要（未使用）
 
         Returns:
             摘要文本列表
         """
-        results = self.summarizer_pipeline(
-            texts,
-            max_length=max_length,
-            min_length=min_length,
-            do_sample=do_sample
-        )
-        return [result["summary_text"] for result in results]
+        return [self.summarize(text, max_length=max_length) for text in texts]
 
     def generate_multiple_summaries(
         self,

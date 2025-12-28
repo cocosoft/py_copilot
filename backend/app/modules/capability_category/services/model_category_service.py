@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_
 from fastapi import HTTPException, status
 
+from app.modules.capability_category.models.category_db import ModelCategoryDB
 from app.models.model_category import ModelCategory, ModelCategoryAssociation
 from app.models.supplier_db import ModelDB
 from app.schemas.model_category import ModelCategoryCreate, ModelCategoryUpdate
@@ -13,11 +14,11 @@ class ModelCategoryService:
     """模型分类服务类"""
     
     @staticmethod
-    def create_category(db: Session, category_data: ModelCategoryCreate) -> ModelCategory:
+    def create_category(db: Session, category_data: ModelCategoryCreate) -> ModelCategoryDB:
         """创建模型分类"""
         # 检查名称是否已存在
-        existing_category = db.query(ModelCategory).filter(
-            ModelCategory.name == category_data.name
+        existing_category = db.query(ModelCategoryDB).filter(
+            ModelCategoryDB.name == category_data.name
         ).first()
         
         if existing_category:
@@ -28,8 +29,8 @@ class ModelCategoryService:
         
         # 检查父分类是否存在
         if category_data.parent_id:
-            parent_category = db.query(ModelCategory).filter(
-                ModelCategory.id == category_data.parent_id
+            parent_category = db.query(ModelCategoryDB).filter(
+                ModelCategoryDB.id == category_data.parent_id
             ).first()
             
             if not parent_category:
@@ -39,7 +40,7 @@ class ModelCategoryService:
                 )
         
         # 创建新分类
-        db_category = ModelCategory(**category_data.model_dump())
+        db_category = ModelCategoryDB(**category_data.model_dump())
         db.add(db_category)
         db.commit()
         db.refresh(db_category)
@@ -47,10 +48,10 @@ class ModelCategoryService:
         return db_category
     
     @staticmethod
-    def get_category(db: Session, category_id: int) -> Optional[ModelCategory]:
+    def get_category(db: Session, category_id: int) -> Optional[ModelCategoryDB]:
         """获取单个模型分类"""
-        category = db.query(ModelCategory).filter(
-            ModelCategory.id == category_id
+        category = db.query(ModelCategoryDB).filter(
+            ModelCategoryDB.id == category_id
         ).first()
         
         if not category:
@@ -62,10 +63,10 @@ class ModelCategoryService:
         return category
     
     @staticmethod
-    def get_category_by_name(db: Session, name: str) -> Optional[ModelCategory]:
+    def get_category_by_name(db: Session, name: str) -> Optional[ModelCategoryDB]:
         """根据名称获取模型分类"""
-        return db.query(ModelCategory).filter(
-            ModelCategory.name == name
+        return db.query(ModelCategoryDB).filter(
+            ModelCategoryDB.name == name
         ).first()
     
     @staticmethod
@@ -77,36 +78,57 @@ class ModelCategoryService:
         is_active: Optional[bool] = None,
         parent_id: Optional[int] = None,
         dimension: Optional[str] = None,
-        sort_by: str = "weight",
+        sort_by: str = "name",  # 默认按名称排序，因为weight字段可能不存在
         sort_order: str = "desc"
     ) -> Dict[str, Any]:
         """获取模型分类列表"""
-        query = db.query(ModelCategory)
+        query = db.query(ModelCategoryDB)
         
         # 应用过滤条件
         if is_active is not None:
-            query = query.filter(ModelCategory.is_active == is_active)
+            query = query.filter(ModelCategoryDB.is_active == is_active)
         if parent_id is not None:
-            query = query.filter(ModelCategory.parent_id == parent_id)
+            query = query.filter(ModelCategoryDB.parent_id == parent_id)
         if dimension:
-            query = query.filter(ModelCategory.dimension == dimension)
+            query = query.filter(ModelCategoryDB.dimension == dimension)
         
-        # 排序
+        # 排序 - 使用安全的方式访问可能不存在的字段
         if sort_by == "weight":
-            if sort_order == "desc":
-                query = query.order_by(ModelCategory.weight.desc())
-            else:
-                query = query.order_by(ModelCategory.weight.asc())
+            # 使用getattr安全访问weight字段，如果不存在则使用0作为默认值
+            try:
+                if sort_order == "desc":
+                    query = query.order_by(getattr(ModelCategoryDB, "weight", 0).desc())
+                else:
+                    query = query.order_by(getattr(ModelCategoryDB, "weight", 0).asc())
+            except Exception:
+                # 如果weight字段不存在，回退到按ID排序
+                if sort_order == "desc":
+                    query = query.order_by(ModelCategoryDB.id.desc())
+                else:
+                    query = query.order_by(ModelCategoryDB.id.asc())
         elif sort_by == "name":
             if sort_order == "desc":
-                query = query.order_by(ModelCategory.name.desc())
+                query = query.order_by(ModelCategoryDB.name.desc())
             else:
-                query = query.order_by(ModelCategory.name.asc())
+                query = query.order_by(ModelCategoryDB.name.asc())
         elif sort_by == "created_at":
+            try:
+                if sort_order == "desc":
+                    query = query.order_by(getattr(ModelCategoryDB, "created_at", None).desc())
+                else:
+                    query = query.order_by(getattr(ModelCategoryDB, "created_at", None).asc())
+            except Exception:
+                # 如果created_at字段不存在，回退到按ID排序
+                if sort_order == "desc":
+                    query = query.order_by(ModelCategoryDB.id.desc())
+                else:
+                    query = query.order_by(ModelCategoryDB.id.asc())
+        else:
+            # 默认按ID排序
             if sort_order == "desc":
-                query = query.order_by(ModelCategory.created_at.desc())
+                query = query.order_by(ModelCategoryDB.id.desc())
             else:
-                query = query.order_by(ModelCategory.created_at.asc())
+                query = query.order_by(ModelCategoryDB.id.asc())
         
         # 获取总数
         total = query.count()
@@ -124,7 +146,7 @@ class ModelCategoryService:
         db: Session,
         category_id: int,
         category_update: ModelCategoryUpdate
-    ) -> ModelCategory:
+    ) -> ModelCategoryDB:
         """更新模型分类"""
         db_category = ModelCategoryService.get_category(db, category_id)
         
@@ -140,10 +162,10 @@ class ModelCategoryService:
         
         # 如果更新名称，检查是否重复
         if "name" in update_data:
-            existing_category = db.query(ModelCategory).filter(
+            existing_category = db.query(ModelCategoryDB).filter(
                 and_(
-                    ModelCategory.name == update_data["name"],
-                    ModelCategory.id != category_id
+                    ModelCategoryDB.name == update_data["name"],
+                    ModelCategoryDB.id != category_id
                 )
             ).first()
             
@@ -156,8 +178,8 @@ class ModelCategoryService:
         # 如果更新父分类，检查是否存在
         if "parent_id" in update_data:
             if update_data["parent_id"]:
-                parent_category = db.query(ModelCategory).filter(
-                    ModelCategory.id == update_data["parent_id"]
+                parent_category = db.query(ModelCategoryDB).filter(
+                    ModelCategoryDB.id == update_data["parent_id"]
                 ).first()
                 
                 if not parent_category:
@@ -188,8 +210,8 @@ class ModelCategoryService:
             )
         
         # 检查是否有子分类
-        child_categories = db.query(ModelCategory).filter(
-            ModelCategory.parent_id == category_id
+        child_categories = db.query(ModelCategoryDB).filter(
+            ModelCategoryDB.parent_id == category_id
         ).count()
         
         if child_categories > 0:
@@ -219,8 +241,8 @@ class ModelCategoryService:
     def get_category_tree(db: Session) -> List[Dict[str, Any]]:
         """获取模型分类的树形结构"""
         # 获取所有分类
-        all_categories = db.query(ModelCategory).filter(
-            ModelCategory.is_active == True
+        all_categories = db.query(ModelCategoryDB).filter(
+            ModelCategoryDB.is_active == True
         ).all()
         
         # 构建分类字典
@@ -236,7 +258,7 @@ class ModelCategoryService:
                 "name": category.name,
                 "display_name": category.display_name,
                 "description": category.description,
-                "category_type": category.category_type,
+                "category_type": getattr(category, "category_type", "default"),
                 "parent_id": category.parent_id,
                 "created_at": category.created_at.isoformat() if category.created_at is not None else None,
                 "updated_at": category.updated_at.isoformat() if category.updated_at is not None else None,
@@ -347,12 +369,12 @@ class ModelCategoryService:
         return categories
 
     @staticmethod
-    def get_categories_by_dimension(db: Session, dimension: str) -> List[ModelCategory]:
+    def get_categories_by_dimension(db: Session, dimension: str) -> List[ModelCategoryDB]:
         """根据维度获取分类"""
-        categories = db.query(ModelCategory).filter(
-            ModelCategory.dimension == dimension,
-            ModelCategory.is_active == True
-        ).order_by(ModelCategory.weight.desc()).all()
+        categories = db.query(ModelCategoryDB).filter(
+            ModelCategoryDB.dimension == dimension,
+            ModelCategoryDB.is_active == True
+        ).order_by(getattr(ModelCategoryDB, "weight", 0).desc()).all()
         
         return categories
 
@@ -366,21 +388,27 @@ class ModelCategoryService:
         return [dim[0] for dim in dimensions]
 
     @staticmethod
-    def get_all_categories_by_dimension(db: Session) -> Dict[str, List[ModelCategory]]:
+    def get_all_categories_by_dimension(db: Session) -> Dict[str, List[ModelCategoryDB]]:
         """按维度分组获取所有分类"""
-        # 获取所有分类
-        all_categories = db.query(ModelCategory).filter(
-            ModelCategory.is_active == True
-        ).all()
-        
-        # 按维度分组
-        categories_by_dim = {}
-        for category in all_categories:
-            if category.dimension not in categories_by_dim:
-                categories_by_dim[category.dimension] = []
-            categories_by_dim[category.dimension].append(category)
-        
-        return categories_by_dim
+        try:
+            # 获取所有分类
+            all_categories = db.query(ModelCategoryDB).filter(
+                ModelCategoryDB.is_active == True
+            ).all()
+            
+            # 按维度分组
+            categories_by_dim = {}
+            for category in all_categories:
+                if category.dimension not in categories_by_dim:
+                    categories_by_dim[category.dimension] = []
+                categories_by_dim[category.dimension].append(category)
+            
+            return categories_by_dim
+        except Exception as e:
+            import logging
+            logging.error(f"get_all_categories_by_dimension 方法出错: {str(e)}")
+            logging.exception("错误堆栈:")
+            raise
 
     @staticmethod
     def get_model_parameters_by_category_hierarchy(
@@ -499,6 +527,96 @@ class ModelCategoryService:
             ).distinct()
         
         return query.all()
+    
+    @staticmethod
+    def get_default_capabilities_by_category(
+        db: Session,
+        category_id: int
+    ) -> List:
+        """获取分类的默认能力"""
+        from app.models.category_capability_association import CategoryCapabilityAssociation
+        from app.models.model_capability import ModelCapability
+        
+        # 检查分类是否存在
+        ModelCategoryService.get_category(db, category_id)
+        
+        # 查询该分类的默认能力
+        default_capabilities = db.query(ModelCapability).join(
+            CategoryCapabilityAssociation
+        ).filter(
+            and_(
+                CategoryCapabilityAssociation.category_id == category_id,
+                CategoryCapabilityAssociation.is_default == True
+            )
+        ).all()
+        
+        return default_capabilities
+    
+    @staticmethod
+    def set_default_capabilities(
+        db: Session,
+        category_id: int,
+        capability_ids: List[int]
+    ) -> bool:
+        """设置分类的默认能力"""
+        from app.models.category_capability_association import CategoryCapabilityAssociation
+        from app.models.model_capability import ModelCapability
+        
+        # 检查分类是否存在
+        ModelCategoryService.get_category(db, category_id)
+        
+        # 检查所有能力是否存在
+        for capability_id in capability_ids:
+            capability = db.query(ModelCapability).filter(
+                ModelCapability.id == capability_id
+            ).first()
+            if not capability:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"能力 ID {capability_id} 不存在"
+                )
+        
+        # 开始事务
+        try:
+            # 1. 先将该分类的所有默认能力设置为非默认
+            db.query(CategoryCapabilityAssociation).filter(
+                and_(
+                    CategoryCapabilityAssociation.category_id == category_id,
+                    CategoryCapabilityAssociation.is_default == True
+                )
+            ).update({CategoryCapabilityAssociation.is_default: False})
+            
+            # 2. 为指定的能力创建或更新关联，并设置为默认
+            for capability_id in capability_ids:
+                # 查找是否已有关联
+                association = db.query(CategoryCapabilityAssociation).filter(
+                    and_(
+                        CategoryCapabilityAssociation.category_id == category_id,
+                        CategoryCapabilityAssociation.capability_id == capability_id
+                    )
+                ).first()
+                
+                if association:
+                    # 更新现有关联
+                    association.is_default = True
+                else:
+                    # 创建新关联
+                    new_association = CategoryCapabilityAssociation(
+                        category_id=category_id,
+                        capability_id=capability_id,
+                        is_default=True
+                    )
+                    db.add(new_association)
+            
+            # 提交事务
+            db.commit()
+            return True
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"设置默认能力失败: {str(e)}"
+            )
 
 
 # 创建服务实例

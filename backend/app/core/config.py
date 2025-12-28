@@ -29,11 +29,12 @@ class Settings(BaseSettings):
     # API配置
     api_v1_str: str = Field(default="/api/v1", env="API_V1_STR")
     secret_key: str = Field(
-        default="", 
+        default="your-secret-key-change-this-in-production", 
         env="SECRET_KEY"
     )
     algorithm: str = Field(default="HS256", env="ALGORITHM")
     access_token_expire_minutes: int = Field(default=30, env="ACCESS_TOKEN_EXPIRE_MINUTES")
+    enable_auth: bool = Field(default=False, env="ENABLE_AUTH")
     
     # OpenAI API配置
     openai_api_key: Optional[str] = Field(default=None, env="OPENAI_API_KEY")

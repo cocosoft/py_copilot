@@ -25,9 +25,11 @@ def get_db() -> Generator:
     finally:
         db.close()
 
-async def get_current_user():
-    """获取当前用户的依赖 - 简化版本"""
-    return {"id": 1, "username": "admin"}  # 临时实现，生产环境应该使用JWT验证
+# 从api.deps导入实际的认证依赖
+from app.api.deps import get_current_user as get_current_user_real
+
+# 为了向后兼容，保留这个名称，但使用实际的实现
+get_current_user = get_current_user_real
 
 # 保留原始的JWT验证相关代码注释
 # 注意：以下代码已被注释，如需使用请取消注释

@@ -136,24 +136,25 @@ from app.api.deps import get_db
 _monitoring_service = None
 _performance_monitor = None
 
-def get_monitoring_service():
-    """获取监控服务实例"""
-    global _monitoring_service
-    if _monitoring_service is None:
-        # 使用数据库依赖获取数据库会话
-        db = next(get_db())
-        _monitoring_service = MonitoringService(db)
-        
-        # 添加告警通知处理器
-        notification_manager = NotificationManager()
-        _monitoring_service.add_alert_handler(notification_manager.send_alert_notification)
-    
-    return _monitoring_service
+# 注释掉监控服务的初始化，避免在服务器启动时立即访问数据库
+# def get_monitoring_service():
+#     """获取监控服务实例"""
+#     global _monitoring_service
+#     if _monitoring_service is None:
+#         # 使用数据库依赖获取数据库会话
+#         db = next(get_db())
+#         _monitoring_service = MonitoringService(db)
+#         
+#         # 添加告警通知处理器
+#         notification_manager = NotificationManager()
+#         _monitoring_service.add_alert_handler(notification_manager.send_alert_notification)
+#     
+#     return _monitoring_service
 
-# 添加性能监控中间件
-monitoring_service = get_monitoring_service()
-performance_monitor = get_performance_monitor(monitoring_service)
-app.add_middleware(PerformanceMiddleware, monitoring_service=monitoring_service)
+# 注释掉性能监控中间件，避免启动时的数据库依赖
+# monitoring_service = get_monitoring_service()
+# performance_monitor = get_performance_monitor(monitoring_service)
+# app.add_middleware(PerformanceMiddleware, monitoring_service=monitoring_service)
 
 # 请求日志中间件（增强版，包含性能监控）
 @app.middleware("http")

@@ -436,6 +436,61 @@
   cursor: pointer;
 }
 
+/* 表单验证错误样式 */
+.error-input {
+  border-color: #f56c6c !important;
+}
+
+.error-message {
+  color: #f56c6c;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+/* 分页样式 */
+.capability-pagination {
+  margin-top: 20px;
+  padding: 15px 20px;
+  background-color: #ffffff;
+  border-radius: 4px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pagination-info {
+  font-size: 14px;
+  color: #606266;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.page-info {
+  font-size: 14px;
+  color: #606266;
+  margin: 0 10px;
+}
+
+.page-size-select {
+  padding: 6px 12px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #606266;
+  cursor: pointer;
+  transition: border-color 0.3s;
+}
+
+.page-size-select:focus {
+  outline: none;
+  border-color: #409eff;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
   .model-capability-management {
@@ -476,5 +531,17 @@
   .modal {
     width: 95%;
     margin: 10px;
+  }
+  
+  /* 分页响应式调整 */
+  .capability-pagination {
+    flex-direction: column;
+    gap: 15px;
+    align-items: center;
+  }
+  
+  .pagination-controls {
+    flex-wrap: wrap;
+    justify-content: center;
   }
 }

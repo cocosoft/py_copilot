@@ -267,6 +267,853 @@
   min-width: auto;
 }
 
+/* 能力维度管理样式 */
+.capability-management-main .capability-dimension-management {
+  padding: 0;
+}
+
+.capability-management-main .capability-dimension-management .section-header {
+  border-bottom: none;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+}
+
+.capability-management-main .capability-dimension-management .header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.capability-management-main .capability-dimension-management .dimensions-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 20px;
+}
+
+.capability-management-main .capability-dimension-management .dimension-card {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #e8f0fe;
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.3s ease;
+}
+
+.capability-management-main .capability-dimension-management .dimension-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  border-color: #3498db;
+}
+
+.capability-management-main .capability-dimension-management .dimension-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.capability-management-main .capability-dimension-management .dimension-header h4 {
+  margin: 0 0 5px 0;
+  font-size: 16px;
+  color: #2c3e50;
+}
+
+.capability-management-main .capability-dimension-management .dimension-description {
+  font-size: 13px;
+  color: #6c757d;
+  margin: 0;
+}
+
+.capability-management-main .capability-dimension-management .dimension-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.capability-management-main .capability-dimension-management .status-badge {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-right: 5px;
+}
+
+.capability-management-main .capability-dimension-management .status-badge.active {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.capability-management-main .capability-dimension-management .status-badge.inactive {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.capability-management-main .capability-dimension-management .subdimensions-section {
+  margin-top: 15px;
+}
+
+.capability-management-main .capability-dimension-management .subdimension-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.capability-management-main .capability-dimension-management .subdimension-header h5 {
+  margin: 0;
+  font-size: 14px;
+  color: #34495e;
+  font-weight: 600;
+}
+
+.capability-management-main .capability-dimension-management .subdimensions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.capability-management-main .capability-dimension-management .subdimension-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 10px;
+  background-color: #f8fafc;
+  border-radius: 8px;
+  border-left: 3px solid #e2e8f0;
+  transition: all 0.3s ease;
+}
+
+.capability-management-main .capability-dimension-management .subdimension-item:hover {
+  background-color: #edf2f7;
+  border-left-color: #3498db;
+}
+
+.capability-management-main .capability-dimension-management .subdimension-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #2d3748;
+  display: block;
+}
+
+.capability-management-main .capability-dimension-management .subdimension-description {
+  font-size: 12px;
+  color: #718096;
+  display: block;
+  margin-top: 3px;
+}
+
+.capability-management-main .capability-dimension-management .subdimension-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* 模态框样式 */
+.capability-management-main .modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.capability-management-main .modal {
+  background-color: white;
+  border-radius: 12px;
+  padding: 24px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.capability-management-main .modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.capability-management-main .modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #2c3e50;
+}
+
+.capability-management-main .modal-header .btn-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #6c757d;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.capability-management-main .modal-header .btn-close:hover {
+  background-color: #f8f9fa;
+  color: #343a40;
+}
+
+.capability-management-main .modal-form .form-group {
+  margin-bottom: 20px;
+}
+
+.capability-management-main .modal-form .form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 500;
+  color: #495057;
+  font-size: 14px;
+}
+
+.capability-management-main .modal-form .form-group input,
+.capability-management-main .modal-form .form-group select,
+.capability-management-main .modal-form .form-group textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.3s ease;
+}
+
+.capability-management-main .modal-form .form-group input:focus,
+.capability-management-main .modal-form .form-group select:focus,
+.capability-management-main .modal-form .form-group textarea:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.25);
+}
+
+.capability-management-main .modal-form .form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.capability-management-main .modal-form .form-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.capability-management-main .modal-form .form-check input {
+  width: auto;
+}
+
+.capability-management-main .modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #e2e8f0;
+}
+
+/* 自定义下拉列表样式 */
+.custom-select-container {
+  position: relative;
+  flex: 1;
+}
+
+.custom-select {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  background-color: white;
+  cursor: pointer;
+  transition: border-color 0.3s ease;
+  min-width: 150px;
+}
+
+.custom-select:hover {
+  border-color: #3498db;
+}
+
+.custom-select.open {
+  border-color: #3498db;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.custom-select__selected {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-height: 32px;
+}
+
+.custom-select__arrow {
+  font-size: 12px;
+  color: #6c757d;
+  transition: transform 0.3s ease;
+}
+
+.custom-select.open .custom-select__arrow {
+  transform: rotate(180deg);
+}
+
+.custom-select__dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: white;
+  border: 1px solid #ced4da;
+  border-top: none;
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.custom-select__option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.custom-select__option:hover {
+  background-color: #f8f9fa;
+}
+
+.custom-select__option.selected {
+  background-color: #e3f2fd;
+  border-left: 3px solid #3498db;
+}
+
+/* 模型LOGO样式 */
+.model-logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  border-radius: 4px;
+  background-color: #f8f9fa;
+}
+
+.model-info, .option-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.model-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #2c3e50;
+  display: block;
+}
+
+.supplier-name {
+  font-size: 12px;
+  color: #6c757d;
+  display: block;
+}
+
+/* 分类默认能力管理样式 */
+.category-default-capability-management {
+  background: #f8fafc;
+  padding: 20px;
+  border-radius: 12px;
+  color: #333;
+  margin-bottom: 20px;
+  border: 1px solid #e2e8f0;
+}
+
+.category-default-capability-management .section-header {
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 15px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.category-default-capability-management .category-count {
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.category-default-capability-management .section-header h3 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.category-default-capability-management .alert {
+  padding: 15px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  animation: alertSlideDown 0.3s ease-out, alertFadeIn 0.3s ease-out;
+  transition: all 0.3s ease;
+}
+
+/* 提醒信息动画 */
+@keyframes alertSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes alertFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.category-default-capability-management .alert-error {
+  background-color: rgba(248, 215, 218, 0.9);
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.category-default-capability-management .alert-success {
+  background-color: rgba(212, 237, 218, 0.9);
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.category-default-capability-management .category-selector {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  color: #333;
+}
+
+.category-default-capability-management .category-selector label {
+  display: block;
+  margin-bottom: 10px;
+  font-weight: 600;
+  color: #555;
+}
+
+.category-default-capability-management .category-selector select {
+  width: 100%;
+  padding: 12px 15px;
+  border: 2px solid #e1e8ed;
+  border-radius: 8px;
+  font-size: 16px;
+  background-color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.category-default-capability-management .category-selector select:hover {
+  border-color: #667eea;
+}
+
+.category-default-capability-management .category-selector select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.category-default-capability-management .default-capability-config {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  color: #333;
+  overflow: hidden;
+}
+
+.category-default-capability-management .config-header {
+  padding: 20px 25px;
+  background: white;
+  color: #333;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.category-default-capability-management .config-header h4 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.category-default-capability-management .capability-count-info {
+  font-size: 14px;
+  color: #64748b;
+  margin-top: 5px;
+  font-weight: 400;
+}
+
+.category-default-capability-management .hint-text {
+  font-size: 13px;
+  color: #a0aec0;
+  margin-top: 10px;
+  font-style: normal;
+}
+
+.category-default-capability-management .spinner-small {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.category-default-capability-management .config-content {
+  padding: 25px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+}
+
+.category-default-capability-management .capability-section {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.category-default-capability-management .capability-section:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.category-default-capability-management .capability-section h5 {
+  margin: 0 0 15px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #2d3748;
+  border-bottom: 2px solid #667eea;
+  padding-bottom: 8px;
+  display: inline-block;
+}
+
+.category-default-capability-management .search-box {
+  margin-bottom: 15px;
+  position: relative;
+}
+
+.category-default-capability-management .search-box input {
+  width: 100%;
+  padding: 12px 15px 12px 40px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  background-color: white;
+}
+
+.category-default-capability-management .search-box input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.category-default-capability-management .search-box::before {
+  content: "🔍";
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #a0aec0;
+  font-size: 16px;
+  z-index: 1;
+}
+
+.category-default-capability-management .search-clear-btn {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #a0aec0;
+  cursor: pointer;
+  padding: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.2s ease;
+  z-index: 1;
+}
+
+.category-default-capability-management .search-clear-btn:hover {
+  background-color: #e2e8f0;
+  color: #4a5568;
+}
+
+/* 搜索结果高亮样式 */
+.category-default-capability-management .search-highlight {
+  background-color: #e0f2fe;
+  color: #0c4a6e;
+  padding: 1px 3px;
+  border-radius: 2px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.category-default-capability-management .capability-list {
+  max-height: 400px;
+  overflow-y: auto;
+  background-color: white;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.category-default-capability-management .capability-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  border-bottom: 1px solid #f7fafc;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  animation: slideIn 0.3s ease-out;
+}
+
+/* 能力项滑入动画 */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.category-default-capability-management .capability-item:hover {
+  background-color: #f7fafc;
+}
+
+.category-default-capability-management .capability-item:last-child {
+  border-bottom: none;
+}
+
+.category-default-capability-management .capability-info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+}
+
+.category-default-capability-management .capability-name {
+  font-weight: 600;
+  color: #2d3748;
+  font-size: 15px;
+}
+
+.category-default-capability-management .capability-type {
+  font-size: 12px;
+  color: #64748b;
+  padding: 2px 6px;
+  border-radius: 10px;
+  align-self: flex-start;
+  border: 1px solid #cbd5e1;
+  background-color: transparent;
+}
+
+.category-default-capability-management .btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 80px;
+}
+
+.category-default-capability-management .btn-primary {
+  background-color: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  position: relative;
+  overflow: hidden;
+}
+
+.category-default-capability-management .btn-primary:hover {
+  background-color: #e2e8f0;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.category-default-capability-management .btn-primary:active {
+  transform: translateY(0);
+}
+
+/* 按钮加载状态动画 */
+.category-default-capability-management .btn-primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* 分类选择器交互效果增强 */
+.category-default-capability-management .category-selector select {
+  width: 100%;
+  padding: 12px 15px;
+  border: 2px solid #e1e8ed;
+  border-radius: 8px;
+  font-size: 16px;
+  background-color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='currentColor' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 15px center;
+  background-size: 16px;
+  padding-right: 45px;
+  appearance: none;
+}
+
+.category-default-capability-management .category-selector select:hover {
+  border-color: #667eea;
+  background-color: #f8fafc;
+}
+
+.category-default-capability-management .category-selector select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  background-color: white;
+}
+
+.category-default-capability-management .btn-danger {
+  background-color: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.category-default-capability-management .btn-danger:hover {
+  background-color: #fee2e2;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(229, 62, 62, 0.2);
+}
+
+.category-default-capability-management .btn-small {
+  padding: 6px 12px;
+  font-size: 13px;
+  min-width: 60px;
+}
+
+.category-default-capability-management .empty-state {
+  text-align: center;
+  padding: 60px 30px;
+  color: #718096;
+  background-color: white;
+  border-radius: 12px;
+  border: 2px dashed #e2e8f0;
+  transition: all 0.3s ease;
+}
+
+.category-default-capability-management .empty-state:hover {
+  border-color: #cbd5e1;
+  background-color: #f8fafc;
+}
+
+.category-default-capability-management .empty-state::before {
+  content: "📭";
+  font-size: 48px;
+  display: block;
+  margin-bottom: 15px;
+  opacity: 0.7;
+}
+
+.category-default-capability-management .empty-state p {
+  margin: 0 0 10px 0;
+  font-style: normal;
+  font-size: 16px;
+  font-weight: 500;
+  color: #4a5568;
+}
+
+.category-default-capability-management .empty-state .hint-text {
+  font-size: 14px;
+  color: #a0aec0;
+  font-style: normal;
+  margin: 5px 0 0 0;
+}
+
+/* 加载状态样式增强 */
+.category-default-capability-management .loading-state {
+  text-align: center;
+  padding: 80px 20px;
+  color: #718096;
+}
+
+.category-default-capability-management .loading-state .spinner {
+  width: 60px;
+  height: 60px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 20px;
+}
+
+.category-default-capability-management .loading-state p {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: #4a5568;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 响应式设计 */
 @media (max-width: 768px) {
   .capability-management-main .section-header {
     flex-direction: column;
@@ -297,4 +1144,137 @@
     align-items: flex-start;
     gap: 10px;
   }
+
+  .capability-management-main .capability-dimension-management .dimensions-container {
+    grid-template-columns: 1fr;
+  }
+
+  .capability-management-main .modal {
+    width: 95%;
+    margin: 10px;
+  }
+  
+  /* 响应式下拉列表 */
+  .custom-select-container {
+    width: 100%;
+    margin-top: 10px;
+  }
+  
+  /* 分类默认能力管理响应式 */
+  .category-default-capability-management {
+    padding: 15px;
+  }
+  
+  .category-default-capability-management .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .category-default-capability-management .config-content {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    padding: 15px;
+  }
+  
+  .category-default-capability-management .category-selector {
+    padding: 15px;
+  }
+  
+  .category-default-capability-management .capability-section {
+    padding: 15px;
+  }
+  
+  .category-default-capability-management .config-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+    padding: 15px 20px;
+  }
+  
+  .category-default-capability-management .capability-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 16px;
+  }
+  
+  .category-default-capability-management .capability-info {
+    width: 100%;
+  }
+  
+  .category-default-capability-management .btn {
+    width: 100%;
+    text-align: center;
+    padding: 10px;
+  }
+  
+  .category-default-capability-management .search-box input {
+    padding: 12px 15px 12px 35px;
+    font-size: 14px;
+  }
+  
+  .category-default-capability-management .search-box::before {
+    left: 12px;
+    font-size: 14px;
+  }
+  
+  .category-default-capability-management .search-clear-btn {
+    right: 12px;
+  }
+}
+
+/* 超小屏幕设备优化 */
+@media (max-width: 480px) {
+  .category-default-capability-management {
+    padding: 10px;
+  }
+  
+  .category-default-capability-management .section-header h3 {
+    font-size: 20px;
+  }
+  
+  .category-default-capability-management .config-header h4 {
+    font-size: 18px;
+  }
+  
+  .category-default-capability-management .capability-section h5 {
+    font-size: 16px;
+  }
+  
+  .category-default-capability-management .category-count {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+  
+  .category-default-capability-management .capability-list {
+    max-height: 300px;
+  }
+  
+  .category-default-capability-management .capability-item {
+    padding: 10px 14px;
+  }
+  
+  .category-default-capability-management .capability-name {
+    font-size: 14px;
+  }
+}
+
+/* 滚动条样式 */
+.category-default-capability-management .capability-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.category-default-capability-management .capability-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.category-default-capability-management .capability-list::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.category-default-capability-management .capability-list::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }

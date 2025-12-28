@@ -179,6 +179,149 @@
   font-style: italic;
 }
 
+/* 能力维度管理样式 - 针对tabs容器 */
+.capability-management-tabs .capability-dimension-management {
+  padding: 0;
+}
+
+.capability-management-tabs .capability-dimension-management .section-header {
+  border-bottom: none;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.capability-management-tabs .capability-dimension-management .header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.capability-management-tabs .capability-dimension-management .dimensions-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 20px;
+}
+
+.capability-management-tabs .capability-dimension-management .dimension-card {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #e8f0fe;
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.3s ease;
+}
+
+.capability-management-tabs .capability-dimension-management .dimension-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  border-color: #3498db;
+}
+
+.capability-management-tabs .capability-dimension-management .dimension-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.capability-management-tabs .capability-dimension-management .dimension-header h4 {
+  margin: 0 0 5px 0;
+  font-size: 16px;
+  color: #2c3e50;
+}
+
+.capability-management-tabs .capability-dimension-management .dimension-description {
+  font-size: 13px;
+  color: #6c757d;
+  margin: 0;
+}
+
+.capability-management-tabs .capability-dimension-management .dimension-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.capability-management-tabs .capability-dimension-management .status-badge {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-right: 5px;
+}
+
+.capability-management-tabs .capability-dimension-management .status-badge.active {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.capability-management-tabs .capability-dimension-management .status-badge.inactive {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.capability-management-tabs .capability-dimension-management .subdimensions-section {
+  margin-top: 15px;
+}
+
+.capability-management-tabs .capability-dimension-management .subdimension-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.capability-management-tabs .capability-dimension-management .subdimension-header h5 {
+  margin: 0;
+  font-size: 14px;
+  color: #34495e;
+  font-weight: 600;
+}
+
+.capability-management-tabs .capability-dimension-management .subdimensions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.capability-management-tabs .capability-dimension-management .subdimension-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 10px;
+  background-color: #f8fafc;
+  border-radius: 8px;
+  border-left: 3px solid #e2e8f0;
+  transition: all 0.3s ease;
+}
+
+.capability-management-tabs .capability-dimension-management .subdimension-item:hover {
+  background-color: #edf2f7;
+  border-left-color: #3498db;
+}
+
+.capability-management-tabs .capability-dimension-management .subdimension-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #2d3748;
+  display: block;
+}
+
+.capability-management-tabs .capability-dimension-management .subdimension-description {
+  font-size: 12px;
+  color: #718096;
+  display: block;
+  margin-top: 3px;
+}
+
+.capability-management-tabs .capability-dimension-management .subdimension-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
   .sub-tab-navigation {
@@ -198,6 +341,10 @@
   }
   
   .capability-management-tabs .capability-types-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .capability-management-tabs .capability-dimension-management .dimensions-container {
     grid-template-columns: 1fr;
   }
 }

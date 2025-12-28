@@ -3,10 +3,12 @@ import { capabilityApi } from '../../utils/api/capabilityApi';
 import modelApi from '../../utils/api/modelApi';
 import ModelCapabilityManagement from '../CapabilityManagement/ModelCapabilityManagement';
 import ModelCapabilityAssociation from '../CapabilityManagement/ModelCapabilityAssociation';
+import CapabilityDimensionManagement from '../CapabilityManagement/CapabilityDimensionManagement';
+import CapabilityVersionManagement from '../CapabilityManagement/CapabilityVersionManagement';
 import '../../styles/CapabilityManagement.css';
 
 const CapabilityManagementMain = ({ selectedSupplier, onBack, selectedModel }) => {
-  const [activeTab, setActiveTab] = useState('capabilities'); // capabilities | associations | types
+  const [activeTab, setActiveTab] = useState('capabilities'); // capabilities | associations | types | dimensions
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -162,6 +164,18 @@ const CapabilityManagementMain = ({ selectedSupplier, onBack, selectedModel }) =
         >
           能力类型
         </button>
+        <button
+          className={`tab-button ${activeTab === 'dimensions' ? 'active' : ''}`}
+          onClick={() => handleTabChange('dimensions')}
+        >
+          能力维度
+        </button>
+        <button
+          className={`tab-button ${activeTab === 'versions' ? 'active' : ''}`}
+          onClick={() => handleTabChange('versions')}
+        >
+          能力版本管理
+        </button>
       </div>
 
       <div className="tab-content">
@@ -237,6 +251,24 @@ const CapabilityManagementMain = ({ selectedSupplier, onBack, selectedModel }) =
                 })
               )}
             </div>
+          </div>
+        )}
+
+        {activeTab === 'dimensions' && (
+          <div className="dimensions-panel">
+            <div className="panel-header">
+              <h3>能力维度管理</h3>
+            </div>
+            <CapabilityDimensionManagement />
+          </div>
+        )}
+
+        {activeTab === 'versions' && (
+          <div className="versions-panel">
+            <div className="panel-header">
+              <h3>能力版本管理</h3>
+            </div>
+            <CapabilityVersionManagement />
           </div>
         )}
       </div>

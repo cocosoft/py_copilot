@@ -6,6 +6,7 @@ from app.core.database import Base
 
 # 导入ModelDB类以避免关系解析错误
 from app.models.supplier_db import ModelDB
+from app.models.capability_version import ModelCapabilityVersion
 
 
 class ModelCapability(Base):
@@ -18,8 +19,12 @@ class ModelCapability(Base):
     description = Column(Text, nullable=True)  # 能力描述
     
     # 能力维度（根据文档定义：理解能力、生成能力、推理能力、记忆能力、交互能力、专业能力）
-    capability_dimension = Column(String(50), nullable=False, default="generation")  # 能力维度
-    capability_subdimension = Column(String(50), nullable=True)  # 能力子维度
+    capability_dimension = Column(String(50), nullable=False, default="generation")  # 能力维度（字符串形式，向后兼容）
+    capability_subdimension = Column(String(50), nullable=True)  # 能力子维度（字符串形式，向后兼容）
+    
+    # 能力维度外键引用 - 暂时注释掉，因为维度表尚未创建
+    # dimension_id = Column(Integer, ForeignKey("capability_dimensions.id"), nullable=True)
+    # subdimension_id = Column(Integer, ForeignKey("capability_subdimensions.id"), nullable=True)
     
     # 能力强度量化（1-5级）
     base_strength = Column(Integer, default=3)  # 基础能力强度（1-5级）
@@ -32,14 +37,17 @@ class ModelCapability(Base):
     # 能力依赖关系
     dependencies = Column(JSON, nullable=True)  # 依赖的其他能力
     
-    # 能力类型
+    # 能力类型（外键引用）- 暂时注释掉，因为类型表尚未创建
+    # capability_type_id = Column(Integer, ForeignKey("capability_types.id"), nullable=True)
+    
+    # 为了向后兼容，保留capability_type字段
     capability_type = Column(String(50), default="standard", nullable=False)
     
     # 支持的输入类型（JSON格式），如 ["text", "image", "audio"]
-    input_types = Column(Text, nullable=True)
+    input_types = Column(JSON, nullable=True)
     
     # 支持的输出类型（JSON格式），如 ["text", "image", "audio"]
-    output_types = Column(Text, nullable=True)
+    output_types = Column(JSON, nullable=True)
     
     # 能力领域（如nlp, cv, audio, multimodal）
     domain = Column(String(50), nullable=False, default="nlp")
@@ -63,6 +71,23 @@ class ModelCapability(Base):
     
     # 与关联表的关系
     model_associations = relationship("ModelCapabilityAssociation", back_populates="capability")
+    
+    # 与版本表的关系
+    versions = relationship("ModelCapabilityVersion", back_populates="capability")
+    
+    # 当前版本号
+    current_version = Column(String(20), nullable=False, default="1.0.0")
+    
+    # 最新稳定版本号
+    stable_version = Column(String(20), nullable=False, default="1.0.0")
+    
+    # 与能力类型的关系将在表创建后添加
+    
+    # 与能力维度的关系 - 暂时注释掉，因为维度表尚未创建
+    # dimension_rel = relationship("CapabilityDimension", back_populates="capabilities")
+    
+    # 与能力子维度的关系 - 暂时注释掉，因为维度表尚未创建
+    # subdimension_rel = relationship("CapabilitySubdimension", back_populates="capabilities")
     
     def __repr__(self):
         return f"<ModelCapability(id={self.id}, name='{self.name}', display_name='{self.display_name}')>"

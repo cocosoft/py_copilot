@@ -49,7 +49,7 @@ const ModelCategoryManagement = () => {
     name: '',
     display_name: '',
     description: '',
-    dimension: 'task_type', // 默认维度
+    dimension: 'tasks', // 默认维度
     parent_id: null,
     is_active: true,
     logo: ''
@@ -179,7 +179,7 @@ const ModelCategoryManagement = () => {
       name: '',
       display_name: '',
       description: '',
-      dimension: 'task_type', // 重置维度字段
+      dimension: 'tasks', // 重置维度字段
       parent_id: null,
       is_active: true,
       logo: ''

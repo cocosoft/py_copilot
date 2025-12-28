@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { capabilityApi } from '../../utils/api/capabilityApi';
+import CapabilityModal from './CapabilityModal';
 import '../../styles/ModelCapabilityManagement.css';
 
 const ModelCapabilityManagement = () => {
@@ -7,29 +8,48 @@ const ModelCapabilityManagement = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null); // 添加成功状态
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [modalMode, setModalMode] = useState('add'); // 'add' 或 'edit'
   const [currentCapability, setCurrentCapability] = useState(null);
   const [activeTab, setActiveTab] = useState('all'); // 当前激活的标签页
-  const [formData, setFormData] = useState({
-    name: '',
-    display_name: '',
-    description: '',
-    capability_type: '',
-    is_active: true
-  });
+  // 分页相关状态
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [total, setTotal] = useState(0);
   
   // 获取所有能力
-  const loadCapabilities = async () => {
+  const loadCapabilities = async (current = currentPage, size = pageSize) => {
     try {
       setLoading(true);
-      // 获取所有能力（包括激活和禁用的）
-      const response = await capabilityApi.getAll();
+      // 构建查询参数
+      const params = {
+        skip: (current - 1) * size,
+        limit: size
+      };
       
-      // 直接使用capabilityApi返回的已经处理好的数据
+      // 根据activeTab设置筛选条件
+      if (activeTab !== 'all') {
+        if (activeTab === 'active' || activeTab === 'inactive') {
+          params.is_active = activeTab === 'active';
+        } else {
+          params.capability_type = activeTab;
+        }
+      }
+      
+      // 获取所有能力（包括激活和禁用的）
+      const response = await capabilityApi.getAll(params);
+      
+      // 处理API响应
       let capabilitiesData = [];
-      if (Array.isArray(response)) {
+      let totalCount = 0;
+      
+      if (response?.capabilities && Array.isArray(response.capabilities)) {
+        capabilitiesData = response.capabilities;
+        totalCount = response.total || 0;
+      } else if (Array.isArray(response)) {
+        // 向后兼容旧的API响应格式
         capabilitiesData = response;
+        totalCount = response.length;
       }
       
       // 标准化能力数据，确保每个能力都有必要的属性
@@ -45,13 +65,12 @@ const ModelCapabilityManagement = () => {
           ...capability
         }));
        
-
       setCapabilities(normalizedCapabilities);
+      setTotal(totalCount);
       setError(null);
     } catch (err) {
       console.error('❌ 获取能力失败:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
       setError('获取能力列表失败，请稍后重试');
-
     } finally {
       setLoading(false);
     }
@@ -62,84 +81,46 @@ const ModelCapabilityManagement = () => {
     loadCapabilities();
   }, []);
   
-  // 处理输入变化
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-  };
-  
-  // 重置表单
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      display_name: '',
-      description: '',
-      capability_type: '',
-      is_active: true
-    });
-    setCurrentCapability(null);
-  };
-  
   // 打开创建模态框
   const handleCreateModalOpen = () => {
-    resetForm();
-    setShowCreateModal(true);
+    setModalMode('add');
+    setCurrentCapability(null);
+    setShowModal(true);
   };
   
   // 打开编辑模态框
   const handleEditModalOpen = (capability) => {
+    setModalMode('edit');
     setCurrentCapability(capability);
-    setFormData({
-      name: capability.name,
-      display_name: capability.display_name,
-      description: capability.description || '',
-      capability_type: capability.capability_type || '',
-      is_active: capability.is_active
-    });
-    setShowEditModal(true);
+    setShowModal(true);
   };
   
   // 关闭模态框
   const handleModalClose = () => {
-    setShowCreateModal(false);
-    setShowEditModal(false);
-    resetForm();
+    setShowModal(false);
+    setCurrentCapability(null);
   };
   
-  // 提交创建表单
-  const handleCreateSubmit = async (e) => {
-    e.preventDefault();
+  // 提交表单
+  const handleSubmit = async (formData) => {
     try {
-      await capabilityApi.create(formData);
-      setShowCreateModal(false);
-      loadCapabilities(); // 重新加载列表
-      setSuccess('能力创建成功');
+      if (modalMode === 'add') {
+        await capabilityApi.create(formData);
+        setSuccess('能力创建成功');
+      } else if (modalMode === 'edit' && currentCapability) {
+        await capabilityApi.update(currentCapability.id, formData);
+        setSuccess('能力更新成功');
+      }
+      
+      // 关闭模态框
+      setShowModal(false);
+      // 重新加载列表
+      loadCapabilities(currentPage, pageSize);
       // 3秒后自动清除成功消息
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      console.error('创建能力失败:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
-      setError('创建能力失败，请检查输入并重试');
-    }
-  };
-  
-  // 提交编辑表单
-  const handleEditSubmit = async (e) => {
-    e.preventDefault();
-    if (!currentCapability) return;
-    
-    try {
-      await capabilityApi.update(currentCapability.id, formData);
-      setShowEditModal(false);
-      loadCapabilities(); // 重新加载列表
-      setSuccess('能力更新成功');
-      // 3秒后自动清除成功消息
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      console.error('更新能力失败:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
-      setError('更新能力失败，请检查输入并重试');
+      console.error(`${modalMode === 'add' ? '创建' : '更新'}能力失败:`, JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
+      setError(`${modalMode === 'add' ? '创建' : '更新'}能力失败，请检查输入并重试`);
     }
   };
   
@@ -184,6 +165,22 @@ const ModelCapabilityManagement = () => {
   // 处理标签页点击
   const handleTabClick = (type) => {
     setActiveTab(type);
+    setCurrentPage(1); // 切换标签时重置到第一页
+    loadCapabilities(1, pageSize);
+  };
+  
+  // 处理分页变化
+  const handlePageChange = (page, size) => {
+    setCurrentPage(page);
+    setPageSize(size);
+    loadCapabilities(page, size);
+  };
+  
+  // 处理每页显示数量变化
+  const handlePageSizeChange = (current, size) => {
+    setPageSize(size);
+    setCurrentPage(1); // 改变每页显示数量时重置到第一页
+    loadCapabilities(1, size);
   };
   
   if (loading) {
@@ -311,155 +308,52 @@ const ModelCapabilityManagement = () => {
             </tbody>
           </table>
         </div>
+        
+        {/* 分页组件 */}
+        {capabilities.length > 0 && (
+          <div className="capability-pagination">
+            <div className="pagination-info">
+              显示第 {currentPage} 页，共 {Math.ceil(total / pageSize)} 页，总计 {total} 条记录
+            </div>
+            <div className="pagination-controls">
+              <button 
+                className="btn btn-small" 
+                onClick={() => handlePageChange(currentPage - 1, pageSize)}
+                disabled={currentPage === 1}
+              >
+                上一页
+              </button>
+              <span className="page-info">第 {currentPage} / {Math.ceil(total / pageSize)} 页</span>
+              <button 
+                className="btn btn-small" 
+                onClick={() => handlePageChange(currentPage + 1, pageSize)}
+                disabled={currentPage >= Math.ceil(total / pageSize)}
+              >
+                下一页
+              </button>
+              <select 
+                className="page-size-select" 
+                value={pageSize}
+                onChange={(e) => handlePageSizeChange(currentPage, parseInt(e.target.value))}
+              >
+                <option value={10}>10条/页</option>
+                <option value={20}>20条/页</option>
+                <option value={50}>50条/页</option>
+                <option value={100}>100条/页</option>
+              </select>
+            </div>
+          </div>
+        )}
       </div>
       
-      {/* 创建能力模态框 */}
-      {showCreateModal && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <div className="modal-header">
-              <h3>创建新能力</h3>
-              <button className="btn-close" onClick={handleModalClose}>×</button>
-            </div>
-            <form onSubmit={handleCreateSubmit} className="modal-form">
-              <div className="form-group">
-                <label>名称 *</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  required
-                  placeholder="输入能力名称（英文，如：text_generation）"
-                />
-              </div>
-              <div className="form-group">
-                <label>显示名称 *</label>
-                <input
-                  type="text"
-                  name="display_name"
-                  value={formData.display_name}
-                  onChange={handleInputChange}
-                  required
-                  placeholder="输入能力显示名称（中文，如：文本生成）"
-                />
-              </div>
-              <div className="form-group">
-                <label>描述</label>
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  placeholder="输入能力描述"
-                  rows="3"
-                />
-              </div>
-              <div className="form-group">
-                <label>类型</label>
-                <input
-                  type="text"
-                  name="capability_type"
-                  value={formData.capability_type}
-                  onChange={handleInputChange}
-                  placeholder="输入能力类型（如：text, vision, code）"
-                />
-              </div>
-              <div className="form-group form-check">
-                <input
-                  type="checkbox"
-                  id="is_active"
-                  name="is_active"
-                  checked={formData.is_active}
-                  onChange={handleInputChange}
-                />
-                <label htmlFor="is_active">启用</label>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={handleModalClose}>
-                  取消
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  创建
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-      
-      {/* 编辑能力模态框 */}
-      {showEditModal && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <div className="modal-header">
-              <h3>编辑能力</h3>
-              <button className="btn-close" onClick={handleModalClose}>×</button>
-            </div>
-            <form onSubmit={handleEditSubmit} className="modal-form">
-              <div className="form-group">
-                <label>名称 *</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  required
-                  placeholder="输入能力名称（英文）"
-                />
-              </div>
-              <div className="form-group">
-                <label>显示名称 *</label>
-                <input
-                  type="text"
-                  name="display_name"
-                  value={formData.display_name}
-                  onChange={handleInputChange}
-                  required
-                  placeholder="输入能力显示名称（中文）"
-                />
-              </div>
-              <div className="form-group">
-                <label>描述</label>
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  placeholder="输入能力描述"
-                  rows="3"
-                />
-              </div>
-              <div className="form-group">
-                <label>类型</label>
-                <input
-                  type="text"
-                  name="capability_type"
-                  value={formData.capability_type}
-                  onChange={handleInputChange}
-                  placeholder="输入能力类型"
-                />
-              </div>
-              <div className="form-group form-check">
-                <input
-                  type="checkbox"
-                  id="is_active_edit"
-                  name="is_active"
-                  checked={formData.is_active}
-                  onChange={handleInputChange}
-                />
-                <label htmlFor="is_active_edit">启用</label>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={handleModalClose}>
-                  取消
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  更新
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* 能力管理模态框 */}
+      <CapabilityModal
+        visible={showModal}
+        mode={modalMode}
+        capability={currentCapability}
+        onCancel={handleModalClose}
+        onSubmit={handleSubmit}
+      />
     </div>
   );
 };
