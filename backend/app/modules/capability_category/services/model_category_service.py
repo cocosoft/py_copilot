@@ -313,7 +313,7 @@ class ModelCategoryService:
         # 检查是否有子分类
         child_categories = db.query(ModelCategory).filter(
             ModelCategory.parent_id == category_id
-        ).first()).count()
+        ).count()
         
         if child_categories > 0:
             raise HTTPException(

@@ -550,3 +550,5 @@ test_category_fix_updated.py
 test_category_fix.py
 test_dimension_fix.py
 backend/alembic/env.py
+test_categories_api.py
+test_frontend_request.py

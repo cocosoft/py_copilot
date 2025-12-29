@@ -43,7 +43,7 @@ class ModelCategoryUpdate(BaseModel):
 class ModelCategoryResponse(ModelCategoryBase):
     """模型分类响应模型"""
     id: int
-    created_at: datetime
+    created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     
     model_config = ConfigDict(from_attributes=True)
@@ -76,7 +76,7 @@ class ModelCategoryAssociationResponse(BaseModel):
     id: int
     model_id: int
     category_id: int
-    created_at: datetime
+    created_at: Optional[datetime] = None
     
     model_config = ConfigDict(from_attributes=True)
 
@@ -92,7 +92,7 @@ class ModelWithCategoriesResponse(BaseModel):
     is_default: bool = False
     is_active: bool = True
     supplier_id: int
-    created_at: datetime
+    created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     categories: List[ModelCategoryResponse]
     

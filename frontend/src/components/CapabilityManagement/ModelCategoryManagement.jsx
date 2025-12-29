@@ -34,6 +34,15 @@ const flattenCategoryTree = (categories) => {
   return result;
 };
 
+// 按层级排序分类数据，确保父子分类相邻显示
+const getHierarchicalCategories = (categories) => {
+  // 首先构建树状结构
+  const treeStructure = buildCategoryTree(categories);
+  
+  // 然后扁平化，确保层级顺序正确
+  return flattenCategoryTree(treeStructure);
+};
+
 // 将扁平的分类数据转换为树状结构
 const buildCategoryTree = (categories) => {
   const categoryMap = new Map();
@@ -99,25 +108,56 @@ const buildCategoryTree = (categories) => {
 };
 
 // 树状节点组件
-const CategoryTreeNode = ({ node, onEdit, onConfigureParameters, onDelete }) => {
+const CategoryTreeNode = ({ node, onEdit, onConfigureParameters, onDelete, level = 0 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
+  const [isSelected, setIsSelected] = useState(false);
   
   const hasChildren = node.children && node.children.length > 0;
+  const isRootLevel = level === 0;
+  
+  const handleToggleExpanded = (e) => {
+    e.stopPropagation();
+    setIsExpanded(!isExpanded);
+  };
+  
+  const handleNodeClick = () => {
+    setIsSelected(!isSelected);
+  };
+  
+  const handleEdit = (e) => {
+    e.stopPropagation();
+    onEdit(node);
+  };
+  
+  const handleConfigureParameters = (e) => {
+    e.stopPropagation();
+    onConfigureParameters(node);
+  };
+  
+  const handleDelete = (e) => {
+    e.stopPropagation();
+    onDelete(node.id);
+  };
   
   return (
     <div className="category-tree-node">
-      <div className={`node-content ${hasChildren ? 'has-children' : ''} ${!node.is_active ? 'inactive' : ''}`}>
-        {hasChildren && (
-          <button 
-            className="expand-toggle"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsExpanded(!isExpanded);
-            }}
-          >
-            {isExpanded ? '▼' : '▶'}
-          </button>
-        )}
+      <div 
+        className={`node-content ${hasChildren ? 'has-children' : ''} ${!node.is_active ? 'inactive' : ''} ${isSelected ? 'selected' : ''} ${isExpanded && hasChildren ? 'expanded' : ''}`}
+        onClick={handleNodeClick}
+      >
+        {/* 层级缩进指示器 */}
+        <div className={`node-indent ${hasChildren ? 'has-parent' : ''} ${isRootLevel ? 'root-level' : ''}`}>
+          {hasChildren && (
+            <button 
+              className="expand-toggle"
+              onClick={handleToggleExpanded}
+              title={isExpanded ? '收起' : '展开'}
+            >
+              {isExpanded ? '−' : '+'}
+            </button>
+          )}
+        </div>
+        
         <div className="node-info">
           <div className="node-logo">
             {node.logo ? (
@@ -146,7 +186,7 @@ const CategoryTreeNode = ({ node, onEdit, onConfigureParameters, onDelete }) => 
             )}
           </div>
           <div className="node-details">
-            <div className="node-name">
+            <div className="node-name" title={node.display_name || node.name}>
               {node.display_name || node.name}
               {node.is_system && <span className="system-badge">系统</span>}
             </div>
@@ -161,10 +201,7 @@ const CategoryTreeNode = ({ node, onEdit, onConfigureParameters, onDelete }) => 
         <div className="node-actions">
           <button 
             className={`btn btn-small btn-info ${node.is_system ? 'disabled' : ''}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(node);
-            }}
+            onClick={handleEdit}
             disabled={node.is_system}
             title={node.is_system ? '系统分类不允许编辑' : '编辑分类'}
           >
@@ -172,10 +209,7 @@ const CategoryTreeNode = ({ node, onEdit, onConfigureParameters, onDelete }) => 
           </button>
           <button 
             className={`btn btn-small btn-info ${node.is_system ? 'disabled' : ''}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onConfigureParameters(node);
-            }}
+            onClick={handleConfigureParameters}
             disabled={node.is_system}
             title={node.is_system ? '系统分类不允许配置参数' : '参数配置'}
           >
@@ -183,10 +217,7 @@ const CategoryTreeNode = ({ node, onEdit, onConfigureParameters, onDelete }) => 
           </button>
           <button 
             className={`btn btn-small btn-danger ${node.is_system ? 'disabled' : ''}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(node.id);
-            }}
+            onClick={handleDelete}
             disabled={node.is_system}
             title={node.is_system ? '系统分类不允许删除' : '删除分类'}
           >
@@ -201,6 +232,7 @@ const CategoryTreeNode = ({ node, onEdit, onConfigureParameters, onDelete }) => 
             <CategoryTreeNode 
               key={child.id} 
               node={child} 
+              level={level + 1}
               onEdit={onEdit}
               onConfigureParameters={onConfigureParameters}
               onDelete={onDelete}
@@ -974,7 +1006,7 @@ const ModelCategoryManagement = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredCategories.map(category => {
+                    {getHierarchicalCategories(filteredCategories).map(category => {
                       const parentCategory = category.parent_id 
                         ? categories.find(cat => cat.id === category.parent_id)
                         : null;

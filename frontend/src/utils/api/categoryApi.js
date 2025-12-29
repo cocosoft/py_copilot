@@ -31,7 +31,7 @@ export const categoryApi = {
   // 获取所有分类
   getAll: async () => {
     try {
-      const result = await request('/v1/categories', {
+      const result = await request('/v1/categories/', {
         method: 'GET'
       });
       
@@ -72,7 +72,7 @@ export const categoryApi = {
       // 判断是否为FormData对象（用于文件上传）
       const isFormData = categoryData instanceof FormData;
       
-      return await request('/v1/categories', {
+      return await request('/v1/categories/', {
         method: 'POST',
         body: isFormData ? categoryData : JSON.stringify(categoryData),
         headers: isFormData ? {} : {
@@ -438,7 +438,7 @@ export const categoryApi = {
       if (params.sortBy) queryParams.append('sort_by', params.sortBy);
       if (params.sortOrder) queryParams.append('sort_order', params.sortOrder);
       
-      return await request(`/v1/categories?${queryParams.toString()}`, {
+      return await request(`/v1/categories/?${queryParams.toString()}`, {
         method: 'GET'
       });
     } catch (error) {
