@@ -49,12 +49,11 @@ class ModelCapabilityAssociationCreate(BaseModel):
     """创建模型能力关联请求模型"""
     model_id: int = Field(..., gt=0)
     capability_id: int = Field(..., gt=0)
-    config: Optional[str] = Field(None, max_length=255)
 
 
 class ModelCapabilityAssociationUpdate(BaseModel):
     """更新模型能力关联请求模型"""
-    config: Optional[str] = Field(None, max_length=255)
+    pass
 
 
 class ModelCapabilityAssociationResponse(BaseModel):
@@ -62,7 +61,6 @@ class ModelCapabilityAssociationResponse(BaseModel):
     id: int
     model_id: int
     capability_id: int
-    config: Optional[str] = None
     created_at: datetime
     
     model_config = ConfigDict(from_attributes=True)

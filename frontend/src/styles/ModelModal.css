@@ -1037,13 +1037,70 @@
   font-size: 11px;
   color: #64748b;
   line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
+/* 分类层级显示 */
+.category-hierarchy {
+  margin-top: 4px;
+  font-size: 10px;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hierarchy-indicator {
+  font-size: 12px;
+  color: #cbd5e1;
+}
+
+/* 搜索高亮 */
+mark {
+  background-color: #fef3c7;
+  color: #92400e;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+/* 增强的空状态提示 */
 .no-results {
   text-align: center;
-  padding: 20px;
+  padding: 40px 20px;
   color: #64748b;
   font-style: italic;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.no-results-icon {
+  font-size: 48px;
+  margin-bottom: 8px;
+}
+
+.no-results-text {
+  font-size: 16px;
+  font-weight: 500;
+  color: #475569;
+}
+
+.no-results-hint {
+  font-size: 14px;
+  color: #94a3b8;
+  max-width: 300px;
+  line-height: 1.5;
+}
+
+/* 已选状态的维度标签 */
+.dimension-label.selected {
+  background-color: #10b981;
+  color: white;
 }
 
 .selection-stats {

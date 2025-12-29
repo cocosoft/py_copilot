@@ -52,6 +52,10 @@ class Settings(BaseSettings):
     server_reload: bool = Field(default=False, env="SERVER_RELOAD")
     server_workers: int = Field(default=1, env="SERVER_WORKERS")
     
+    # 外部集成API配置
+    external_api_key: Optional[str] = Field(default="your-external-api-key-change-this-in-production", env="EXTERNAL_API_KEY")
+    enable_external_api: bool = Field(default=True, env="ENABLE_EXTERNAL_API")
+    
     class Config:
         env_file = ".env"
         case_sensitive = False

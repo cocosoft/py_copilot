@@ -16,8 +16,9 @@ from app.api.v1.parameter_templates import router as parameter_templates_router
 from app.api.v1.parameter_normalization_rules import router as parameter_normalization_rules_router
 from app.api.v1.parameter_mappings import router as parameter_mappings_router
 from app.api.v1.system_parameters import router as system_parameters_router
-from app.modules.capability_category.api.category import router as category_router
+
 from app.modules.capability_category.api.model_categories import router as model_categories_router
+from app.modules.capability_category.api.category_templates import router as category_templates_router
 from app.api.v1.agents import router as agents_router
 from app.api.v1.agent_categories import router as agent_categories_router
 from app.modules.knowledge.api.knowledge import router as knowledge_router
@@ -56,8 +57,9 @@ api_router.include_router(capability_types_router, tags=["capability_types"])
 api_router.include_router(capability_dimensions_router, tags=["capability_dimensions"])
 # 先注册支持文件上传的model_categories_router
 api_router.include_router(model_categories_router, tags=["model-categories"])
-# 再注册category_router作为备用（如果有冲突，前者会优先匹配）
-api_router.include_router(category_router, tags=["category"])
+
+# 注册分类模板路由
+api_router.include_router(category_templates_router, tags=["category-templates"])
 api_router.include_router(agents_router, prefix="/agents", tags=["agents"])
 api_router.include_router(agent_parameters_router, prefix="/agents", tags=["agent-parameters"])
 api_router.include_router(agent_categories_router, prefix="/agent-categories", tags=["agent-categories"])

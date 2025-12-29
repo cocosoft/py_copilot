@@ -14,7 +14,6 @@ from app.core.config import settings
 from app.models.base import Base
 
 # 导入所有需要的模型，确保它们被注册
-from app.models.category_db import ModelCategoryDB
 from app.models.supplier_db import SupplierDB, ModelDB
 from app.models.capability_db import CapabilityDB
 from app.models.parameter_template import ParameterTemplate

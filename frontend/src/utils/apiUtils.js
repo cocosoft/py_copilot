@@ -18,7 +18,8 @@ export const request = async (endpoint, options = {}) => {
   
   // 处理params参数，将其添加到URL中
   // 确保API_BASE_URL和endpoint之间只有一个斜杠
-  let url = `${API_BASE_URL.replace(/\/$/, '')}${endpoint}`;
+  let base = API_BASE_URL.replace(/\/$/, '');
+  let url = `${base}${endpoint}`;
   if (options.params) {
     const params = new URLSearchParams();
     Object.entries(options.params).forEach(([key, value]) => {

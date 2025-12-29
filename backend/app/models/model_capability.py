@@ -112,7 +112,6 @@ class ModelCapabilityAssociation(Base):
     assessment_data = Column(JSON, nullable=True)  # 评估数据详情
     
     # 能力配置
-    config = Column(String(255), nullable=True)  # 简单配置（兼容旧系统）
     config_json = Column(Text, nullable=True)  # 扩展的JSON配置
     
     # 是否为默认能力配置

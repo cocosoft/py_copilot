@@ -10,6 +10,7 @@ class ModelCategoryBase(BaseModel):
 
     parent_id: Optional[int] = None
     is_active: bool = True
+    dimension: Optional[str] = None
 
 class ModelCategoryCreate(ModelCategoryBase):
     """创建模型分类请求模型"""
@@ -18,6 +19,8 @@ class ModelCategoryCreate(ModelCategoryBase):
 class ModelCategoryResponse(ModelCategoryBase):
     """模型分类响应模型"""
     id: int
+    category_type: Optional[str] = "main"
+    is_system: bool = False
     children: List['ModelCategoryResponse'] = []
     
     model_config = ConfigDict(from_attributes=True)

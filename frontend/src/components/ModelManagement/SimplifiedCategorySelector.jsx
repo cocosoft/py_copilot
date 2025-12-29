@@ -255,6 +255,13 @@ const SimplifiedCategorySelector = ({
               // 检查该分类是否在同一维度的已选列表中
               const isSelected = selectedCategories[dimension]?.some(item => item.categoryId === category.id);
               
+              // 高亮搜索匹配的文本
+              const highlightText = (text) => {
+                if (!searchQuery) return text;
+                const regex = new RegExp(`(${searchQuery})`, 'gi');
+                return text.replace(regex, '<mark>$1</mark>');
+              };
+              
               return (
                 <div 
                   key={`${dimension}-${category.id}`}
@@ -262,15 +269,24 @@ const SimplifiedCategorySelector = ({
                   onClick={() => handleCategorySelect(dimension, category.id, category.display_name || category.name)}
                 >
                   <div className="category-header">
-                    <span className="dimension-label">{dimension}</span>
+                    <span className={`dimension-label ${isSelected ? 'selected' : ''}`}>{dimension}</span>
                     {isSelected && <span className="selected-indicator">✓</span>}
                   </div>
-                  <div className="category-name">
-                    {category.display_name || category.name}
-                  </div>
+                  <div 
+                    className="category-name"
+                    dangerouslySetInnerHTML={{ __html: highlightText(category.display_name || category.name) }}
+                  />
                   {category.description && (
-                    <div className="category-description">
-                      {category.description}
+                    <div 
+                      className="category-description"
+                      dangerouslySetInnerHTML={{ __html: highlightText(category.description.substring(0, 50) + (category.description.length > 50 ? '...' : '')) }}
+                    />
+                  )}
+                  {/* 显示分类层级关系 */}
+                  {category.parent_id && (
+                    <div className="category-hierarchy">
+                      <span className="hierarchy-indicator">↳</span> 
+                      <span>子分类</span>
                     </div>
                   )}
                 </div>
@@ -279,7 +295,13 @@ const SimplifiedCategorySelector = ({
           </div>
         ) : (
           <div className="no-results">
-            没有找到匹配的分类
+            <div className="no-results-icon">🔍</div>
+            <div className="no-results-text">没有找到匹配的分类</div>
+            <div className="no-results-hint">
+              {searchQuery ? 
+                `尝试使用其他关键词搜索，或查看所有维度的分类` : 
+                `当前维度下暂无分类，您可以切换到其他维度查看`}
+            </div>
           </div>
         )}
       </div>

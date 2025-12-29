@@ -80,7 +80,6 @@ class ModelCapabilityAssociationCreate(BaseModel):
     assessment_data: Optional[Dict[str, Any]] = None
     
     # 能力配置
-    config: Optional[str] = Field(None, max_length=255)
     config_json: Optional[str] = None
     
     # 关联权重

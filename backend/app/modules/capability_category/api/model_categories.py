@@ -27,8 +27,35 @@ router = APIRouter(prefix="/categories", tags=["model_categories"])
 
 
 # 导入实际的认证依赖
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_external_api_auth
 from app.models.user import User
+
+
+# 主分类/附加分类概念说明
+"""
+## 主分类与附加分类
+
+### 概念定义
+- **主分类**：顶级分类（parent_id为null），代表模型的主要类型，如"大语言模型"、"图像生成模型"等
+- **附加分类**：子分类（parent_id不为null），代表模型的附加属性，如模型大小（"小型"、"中型"、"大型"）、功能特点等
+
+### 维度概念
+- 分类支持按维度（dimension）进行分组管理
+- 常用维度包括："task_type"（任务类型）、"model_size"（模型大小）、"application"（应用场景）等
+- 每个维度可以有自己的主分类和附加分类
+
+### 使用建议
+1. 选择合适的维度创建主分类
+2. 在主分类下创建附加分类以细分模型特性
+3. 一个模型可以同时关联多个不同维度的分类
+4. 使用主分类查询API `/api/v1/categories/primary?dimension=task_type` 获取指定维度的所有主分类
+
+### 参数继承机制
+- 分类支持设置默认参数
+- 模型参数会自动继承其关联分类的默认参数
+- 模型级参数会覆盖分类级参数
+- 可通过 `/api/v1/categories/{category_id}/parameters` API管理分类默认参数
+"""
 
 
 # 文件上传配置
@@ -89,8 +116,7 @@ async def save_upload_file(upload_file: UploadFile) -> str:
 # 获取所有分类维度
 @router.get("/dimensions/all")
 async def get_all_dimensions(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """获取所有分类维度"""
     return model_category_service.get_all_dimensions(db)
@@ -99,8 +125,7 @@ async def get_all_dimensions(
 # 按维度分组获取所有分类
 @router.get("/by-dimension")
 async def get_categories_by_dimension(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """按维度分组获取所有分类"""
     categories_by_dim = model_category_service.get_all_categories_by_dimension(db)
@@ -268,12 +293,13 @@ async def get_categories(
     is_active: Optional[bool] = None,
     parent_id: Optional[int] = None,
     dimension: Optional[str] = Query(None, max_length=50),
+    keyword: Optional[str] = Query(None, description="搜索关键词（支持名称、显示名称、描述）"),
+    is_system: Optional[bool] = None,
     sort_by: str = Query("weight", regex="^(weight|name|created_at)$"),
     sort_order: str = Query("desc", regex="^(asc|desc)$"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
-    """获取模型分类列表"""
+    """获取模型分类列表 - 支持高级查询功能"""
     result = model_category_service.get_categories(
         db=db,
         skip=skip,
@@ -282,10 +308,28 @@ async def get_categories(
         is_active=is_active,
         parent_id=parent_id,
         dimension=dimension,
+        keyword=keyword,
+        is_system=is_system,
         sort_by=sort_by,
         sort_order=sort_order
     )
     return result
+
+
+# 先定义具体路由
+@router.get("/statistics", response_model=Dict[str, Any])
+async def get_category_statistics(
+    dimension: Optional[str] = Query(None, description="按维度筛选统计"),
+    include_children: bool = Query(False, description="是否包含子分类的统计数据"),
+    db: Session = Depends(get_db)
+):
+    """获取分类使用统计信息"""
+    statistics = model_category_service.get_category_statistics(
+        db=db,
+        dimension=dimension,
+        include_children=include_children
+    )
+    return statistics
 
 
 @router.get("/{category_id}", response_model=ModelCategoryResponse)
@@ -567,50 +611,7 @@ async def delete_category_parameter(
     return updated_category.default_parameters or {}
 
 
-# 获取所有分类维度
-@router.get("/dimensions/all")
-async def get_all_dimensions(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """获取所有分类维度"""
-    return model_category_service.get_all_dimensions(db)
 
-
-# 按维度分组获取所有分类
-@router.get("/by-dimension")
-async def get_categories_by_dimension(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """按维度分组获取所有分类"""
-    categories_by_dim = model_category_service.get_all_categories_by_dimension(db)
-    
-    # 序列化分类数据
-    serialized_data = {}
-    for dimension, categories in categories_by_dim.items():
-        serialized_categories = []
-        for category in categories:
-            # 序列化单个分类
-            serialized = {
-                "id": category.id,
-                "name": category.name,
-                "display_name": category.display_name,
-                "description": category.description,
-                "category_type": category.category_type,
-                "parent_id": category.parent_id,
-                "is_active": category.is_active,
-                "is_system": category.is_system,
-                "logo": getattr(category, "logo", None),
-                "dimension": category.dimension,
-                "level": getattr(category, "level", 0),
-                "created_at": category.created_at.isoformat() if hasattr(category, "created_at") and category.created_at else None,
-                "updated_at": category.updated_at.isoformat() if hasattr(category, "updated_at") and category.updated_at else None
-            }
-            serialized_categories.append(serialized)
-        serialized_data[dimension] = serialized_categories
-    
-    return serialized_data
 
 
 # 多维分类和参数继承相关API
@@ -687,4 +688,171 @@ async def get_category_hierarchy_parameters(
     get_parent_parameters(category)
     
     return parameter_hierarchy
+
+
+# 批量操作API
+@router.post("/batch", response_model=List[ModelCategoryResponse])
+async def batch_create_categories(
+    categories_data: List[ModelCategoryCreate],
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """批量创建模型分类"""
+    try:
+        created_categories = model_category_service.batch_create_categories(db, categories_data)
+        return created_categories
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"批量创建分类失败: {str(e)}"
+        )
+
+
+@router.delete("/batch", response_model=Dict[str, Any])
+async def batch_delete_categories(
+    category_ids: List[int] = Query(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """批量删除模型分类"""
+    try:
+        result = model_category_service.batch_delete_categories(db, category_ids)
+        return result
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"批量删除分类失败: {str(e)}"
+        )
+
+
+@router.post("/batch/model-associations", response_model=Dict[str, Any])
+async def batch_add_models_to_category(
+    category_id: int = Query(...),
+    model_ids: List[int] = Query(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """批量添加模型到分类"""
+    added_count = 0
+    errors = []
+    
+    try:
+        for model_id in model_ids:
+            try:
+                # 使用现有的add_category_to_model方法添加关联
+                model_category_service.add_category_to_model(db, model_id, category_id)
+                added_count += 1
+            except HTTPException as e:
+                errors.append({
+                    "model_id": model_id,
+                    "error": str(e.detail)
+                })
+            except Exception as e:
+                errors.append({
+                    "model_id": model_id,
+                    "error": f"添加模型关联失败: {str(e)}"
+                })
+        
+        return {
+            "added_count": added_count,
+            "total_count": len(model_ids),
+            "errors": errors
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"批量添加模型关联失败: {str(e)}"
+        )
+
+
+
+
+
+# 外部集成API接口
+@router.get("/external/all", response_model=ModelCategoryListResponse)
+async def get_categories_external(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    dimension: Optional[str] = Query(None, max_length=50),
+    is_active: Optional[bool] = Query(None),
+    db: Session = Depends(get_db),
+    auth: bool = Depends(get_external_api_auth)
+):
+    """外部API - 获取所有分类列表（需要API密钥认证）"""
+    result = model_category_service.get_categories(
+        db=db,
+        skip=skip,
+        limit=limit,
+        category_type=None,
+        is_active=is_active,
+        parent_id=None,
+        dimension=dimension,
+        sort_by="name",
+        sort_order="asc"
+    )
+    return result
+
+
+@router.get("/external/{category_id}", response_model=ModelCategoryResponse)
+async def get_category_external(
+    category_id: int,
+    db: Session = Depends(get_db),
+    auth: bool = Depends(get_external_api_auth)
+):
+    """外部API - 获取单个分类（需要API密钥认证）"""
+    db_category = model_category_service.get_category(db, category_id)
+    return db_category
+
+
+@router.get("/external/by-dimension/{dimension}", response_model=List[ModelCategoryResponse])
+async def get_categories_by_dimension_external(
+    dimension: str,
+    db: Session = Depends(get_db),
+    auth: bool = Depends(get_external_api_auth)
+):
+    """外部API - 根据维度获取分类（需要API密钥认证）"""
+    categories = model_category_service.get_categories_by_dimension(db, dimension)
+    return categories
+
+
+@router.get("/external/statistics", response_model=Dict[str, Any])
+async def get_category_statistics_external(
+    dimension: Optional[str] = Query(None, description="按维度筛选统计"),
+    include_children: bool = Query(False, description="是否包含子分类的统计数据"),
+    db: Session = Depends(get_db),
+    auth: bool = Depends(get_external_api_auth)
+):
+    """外部API - 获取分类使用统计信息（需要API密钥认证）"""
+    statistics = model_category_service.get_category_statistics(
+        db=db,
+        dimension=dimension,
+        include_children=include_children
+    )
+    return statistics
+
+
+@router.post("/external/models/{model_id}/categories", response_model=ModelCategoryAssociationResponse)
+async def add_category_to_model_external(
+    model_id: int,
+    category_id: int = Query(...),
+    db: Session = Depends(get_db),
+    auth: bool = Depends(get_external_api_auth)
+):
+    """外部API - 为模型添加分类（需要API密钥认证）"""
+    association = model_category_service.add_category_to_model(db, model_id, category_id)
+    return association
+
+
+@router.delete("/external/models/{model_id}/categories/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_category_from_model_external(
+    model_id: int,
+    category_id: int,
+    db: Session = Depends(get_db),
+    auth: bool = Depends(get_external_api_auth)
+):
+    """外部API - 从模型中移除分类（需要API密钥认证）"""
+    model_category_service.remove_category_from_model(db, model_id, category_id)
+    return None
 

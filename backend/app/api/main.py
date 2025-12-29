@@ -47,6 +47,7 @@ app = FastAPI(
     title=API_TITLE,
     version=API_VERSION,
     docs_url="/docs",
+    redirect_slashes=False,  # Disable automatic trailing slash redirects to avoid CORS issues
 )
 
 # 设置请求体大小限制为60MB，以支持50MB的文件上传

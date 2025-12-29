@@ -1,6 +1,6 @@
 """API依赖函数模块"""
 from typing import Generator, Optional
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Query, Header
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from pydantic import ValidationError
@@ -97,6 +97,67 @@ def get_current_active_user(
     if not current_user.is_active:
         raise HTTPException(status_code=400, detail="用户未激活")
     return current_user
+
+
+def verify_external_api_key(
+    api_key: Optional[str] = None,
+    x_api_key: Optional[str] = None,
+) -> bool:
+    """
+    验证外部API密钥
+    
+    Args:
+        api_key: 查询参数中的API密钥
+        x_api_key: 请求头中的API密钥
+    
+    Returns:
+        验证成功返回True
+    
+    Raises:
+        HTTPException: 验证失败时抛出
+    """
+    from app.core.config import settings
+    
+    # 如果未启用外部API，返回False
+    if not settings.enable_external_api:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="外部API未启用"
+        )
+    
+    # 获取API密钥（优先使用请求头中的X-API-Key，然后是查询参数中的api_key）
+    key_to_check = x_api_key if x_api_key else api_key
+    
+    if not key_to_check:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API密钥缺失，请在请求头中添加X-API-Key或在查询参数中添加api_key"
+        )
+    
+    if key_to_check != settings.external_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="无效的API密钥"
+        )
+    
+    return True
+
+
+def get_external_api_auth(
+    api_key: Optional[str] = Query(None, description="API密钥"),
+    x_api_key: Optional[str] = Header(None, alias="X-API-Key", description="请求头中的API密钥")
+) -> bool:
+    """
+    获取外部API认证依赖
+    
+    Args:
+        api_key: 查询参数中的API密钥
+        x_api_key: 请求头中的API密钥
+    
+    Returns:
+        验证成功返回True
+    """
+    return verify_external_api_key(api_key=api_key, x_api_key=x_api_key)
 
 
 def get_current_active_superuser(
