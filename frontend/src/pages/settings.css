@@ -600,3 +600,86 @@
   padding-bottom: 8px;
   border-bottom: 1px solid #f0f0f0;
 }
+
+/* 系统功能管理样式 */
+.system-management-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  padding: 40px;
+}
+
+.coming-soon-placeholder {
+  text-align: center;
+  background-color: #f9f9f9;
+  border: 2px dashed #e1e8ed;
+  border-radius: 12px;
+  padding: 60px 40px;
+  max-width: 500px;
+  width: 100%;
+  transition: all 0.3s ease;
+}
+
+.coming-soon-placeholder:hover {
+  background-color: #f0f8ff;
+  border-color: #3498db;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.1);
+}
+
+.placeholder-icon {
+  font-size: 48px;
+  margin-bottom: 20px;
+  opacity: 0.7;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.coming-soon-placeholder h3 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0 0 12px 0;
+}
+
+.coming-soon-placeholder p {
+  font-size: 16px;
+  color: #7f8c8d;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* 响应式适配 */
+@media (max-width: 768px) {
+  .system-management-container {
+    padding: 20px;
+    min-height: 300px;
+  }
+  
+  .coming-soon-placeholder {
+    padding: 40px 20px;
+  }
+  
+  .placeholder-icon {
+    font-size: 36px;
+    margin-bottom: 16px;
+  }
+  
+  .coming-soon-placeholder h3 {
+    font-size: 20px;
+  }
+  
+  .coming-soon-placeholder p {
+    font-size: 14px;
+  }
+}

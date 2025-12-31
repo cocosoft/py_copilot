@@ -4,6 +4,7 @@ import ModelManagement from './ModelManagement';
 import ModelCategoryManagement from '../CapabilityManagement/ModelCategoryManagement';
 import CapabilityManagementTabs from '../CapabilityManagement/CapabilityManagementTabs';
 import ParameterManagementMain from './ParameterManagementMain';
+import DefaultModelManagement from './DefaultModelManagement';
 import { useSupplier } from '../../contexts/SupplierContext';
 import api from '../../utils/api';
 import '../../styles/IntegratedModelManagement.css';
@@ -11,7 +12,7 @@ import '../../styles/IntegratedModelManagement.css';
 const IntegratedModelManagement = () => {
   const supplierContext = useSupplier();
   const { selectedSupplier, selectSupplier, suppliers: contextSuppliers, loading: contextLoading } = supplierContext;
-  const [activeTab, setActiveTab] = useState('models'); // 'models', 'categories', 'capabilities', 'params'
+  const [activeTab, setActiveTab] = useState('models'); // 'models', 'categories', 'capabilities', 'params', 'defaultModel'
   // 直接使用context中的suppliers，不再维护自己的状态
   const [loading, setLoading] = useState(true);
 
@@ -75,31 +76,37 @@ const IntegratedModelManagement = () => {
                 className={`tab-button ${activeTab === 'models' ? 'active' : ''}`}
                 onClick={() => setActiveTab('models')}
               >
-                模型
+                模型管理
               </button>
               <button 
                 className={`tab-button ${activeTab === 'categories' ? 'active' : ''}`}
                 onClick={() => setActiveTab('categories')}
               >
-                分类
+                模型分类
               </button>
               <button 
                 className={`tab-button ${activeTab === 'capabilities' ? 'active' : ''}`}
                 onClick={() => setActiveTab('capabilities')}
               >
-                能力
+                模型能力
               </button>
               <button 
                 className={`tab-button ${activeTab === 'parameters' ? 'active' : ''}`}
                 onClick={() => setActiveTab('parameters')}
               >
-                参数
+                参数管理
+              </button>
+              <button 
+                className={`tab-button ${activeTab === 'defaultModel' ? 'active' : ''}`}
+                onClick={() => setActiveTab('defaultModel')}
+              >
+                默认模型
               </button>
               <button 
                 className={`tab-button ${activeTab === 'skills' ? 'active' : ''}`}
                 onClick={() => setActiveTab('skills')}
               >
-                Skills
+                技能管理
               </button>
             </div>
             <div className="tab-content">
@@ -153,6 +160,11 @@ const IntegratedModelManagement = () => {
                     <h3>Skills管理</h3>
                     <p>功能开发中，敬请期待...</p>
                   </div>
+                </div>
+              )}
+              {activeTab === 'defaultModel' && (
+                <div className="default-model-content">
+                  <DefaultModelManagement />
                 </div>
               )}
             </div>

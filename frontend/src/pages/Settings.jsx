@@ -434,7 +434,25 @@ const Settings = () => {
               </div>
             </div>
           </div>
-        );      
+        );
+        
+      case 'system':
+        return (
+          <div className="settings-content">
+            <div className="content-header">
+              <h2>系统功能管理</h2>
+              <p>管理系统功能和模块的启用状态</p>
+            </div>
+            
+            <div className="system-management-container">
+              <div className="coming-soon-placeholder">
+                <div className="placeholder-icon">🚧</div>
+                <h3>功能开发中</h3>
+                <p>系统功能管理模块正在设计中，敬请期待...</p>
+              </div>
+            </div>
+          </div>
+        );
            
       default:
         return (
@@ -508,11 +526,11 @@ const Settings = () => {
             </button>
             
             <button 
-              className={`nav-item ${activeSection === 'defaultModel' ? 'active' : ''}`}
-              onClick={() => setActiveSection('defaultModel')}
+              className={`nav-item ${activeSection === 'system' ? 'active' : ''}`}
+              onClick={() => setActiveSection('system')}
             >
-              <span className="nav-icon">🔤</span>
-              <span className="nav-text">默认模型</span>
+              <span className="nav-icon">⚙️</span>
+              <span className="nav-text">系统功能管理</span>
             </button>
               
 
