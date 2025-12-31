@@ -20,7 +20,7 @@ function App() {
           <Route path="/login" element={<LoginForm />} />
           
           {/* 主应用路由 - 暂时取消认证要求 */}
-          <Route path="/">
+          <Route path="/*">
             <Route index element={<MainApp />} />
             <Route path="*" element={<MainApp />} />
           </Route>
