@@ -499,7 +499,7 @@ const Settings = () => {
               className={`nav-item ${activeSection === 'model' ? 'active' : ''}`}
               onClick={() => setActiveSection('model')}
             >
-              <span className="nav-icon">🎯</span>
+              <span className="nav-icon">🎛️</span>
               <span className="nav-text">模型管理</span>
             </button>
             
@@ -555,7 +555,7 @@ const Settings = () => {
               className={`nav-item ${activeSection === 'globalMemory' ? 'active' : ''}`}
               onClick={() => setActiveSection('globalMemory')}
             >
-              <span className="nav-icon">🧠</span>
+              <span className="nav-icon">💾</span>
               <span className="nav-text">全局记忆</span>
             </button>
               
