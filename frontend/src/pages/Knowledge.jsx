@@ -120,7 +120,6 @@ const Knowledge = () => {
   const [documentTags, setDocumentTags] = useState([]);
   const [loadingTags, setLoadingTags] = useState(false);
   const [newTagName, setNewTagName] = useState('');
-  const [showTagsCloud, setShowTagsCloud] = useState(true);
   
   // 向量片段相关状态
   const [documentChunks, setDocumentChunks] = useState([]);
@@ -1626,58 +1625,7 @@ const Knowledge = () => {
           </button>
         </div>
         
-        {/* 标签云区域 */}
-        {selectedKnowledgeBase && !searchQuery && (
-          <div className="tags-cloud-section">
-            <div className="tags-cloud-header">
-              <h3>标签云</h3>
-              <button 
-                className="toggle-tags-btn"
-                onClick={() => setShowTagsCloud(!showTagsCloud)}
-              >
-                {showTagsCloud ? '收起' : '展开'} 🏷️
-              </button>
-            </div>
-            
-            {showTagsCloud && (
-              <div className="tags-cloud">
-                {loadingTags ? (
-                  <div className="loading-container">
-                    <div className="loading-spinner"></div>
-                    <span>加载标签云...</span>
-                  </div>
-                ) : tags.length > 0 ? (
-                  tags.map(tag => {
-                    // 根据文档数量计算标签大小级别 (1-5)
-                    const getTagSizeClass = () => {
-                      const count = tag.document_count || 0;
-                      if (count >= 20) return 'tag-size-5';
-                      if (count >= 15) return 'tag-size-4';
-                      if (count >= 10) return 'tag-size-3';
-                      if (count >= 5) return 'tag-size-2';
-                      return 'tag-size-1';
-                    };
-                    
-                    return (
-                      <div 
-                        key={tag.id} 
-                        className={`cloud-tag ${getTagSizeClass()}`}
-                        onClick={() => handleSearchByTag(tag.id)}
-                      >
-                        {tag.name}
-                        <span className="tag-count">({tag.document_count || 0})</span>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="empty-tags-cloud">
-                    <span>当前知识库没有标签</span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+
         
         {/* 主界面内容区域 */}
         {mainActiveTab === 'documents' && (
