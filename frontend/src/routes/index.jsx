@@ -19,22 +19,22 @@ import CapabilityManagementMain from '../components/CapabilityManagement/Capabil
 const AppRoutes = () => {
   return (
     <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/chat" element={<Chat />} />
-      <Route path="/agents" element={<Agent />} />
-      <Route path="/image" element={<Image />} />
-      <Route path="/video" element={<Video />} />
-      <Route path="/voice" element={<Voice />} />
-      <Route path="/translate" element={<Translate />} />
-      <Route path="/knowledge" element={<Knowledge />} />
-      <Route path="/workflow" element={<Workflow />} />
-      <Route path="/tool" element={<Tool />} />
-      <Route path="/settings" element={<Settings />} />
-      <Route path="/personal">
+      <Route index element={<Home />} />
+      <Route path="chat" element={<Chat />} />
+      <Route path="agents" element={<Agent />} />
+      <Route path="image" element={<Image />} />
+      <Route path="video" element={<Video />} />
+      <Route path="voice" element={<Voice />} />
+      <Route path="translate" element={<Translate />} />
+      <Route path="knowledge" element={<Knowledge />} />
+      <Route path="workflow" element={<Workflow />} />
+      <Route path="tool" element={<Tool />} />
+      <Route path="settings" element={<Settings />} />
+      <Route path="personal">
         <Route index element={<PersonalCenter />} />
         <Route path="*" element={<PersonalCenter />} />
       </Route>
-      <Route path="/help">
+      <Route path="help">
         <Route index element={<HelpCenter />} />
         <Route path="*" element={<HelpCenter />} />
       </Route>
