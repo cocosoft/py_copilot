@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { capabilityApi } from '../../utils/api/capabilityApi';
 import { categoryApi } from '../../utils/api/categoryApi';
-import '../../styles/CapabilityManagement.css';
+import '../../styles/CategoryDefaultCapabilityManagement.css';
 
 const CategoryDefaultCapabilityManagement = () => {
   const [categories, setCategories] = useState([]);
@@ -155,7 +155,7 @@ const CategoryDefaultCapabilityManagement = () => {
       <div className="category-default-capability-management">
         <div className="loading-state">
           <div className="spinner"></div>
-          <p>正在加载分类和能力数据...</p>
+          <p>正在加载分类和能力数据，请稍候...</p>
         </div>
       </div>
     );
@@ -230,7 +230,7 @@ const CategoryDefaultCapabilityManagement = () => {
                   <div className="spinner-small"></div>
                   保存中...
                 </>
-              ) : '保存设置'}
+              ) : '💾 保存设置'}
             </button>
           </div>
 
@@ -241,7 +241,7 @@ const CategoryDefaultCapabilityManagement = () => {
               <div className="search-box">
                 <input
                   type="text"
-                  placeholder="搜索能力名称、类型..."
+                  placeholder="搜索能力名称、标识或类型..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   autoComplete="off"
@@ -279,7 +279,7 @@ const CategoryDefaultCapabilityManagement = () => {
                         onClick={() => addToDefault(capability)}
                         title="添加到默认能力"
                       >
-                        + 添加
+                        ➕ 添加
                       </button>
                     </div>
                   ))
@@ -308,7 +308,7 @@ const CategoryDefaultCapabilityManagement = () => {
                         onClick={() => removeFromDefault(capability.id)}
                         title="从默认能力中移除"
                       >
-                        × 移除
+                        ❌ 移除
                       </button>
                     </div>
                   ))
