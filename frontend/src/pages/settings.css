@@ -683,3 +683,88 @@
     font-size: 14px;
   }
 }
+
+/* 全局记忆管理样式 */
+.global-memory-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  padding: 40px;
+}
+
+.global-memory-container .coming-soon-placeholder {
+  text-align: center;
+  background-color: #f0f8ff;
+  border: 2px dashed #3498db;
+  border-radius: 12px;
+  padding: 60px 40px;
+  max-width: 500px;
+  width: 100%;
+  transition: all 0.3s ease;
+}
+
+.global-memory-container .coming-soon-placeholder:hover {
+  background-color: #e8f4fd;
+  border-color: #2980b9;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(52, 152, 219, 0.15);
+}
+
+.global-memory-container .placeholder-icon {
+  font-size: 48px;
+  margin-bottom: 20px;
+  opacity: 0.8;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+}
+
+.global-memory-container .coming-soon-placeholder h3 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0 0 12px 0;
+}
+
+.global-memory-container .coming-soon-placeholder p {
+  font-size: 16px;
+  color: #7f8c8d;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* 响应式适配 */
+@media (max-width: 768px) {
+  .global-memory-container {
+    padding: 20px;
+    min-height: 300px;
+  }
+  
+  .global-memory-container .coming-soon-placeholder {
+    padding: 40px 20px;
+  }
+  
+  .global-memory-container .placeholder-icon {
+    font-size: 36px;
+    margin-bottom: 16px;
+  }
+  
+  .global-memory-container .coming-soon-placeholder h3 {
+    font-size: 20px;
+  }
+  
+  .global-memory-container .coming-soon-placeholder p {
+    font-size: 14px;
+  }
+}

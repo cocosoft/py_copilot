@@ -453,6 +453,24 @@ const Settings = () => {
             </div>
           </div>
         );
+        
+      case 'globalMemory':
+        return (
+          <div className="settings-content">
+            <div className="content-header">
+              <h2>全局记忆</h2>
+              <p>管理系统全局记忆和上下文信息</p>
+            </div>
+            
+            <div className="global-memory-container">
+              <div className="coming-soon-placeholder">
+                <div className="placeholder-icon">🧠</div>
+                <h3>功能开发中</h3>
+                <p>全局记忆模块正在设计中，敬请期待...</p>
+              </div>
+            </div>
+          </div>
+        );
            
       default:
         return (
@@ -531,6 +549,14 @@ const Settings = () => {
             >
               <span className="nav-icon">⚙️</span>
               <span className="nav-text">系统功能管理</span>
+            </button>
+            
+            <button 
+              className={`nav-item ${activeSection === 'globalMemory' ? 'active' : ''}`}
+              onClick={() => setActiveSection('globalMemory')}
+            >
+              <span className="nav-icon">🧠</span>
+              <span className="nav-text">全局记忆</span>
             </button>
               
 

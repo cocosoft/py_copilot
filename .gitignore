@@ -553,3 +553,5 @@ backend/alembic/env.py
 test_categories_api.py
 test_frontend_request.py
 backend/py_copilot_202512312045.zip
+knowledge_graph_entity_management_implementation_plan.md
+knowledge_graph_entity_management_optimization_plan.md
