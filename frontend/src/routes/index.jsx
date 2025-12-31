@@ -12,9 +12,6 @@ import Tool from '../pages/Tool';
 import Settings from '../pages/Settings';
 import PersonalCenter from '../pages/PersonalCenter';
 import HelpCenter from '../pages/HelpCenter';
-import ModelCapabilityManagement from '../components/CapabilityManagement/ModelCapabilityManagement';
-import ModelCapabilityAssociation from '../components/CapabilityManagement/ModelCapabilityAssociation';
-import CapabilityManagementMain from '../components/CapabilityManagement/CapabilityManagementMain';
 
 const AppRoutes = () => {
   return (
