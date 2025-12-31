@@ -150,16 +150,34 @@ const ModelCapabilityManagement = () => {
   
   // 筛选能力
   const filterCapabilities = () => {
+    let filtered = capabilities;
+    
     if (activeTab === 'all') {
-      return capabilities;
+      // 返回所有能力
     } else if (activeTab === 'active') {
-      return capabilities.filter(cap => cap.is_active);
+      filtered = capabilities.filter(cap => cap.is_active);
     } else if (activeTab === 'inactive') {
-      return capabilities.filter(cap => !cap.is_active);
+      filtered = capabilities.filter(cap => !cap.is_active);
     } else {
       // 按能力类型筛选
-      return capabilities.filter(cap => cap.capability_type === activeTab);
+      filtered = capabilities.filter(cap => cap.capability_type === activeTab);
     }
+    
+    return filtered;
+  };
+  
+  // 获取分页后的能力列表
+  const getPagedCapabilities = () => {
+    const filtered = filterCapabilities();
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return filtered.slice(startIndex, endIndex);
+  };
+  
+  // 获取总页数
+  const getTotalPages = () => {
+    const filtered = filterCapabilities();
+    return Math.ceil(filtered.length / pageSize);
   };
   
   // 处理标签页点击
@@ -167,6 +185,14 @@ const ModelCapabilityManagement = () => {
     setActiveTab(type);
     setCurrentPage(1); // 切换标签时重置到第一页
     loadCapabilities(1, pageSize);
+    
+    // 确保分页状态正确
+    setTimeout(() => {
+      const newTotalPages = getTotalPages();
+      if (newTotalPages === 0 && currentPage !== 1) {
+        setCurrentPage(1);
+      }
+    }, 0);
   };
   
   // 处理分页变化
@@ -265,7 +291,7 @@ const ModelCapabilityManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {filterCapabilities().map(capability => (
+              {getPagedCapabilities().map(capability => (
                 <tr key={capability.id}>
                   <td>{capability.id}</td>
                   <td>{capability.name}</td>
@@ -310,10 +336,10 @@ const ModelCapabilityManagement = () => {
         </div>
         
         {/* 分页组件 */}
-        {capabilities.length > 0 && (
+        {getPagedCapabilities().length > 0 && (
           <div className="capability-pagination">
             <div className="pagination-info">
-              显示第 {currentPage} 页，共 {Math.ceil(total / pageSize)} 页，总计 {total} 条记录
+              显示第 {currentPage} 页，共 {getTotalPages()} 页，共 {filterCapabilities().length} 条记录
             </div>
             <div className="pagination-controls">
               <button 
@@ -323,11 +349,11 @@ const ModelCapabilityManagement = () => {
               >
                 上一页
               </button>
-              <span className="page-info">第 {currentPage} / {Math.ceil(total / pageSize)} 页</span>
+              <span className="page-info">第 {currentPage} / {getTotalPages()} 页</span>
               <button 
                 className="btn btn-small" 
                 onClick={() => handlePageChange(currentPage + 1, pageSize)}
-                disabled={currentPage >= Math.ceil(total / pageSize)}
+                disabled={currentPage >= getTotalPages()}
               >
                 下一页
               </button>
