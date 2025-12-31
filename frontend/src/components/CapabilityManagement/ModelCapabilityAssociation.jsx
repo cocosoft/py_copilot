@@ -3,6 +3,322 @@ import modelApi from '../../utils/api/modelApi';
 import { capabilityApi } from '../../utils/api/capabilityApi';
 import ModelSelectDropdown from '../ModelManagement/ModelSelectDropdown';
 
+// 定义全局样式
+const globalStyles = `
+  .model-capability-association {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #333;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  
+  .association-title {
+    color: #1e88e5;
+    font-size: 24px;
+    margin-bottom: 20px;
+    font-weight: 600;
+    text-align: center;
+  }
+  
+  .card {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    padding: 20px;
+    margin-bottom: 20px;
+    transition: box-shadow 0.3s ease;
+  }
+  
+  .card:hover {
+    box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+  }
+  
+  .form-group {
+    margin-bottom: 20px;
+  }
+  
+  .form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #555;
+  }
+  
+  .input-group {
+    display: flex;
+    gap: 10px;
+  }
+  
+  .input-group input,
+  .input-group select {
+    flex: 1;
+  }
+  
+  .form-control {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 10px 12px;
+    font-size: 14px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  
+  .form-control:focus {
+    border-color: #1e88e5;
+    box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.1);
+    outline: none;
+  }
+  
+  .text-muted {
+    color: #6c757d;
+    font-size: 13px;
+    margin-top: 5px;
+    display: block;
+  }
+  
+  .alert {
+    padding: 12px 16px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    animation: slideDown 0.3s ease;
+  }
+  
+  .alert-error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+  }
+  
+  .alert-success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+  }
+  
+  @keyframes slideDown {
+    from {
+      transform: translateY(-10px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  
+  .btn {
+    padding: 8px 16px;
+    border-radius: 4px;
+    border: none;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 500;
+  }
+  
+  .btn:hover {
+    transform: translateY(-1px);
+  }
+  
+  .btn:active {
+    transform: translateY(0);
+  }
+  
+  .btn-primary {
+    background: linear-gradient(135deg, #1e88e5, #1565c0);
+    color: white;
+  }
+  
+  .btn-primary:hover {
+    background: linear-gradient(135deg, #1565c0, #0d47a1);
+    box-shadow: 0 2px 8px rgba(30, 136, 229, 0.3);
+  }
+  
+  .btn-secondary {
+    background: linear-gradient(135deg, #f5f5f5, #e0e0e0);
+    color: #333;
+  }
+  
+  .btn-secondary:hover {
+    background: linear-gradient(135deg, #e0e0e0, #bdbdbd);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  .btn-danger {
+    background: linear-gradient(135deg, #e53935, #c62828);
+    color: white;
+  }
+  
+  .btn-danger:hover {
+    background: linear-gradient(135deg, #c62828, #b71c1c);
+    box-shadow: 0 2px 8px rgba(229, 57, 53, 0.3);
+  }
+  
+  .btn-small {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+  
+  .table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    overflow: hidden;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  }
+  
+  .table thead {
+    background: linear-gradient(135deg, #1e88e5, #1565c0);
+    color: white;
+  }
+  
+  .table th {
+    padding: 12px 15px;
+    text-align: left;
+    font-weight: 600;
+  }
+  
+  .table th.sortable {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    padding-right: 25px;
+  }
+  
+  .sort-indicator {
+    position: absolute;
+    right: 10px;
+  }
+  
+  .table tbody tr {
+    transition: background-color 0.2s ease;
+  }
+  
+  .table tbody tr:nth-child(odd) {
+    background-color: #f9f9f9;
+  }
+  
+  .table tbody tr:hover {
+    background-color: #f0f7ff;
+  }
+  
+  .table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .loading {
+    text-align: center;
+    padding: 40px;
+    color: #6c757d;
+    font-size: 16px;
+  }
+  
+  .section-title {
+    font-size: 20px;
+    margin-bottom: 16px;
+    color: #1e88e5;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .section-title::before {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 20px;
+    background: linear-gradient(135deg, #1e88e5, #1565c0);
+    border-radius: 2px;
+  }
+  
+  .capability-type-badge {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    display: inline-block;
+  }
+  
+  .capability-type-badge.BASIC {
+    background-color: #e3f2fd;
+    color: #1565c0;
+  }
+  
+  .capability-type-badge.INTERMEDIATE {
+    background-color: #fff3e0;
+    color: #e65100;
+  }
+  
+  .capability-type-badge.ADVANCED {
+    background-color: #f3e5f5;
+    color: #6a1b9a;
+  }
+  
+  .capability-card {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    padding: 16px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  
+  .capability-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+  }
+  
+  .capability-card h4 {
+    margin-top: 0;
+    margin-bottom: 8px;
+    color: #1e88e5;
+    font-size: 16px;
+  }
+  
+  .capability-card p {
+    margin-top: 8px;
+    margin-bottom: 8px;
+    color: #666;
+    font-size: 14px;
+    flex-grow: 1;
+  }
+  
+  .text-sm {
+    font-size: 13px;
+  }
+  
+  .pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+  }
+  
+  .page-info {
+    padding: 6px 12px;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    font-size: 14px;
+    color: #666;
+  }
+  
+  .hr-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #e0e0e0, transparent);
+    margin: 30px 0;
+    border: none;
+  }
+`;
+
 const ModelCapabilityAssociation = () => {
   const [models, setModels] = useState([]);
   const [capabilities, setCapabilities] = useState([]);
@@ -288,7 +604,10 @@ const ModelCapabilityAssociation = () => {
 
   return (
     <div className="model-capability-association">
-      <h2>模型能力关联管理</h2>
+      <h2 className="association-title">模型能力关联管理</h2>
+      
+      {/* 注入样式 */}
+      <style>{globalStyles}</style>
       
       {/* 消息提示 */}
       {error && (
@@ -338,7 +657,7 @@ const ModelCapabilityAssociation = () => {
           {/* 已关联的能力 */}
           <div style={{ marginTop: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h3>已关联的能力</h3>
+              <h3 className="section-title">已关联的能力</h3>
               <button
                 onClick={() => fetchModelCapabilities(selectedModel.id)}
                 disabled={loading}
@@ -403,12 +722,12 @@ const ModelCapabilityAssociation = () => {
             )}
           </div>
 
-          <hr />
+          <hr className="hr-divider" />
 
           {/* 添加新能力 */}
           <div style={{ marginTop: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h3>添加新能力</h3>
+              <h3 className="section-title">添加新能力</h3>
               <div className="input-group" style={{ maxWidth: '300px' }}>
                 <input
                   type="text"

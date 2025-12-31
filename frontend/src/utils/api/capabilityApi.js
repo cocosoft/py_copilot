@@ -109,10 +109,23 @@ export const capabilityApi = {
   // 添加模型能力关联
   addModelCapability: async (modelId, capabilityId, value = null) => {
     try {
+      const requestData = {
+        model_id: modelId,
+        capability_id: capabilityId
+      };
+      
+      // 如果有value参数，将其转换为JSON字符串并添加到config_json字段
+      if (value !== null && value !== undefined) {
+        if (typeof value === 'object') {
+          requestData.config_json = JSON.stringify(value);
+        } else {
+          requestData.config_json = String(value);
+        }
+      }
+      
       return await request('/v1/capabilities/associations', {
         method: 'POST',
-        body: JSON.stringify({ id: modelId, capability_id: capabilityId, value: value }),
-        
+        body: JSON.stringify(requestData),
         headers: {
           'Content-Type': 'application/json'
         }
@@ -132,7 +145,9 @@ export const capabilityApi = {
   addCapabilityToModel: async (associationData) => {
     try {
       const { id: modelId, capability_id, config, value } = associationData;
-      return await capabilityApi.addModelCapability(modelId, capability_id, value || config);
+      // 确保传入正确的参数
+      const finalValue = value || config;
+      return await capabilityApi.addModelCapability(modelId, capability_id, finalValue);
     } catch (error) {
       console.error('添加能力到模型失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
@@ -159,9 +174,20 @@ export const capabilityApi = {
   // 更新模型能力值
   updateModelCapabilityValue: async (modelId, capabilityId, value) => {
     try {
+      const updateData = {};
+      
+      // 如果有value参数，将其转换为JSON字符串并添加到config_json字段
+      if (value !== null && value !== undefined) {
+        if (typeof value === 'object') {
+          updateData.config_json = JSON.stringify(value);
+        } else {
+          updateData.config_json = String(value);
+        }
+      }
+      
       return await request(`/v1/capabilities/associations/model/${modelId}/capability/${capabilityId}`, {
         method: 'PUT',
-        body: JSON.stringify({ value: value }),
+        body: JSON.stringify(updateData),
         headers: {
           'Content-Type': 'application/json'
         }
@@ -180,8 +206,8 @@ export const capabilityApi = {
       });
       
       // 统一处理API返回格式
-      if (response?.capabilities && Array.isArray(response.capabilities)) {
-        return response.capabilities;
+      if (response?.data && Array.isArray(response.data)) {
+        return response.data;
       }
       return response;
     } catch (error) {
@@ -228,7 +254,8 @@ export const capabilityApi = {
       }
       const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
       
-      const response = await request(`/v1/capability/dimensions${queryString}`, {
+      const path = queryString ? `/v1/capability/dimensions/${queryString}` : `/v1/capability/dimensions/`;
+      const response = await request(path, {
         method: 'GET'
       });
       

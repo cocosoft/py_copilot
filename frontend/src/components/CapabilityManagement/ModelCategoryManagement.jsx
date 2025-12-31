@@ -4,36 +4,6 @@ import { categoryApi } from '../../utils/api/categoryApi';
 import { API_BASE_URL } from '../../utils/apiUtils';
 import '../../styles/ModelCategoryManagement.css';
 
-// 将树形结构的分类数据扁平化为数组
-const flattenCategoryTree = (categories) => {
-  const result = [];
-  
-  
-  const traverse = (category) => {
-    if (!category) return;
-    
-    // 添加当前分类
-    const flatCategory = {
-      ...category,
-      // 移除children数组，避免重复处理
-      children: undefined
-    };
-    result.push(flatCategory);
-    
-    // 递归处理子分类
-    if (Array.isArray(category.children) && category.children.length > 0) {
-      category.children.forEach(child => traverse(child));
-    }
-  };
-  
-  // 处理顶层分类
-  if (Array.isArray(categories)) {
-    categories.forEach(category => traverse(category));
-  }
-  
-  return result;
-};
-
 // 按层级排序分类数据，确保父子分类相邻显示
 const getHierarchicalCategories = (categories) => {
   // 首先构建树状结构
@@ -107,141 +77,34 @@ const buildCategoryTree = (categories) => {
   return rootCategories;
 };
 
-// 树状节点组件
-const CategoryTreeNode = ({ node, onEdit, onConfigureParameters, onDelete, level = 0 }) => {
-  const [isExpanded, setIsExpanded] = useState(true);
-  const [isSelected, setIsSelected] = useState(false);
+// 将树形结构的分类数据扁平化为数组
+const flattenCategoryTree = (categories) => {
+  const result = [];
   
-  const hasChildren = node.children && node.children.length > 0;
-  const isRootLevel = level === 0;
   
-  const handleToggleExpanded = (e) => {
-    e.stopPropagation();
-    setIsExpanded(!isExpanded);
+  const traverse = (category) => {
+    if (!category) return;
+    
+    // 添加当前分类
+    const flatCategory = {
+      ...category,
+      // 移除children数组，避免重复处理
+      children: undefined
+    };
+    result.push(flatCategory);
+    
+    // 递归处理子分类
+    if (Array.isArray(category.children) && category.children.length > 0) {
+      category.children.forEach(child => traverse(child));
+    }
   };
   
-  const handleNodeClick = () => {
-    setIsSelected(!isSelected);
-  };
+  // 处理顶层分类
+  if (Array.isArray(categories)) {
+    categories.forEach(category => traverse(category));
+  }
   
-  const handleEdit = (e) => {
-    e.stopPropagation();
-    onEdit(node);
-  };
-  
-  const handleConfigureParameters = (e) => {
-    e.stopPropagation();
-    onConfigureParameters(node);
-  };
-  
-  const handleDelete = (e) => {
-    e.stopPropagation();
-    onDelete(node.id);
-  };
-  
-  return (
-    <div className="category-tree-node">
-      <div 
-        className={`node-content ${hasChildren ? 'has-children' : ''} ${!node.is_active ? 'inactive' : ''} ${isSelected ? 'selected' : ''} ${isExpanded && hasChildren ? 'expanded' : ''}`}
-        onClick={handleNodeClick}
-      >
-        {/* 层级缩进指示器 */}
-        <div className={`node-indent ${hasChildren ? 'has-parent' : ''} ${isRootLevel ? 'root-level' : ''}`}>
-          {hasChildren && (
-            <button 
-              className="expand-toggle"
-              onClick={handleToggleExpanded}
-              title={isExpanded ? '收起' : '展开'}
-            >
-              {isExpanded ? '−' : '+'}
-            </button>
-          )}
-        </div>
-        
-        <div className="node-info">
-          <div className="node-logo">
-            {node.logo ? (
-              node.logo.startsWith('<i class=') ? (
-                <div 
-                  dangerouslySetInnerHTML={{ __html: node.logo }}
-                  className="fa-icon"
-                />
-              ) : node.logo.includes('fa-') ? (
-                <div className="fa-icon">
-                  <i className={node.logo}></i>
-                </div>
-              ) : (
-                <img 
-                  src={getImageUrl('categories', node.logo)} 
-                  alt={`${node.display_name} logo`}
-                  onError={(e) => {
-                    e.target.src = DEFAULT_IMAGES.category;
-                  }}
-                />
-              )
-            ) : (
-              <div className="category-logo placeholder">
-                无
-              </div>
-            )}
-          </div>
-          <div className="node-details">
-            <div className="node-name" title={node.display_name || node.name}>
-              {node.display_name || node.name}
-              {node.is_system && <span className="system-badge">系统</span>}
-            </div>
-            <div className="node-meta">
-              <span className="dimension-tag">{node.dimension}</span>
-              <span className={`status-badge ${node.is_active ? 'active' : 'inactive'}`}>
-                {node.is_active ? '启用' : '禁用'}
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="node-actions">
-          <button 
-            className={`btn btn-small btn-info ${node.is_system ? 'disabled' : ''}`}
-            onClick={handleEdit}
-            disabled={node.is_system}
-            title={node.is_system ? '系统分类不允许编辑' : '编辑分类'}
-          >
-            编辑
-          </button>
-          <button 
-            className={`btn btn-small btn-info ${node.is_system ? 'disabled' : ''}`}
-            onClick={handleConfigureParameters}
-            disabled={node.is_system}
-            title={node.is_system ? '系统分类不允许配置参数' : '参数配置'}
-          >
-            参数配置
-          </button>
-          <button 
-            className={`btn btn-small btn-danger ${node.is_system ? 'disabled' : ''}`}
-            onClick={handleDelete}
-            disabled={node.is_system}
-            title={node.is_system ? '系统分类不允许删除' : '删除分类'}
-          >
-            删除
-          </button>
-        </div>
-      </div>
-      
-      {hasChildren && isExpanded && (
-        <div className="children-nodes">
-          {node.children.map(child => (
-            <CategoryTreeNode 
-              key={child.id} 
-              node={child} 
-              level={level + 1}
-              onEdit={onEdit}
-              onConfigureParameters={onConfigureParameters}
-              onDelete={onDelete}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  return result;
 };
 
 const ModelCategoryManagement = () => {
@@ -255,7 +118,7 @@ const ModelCategoryManagement = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [currentCategory, setCurrentCategory] = useState(null);
   const [activeTab, setActiveTab] = useState('all'); // 添加当前选中标签的状态
-  const [viewMode, setViewMode] = useState('table'); // 添加视图模式状态：'table'、'tagCloud' 或 'tree'
+  const [viewMode, setViewMode] = useState('table'); // 添加视图模式状态：'table' 或 'tagCloud'
   
   // 统计仪表板相关状态
   const [statistics, setStatistics] = useState(null);
@@ -980,12 +843,7 @@ const ModelCategoryManagement = () => {
               >
                 标签云视图
               </button>
-              <button 
-                className={`btn btn-secondary ${viewMode === 'tree' ? 'active' : ''}`}
-                onClick={() => setViewMode('tree')}
-              >
-                树状视图
-              </button>
+
             </div>
             
             {/* 表格视图 */}
@@ -1136,30 +994,6 @@ const ModelCategoryManagement = () => {
                     </div>
                   );
                 })}
-              </div>
-            )}
-            
-            {/* 树状视图 */}
-            {viewMode === 'tree' && (
-              <div className="category-tree">
-                {buildCategoryTree(filteredCategories).map(rootCategory => (
-                  <CategoryTreeNode 
-                    key={rootCategory.id} 
-                    node={rootCategory} 
-                    onEdit={handleEditModalOpen}
-                    onConfigureParameters={handleConfigureParameters}
-                    onDelete={handleDelete}
-                  />
-                ))}
-                {buildCategoryTree(filteredCategories).length === 0 && (
-                  <div className="no-results">
-                    <div className="no-results-icon">🌳</div>
-                    <div className="no-results-text">暂无分类</div>
-                    <div className="no-results-hint">
-                      请点击"创建分类"按钮添加新的分类
-                    </div>
-                  </div>
-                )}
               </div>
             )}
           </div>
