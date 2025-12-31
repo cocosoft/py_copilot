@@ -146,9 +146,10 @@ const HelpCenter = () => {
         {/* 右侧内容区域 */}
         <div className="help-main">
           <Routes>
-            {menuItems.map((item) => (
-              <Route key={item.path} path={item.path.replace('/help', '')} element={<item.component />} />
-            ))}
+            <Route path="/" element={<HelpCenterMain />} />
+            <Route path="logs" element={<UpdateLogs />} />
+            <Route path="feedback" element={<Feedback />} />
+            <Route path="about" element={<About />} />
           </Routes>
         </div>
       </div>

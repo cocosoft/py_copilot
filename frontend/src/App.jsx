@@ -8,17 +8,22 @@ import { isAuthenticated } from './utils/authUtils';
 
 function App() {
   return (
-    <Router>
+    <Router
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true,
+      }}
+    >
       <SupplierProvider>
         <Routes>
           {/* 登录页面路由 */}
           <Route path="/login" element={<LoginForm />} />
           
           {/* 主应用路由 - 暂时取消认证要求 */}
-          <Route 
-            path="/*" 
-            element={<MainApp />} 
-          />
+          <Route path="/">
+            <Route index element={<MainApp />} />
+            <Route path="*" element={<MainApp />} />
+          </Route>
         </Routes>
       </SupplierProvider>
     </Router>

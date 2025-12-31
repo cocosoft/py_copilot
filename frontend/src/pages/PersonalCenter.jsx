@@ -116,9 +116,10 @@ const PersonalCenter = () => {
         {/* 右侧内容区域 */}
         <div className="help-main">
           <Routes>
-            {menuItems.map((item) => (
-              <Route key={item.path} path={item.path.replace('/personal', '')} element={<item.component />} />
-            ))}
+            <Route path="/" element={<PersonalCenterMain />} />
+            <Route path="bill" element={<BillCenter />} />
+            <Route path="privacy" element={<PrivacySettings />} />
+            <Route path="notification" element={<NotificationSettings />} />
           </Routes>
         </div>
       </div>
