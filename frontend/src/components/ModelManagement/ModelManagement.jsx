@@ -124,7 +124,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
           supplier_id: selectedSupplier.id, // 使用供应商的整数ID
           context_window: 8000, // 后端所需格式
           default_temperature: 0.7,
-          default_max_tokens: 1000,
+          max_tokens: 1000,
           default_top_p: 1.0,
           default_frequency_penalty: 0.0,
           default_presence_penalty: 0.0,
@@ -879,7 +879,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
                         {model.is_default && <span className="default-badge">默认</span>}
                         {/* 模型分类信息 */}
                         {model.categories && model.categories.length > 0 ? (
-                          <div className="model-categories">
+                          <div className="model_categories">
                             {model.categories.map((category) => (
                               <span key={category.id} className="model-category-badge">
                                 {category.logo ? (
@@ -927,9 +927,9 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
                         <span>能力:</span>
                         <div className="capabilities-list">
                           {modelCapabilities[model.id]?.length > 0 ? (
-                            modelCapabilities[model.id].map(capability => (
-                              <span key={capability.id} className="capability-tag">
-                                {capability.display_name || capability.name}
+                            modelCapabilities[model.id].map(association => (
+                              <span key={association.id} className="capability-tag">
+                                {association.capability?.display_name || association.capability?.name || '未知能力'}
                               </span>
                             ))
                           ) : (

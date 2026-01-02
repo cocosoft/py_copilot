@@ -64,7 +64,7 @@ DELETE /v1/categories/{id}        # 删除分类
 | 模块名称 | 路由前缀 | 实际路径 |
 |---------|---------|---------|
 | capability_category | /categories | /v1/categories |
-| category_templates | /category-templates | /v1/category-templates |
+| category_templates | /category__-__templates | /v1/category_-_templates |
 | knowledge | /knowledge | /v1/knowledge |
 | workflow | /workflow | /v1/workflow |
 

@@ -13,7 +13,7 @@ from app.schemas.category_template import (
 from app.modules.capability_category.services.category_template_service import CategoryTemplateService
 
 # 创建路由器
-router = APIRouter(prefix="/category-templates", tags=["category_templates"])
+router = APIRouter(prefix="/category_templates", tags=["category_templates"])
 
 # 导入实际的认证依赖
 from app.api.deps import get_current_user

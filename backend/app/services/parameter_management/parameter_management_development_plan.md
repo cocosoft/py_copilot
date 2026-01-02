@@ -79,9 +79,9 @@
 ### 3. API设计
 
 #### 3.1 类型参数管理API
-- POST /api/v1/model-categories/{id}/parameters - 设置类型默认参数
-- GET /api/v1/model-categories/{id}/parameters - 获取类型默认参数
-- DELETE /api/v1/model-categories/{id}/parameters/{param_name} - 删除类型默认参数
+- POST /api/v1/model_-_categories/{id}/parameters - 设置类型默认参数
+- GET /api/v1/model_-_categories/{id}/parameters - 获取类型默认参数
+- DELETE /api/v1/model_-_categories/{id}/parameters/{param_name} - 删除类型默认参数
 
 #### 3.2 模型参数管理API
 - POST /api/v1/models/{id}/parameters - 创建/更新模型参数
@@ -139,17 +139,17 @@
 ### 阶段三：API接口开发（2天）
 
 1. **开发类型参数管理接口**
-   - 实现`POST /api/v1/model-categories/{id}/parameters`接口：
+   - 实现`POST /api/v1/model_-_categories/{id}/parameters`接口：
      - 接收参数名和值
      - 验证参数合法性
      - 更新ModelCategory的default_parameters字段
      - 调用参数更新服务，级联更新所有关联模型
 
-   - 实现`GET /api/v1/model-categories/{id}/parameters`接口：
+   - 实现`GET /api/v1/model_-_categories/{id}/parameters`接口：
      - 获取指定类型的所有默认参数
      - 返回JSON格式的参数列表
 
-   - 实现`DELETE /api/v1/model-categories/{id}/parameters/{param_name}`接口：
+   - 实现`DELETE /api/v1/model_-_categories/{id}/parameters/{param_name}`接口：
      - 从ModelCategory的default_parameters中删除指定参数
      - 级联删除所有继承该参数且未覆盖的模型参数
 

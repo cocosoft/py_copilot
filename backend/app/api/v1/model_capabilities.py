@@ -341,7 +341,7 @@ async def get_models_by_capability(
         )
 
 
-@router.get("/model/{model_id}/capabilities", response_model=ListResponse[ModelCapabilityResponse])
+@router.get("/model/{model_id}/capabilities", response_model=ListResponse[Dict[str, Any]])
 async def get_capabilities_by_model(
     model_id: int,
     db: Session = Depends(get_db),
@@ -349,10 +349,37 @@ async def get_capabilities_by_model(
 ):
     """获取指定模型的所有能力"""
     try:
+        # 统一返回格式，确保返回的是关联对象数组
         capabilities = model_capability_service.get_capabilities_by_model(db, model_id)
+        
+        # 验证返回数据格式，确保包含能力信息
+        if not capabilities:
+            # 如果没有能力，返回空数组
+            return list_response(
+                data=[],
+                total=0,
+                message="模型暂无能力"
+            )
+        
+        # 转换为统一格式（如果后端返回的不是期望的格式）
+        formatted_capabilities = []
+        for capability in capabilities:
+            # 确保每个元素都包含capability字段
+            if 'capability' not in capability:
+                # 如果没有capability字段，尝试包装
+                formatted_capabilities.append({
+                    'id': capability.get('id', None),
+                    'model_id': capability.get('model_id', model_id),
+                    'capability_id': capability.get('capability_id', None),
+                    'capability': capability  # 将整个对象作为capability
+                })
+            else:
+                # 已经是期望格式
+                formatted_capabilities.append(capability)
+        
         return list_response(
-            data=capabilities,
-            total=len(capabilities),
+            data=formatted_capabilities,
+            total=len(formatted_capabilities),
             message="获取模型能力列表成功"
         )
     except Exception as e:

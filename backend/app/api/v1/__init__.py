@@ -56,10 +56,10 @@ api_router.include_router(capability_router, tags=["capability"])
 api_router.include_router(capability_types_router, tags=["capability_types"])
 api_router.include_router(capability_dimensions_router, tags=["capability_dimensions"])
 # 先注册支持文件上传的model_categories_router
-api_router.include_router(model_categories_router, tags=["model-categories"])
+api_router.include_router(model_categories_router, tags=["model_categories"])
 
 # 注册分类模板路由
-api_router.include_router(category_templates_router, tags=["category-templates"])
+api_router.include_router(category_templates_router, tags=["category_templates"])
 api_router.include_router(agents_router, prefix="/agents", tags=["agents"])
 api_router.include_router(agent_parameters_router, prefix="/agents", tags=["agent-parameters"])
 api_router.include_router(agent_categories_router, prefix="/agent-categories", tags=["agent-categories"])

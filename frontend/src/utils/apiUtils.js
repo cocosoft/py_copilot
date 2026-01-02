@@ -125,6 +125,12 @@ export const request = async (endpoint, options = {}) => {
       // 添加强制性的状态码信息
       errorMessage += ` 状态码: ${statusCode}`;
       
+      // 创建错误对象
+      const errorObj = new Error(errorMessage);
+      
+      // 在错误对象上添加状态码，以便更易于在客户端代码中检查
+      errorObj.status = statusCode;
+      
       // 特别处理422错误，获取所有可能的详细信息
       if (statusCode === 422 && responseText) {
         try {
@@ -152,8 +158,20 @@ export const request = async (endpoint, options = {}) => {
         errorMessage += ` 响应文本: ${responseText}`;
       }
       
-      console.error('❌ API响应错误:', statusCode, errorMessage);
-      throw new Error(errorMessage);
+      // 特别处理500错误，提供更详细的错误日志
+      if (statusCode === 500) {
+        console.error('❌ 服务器内部错误(500):', {
+          status: statusCode,
+          message: errorMessage,
+          url: url,
+          options: mergedOptions,
+          response: errorData
+        });
+      } else {
+        console.error('❌ API响应错误:', statusCode, errorMessage);
+      }
+      
+      throw errorObj;
     }
     
     // 特别处理204 No Content（DELETE请求的标准响应）

@@ -9,37 +9,39 @@ import '../../styles/CapabilityManagementTabs.css';
 
 const CapabilityManagementTabs = () => {
   const [activeSubTab, setActiveSubTab] = useState('management'); // 'management', 'association', 'types', 'dimensions'
-  const [capabilities, setCapabilities] = useState([]);
   const [capabilityTypes, setCapabilityTypes] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [capabilities, setCapabilities] = useState([]);
 
   const handleSubTabChange = (subTab) => {
     setActiveSubTab(subTab);
   };
 
-  // 加载能力和能力类型数据
+  // 只在需要时加载能力类型数据（用于类型统计）
   useEffect(() => {
-    const loadCapabilities = async () => {
-      try {
-        setLoading(true);
-        const data = await capabilityApi.getAll();
-        const capabilitiesData = Array.isArray(data) ? data : [];
-        setCapabilities(capabilitiesData);
-        
-        // 提取能力类型
-        const types = [...new Set(capabilitiesData.map(c => c.capability_type).filter(Boolean))];
-        setCapabilityTypes(types);
-      } catch (err) {
-        console.error('加载能力列表失败:', err);
-        setCapabilities([]);
-        setCapabilityTypes([]);
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (activeSubTab === 'types') {
+      const loadCapabilities = async () => {
+        try {
+          setLoading(true);
+          const data = await capabilityApi.getAll();
+          const capabilitiesData = Array.isArray(data) ? data : [];
+          setCapabilities(capabilitiesData);
+          
+          // 提取能力类型
+          const types = [...new Set(capabilitiesData.map(c => c.capability_type).filter(Boolean))];
+          setCapabilityTypes(types);
+        } catch (err) {
+          console.error('加载能力列表失败:', err);
+          setCapabilities([]);
+          setCapabilityTypes([]);
+        } finally {
+          setLoading(false);
+        }
+      };
 
-    loadCapabilities();
-  }, []);
+      loadCapabilities();
+    }
+  }, [activeSubTab]);
 
   return (
     <div className="capability-management-tabs">

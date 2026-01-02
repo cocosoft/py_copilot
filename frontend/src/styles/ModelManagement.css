@@ -870,13 +870,13 @@ input:not(:checked) + .toggle-slider:before {
 }
 
 /* 模型分类样式 */
-.model-categories {
+.model_categories {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
 }
 
-.model-category-badge {
+.model_categories-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -889,7 +889,7 @@ input:not(:checked) + .toggle-slider:before {
   transition: all 0.2s ease;
 }
 
-.model-category-badge:hover {
+.model_categories-badge:hover {
   background-color: #388e3c;
   transform: translateY(-1px);
 }

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { capabilityApi } from '../../utils/api/capabilityApi';
-import '../../styles/CapabilityManagement.css';
 
 const CapabilityDimensionManagement = () => {
   const [dimensions, setDimensions] = useState([]);

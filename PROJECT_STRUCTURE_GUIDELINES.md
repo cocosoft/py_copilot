@@ -71,7 +71,7 @@ router = APIRouter(prefix="/categories", tags=["model_categories"])
 from app.modules.capability_category.api.model_categories import router as model_categories_router
 
 api_router = APIRouter()
-api_router.include_router(model_categories_router, tags=["model-categories"])
+api_router.include_router(model_categories_router, tags=["model__-__categories"])
 ```
 
 ### 3.3 路由路径规范

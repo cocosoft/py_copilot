@@ -21,11 +21,8 @@ const ModelCapabilityManagement = () => {
   const loadCapabilities = async (current = currentPage, size = pageSize) => {
     try {
       setLoading(true);
-      // 构建查询参数
-      const params = {
-        skip: (current - 1) * size,
-        limit: size
-      };
+      // 暂时移除分页参数，一次性获取所有数据
+      const params = {};
       
       // 根据activeTab设置筛选条件
       if (activeTab !== 'all') {
@@ -43,13 +40,18 @@ const ModelCapabilityManagement = () => {
       let capabilitiesData = [];
       let totalCount = 0;
       
+      // 调试：输出API响应格式
+      console.log('🔍 API响应:', JSON.stringify(response, null, 2));
+      
       if (response?.capabilities && Array.isArray(response.capabilities)) {
         capabilitiesData = response.capabilities;
-        totalCount = response.total || 0;
+        totalCount = response.total || capabilitiesData.length;
+        console.log('🔍 解析结果 - capabilities长度:', capabilitiesData.length, 'totalCount:', totalCount);
       } else if (Array.isArray(response)) {
-        // 向后兼容旧的API响应格式
+        // 现在获取的是所有数据，使用数组长度作为总数
         capabilitiesData = response;
         totalCount = response.length;
+        console.log('🔍 完整数据模式 - capabilities长度:', capabilitiesData.length, 'totalCount:', totalCount);
       }
       
       // 标准化能力数据，确保每个能力都有必要的属性
@@ -74,6 +76,32 @@ const ModelCapabilityManagement = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // 筛选能力（基于完整数据进行客户端筛选）
+  const filterCapabilities = () => {
+    let filtered = capabilities;
+    
+    if (activeTab === 'all') {
+      // 返回所有能力
+    } else if (activeTab === 'active') {
+      filtered = capabilities.filter(cap => cap.is_active);
+    } else if (activeTab === 'inactive') {
+      filtered = capabilities.filter(cap => !cap.is_active);
+    } else {
+      // 按能力类型筛选
+      filtered = capabilities.filter(cap => cap.capability_type === activeTab);
+    }
+    
+    console.log('🔍 筛选结果 - 原始数据:', capabilities.length, '筛选后:', filtered.length);
+    return filtered;
+  };
+
+  // 获取筛选后的总数
+  const getFilteredTotal = () => {
+    const filtered = filterCapabilities();
+    console.log('🔍 getFilteredTotal调用，返回:', filtered.length);
+    return filtered.length;
   };
   
   // 初始化加载
@@ -148,36 +176,22 @@ const ModelCapabilityManagement = () => {
   
   const capabilityTypes = getCapabilityTypes();
   
-  // 筛选能力
-  const filterCapabilities = () => {
-    let filtered = capabilities;
-    
-    if (activeTab === 'all') {
-      // 返回所有能力
-    } else if (activeTab === 'active') {
-      filtered = capabilities.filter(cap => cap.is_active);
-    } else if (activeTab === 'inactive') {
-      filtered = capabilities.filter(cap => !cap.is_active);
-    } else {
-      // 按能力类型筛选
-      filtered = capabilities.filter(cap => cap.capability_type === activeTab);
-    }
-    
-    return filtered;
-  };
-  
   // 获取分页后的能力列表
   const getPagedCapabilities = () => {
     const filtered = filterCapabilities();
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = startIndex + pageSize;
-    return filtered.slice(startIndex, endIndex);
+    const pagedData = filtered.slice(startIndex, endIndex);
+    console.log('🔍 分页结果 - 当前页:', currentPage, '每页大小:', pageSize, '分页数据长度:', pagedData.length);
+    return pagedData;
   };
   
   // 获取总页数
   const getTotalPages = () => {
-    const filtered = filterCapabilities();
-    return Math.ceil(filtered.length / pageSize);
+    const filteredTotal = getFilteredTotal();
+    const totalPages = Math.ceil(filteredTotal / pageSize);
+    console.log('🔍 总页数计算 - 筛选总数:', filteredTotal, '每页大小:', pageSize, '总页数:', totalPages);
+    return totalPages;
   };
   
   // 处理标签页点击
@@ -336,10 +350,10 @@ const ModelCapabilityManagement = () => {
         </div>
         
         {/* 分页组件 */}
-        {getPagedCapabilities().length > 0 && (
+        {getFilteredTotal() > 0 && (
           <div className="capability-pagination">
             <div className="pagination-info">
-              显示第 {currentPage} 页，共 {getTotalPages()} 页，共 {filterCapabilities().length} 条记录
+              显示第 {currentPage} 页，共 {getTotalPages()} 页，共 {getFilteredTotal()} 条记录
             </div>
             <div className="pagination-controls">
               <button 

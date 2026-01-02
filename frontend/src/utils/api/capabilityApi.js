@@ -136,6 +136,12 @@ export const capabilityApi = {
         console.warn(`模型 ${modelId} 与能力 ${capabilityId} 的关联已存在，跳过重复添加`);
         return {};
       }
+      
+      // 如果状态码是409，也表示关联已存在，同样处理
+      if (error.status === 409 || error.status === '409') {
+        console.warn(`模型 ${modelId} 与能力 ${capabilityId} 的关联已存在，跳过重复添加`);
+        return {};
+      }
       console.error('添加模型能力关联失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
