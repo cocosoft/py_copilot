@@ -5,7 +5,7 @@ from sqlalchemy import and_
 from fastapi import HTTPException, status
 
 from app.models.model_capability import ModelCapability, ModelCapabilityAssociation
-from app.models.supplier_db import ModelDB as Model
+from app.models.supplier_db import ModelDB
 from app.models.category_capability_association import CategoryCapabilityAssociation
 from app.models.capability_version import ModelCapabilityVersion
 from app.schemas.model_capability import ModelCapabilityCreate, ModelCapabilityUpdate, ModelCapabilityAssociationCreate, ModelCapabilityAssociationUpdate
@@ -164,21 +164,31 @@ class ModelCapabilityService:
         association_data: ModelCapabilityAssociationCreate
     ) -> ModelCapabilityAssociation:
         """为模型添加能力关联"""
+        # 添加详细日志
+        print(f"[DEBUG] 接收到的关联数据: {association_data.model_dump()}")
+        
         # 检查模型是否存在
-        model = db.query(Model).filter(
-            Model.id == association_data.model_id
+        print(f"[DEBUG] 检查模型 ID {association_data.model_id} 是否存在...")
+        model = db.query(ModelDB).filter(
+            ModelDB.id == association_data.model_id
         ).first()
         
+        print(f"[DEBUG] 模型查询结果: {model}")
+        
         if not model:
+            print(f"[DEBUG] 模型 ID {association_data.model_id} 不存在，抛出404错误")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"模型 ID {association_data.model_id} 不存在"
             )
         
         # 检查能力是否存在
+        print(f"[DEBUG] 检查能力 ID {association_data.capability_id} 是否存在...")
         capability = ModelCapabilityService.get_capability(db, association_data.capability_id)
+        print(f"[DEBUG] 能力查询结果: {capability}")
         
         # 检查关联是否已存在
+        print(f"[DEBUG] 检查关联是否已存在...")
         existing_association = db.query(ModelCapabilityAssociation).filter(
             and_(
                 ModelCapabilityAssociation.model_id == association_data.model_id,
@@ -186,17 +196,44 @@ class ModelCapabilityService:
             )
         ).first()
         
+        print(f"[DEBUG] 关联查询结果: {existing_association}")
+        
         if existing_association:
+            print(f"[DEBUG] 关联已存在，抛出409错误")
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=status.HTTP_409_CONFLICT,
                 detail="该模型已关联此能力"
             )
         
         # 创建关联
-        db_association = ModelCapabilityAssociation(**association_data.model_dump())
-        db.add(db_association)
-        db.commit()
-        db.refresh(db_association)
+        print(f"[DEBUG] 开始创建关联...")
+        try:
+            # 将关联数据转换为字典
+            association_dict = association_data.model_dump()
+            print(f"[DEBUG] 关联数据字典: {association_dict}")
+            
+            # 创建关联对象
+            db_association = ModelCapabilityAssociation(**association_dict)
+            print(f"[DEBUG] 创建的关联对象: {db_association}")
+            
+            # 添加到数据库
+            db.add(db_association)
+            print(f"[DEBUG] 已添加到数据库会话")
+            
+            # 提交事务
+            db.commit()
+            print(f"[DEBUG] 已提交事务")
+            
+            # 刷新关联对象
+            db.refresh(db_association)
+            print(f"[DEBUG] 已刷新关联对象")
+        except Exception as e:
+            print(f"[DEBUG] 创建关联时出错: {str(e)}")
+            db.rollback()  # 回滚事务
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"创建关联时出错: {str(e)}"
+            )
         
         # 清理缓存
         from app.core.redis import redis_client
@@ -345,8 +382,8 @@ class ModelCapabilityService:
         
         for association_data in associations_data:
             # 检查模型是否存在
-            model = db.query(Model).filter(
-                Model.id == association_data.model_id
+            model = db.query(ModelDB).filter(
+                ModelDB.id == association_data.model_id
             ).first()
             
             if not model:
@@ -602,30 +639,30 @@ class ModelCapabilityService:
         return association
     
     @staticmethod
-    def get_models_by_capability(db: Session, capability_id: int) -> List[Model]:
+    def get_models_by_capability(db: Session, capability_id: int) -> List[ModelDB]:
         """获取具有指定能力的模型列表"""
         # 检查能力是否存在
         ModelCapabilityService.get_capability(db, capability_id)
         
         # 查询关联的模型，并预加载capabilities关系
         from sqlalchemy.orm import joinedload
-        models = db.query(Model).join(
+        models = db.query(ModelDB).join(
             ModelCapabilityAssociation
         ).filter(
             ModelCapabilityAssociation.capability_id == capability_id
         ).options(
-            joinedload(Model.capabilities)
+            joinedload(ModelDB.capabilities)
         ).all()
         
         return models
     
     @staticmethod
-    def get_capabilities_by_model(db: Session, model_id: int) -> List[ModelCapability]:
+    def get_capabilities_by_model(db: Session, model_id: int) -> List[Dict[str, Any]]:
         """
-        获取模型的所有能力
+        获取模型的所有能力（返回关联对象的字典格式）
         """
         # 检查模型是否存在
-        model = db.query(Model).filter(Model.id == model_id).first()
+        model = db.query(ModelDB).filter(ModelDB.id == model_id).first()
         if not model:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -644,12 +681,44 @@ class ModelCapabilityService:
             except Exception as e:
                 print(f"缓存读取失败: {e}")
         
-        # 查询关联的能力
-        capabilities = db.query(ModelCapability).join(
-            ModelCapabilityAssociation
+        # 查询模型能力关联
+        associations = db.query(ModelCapabilityAssociation).join(
+            ModelCapability
         ).filter(
             ModelCapabilityAssociation.model_id == model_id
         ).all()
+        
+        # 转换为关联对象数组格式 - 包含关联ID和关联的能力信息
+        associations_list = []
+        for association in associations:
+            # 构建关联对象，包含关联ID和完整的能力信息
+            association_dict = {
+                'id': association.id,
+                'model_id': association.model_id,
+                'capability_id': association.capability_id,
+                'actual_strength': association.actual_strength,
+                'confidence_score': association.confidence_score,
+                'assessment_method': association.assessment_method,
+                'assessment_data': association.assessment_data,
+                'config': association.config_json,
+                'config_json': association.config_json,
+                'weight': association.weight,
+                'is_default': association.is_default,
+                'created_at': association.created_at.isoformat() if association.created_at else None,
+                'updated_at': association.updated_at.isoformat() if association.updated_at else None,
+                # 包含完整的能力信息
+                'capability': {
+                    'id': association.capability.id,
+                    'name': association.capability.name,
+                    'display_name': association.capability.display_name,
+                    'capability_type': association.capability.capability_type,
+                    'description': association.capability.description,
+                    'is_active': association.capability.is_active,
+                    'is_system': association.capability.is_system,
+                    'created_at': association.capability.created_at.isoformat() if association.capability.created_at else None
+                }
+            }
+            associations_list.append(association_dict)
         
         # 保存到缓存
         if redis_client:
@@ -658,12 +727,12 @@ class ModelCapabilityService:
                 redis_client.setex(
                     cache_key,
                     3600,  # 缓存1小时
-                    json.dumps([capability.__dict__ for capability in capabilities])
+                    json.dumps(associations_list)
                 )
             except Exception as e:
                 print(f"缓存写入失败: {e}")
         
-        return capabilities
+        return associations_list
     
     @staticmethod
     def get_parameter_templates_by_capability(db: Session, capability_id: int) -> List[Dict[str, Any]]:
@@ -726,7 +795,7 @@ class ModelCapabilityService:
         from app.services.model_category_service import model_category_service
         
         # 检查模型是否存在
-        model = db.query(Model).filter(Model.id == model_id).first()
+        model = db.query(ModelDB).filter(ModelDB.id == model_id).first()
         if not model:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
