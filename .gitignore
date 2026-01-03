@@ -555,3 +555,17 @@ test_frontend_request.py
 backend/py_copilot_202512312045.zip
 knowledge_graph_entity_management_implementation_plan.md
 knowledge_graph_entity_management_optimization_plan.md
+backend/tests/check_db_structure.py
+backend/tests/check_db_tables.py
+backend/tests/check_dimensions_data.py
+backend/tests/check_dimensions_fixed.py
+backend/tests/clean_vector_db.py
+backend/tests/create_indexes.py
+backend/tests/create_search_table_raw.py
+backend/tests/create_search_table.py
+backend/tests/create_test_user_direct.py
+backend/tests/create_test_user_simple.py
+backend/tests/create_test_user.py
+backend/tests/detailed_debug.py
+backend/tests/enhanced_debug.py
+backend/tests/find_all_db.py

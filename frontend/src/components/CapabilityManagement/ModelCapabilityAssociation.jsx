@@ -1,266 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import modelApi from '../../utils/api/modelApi';
 import { capabilityApi } from '../../utils/api/capabilityApi';
 import ModelSelectDropdown from '../ModelManagement/ModelSelectDropdown';
 import { request } from '../../utils/apiUtils';
-
-// 定义全局样式
-const globalStyles = `
-  .model-capability-association {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    color: #333;
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
-  }
-  
-  .modal-large {
-    max-width: 90vw;
-    width: 1200px;
-    max-height: 90vh;
-  }
-  
-  .modal-body {
-    max-height: calc(90vh - 120px);
-    overflow-y: auto;
-  }
-  
-  .association-title {
-    color: #1e88e5;
-    font-size: 24px;
-    margin-bottom: 20px;
-    font-weight: 600;
-    text-align: center;
-  }
-  
-  .modal-title {
-    color: #1e88e5;
-    font-size: 20px;
-    margin: 0;
-    font-weight: 600;
-  }
-  
-  .card {
-    background-color: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-    padding: 20px;
-    margin-bottom: 20px;
-    transition: box-shadow 0.3s ease;
-  }
-  
-  .card:hover {
-    box-shadow: 0 4px 20px rgba(0,0,0,0.12);
-  }
-  
-  .form-group {
-    margin-bottom: 20px;
-  }
-  
-  .form-group label {
-    display: block;
-    margin-bottom: 8px;
-    font-weight: 500;
-    color: #555;
-  }
-  
-  .input-group {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-  }
-  
-  .form-control {
-    padding: 8px 12px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 14px;
-    transition: border-color 0.3s;
-  }
-  
-  .form-control:focus {
-    outline: none;
-    border-color: #409eff;
-    box-shadow: 0 0 5px rgba(64, 158, 255, 0.2);
-  }
-  
-  .btn {
-    padding: 8px 16px;
-    border-radius: 4px;
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.3s;
-    border: none;
-    outline: none;
-    text-decoration: none;
-    display: inline-block;
-    text-align: center;
-  }
-  
-  .btn-primary {
-    background-color: #409eff;
-    color: white;
-  }
-  
-  .btn-primary:hover {
-    background-color: #66b1ff;
-  }
-  
-  .btn-secondary {
-    background-color: #ffffff;
-    color: #606266;
-    border: 1px solid #dcdfe6;
-  }
-  
-  .btn-secondary:hover {
-    color: #409eff;
-    border-color: #c6e2ff;
-  }
-  
-  .btn-danger {
-    background-color: #f56c6c;
-    color: white;
-  }
-  
-  .btn-danger:hover {
-    background-color: #f78989;
-  }
-  
-  .btn-small {
-    padding: 4px 8px;
-    font-size: 12px;
-  }
-  
-  .alert {
-    padding: 12px 16px;
-    border-radius: 4px;
-    margin-bottom: 16px;
-    position: relative;
-  }
-  
-  .alert-error {
-    background-color: #fef0f0;
-    color: #f56c6c;
-    border: 1px solid #fde2e2;
-  }
-  
-  .alert-success {
-    background-color: #f0f9eb;
-    color: #67c23a;
-    border: 1px solid #e1f3d8;
-  }
-  
-  .section-title {
-    color: #1e88e5;
-    font-size: 18px;
-    margin-bottom: 16px;
-    font-weight: 600;
-  }
-  
-  .text-muted {
-    color: #909399;
-    font-size: 12px;
-  }
-  
-  .table-container {
-    overflow-x: auto;
-    margin-top: 16px;
-  }
-  
-  .capability-table {
-    width: 100%;
-    border-collapse: collapse;
-    background-color: white;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-  }
-  
-  .capability-table th,
-  .capability-table td {
-    padding: 12px;
-    text-align: left;
-    border-bottom: 1px solid #ebeef5;
-  }
-  
-  .capability-table th {
-    background-color: #f5f7fa;
-    color: #606266;
-    font-weight: 600;
-  }
-  
-  .capability-table tr:hover {
-    background-color: #f5f7fa;
-  }
-  
-  .capability-card {
-    border: 1px solid #ebeef5;
-    border-radius: 6px;
-    padding: 16px;
-    background-color: white;
-    transition: all 0.3s ease;
-  }
-  
-  .capability-card:hover {
-    border-color: #409eff;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.1);
-  }
-  
-  .capability-type-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-size: 12px;
-    background-color: #f0f9eb;
-    color: #67c23a;
-  }
-  
-  .status-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-size: 12px;
-  }
-  
-  .status-badge.active {
-    background-color: #f0f9eb;
-    color: #67c23a;
-  }
-  
-  .status-badge.inactive {
-    background-color: #fef0f0;
-    color: #f56c6c;
-  }
-  
-  .pagination {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 8px;
-    margin-top: 16px;
-  }
-  
-  .page-info {
-    color: #606266;
-    font-size: 14px;
-  }
-  
-  .search-filter {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 16px;
-    align-items: center;
-  }
-  
-  .search-filter .form-control {
-    flex: 1;
-  }
-  
-  .text-sm {
-    font-size: 12px;
-    color: #606266;
-  }
-`;
+import './ModelCapabilityAssociation.css';
 
 const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => {
   const [models, setModels] = useState([]);
@@ -291,8 +34,8 @@ const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => 
     );
   }, [models, modelSearch]);
 
-  // 筛选后的能力列表
-  const getFilteredCapabilities = useCallback(() => {
+  // 使用useMemo缓存筛选后的能力列表
+  const filteredCapabilities = useMemo(() => {
     return capabilities.filter(capability =>
       (capability.display_name?.toLowerCase().includes(capabilitySearch.toLowerCase()) ||
        capability.name?.toLowerCase().includes(capabilitySearch.toLowerCase())) &&
@@ -300,20 +43,29 @@ const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => 
     );
   }, [capabilities, capabilitySearch, capabilityFilter]);
 
-  // 获取当前模型未关联的能力
-  const getAvailableCapabilities = useCallback(() => {
+  // 使用useMemo缓存当前模型未关联的能力
+  const availableCapabilities = useMemo(() => {
     if (!selectedModel) return [];
     
-    const associatedCapabilityIds = new Set(modelCapabilities.map(mc => mc.capability_id));
-    return getFilteredCapabilities().filter(cap => !associatedCapabilityIds.has(cap.id));
-  }, [selectedModel, modelCapabilities, getFilteredCapabilities]);
+    // 确保modelCapabilities和capabilities数据正确
+    const associatedCapabilityIds = new Set(
+      modelCapabilities
+        .filter(mc => mc && mc.capability_id) // 过滤掉无效数据
+        .map(mc => mc.capability_id)
+    );
+    
+    const filtered = filteredCapabilities.filter(cap => 
+      cap && cap.id && !associatedCapabilityIds.has(cap.id)
+    );
+    
+    return filtered;
+  }, [selectedModel, modelCapabilities, filteredCapabilities]);
 
   // 获取分页后的可用能力
   const getPagedAvailableCapabilities = () => {
-    const available = getAvailableCapabilities();
     const startIndex = (capabilitiesPage - 1) * capabilitiesPerPage;
     const endIndex = startIndex + capabilitiesPerPage;
-    return available.slice(startIndex, endIndex);
+    return availableCapabilities.slice(startIndex, endIndex);
   };
 
   // 关联的能力表格列定义（仅用于参考，实际使用原生表格）
@@ -392,9 +144,11 @@ const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => 
   };
 
   // 加载模型能力关联
-  const fetchModelCapabilities = async (modelId) => {
+  const fetchModelCapabilities = async (modelId, skipLoadingState = false) => {
     try {
-      setLoading(true);
+      if (!skipLoadingState) {
+        setLoading(true);
+      }
       const response = await capabilityApi.getModelCapabilities(modelId);
       
       // 处理多种响应格式
@@ -422,7 +176,9 @@ const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => 
       console.error('获取模型能力关联错误:', err);
       setModelCapabilities([]);
     } finally {
-      setLoading(false);
+      if (!skipLoadingState) {
+        setLoading(false);
+      }
     }
   };
 
@@ -446,22 +202,26 @@ const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => 
       
       if (response && response.success) {
         setSuccess('能力添加成功');
-        // 重新加载模型能力
-        await fetchModelCapabilities(selectedModel.id);
+        
+        // 使用完整的刷新功能来确保所有数据都正确更新
+        await handleRefreshAll();
+        
+        // 添加延迟确保UI完全更新
+        setTimeout(() => {
+          // UI更新完成
+        }, 100);
+      } else if (response && Object.keys(response).length === 0) {
+        // 空对象表示409错误（关联已存在）
+        setSuccess('该能力已关联到此模型');
       } else {
-        // 对于409错误（关联已存在），不显示错误信息
-        if (error && error.message && error.message.includes('409')) {
-          setSuccess('该能力已关联到此模型');
-        } else {
-          setError(error.message || '添加能力失败');
-        }
+        setError(response.message || '添加能力失败');
       }
     } catch (error) {
       // 对于409错误（关联已存在），不显示错误信息
-      if (error && error.status === 409 || error.message && error.message.includes('409')) {
+      if (error && (error.status === 409 || (error.message && error.message.includes('409')))) {
         setSuccess('该能力已关联到此模型');
       } else {
-        setError('添加能力时发生错误: ' + error.message);
+        setError('添加能力时发生错误: ' + (error && error.message ? error.message : '未知错误'));
         console.error('添加能力错误:', error);
       }
     } finally {
@@ -469,7 +229,35 @@ const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => 
     }
   };
 
-  // 从模型移除能力
+  // 完整的刷新功能 - 刷新所有相关数据
+  const handleRefreshAll = async () => {
+    try {
+      setError(null);
+      setSuccess(null);
+      
+      // 串行刷新所有数据，确保状态正确更新
+      
+      // 首先刷新能力列表
+      await fetchCapabilities();
+      
+      // 然后刷新模型能力关联（跳过loading状态）
+      if (selectedModel) {
+        await fetchModelCapabilities(selectedModel.id, true);
+      }
+      
+      // 重置分页到第一页并强制重新计算可用能力
+      setCapabilitiesPage(1);
+      
+      // 强制重新渲染组件，确保状态更新
+      setCapabilities(prev => [...prev]);
+      setModelCapabilities(prev => [...prev]);
+    } catch (err) {
+      setError('刷新时发生错误');
+      console.error('刷新错误:', err);
+    }
+  };
+
+  // 移除能力时的完整刷新
   const handleRemoveCapability = async (modelCapabilityId) => {
     try {
       setUpdateLoading(true);
@@ -477,10 +265,8 @@ const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => 
       
       if (response.success) {
         setSuccess('能力移除成功');
-        // 重新加载模型能力
-        if (selectedModel) {
-          await fetchModelCapabilities(selectedModel.id);
-        }
+        // 使用完整的刷新功能
+        await handleRefreshAll();
       } else {
         setError(response.message || '移除能力失败');
       }
@@ -532,9 +318,6 @@ const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => 
     <div className="model-capability-association">
       <h2 className="association-title">模型能力关联管理</h2>
       
-      {/* 注入样式 */}
-      <style>{globalStyles}</style>
-      
       {/* 消息提示 */}
       {error && (
         <div className="alert alert-error">
@@ -581,11 +364,11 @@ const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => 
       {selectedModel && (
         <>
           {/* 已关联的能力 */}
-          <div style={{ marginTop: 24 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div className="section-container">
+            <div className="section-header">
               <h3 className="section-title">已关联的能力</h3>
               <button
-                onClick={() => fetchModelCapabilities(selectedModel.id)}
+                onClick={handleRefreshAll}
                 disabled={loading}
                 className="btn btn-secondary"
               >
@@ -606,7 +389,7 @@ const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => 
                 <tbody>
                   {modelCapabilities.length === 0 ? (
                     <tr>
-                      <td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>
+                      <td colSpan="4" className="table-empty-cell">
                         暂无关联的能力
                       </td>
                     </tr>
@@ -638,7 +421,7 @@ const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => 
           </div>
 
           {/* 可添加的能力 */}
-          <div style={{ marginTop: 24 }}>
+          <div className="section-container">
             <h3 className="section-title">可添加的能力</h3>
             
             <div className="search-filter">
@@ -662,25 +445,23 @@ const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => 
             </div>
             
             <div className="card">
-              {getAvailableCapabilities().length === 0 ? (
+              {availableCapabilities.length === 0 ? (
                 <p>所有能力已关联到此模型</p>
               ) : (
                 <>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 16 }}>
+                  <div className="capability-grid">
                     {getPagedAvailableCapabilities().map(capability => (
                       <div
                         key={capability.id}
-                        className="capability-card"
-                        style={{ flex: '1 1 calc(33.333% - 16px)', minWidth: '250px' }}
+                        className="capability-card capability-card-flex"
                       >
                         <h4>{capability.display_name || capability.name}</h4>
                         <p className="text-sm">能力类型: <span className={`capability-type-badge ${capability.capability_type}`}>{capability.capability_type}</span></p>
-                        <p style={{ height: '60px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{capability.description || '无描述'}</p>
+                        <p className="description-truncate">{capability.description || '无描述'}</p>
                         <button
                           onClick={() => handleAddCapability(capability.id, {})}
                           disabled={updateLoading}
-                          className="btn btn-primary"
-                          style={{ width: '100%' }}
+                          className="btn btn-primary btn-full-width"
                         >
                           {updateLoading ? '添加中...' : '添加到模型'}
                         </button>
@@ -689,8 +470,8 @@ const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => 
                   </div>
                   
                   {/* 分页控件 */}
-                  {getAvailableCapabilities().length > capabilitiesPerPage && (
-                    <div className="pagination" style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '16px' }}>
+                  {availableCapabilities.length > capabilitiesPerPage && (
+                    <div className="pagination pagination-container">
                       <button
                         onClick={() => setCapabilitiesPage(prev => Math.max(prev - 1, 1))}
                         disabled={capabilitiesPage === 1}
@@ -699,11 +480,11 @@ const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => 
                         上一页
                       </button>
                       <span className="page-info">
-                        第 {capabilitiesPage} 页 / 共 {Math.ceil(getAvailableCapabilities().length / capabilitiesPerPage)} 页
+                        第 {capabilitiesPage} 页 / 共 {Math.ceil(availableCapabilities.length / capabilitiesPerPage)} 页
                       </span>
                       <button
-                        onClick={() => setCapabilitiesPage(prev => Math.min(prev + 1, Math.ceil(getAvailableCapabilities().length / capabilitiesPerPage)))}
-                        disabled={capabilitiesPage >= Math.ceil(getAvailableCapabilities().length / capabilitiesPerPage)}
+                        onClick={() => setCapabilitiesPage(prev => Math.min(prev + 1, Math.ceil(availableCapabilities.length / capabilitiesPerPage)))}
+                        disabled={capabilitiesPage >= Math.ceil(availableCapabilities.length / capabilitiesPerPage)}
                         className="btn btn-secondary"
                       >
                         下一页
@@ -714,8 +495,7 @@ const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => 
                           setCapabilitiesPerPage(parseInt(e.target.value));
                           setCapabilitiesPage(1);
                         }}
-                        className="form-control"
-                        style={{ width: '80px' }}
+                        className="form-control form-control-small"
                       >
                         <option value={6}>6条/页</option>
                         <option value={12}>12条/页</option>
@@ -741,7 +521,7 @@ const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => 
           <h2 className="modal-title">
             模型能力关联管理 
             {selectedModel && (
-              <span className="text-muted" style={{ fontSize: '14px', marginLeft: '10px' }}>
+              <span className="text-muted text-muted-with-margin">
                 - {selectedModel.model_name || selectedModel.name || `模型ID: ${selectedModel.id}`}
               </span>
             )}
@@ -800,11 +580,11 @@ const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => 
           {selectedModel && (
             <>
               {/* 已关联的能力 */}
-              <div style={{ marginTop: 24 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div className="section-container">
+                <div className="section-header">
                   <h3 className="section-title">已关联的能力</h3>
                   <button
-                    onClick={() => fetchModelCapabilities(selectedModel.id)}
+                    onClick={handleRefreshAll}
                     disabled={loading}
                     className="btn btn-secondary"
                   >
@@ -825,7 +605,7 @@ const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => 
                     <tbody>
                       {modelCapabilities.length === 0 ? (
                         <tr>
-                          <td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>
+                          <td colSpan="4" className="table-empty-cell">
                             暂无关联的能力
                           </td>
                         </tr>
@@ -857,7 +637,7 @@ const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => 
               </div>
 
               {/* 可添加的能力 */}
-              <div style={{ marginTop: 24 }}>
+              <div className="section-container">
                 <h3 className="section-title">可添加的能力</h3>
                 
                 <div className="search-filter">
@@ -881,25 +661,23 @@ const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => 
                 </div>
                 
                 <div className="card">
-                  {getAvailableCapabilities().length === 0 ? (
+                  {availableCapabilities.length === 0 ? (
                     <p>所有能力已关联到此模型</p>
                   ) : (
                     <>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 16 }}>
+                      <div className="capability-grid">
                         {getPagedAvailableCapabilities().map(capability => (
                           <div
                             key={capability.id}
-                            className="capability-card"
-                            style={{ flex: '1 1 calc(33.333% - 16px)', minWidth: '250px' }}
+                            className="capability-card capability-card-flex"
                           >
                             <h4>{capability.display_name || capability.name}</h4>
                             <p className="text-sm">能力类型: <span className={`capability-type-badge ${capability.capability_type}`}>{capability.capability_type}</span></p>
-                            <p style={{ height: '60px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{capability.description || '无描述'}</p>
+                            <p className="description-truncate">{capability.description || '无描述'}</p>
                             <button
                               onClick={() => handleAddCapability(capability.id, {})}
                               disabled={updateLoading}
-                              className="btn btn-primary"
-                              style={{ width: '100%' }}
+                              className="btn btn-primary btn-full-width"
                             >
                               {updateLoading ? '添加中...' : '添加到模型'}
                             </button>
@@ -908,8 +686,8 @@ const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => 
                       </div>
                       
                       {/* 分页控件 */}
-                      {getAvailableCapabilities().length > capabilitiesPerPage && (
-                        <div className="pagination" style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '16px' }}>
+                      {availableCapabilities.length > capabilitiesPerPage && (
+                        <div className="pagination pagination-container">
                           <button
                             onClick={() => setCapabilitiesPage(prev => Math.max(prev - 1, 1))}
                             disabled={capabilitiesPage === 1}
@@ -918,11 +696,11 @@ const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => 
                             上一页
                           </button>
                           <span className="page-info">
-                            第 {capabilitiesPage} 页 / 共 {Math.ceil(getAvailableCapabilities().length / capabilitiesPerPage)} 页
+                            第 {capabilitiesPage} 页 / 共 {Math.ceil(availableCapabilities.length / capabilitiesPerPage)} 页
                           </span>
                           <button
-                            onClick={() => setCapabilitiesPage(prev => Math.min(prev + 1, Math.ceil(getAvailableCapabilities().length / capabilitiesPerPage)))}
-                            disabled={capabilitiesPage >= Math.ceil(getAvailableCapabilities().length / capabilitiesPerPage)}
+                            onClick={() => setCapabilitiesPage(prev => Math.min(prev + 1, Math.ceil(availableCapabilities.length / capabilitiesPerPage)))}
+                            disabled={capabilitiesPage >= Math.ceil(availableCapabilities.length / capabilitiesPerPage)}
                             className="btn btn-secondary"
                           >
                             下一页
@@ -933,8 +711,7 @@ const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => 
                               setCapabilitiesPerPage(parseInt(e.target.value));
                               setCapabilitiesPage(1);
                             }}
-                            className="form-control"
-                            style={{ width: '80px' }}
+                            className="form-control form-control-small"
                           >
                             <option value={6}>6条/页</option>
                             <option value={12}>12条/页</option>
