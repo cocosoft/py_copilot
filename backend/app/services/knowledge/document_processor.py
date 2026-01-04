@@ -195,9 +195,9 @@ class DocumentProcessor:
             where_filter = {"document_id": document_id}
             
             # 从向量数据库删除文档块
-            self.chroma_service.delete_documents_by_filter(where_filter)
+            deleted_count = self.chroma_service.delete_documents_by_metadata(where_filter)
             
-            logger.info(f"成功删除文档 {document_id} 的向量数据")
+            logger.info(f"成功删除文档 {document_id} 的 {deleted_count} 个向量片段")
             return True
             
         except Exception as e:

@@ -48,9 +48,9 @@ class RetrievalService:
         """获取索引中的文档数量"""
         return self.chroma_service.get_document_count()
     
-    def delete_documents_by_metadata(self, metadata_filter: Dict[str, Any]) -> None:
-        """根据元数据删除文档"""
-        self.chroma_service.delete_documents_by_metadata(metadata_filter)
+    def delete_documents_by_metadata(self, metadata_filter: Dict[str, Any]) -> int:
+        """根据元数据删除文档，返回删除的文档数量"""
+        return self.chroma_service.delete_documents_by_metadata(metadata_filter)
     
     def get_document_chunks(self, document_id: int) -> List[Dict[str, Any]]:
         """获取指定文档的所有向量片段"""

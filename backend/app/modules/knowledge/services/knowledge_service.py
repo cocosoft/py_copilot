@@ -64,10 +64,10 @@ class KnowledgeService:
         
         # 1. 从向量索引中删除该知识库的所有文档
         try:
-            self.retrieval_service.delete_documents_by_metadata({
+            deleted_count = self.retrieval_service.delete_documents_by_metadata({
                 "knowledge_base_id": knowledge_base_id
             })
-            logger.info(f"成功从向量索引中删除知识库 {knowledge_base_id} 的所有文档")
+            logger.info(f"成功从向量索引中删除知识库 {knowledge_base_id} 的 {deleted_count} 个向量文档")
         except Exception as e:
             logger.error(f"向量索引删除失败: {str(e)}")
             import traceback
@@ -263,10 +263,10 @@ class KnowledgeService:
                 # 根据document_id删除所有相关chunk
                 try:
                     # 使用元数据过滤器删除该文档的所有chunk
-                    self.retrieval_service.delete_documents_by_metadata({
+                    deleted_count = self.retrieval_service.delete_documents_by_metadata({
                         "document_id": document.id
                     })
-                    logger.info(f"成功从向量索引中删除文档 {document.id} 的所有chunk")
+                    logger.info(f"成功从向量索引中删除文档 {document.id} 的 {deleted_count} 个向量片段")
                 except Exception as e:
                     logger.error(f"向量索引删除失败: {str(e)}")
                     import traceback

@@ -152,17 +152,35 @@ class ChromaService:
             logger.error(f"列出向量数据库文档失败: {str(e)}")
             return []
     
-    def delete_documents_by_metadata(self, where_filter: Dict[str, Any]) -> None:
-        """根据元数据删除文档"""
+    def delete_documents_by_metadata(self, where_filter: Dict[str, Any]) -> int:
+        """根据元数据删除文档，返回删除的文档数量"""
         self._initialize()
         if not self.available or self.collection is None:
             logger.warning("ChromaDB不可用，跳过文档删除")
-            return
+            return 0
         
         try:
-            self.collection.delete(where=where_filter)
+            # 先查询所有匹配的文档
+            matching_docs = self.collection.get(where=where_filter, limit=10000)  # 增加limit以获取所有匹配文档
+            
+            if not matching_docs or not matching_docs.get('ids'):
+                logger.info(f"没有找到匹配元数据 {where_filter} 的文档")
+                return 0
+            
+            doc_ids = matching_docs['ids']
+            logger.info(f"找到 {len(doc_ids)} 个匹配的文档，准备删除")
+            
+            # 批量删除（ChromaDB支持一次性删除多个ID）
+            self.collection.delete(ids=doc_ids)
+            
+            logger.info(f"成功从向量数据库删除 {len(doc_ids)} 个文档")
+            return len(doc_ids)
+            
         except Exception as e:
             logger.error(f"根据元数据删除文档失败: {str(e)}")
+            import traceback
+            logger.error(f"错误详情: {traceback.format_exc()}")
+            return 0
     
     def search_documents_by_metadata(self, where_filter: Dict[str, Any], limit: int = 100) -> Dict[str, Any]:
         """根据元数据查询文档"""
