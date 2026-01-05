@@ -1,5 +1,5 @@
 """参数模板模式定义"""
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from pydantic import BaseModel, Field
 from datetime import datetime
 
@@ -9,7 +9,7 @@ class ParameterTemplateBase(BaseModel):
     name: str = Field(..., description="模板名称")
     description: Optional[str] = Field(None, description="模板描述")
     scene: str = Field(..., description="适用场景")
-    parameters: Dict[str, Any] = Field(..., description="参数配置")
+    parameters: Union[Dict[str, Any], List[Any]] = Field(..., description="参数配置")
 
 
 class ParameterTemplateCreate(ParameterTemplateBase):
@@ -22,7 +22,7 @@ class ParameterTemplateUpdate(BaseModel):
     name: Optional[str] = Field(None, description="模板名称")
     description: Optional[str] = Field(None, description="模板描述")
     scene: Optional[str] = Field(None, description="适用场景")
-    parameters: Optional[Dict[str, Any]] = Field(None, description="参数配置")
+    parameters: Optional[Union[Dict[str, Any], List[Any]]] = Field(None, description="参数配置")
     is_default: Optional[bool] = Field(None, description="是否为该场景的默认模板")
     is_active: Optional[bool] = Field(None, description="是否激活")
 
@@ -34,7 +34,7 @@ class ParameterTemplateResponse(BaseModel):
     description: Optional[str]
     scene: str
     is_default: bool
-    parameters: Dict[str, Any]
+    parameters: Union[Dict[str, Any], List[Any]]
     is_active: bool
     created_at: datetime
     updated_at: Optional[datetime]
@@ -54,7 +54,7 @@ class ParameterTemplateListResponse(BaseModel):
 
 class ParameterTemplateVersionBase(BaseModel):
     """参数模板版本基础模式"""
-    parameters: Dict[str, Any] = Field(..., description="参数配置")
+    parameters: Union[Dict[str, Any], List[Any]] = Field(..., description="参数配置")
 
 
 class ParameterTemplateVersionCreate(ParameterTemplateVersionBase):
@@ -67,7 +67,7 @@ class ParameterTemplateVersionResponse(BaseModel):
     id: int
     template_id: int
     version: int
-    parameters: Dict[str, Any]
+    parameters: Union[Dict[str, Any], List[Any]]
     changelog: Optional[str]
     created_at: datetime
     
