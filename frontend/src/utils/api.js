@@ -10,6 +10,10 @@ export { supplierApi };
 import modelApi from './api/modelApi';
 export { modelApi };
 
+// 从独立模块导入默认模型API
+import defaultModelApi from './api/defaultModelApi';
+export { defaultModelApi };
+
 // 临时简化的其他API
 // 从分类API模块导入
 import { categoryApi } from './api/categoryApi';

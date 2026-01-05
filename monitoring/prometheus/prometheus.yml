@@ -1,0 +1,103 @@
+# Prometheus 配置文件
+# PyCopilot 模型管理系统监控配置
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    environment: 'production'
+    project: 'py-copilot'
+
+# Alertmanager 配置（可选，如果需要外部告警管理器）
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+# 告警规则文件
+rule_files:
+  - 'alerts.yml'
+
+# 抓取配置
+scrape_configs:
+  # Prometheus 自身监控
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    metrics_path: /metrics
+
+  # 后端API监控
+  - job_name: 'py-copilot-backend'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['localhost:8000']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: '([^:]+):\\d+'
+        replacement: '${1}'
+
+  # 前端应用监控（需要前端暴露metrics端点）
+  - job_name: 'py-copilot-frontend'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['localhost:3000']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: '([^:]+):\\d+'
+        replacement: '${1}'
+
+  # Nginx 监控（如果使用Nginx）
+  - job_name: 'nginx'
+    metrics_path: /status
+    static_configs:
+      - targets: ['localhost:80']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: '([^:]+):\\d+'
+        replacement: '${1}'
+
+  # PostgreSQL 监控（需要安装postgres_exporter）
+  - job_name: 'postgresql'
+    static_configs:
+      - targets: ['localhost:5432']
+    metrics_path: /sql
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: '([^:]+):\\d+'
+        replacement: '${1}'
+
+  # Redis 监控（需要安装redis_exporter）
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['localhost:6379']
+    metrics_path: /metrics
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: '([^:]+):\\d+'
+        replacement: '${1}'
+
+  # Docker 容器监控（需要安装cadvisor）
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['localhost:8080']
+    metrics_path: /metrics
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: '([^:]+):\\d+'
+        replacement: '${1}'
+
+  # 节点监控（需要安装node_exporter）
+  - job_name: 'node'
+    static_configs:
+      - targets: ['localhost:9100']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: '([^:]+):\\d+'
+        replacement: '${1}'

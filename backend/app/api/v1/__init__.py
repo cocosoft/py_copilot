@@ -12,7 +12,8 @@ from app.api.v1.capability import router as capability_router
 from app.api.v1.capability_types import router as capability_types_router
 from app.api.v1.capability_dimensions import router as capability_dimensions_router
 from app.api.v1.model_management import router as model_management_v1_router
-from app.api.v1.parameter_templates import router as parameter_templates_router
+from app.api.v1.default_model import router as default_model_router
+from app.api.v1.parameter_template import router as parameter_template_router
 from app.api.v1.parameter_normalization_rules import router as parameter_normalization_rules_router
 from app.api.v1.parameter_mappings import router as parameter_mappings_router
 from app.api.v1.system_parameters import router as system_parameters_router
@@ -39,9 +40,10 @@ api_router.include_router(llm_router, prefix="/llm", tags=["llm"])
 # api_router.include_router(model_management_router, prefix="/model-management", tags=["model-management"])
 # 启用supplier_model_router以提供/suppliers端点，放在前面确保优先匹配
 api_router.include_router(supplier_model_v1_router, tags=["supplier-model"])
+api_router.include_router(default_model_router, tags=["default-model"])
 api_router.include_router(model_management_v1_router, prefix="/model-management", tags=["model-parameters"])
-# 注册参数模板路由（不添加前缀，因为路由定义中已经包含）
-api_router.include_router(parameter_templates_router, tags=["parameter-templates"])
+# 注册参数模板路由
+api_router.include_router(parameter_template_router, tags=["parameter-template"])
 # 注册参数归一化规则路由
 api_router.include_router(parameter_normalization_rules_router, tags=["parameter-normalization-rules"])
 # 注册参数映射路由

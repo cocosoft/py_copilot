@@ -1,7 +1,7 @@
 """监控数据模型"""
 from sqlalchemy import Column, Integer, String, Text, DateTime, Float, Boolean, JSON
 from sqlalchemy.sql import func
-from app.db.base_class import Base
+from app.core.database import Base
 
 class AlertRuleDB(Base):
     """告警规则表"""
@@ -34,7 +34,7 @@ class AlertHistoryDB(Base):
     triggered_at = Column(DateTime(timezone=True), server_default=func.now())
     resolved_at = Column(DateTime(timezone=True), nullable=True)
     resolved = Column(Boolean, default=False)
-    metadata = Column(JSON, nullable=True)  # 额外元数据
+    alert_metadata = Column(JSON, nullable=True)  # 额外元数据
 
 class MetricDataDB(Base):
     """指标数据表"""

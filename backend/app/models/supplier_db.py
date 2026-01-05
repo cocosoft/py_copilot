@@ -5,6 +5,7 @@ from app.core.database import Base
 from app.core.encryption import encrypt_string, decrypt_string
 from app.models.model_category import ModelCategory
 from app.models.parameter_template import ParameterTemplate
+from app.models.default_model import DefaultModel, ModelFeedback, ModelPerformance
 
 
 class SupplierDB(Base):
@@ -78,6 +79,15 @@ class ModelDB(Base):
     # 参数模板关联
     parameter_template_id = Column(Integer, ForeignKey("parameter_templates.id", ondelete="SET NULL"), nullable=True)
     parameter_template = relationship("ParameterTemplate", back_populates="models", lazy='select')
+    
+    # 默认模型关联
+    default_models = relationship("DefaultModel", foreign_keys="[DefaultModel.model_id]", back_populates="model", cascade="all, delete-orphan")
+    
+    # 模型反馈关联
+    model_feedback = relationship("ModelFeedback", foreign_keys="[ModelFeedback.model_id]", back_populates="model", cascade="all, delete-orphan")
+    
+    # 模型性能关联
+    model_performance = relationship("ModelPerformance", foreign_keys="[ModelPerformance.model_id]", back_populates="model", cascade="all, delete-orphan")
 
 
 class ModelParameter(Base):

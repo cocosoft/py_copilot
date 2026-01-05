@@ -3,9 +3,12 @@ from typing import List, Dict, Any, Optional, Tuple
 from enum import Enum
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from datetime import datetime
+import logging
 
 from app.models.supplier_db import ModelDB
 from app.models.model_capability import ModelCapability, ModelCapabilityAssociation
+from app.models.default_model import DefaultModel, ModelPerformance
 from app.services.capability_assessment_service import CapabilityAssessmentService
 
 
@@ -56,9 +59,11 @@ class AgentModelScheduler:
     def __init__(self, db: Session):
         self.db = db
         self.capability_service = CapabilityAssessmentService()
+        self.logger = logging.getLogger(__name__)
     
     def schedule_models(self, task_id: str, criteria: ModelSelectionCriteria, 
-                       strategy: SchedulingStrategy = SchedulingStrategy.BALANCED) -> SchedulingResult:
+                       strategy: SchedulingStrategy = SchedulingStrategy.BALANCED,
+                       use_defaults: bool = True) -> SchedulingResult:
         """
         根据任务需求调度合适的模型
         
@@ -66,6 +71,7 @@ class AgentModelScheduler:
             task_id: 任务ID
             criteria: 模型选择标准
             strategy: 调度策略
+            use_defaults: 是否使用默认模型配置作为优先选择
             
         Returns:
             SchedulingResult: 调度结果
@@ -73,17 +79,60 @@ class AgentModelScheduler:
         # 1. 获取所有可用模型
         available_models = self._get_available_models()
         
-        # 2. 根据策略筛选模型
-        filtered_models = self._filter_models_by_criteria(available_models, criteria)
+        # 2. 尝试获取默认模型配置
+        primary_model = None
+        fallback_models = []
         
-        if not filtered_models:
-            raise ValueError("没有找到满足条件的模型")
+        if use_defaults:
+            try:
+                # 尝试获取全局默认模型
+                global_default = self._get_default_model(scope='global')
+                
+                # 获取场景特定默认模型（如果有）
+                scene_default = None
+                if criteria.required_capabilities:
+                    scene_default = self._get_scene_default_model(criteria.required_capabilities[0])
+                
+                # 选择优先级更高的默认模型作为主模型
+                if scene_default and scene_default.priority < global_default.priority:
+                    primary_model = self._create_scheduled_model_from_default(scene_default, "primary")
+                    self.logger.info(f"选择场景默认模型作为主模型: {primary_model.model_name}")
+                else:
+                    primary_model = self._create_scheduled_model_from_default(global_default, "primary")
+                    self.logger.info(f"选择全局默认模型作为主模型: {primary_model.model_name}")
+                
+                # 如果有备用模型，将其添加到备用模型列表
+                if primary_model and primary_model.fallback_model_id:
+                    fallback_model_info = self._get_model_info(primary_model.fallback_model_id)
+                    if fallback_model_info:
+                        fallback_models.append(self._create_scheduled_model(fallback_model_info, "fallback"))
+                        self.logger.info(f"配置备用模型: {fallback_models[0].model_name}")
+            except Exception as e:
+                self.logger.warning(f"获取默认模型配置失败: {str(e)}")
+                primary_model = None
+                fallback_models = []
         
-        # 3. 根据策略排序模型
-        sorted_models = self._sort_models_by_strategy(filtered_models, criteria, strategy)
+        # 3. 如果没有默认模型或默认模型不可用，则根据策略筛选模型
+        if not primary_model or not self._is_model_available(primary_model.model_id, available_models):
+            self.logger.info("默认模型不可用，使用标准模型选择逻辑")
+            filtered_models = self._filter_models_by_criteria(available_models, criteria)
+            
+            if not filtered_models:
+                raise ValueError("没有找到满足条件的模型")
+            
+            # 根据策略排序模型
+            sorted_models = self._sort_models_by_strategy(filtered_models, criteria, strategy)
+            
+            # 选择主模型和备用模型
+            if sorted_models:
+                primary_model, fallback_models = self._select_primary_and_fallback(sorted_models)
         
-        # 4. 选择主模型和备用模型
-        primary_model, fallback_models = self._select_primary_and_fallback(sorted_models)
+        # 4. 如果默认模型的备用模型不可用，添加其他符合条件的模型作为备用
+        if fallback_models and not fallback_models[0].model_id in [m["model_id"] for m in available_models]:
+            fallback_models = []
+            for model_info in available_models[:2]:  # 最多添加两个备用模型
+                if model_info["model_id"] != primary_model.model_id:
+                    fallback_models.append(self._create_scheduled_model(model_info, "fallback"))
         
         # 5. 计算总成本和预估时间
         total_cost = self._calculate_total_cost([primary_model] + fallback_models)
@@ -102,9 +151,139 @@ class AgentModelScheduler:
         
         return result
     
+    def _get_default_model(self, scope: str) -> DefaultModel:
+        """获取指定作用域的默认模型"""
+        default_model = self.db.query(DefaultModel).filter(
+            DefaultModel.scope == scope,
+            DefaultModel.is_active == True
+        ).first()
+        
+        if not default_model:
+            raise ValueError(f"没有找到{scope}作用域的活跃默认模型")
+            
+        return default_model
+    
+    def _get_scene_default_model(self, scene: str) -> Optional[DefaultModel]:
+        """获取指定场景的默认模型"""
+        return self.db.query(DefaultModel).filter(
+            DefaultModel.scope == 'scene',
+            DefaultModel.scene == scene,
+            DefaultModel.is_active == True
+        ).first()
+    
+    def _create_scheduled_model_from_default(self, default_model: DefaultModel, role: str) -> ScheduledModel:
+        """根据默认模型配置创建调度模型对象"""
+        model = self.db.query(ModelDB).filter(ModelDB.id == default_model.model_id).first()
+        
+        if not model:
+            raise ValueError(f"默认模型关联的模型不存在 (ID: {default_model.model_id})")
+            
+        # 获取模型能力
+        capabilities = {}
+        associations = self.db.query(ModelCapabilityAssociation).filter(
+            ModelCapabilityAssociation.model_id == model.id
+        ).all()
+        
+        for association in associations:
+            capability = self.db.query(ModelCapability).filter(
+                ModelCapability.id == association.capability_id
+            ).first()
+            
+            if capability:
+                capabilities[capability.name] = {
+                    "strength": association.actual_strength,
+                    "confidence": association.confidence_score
+                }
+        
+        # 获取模型性能数据（用于成本和响应时间估算）
+        model_performance = self.db.query(ModelPerformance).filter(
+            ModelPerformance.model_id == model.id
+        ).all()
+        
+        # 估算响应时间（如果没有性能数据，使用默认值）
+        estimated_response_time = self._estimate_response_time(model)
+        if model_performance and model_performance[0].avg_response_time:
+            estimated_response_time = int(float(model_performance[0].avg_response_time) * 1000)  # 转换为毫秒
+        
+        # 估算成本（如果没有性能数据，使用默认值）
+        estimated_cost = self._estimate_model_cost(model)
+        
+        # 设置角色和选择原因
+        if role == "primary":
+            selection_reason = f"基于默认模型配置选择为主模型"
+        else:
+            selection_reason = f"基于默认模型配置选择为备用模型"
+        
+        # 如果是备用模型，直接设置备用模型ID
+        fallback_model_id = default_model.fallback_model_id if role == "primary" else None
+        
+        # 构建能力强度和置信度字典
+        capability_strength = {}
+        confidence_score = {}
+        
+        for capability_name, capability_data in capabilities.items():
+            capability_strength[capability_name] = capability_data["strength"]
+            confidence_score[capability_name] = capability_data["confidence"]
+        
+        # 创建ScheduledModel对象
+        scheduled_model = ScheduledModel(
+            model_id=model.id,
+            model_name=model.model_name,
+            supplier_name=model.supplier.name if model.supplier else "Unknown",
+            capability_strength=capability_strength,
+            confidence_score=confidence_score,
+            estimated_cost=estimated_cost,
+            estimated_response_time=estimated_response_time,
+            selection_reason=selection_reason
+        )
+        
+        # 如果有备用模型ID，设置到对象上（通过扩展属性）
+        if fallback_model_id:
+            scheduled_model.fallback_model_id = fallback_model_id
+        
+        return scheduled_model
+    
+    def _is_model_available(self, model_id: int, available_models: List[Dict[str, Any]]) -> bool:
+        """检查模型是否在可用模型列表中"""
+        for model in available_models:
+            if model["model_id"] == model_id:
+                return True
+        return False
+    
     def _get_available_models(self) -> List[Dict[str, Any]]:
         """获取所有可用模型及其能力信息"""
         models = self.db.query(ModelDB).filter(ModelDB.is_active == True).all()
+        
+        available_models = []
+        for model in models:
+            model_info = {
+                "model_id": model.id,
+                "model_name": model.model_name,
+                "supplier_name": model.supplier.name if model.supplier else "Unknown",
+                "capabilities": {},
+                "estimated_cost": self._estimate_model_cost(model),
+                "estimated_response_time": self._estimate_response_time(model)
+            }
+            
+            # 获取模型的能力关联
+            associations = self.db.query(ModelCapabilityAssociation).filter(
+                ModelCapabilityAssociation.model_id == model.id
+            ).all()
+            
+            for association in associations:
+                capability = self.db.query(ModelCapability).filter(
+                    ModelCapability.id == association.capability_id
+                ).first()
+                
+                if capability:
+                    model_info["capabilities"][capability.name] = {
+                        "strength": association.actual_strength,
+                        "confidence": association.confidence_score
+                    }
+            
+            available_models.append(model_info)
+        
+        return available_models
         
         available_models = []
         for model in models:
@@ -311,6 +490,134 @@ class AgentModelScheduler:
         """计算总预估时间"""
         return sum(model.estimated_response_time for model in models)
     
+    def perform_fallback(self, scheduling_result: SchedulingResult, 
+                        failed_model_id: int) -> SchedulingResult:
+        """
+        执行模型回退机制
+        
+        Args:
+            scheduling_result: 原始调度结果
+            failed_model_id: 失败模型的ID
+            
+        Returns:
+            SchedulingResult: 回退后的调度结果
+        """
+        # 记录回退事件
+        self.logger.warning(f"模型 {failed_model_id} 失败，开始执行回退机制")
+        
+        # 查找失败模型在结果中的位置
+        model_index = None
+        for i, model in enumerate(scheduling_result.selected_models):
+            if model.model_id == failed_model_id:
+                model_index = i
+                break
+        
+        if model_index is None:
+            self.logger.error(f"找不到失败模型 {failed_model_id} 在调度结果中")
+            return scheduling_result
+        
+        # 如果是主模型失败，则选择第一个备用模型作为新主模型
+        if scheduling_result.primary_model.model_id == failed_model_id:
+            if scheduling_result.fallback_models:
+                new_primary = scheduling_result.fallback_models[0]
+                remaining_fallbacks = scheduling_result.fallback_models[1:]
+                
+                # 更新选择原因
+                new_primary.selection_reason = f"回退机制：主模型 {failed_model_id} 失败，切换到备用模型"
+                
+                # 创建新的调度结果
+                fallback_result = SchedulingResult(
+                    task_id=scheduling_result.task_id,
+                    selected_models=[new_primary] + remaining_fallbacks,
+                    primary_model=new_primary,
+                    fallback_models=remaining_fallbacks,
+                    total_estimated_cost=scheduling_result.total_estimated_cost,
+                    total_estimated_time=scheduling_result.total_estimated_time,
+                    scheduling_strategy=scheduling_result.scheduling_strategy
+                )
+                
+                # 记录回退成功的日志
+                self.logger.info(f"回退成功：从主模型 {failed_model_id} 切换到备用模型 {new_primary.model_id}")
+                
+                # 更新模型性能数据
+                self._update_model_performance(failed_model_id, success=False)
+                self._update_model_performance(new_primary.model_id, success=True)
+                
+                return fallback_result
+            else:
+                self.logger.error(f"主模型 {failed_model_id} 失败，但无可用备用模型")
+                return scheduling_result
+        
+        # 如果是备用模型失败，将其从列表中移除
+        else:
+            updated_fallback_models = [model for model in scheduling_result.fallback_models 
+                                     if model.model_id != failed_model_id]
+            
+            # 创建新的调度结果
+            fallback_result = SchedulingResult(
+                task_id=scheduling_result.task_id,
+                selected_models=[scheduling_result.primary_model] + updated_fallback_models,
+                primary_model=scheduling_result.primary_model,
+                fallback_models=updated_fallback_models,
+                total_estimated_cost=scheduling_result.total_estimated_cost,
+                total_estimated_time=scheduling_result.total_estimated_time,
+                scheduling_strategy=scheduling_result.scheduling_strategy
+            )
+            
+            # 记录回退日志
+            self.logger.info(f"备用模型 {failed_model_id} 失败，已从备用模型列表中移除")
+            
+            # 更新模型性能数据
+            self._update_model_performance(failed_model_id, success=False)
+            
+            return fallback_result
+    
+    def _update_model_performance(self, model_id: int, success: bool):
+        """更新模型性能数据"""
+        try:
+            # 获取性能记录
+            performance = self.db.query(ModelPerformance).filter(
+                ModelPerformance.model_id == model_id
+            ).first()
+            
+            # 如果没有性能记录，创建一个
+            if not performance:
+                performance = ModelPerformance(
+                    model_id=model_id,
+                    scene="general",
+                    usage_count=0,
+                    success_rate=0.0 if success else 100.0
+                )
+                self.db.add(performance)
+            
+            # 更新使用次数
+            performance.usage_count += 1
+            
+            # 更新成功率
+            if success:
+                # 成功时，轻微增加成功率
+                if performance.success_rate is None:
+                    performance.success_rate = 100.0
+                else:
+                    # 成功时将成功率略微提高
+                    performance.success_rate = min(100.0, performance.success_rate + 0.1)
+            else:
+                # 失败时，轻微降低成功率
+                if performance.success_rate is None:
+                    performance.success_rate = 0.0
+                else:
+                    # 失败时将成功率略微降低
+                    performance.success_rate = max(0.0, performance.success_rate - 1.0)
+            
+            # 记录更新时间
+            performance.last_updated = datetime.now()
+            
+            # 提交数据库更改
+            self.db.commit()
+            
+        except Exception as e:
+            self.logger.error(f"更新模型性能数据失败: {str(e)}")
+            self.db.rollback()
     def load_balance(self, current_workload: Dict[str, int], 
                     scheduling_result: SchedulingResult) -> SchedulingResult:
         """
@@ -342,6 +649,16 @@ class AgentModelScheduler:
                     primary_model=new_primary,
                     fallback_models=remaining_fallbacks,
                     total_estimated_cost=scheduling_result.total_estimated_cost,
+                    total_estimated_time=scheduling_result.total_estimated_time,
+                    scheduling_strategy=scheduling_result.scheduling_strategy
+                )
+                
+                # 记录负载均衡日志
+                self.logger.info(f"负载均衡：切换主模型 {scheduling_result.primary_model.model_name} 到备用模型 {new_primary.model_name}")
+                
+                return balanced_result
+        
+        return scheduling_result
                     total_estimated_time=scheduling_result.total_estimated_time,
                     scheduling_strategy=scheduling_result.scheduling_strategy
                 )

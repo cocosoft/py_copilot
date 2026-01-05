@@ -9,6 +9,9 @@ from app.models.agent import Agent
 from app.models.agent_category import AgentCategory
 from app.models.agent_parameter import AgentParameter
 from app.models.search_settings import SearchSetting
+from app.models.supplier_db import SupplierDB, ModelDB
+from app.models.default_model import DefaultModel
+from app.models.parameter_template import ParameterTemplate, ParameterTemplateVersion
 
 __all__ = [
     "User",
@@ -24,5 +27,10 @@ __all__ = [
     "Agent",
     "AgentCategory",
     "AgentParameter",
-    "SearchSetting"
+    "SearchSetting",
+    "ModelDB",
+    "SupplierDB",
+    "DefaultModel",
+    "ParameterTemplate",
+    "ParameterTemplateVersion"
 ]

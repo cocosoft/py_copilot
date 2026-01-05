@@ -10,7 +10,7 @@ from app.schemas.search_settings import (
     SearchSettingUpdate
 )
 
-router = APIRouter(prefix="/search", tags=["搜索管理"])
+router = APIRouter(prefix="/search", tags=["search"])
 
 # 初始化服务
 search_management_service = SearchManagementService()

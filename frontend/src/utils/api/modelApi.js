@@ -429,29 +429,62 @@ const modelApi = {
     return request(`/v1/model-management/suppliers/${supplierId}/models/${modelId}`, { method: 'DELETE' });
   },
 
-  // 系统参数相关API
-  
   /**
-   * 获取系统参数模板
+   * 设置默认模型
+   * @param {number} supplierId - 供应商ID
+   * @param {number} modelId - 模型ID
    */
-  async getSystemParameterTemplates() {
-    return request('/v1/system/parameter-templates', { method: 'GET' });
+  async setDefault(supplierId, modelId) {
+    return request(`/v1/model-management/suppliers/${supplierId}/models/set-default/${modelId}`, { method: 'POST' });
   },
 
   /**
-   * 获取活跃的系统参数模板
+   * 获取模型参数
+   * @param {number} supplierId - 供应商ID
+   * @param {number} modelId - 模型ID
    */
-  async getActiveSystemParameterTemplate() {
-    return request('/v1/system/parameter-templates/active', { method: 'GET' });
+  async getModelParameters(supplierId, modelId) {
+    return request(`/v1/model-management/suppliers/${supplierId}/models/${modelId}/parameters`, { method: 'GET' });
   },
 
   /**
-   * 激活系统参数模板
-   * @param {number} templateId - 模板ID
+   * 创建模型参数
+   * @param {number} supplierId - 供应商ID
+   * @param {number} modelId - 模型ID
+   * @param {object} parameterData - 参数数据
    */
-  async activateSystemParameterTemplate(templateId) {
-    return request(`/v1/system/parameter-templates/${templateId}/activate`, { method: 'POST' });
-  }
+  async createModelParameter(supplierId, modelId, parameterData) {
+    return request(`/v1/model-management/suppliers/${supplierId}/models/${modelId}/parameters`, { 
+      method: 'POST', 
+      body: JSON.stringify(parameterData),
+      headers: { 'Content-Type': 'application/json' }
+    });
+  },
+
+  /**
+   * 更新模型参数
+   * @param {number} supplierId - 供应商ID
+   * @param {number} modelId - 模型ID
+   * @param {string} parameterName - 参数名称
+   * @param {object} parameterData - 参数数据
+   */
+  async updateModelParameter(supplierId, modelId, parameterName, parameterData) {
+    return request(`/v1/model-management/suppliers/${supplierId}/models/${modelId}/parameters/${parameterName}`, { 
+      method: 'PUT', 
+      body: JSON.stringify(parameterData),
+      headers: { 'Content-Type': 'application/json' }
+    });
+  },
+
+  /**
+   * 删除模型参数
+   * @param {number} supplierId - 供应商ID
+   * @param {number} modelId - 模型ID
+   * @param {string} parameterName - 参数名称
+   */
+  async deleteModelParameter(supplierId, modelId, parameterName) {
+    return request(`/v1/model-management/suppliers/${supplierId}/models/${modelId}/parameters/${parameterName}`, { method: 'DELETE' });
+  },
 };
 
 export default modelApi;

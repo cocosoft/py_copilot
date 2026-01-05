@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from ....services.knowledge.advanced_text_processor import AdvancedTextProcessor
 from ....services.knowledge.entity_config_manager import EntityConfigManager
 
-router = APIRouter(prefix="/entity-config", tags=["实体配置管理"])
+router = APIRouter(prefix="/entity-config", tags=["entity-config"])
 
 # 请求和响应模型
 class EntityTypeConfig(BaseModel):

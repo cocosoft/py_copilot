@@ -1,0 +1,135 @@
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { resolve } from 'path';
+
+// https://vitejs.dev/config/
+export default defineConfig(({ mode }) => {
+  const isProduction = mode === 'production';
+  
+  return {
+    plugins: [
+      react({
+        // Enable React Fast Refresh
+        fastRefresh: true,
+        // Enable JSX runtime automatic
+        jsxRuntime: 'automatic',
+      })
+    ],
+    
+    resolve: {
+      alias: {
+        '@': resolve(__dirname, 'src'),
+        '@components': resolve(__dirname, 'src/components'),
+        '@pages': resolve(__dirname, 'src/pages'),
+        '@stores': resolve(__dirname, 'src/stores'),
+        '@services': resolve(__dirname, 'src/services'),
+        '@utils': resolve(__dirname, 'src/utils'),
+        '@config': resolve(__dirname, 'src/config'),
+        '@hooks': resolve(__dirname, 'src/hooks'),
+        '@types': resolve(__dirname, 'src/types'),
+        '@styles': resolve(__dirname, 'src/styles'),
+      },
+    },
+
+    server: {
+      port: 3000,
+      host: true,
+      open: true,
+      proxy: {
+        '/api': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+          secure: false,
+        },
+        '/logos': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+          secure: false,
+        },
+      },
+      // Enable HMR for CSS
+      hmr: {
+        overlay: true,
+      },
+    },
+
+    build: {
+      outDir: 'dist',
+      assetsDir: 'assets',
+      sourcemap: !isProduction,
+      minify: isProduction ? 'terser' : false,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            // Vendor chunks
+            'react-vendor': ['react', 'react-dom'],
+            'router-vendor': ['react-router-dom'],
+            'ui-vendor': ['framer-motion', 'react-hot-toast'],
+            'chart-vendor': ['d3', 'reactflow'],
+            'form-vendor': ['react-hook-form', '@hookform/resolvers', 'zod'],
+            // Utility chunks
+            utils: ['lodash', 'date-fns', 'classnames'],
+          },
+          chunkFileNames: (chunkInfo) => {
+            const facadeModuleId = chunkInfo.facadeModuleId 
+              ? chunkInfo.facadeModuleId.split('/').pop().replace(/\.[jt]sx?$/, '')
+              : 'chunk';
+            return `js/${facadeModuleId}-[hash].js`;
+          },
+          assetFileNames: (assetInfo) => {
+            const info = assetInfo.name.split('.');
+            const ext = info[info.length - 1];
+            if (/\.(css)$/i.test(assetInfo.name)) {
+              return `css/[name]-[hash].${ext}`;
+            }
+            return `assets/[name]-[hash].${ext}`;
+          },
+        },
+      },
+      // Optimize dependencies
+      target: 'es2020',
+      chunkSizeWarningLimit: 1000,
+    },
+
+    // CSS configuration
+    css: {
+      preprocessorOptions: {
+        scss: {
+          additionalData: `@import "@/styles/variables.scss";`,
+        },
+      },
+      devSourcemap: !isProduction,
+    },
+
+    // Environment variables
+    define: {
+      __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
+      __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+    },
+
+    // Optimize dependencies
+    optimizeDeps: {
+      include: [
+        'react',
+        'react-dom',
+        'react-router-dom',
+        'zustand',
+        '@tanstack/react-query',
+        'axios',
+        'framer-motion',
+        'react-hot-toast',
+        'classnames',
+        'lodash',
+        'date-fns',
+      ],
+    },
+
+    // PWA configuration
+    ...(isProduction && {
+      plugins: [
+        react(),
+        // Add PWA plugin for production
+      ],
+    }),
+  };
+});

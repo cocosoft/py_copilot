@@ -1,0 +1,64 @@
+# Grafana 数据源配置
+# 自动配置 Prometheus 作为默认数据源
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://localhost:9090
+    isDefault: true
+    version: 1
+    editable: false
+    jsonData:
+      graphiteVersion: "1.1"
+      tlsAuth: false
+      tlsAuthWithCACert: false
+      httpMethod: POST
+      manageAlerts: true
+      prometheusType: Prometheus
+      disableRecordingRules: false
+      exemplarTraceIdExcludedBySourceName: []
+      queryTimeout: 60s
+    secureJsonData:
+      httpHeaderValue1: ""
+
+  - name: PostgreSQL
+    type: postgres
+    access: proxy
+    url: localhost:5432
+    database: py_copilot
+    user: postgres
+    version: 1
+    editable: true
+    jsonData:
+      sslmode: "disable"
+      maxOpenConns: 100
+      maxIdleConns: 100
+      connMaxLifetime: 14400
+      postgresVersion: 1300
+      timescaledb: false
+
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://localhost:3100
+    version: 1
+    editable: false
+    jsonData:
+      maxLines: 1000
+      derivedFields:
+        - matcherRegex: "(\\"file\\":\\"[^\\"]*\\")|(\\"filename\\":\\"[^\\"]*\")"
+          name: File
+          url: "http://localhost:3000/explore"
+          datasourceUid: "grafana"
+
+  - name: Alertmanager
+    type: alertmanager
+    access: proxy
+    url: http://localhost:9093
+    version: 1
+    editable: false
+    jsonData:
+      implementation: "prometheus"

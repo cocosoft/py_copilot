@@ -1,3 +1,4 @@
+import React, { useEffect } from 'react';
 import ApiKeyUpdater from './components/ApiKeyUpdater';
 import { BrowserRouter as Router, NavLink, Route, Routes, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
@@ -5,25 +6,31 @@ import { SupplierProvider } from './contexts/SupplierContext';
 import AppRoutes from './routes';
 import LoginForm from './components/LoginForm';
 import { isAuthenticated } from './utils/authUtils';
+import { StoreProvider, StoreMonitor, useStateManager } from './utils/storeManager';
 
 function App() {
   return (
-    <Router
-      future={{
-        v7_startTransition: true,
-        v7_relativeSplatPath: true,
-      }}
-    >
-      <SupplierProvider>
-        <Routes>
-          {/* 登录页面路由 */}
-          <Route path="/login" element={<LoginForm />} />
-          
-          {/* 主应用路由 - 暂时取消认证要求 */}
-          <Route path="/*" element={<MainApp />} />
-        </Routes>
-      </SupplierProvider>
-    </Router>
+    <StoreProvider>
+      <Router
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
+        <SupplierProvider>
+          <Routes>
+            {/* 登录页面路由 */}
+            <Route path="/login" element={<LoginForm />} />
+            
+            {/* 主应用路由 - 暂时取消认证要求 */}
+            <Route path="/*" element={<MainApp />} />
+          </Routes>
+        </SupplierProvider>
+      </Router>
+      
+      {/* 开发环境下的状态监控 */}
+      {process.env.NODE_ENV === 'development' && <StoreMonitor enabled={false} />}
+    </StoreProvider>
   );
 }
 

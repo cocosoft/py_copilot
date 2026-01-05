@@ -1,93 +1,84 @@
-"""参数模板相关的数据校验模型"""
-from typing import Optional, Dict, Any, List, Union
+"""参数模板模式定义"""
+from typing import List, Dict, Any, Optional
+from pydantic import BaseModel, Field
 from datetime import datetime
-from pydantic import BaseModel, Field, ConfigDict
 
 
 class ParameterTemplateBase(BaseModel):
-    """参数模板基础模型"""
-    model_config = ConfigDict(protected_namespaces=())
-    name: str = Field(..., min_length=1, max_length=200, description="模板名称")
+    """参数模板基础模式"""
+    name: str = Field(..., description="模板名称")
     description: Optional[str] = Field(None, description="模板描述")
-    parameters: Union[List[Dict[str, Any]], Dict[str, Any]] = Field(default_factory=list, description="参数配置")
-    is_active: bool = Field(default=True, description="是否激活")
-    level: str = Field(default="system", description="模板层级：system|model_type|model|agent")
-    
-    # 能力维度关联字段
-    dimension_id: Optional[int] = Field(None, ge=1, description="能力维度ID")
-    subdimension_id: Optional[int] = Field(None, ge=1, description="能力子维度ID")
-    capability_id: Optional[int] = Field(None, ge=1, description="模型能力ID")
-    
-    # 版本管理字段
-    version: str = Field(default="1.0.0", description="模板版本号")
-    level_id: Optional[int] = Field(None, ge=1, description="层级特定ID")
-    parent_id: Optional[int] = Field(None, ge=1, description="父模板ID")
+    scene: str = Field(..., description="适用场景")
+    parameters: Dict[str, Any] = Field(..., description="参数配置")
 
 
 class ParameterTemplateCreate(ParameterTemplateBase):
-    """创建参数模板请求模型"""
-    pass
+    """创建参数模板请求"""
+    is_default: bool = Field(False, description="是否为该场景的默认模板")
 
 
 class ParameterTemplateUpdate(BaseModel):
-    """更新参数模板请求模型"""
-    name: Optional[str] = Field(None, min_length=1, max_length=200, description="模板名称")
+    """更新参数模板请求"""
+    name: Optional[str] = Field(None, description="模板名称")
     description: Optional[str] = Field(None, description="模板描述")
-    parameters: Optional[Union[List[Dict[str, Any]], Dict[str, Any]]] = Field(None, description="参数配置")
+    scene: Optional[str] = Field(None, description="适用场景")
+    parameters: Optional[Dict[str, Any]] = Field(None, description="参数配置")
+    is_default: Optional[bool] = Field(None, description="是否为该场景的默认模板")
     is_active: Optional[bool] = Field(None, description="是否激活")
-    level: Optional[str] = Field(None, description="模板层级")
-    
-    # 能力维度关联字段
-    dimension_id: Optional[int] = Field(None, ge=1, description="能力维度ID")
-    subdimension_id: Optional[int] = Field(None, ge=1, description="能力子维度ID")
-    capability_id: Optional[int] = Field(None, ge=1, description="模型能力ID")
-    
-    # 版本管理字段
-    version: Optional[str] = Field(None, description="模板版本号")
-    level_id: Optional[int] = Field(None, ge=1, description="层级特定ID")
-    parent_id: Optional[int] = Field(None, ge=1, description="父模板ID")
 
 
-class ParameterTemplateResponse(ParameterTemplateBase):
-    """参数模板响应模型"""
+class ParameterTemplateResponse(BaseModel):
+    """参数模板响应"""
     id: int
+    name: str
+    description: Optional[str]
+    scene: str
+    is_default: bool
+    parameters: Dict[str, Any]
+    is_active: bool
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: Optional[datetime]
     
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True
 
 
 class ParameterTemplateListResponse(BaseModel):
-    """参数模板列表响应模型"""
-    templates: List[ParameterTemplateResponse]
+    """参数模板列表响应"""
+    items: List[ParameterTemplateResponse]
     total: int
+    page: int
+    size: int
+    pages: int
 
 
-class MergedParametersResponse(BaseModel):
-    """合并参数响应模型"""
+class ParameterTemplateVersionBase(BaseModel):
+    """参数模板版本基础模式"""
+    parameters: Dict[str, Any] = Field(..., description="参数配置")
+
+
+class ParameterTemplateVersionCreate(ParameterTemplateVersionBase):
+    """创建参数模板版本请求"""
+    changelog: Optional[str] = Field(None, description="版本变更说明")
+
+
+class ParameterTemplateVersionResponse(BaseModel):
+    """参数模板版本响应"""
+    id: int
     template_id: int
-    level: str
-    merged_parameters: List[Dict[str, Any]]
-    inheritance_path: List[int]  # 继承路径，从最顶层到当前模板
+    version: int
+    parameters: Dict[str, Any]
+    changelog: Optional[str]
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
 
 
-class ParameterTemplateLinkRequest(BaseModel):
-    """关联参数模板请求模型"""
-    template_id: int
-
-
-class ParameterTemplateLinkResponse(BaseModel):
-    """关联参数模板响应模型"""
-    success: bool
-    message: str
-    model_id: Optional[int] = None
-    supplier_id: Optional[int] = None
-    template_id: Optional[int] = None
-
-
-class ParameterTemplateVersion(BaseModel):
-    """参数模板版本模型"""
-    version: str = Field(..., description="版本号")
-    parameters: Union[List[Dict[str, Any]], Dict[str, Any]] = Field(..., description="参数配置")
-    created_at: datetime = Field(..., description="创建时间")
-    updated_at: Optional[datetime] = Field(None, description="更新时间")
+class ParameterTemplateVersionListResponse(BaseModel):
+    """参数模板版本列表响应"""
+    items: List[ParameterTemplateVersionResponse]
+    total: int
+    page: int
+    size: int
+    pages: int
