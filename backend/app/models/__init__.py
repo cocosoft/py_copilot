@@ -12,6 +12,7 @@ from app.models.search_settings import SearchSetting
 from app.models.supplier_db import SupplierDB, ModelDB
 from app.models.default_model import DefaultModel
 from app.models.parameter_template import ParameterTemplate, ParameterTemplateVersion
+from app.models.skill import Skill, SkillSession, SkillModelBinding, SkillExecutionLog, SkillRepository, RemoteSkill
 
 __all__ = [
     "User",
@@ -32,5 +33,11 @@ __all__ = [
     "SupplierDB",
     "DefaultModel",
     "ParameterTemplate",
-    "ParameterTemplateVersion"
+    "ParameterTemplateVersion",
+    "Skill",
+    "SkillSession",
+    "SkillModelBinding",
+    "SkillExecutionLog",
+    "SkillRepository",
+    "RemoteSkill"
 ]

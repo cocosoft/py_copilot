@@ -624,3 +624,6 @@ docker-compose.yml
 nginx-frontend.conf
 nginx.conf
 backend/API_DOCUMENTATION.md
+docs/windows-desktop-assistant-optimization.md
+docs/SKILLS_INTEGRATION.md
+null

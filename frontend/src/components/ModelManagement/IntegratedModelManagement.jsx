@@ -5,6 +5,7 @@ import ModelCategoryManagement from '../CapabilityManagement/ModelCategoryManage
 import CapabilityManagementTabs from '../CapabilityManagement/CapabilityManagementTabs';
 import ParameterManagementMain from './ParameterManagementMain';
 import DefaultModelManagement from './DefaultModelManagement';
+import { SkillList } from '../SkillManagement';
 import { useSupplier } from '../../contexts/SupplierContext';
 import api from '../../utils/api';
 import '../../styles/IntegratedModelManagement.css';
@@ -112,6 +113,10 @@ const IntegratedModelManagement = () => {
             <div className="tab-content">
               {activeTab === 'models' && (
                 <div className="management-layout">
+                  <div className="section-header">
+                    <h2>模型管理</h2>
+                    <p>管理和配置 AI 助手可用的模型</p>
+                  </div>
                   <div className="models-content">
                     {/* 供应商管理容器 */}
                     <div className="supplier-management-container">
@@ -141,29 +146,43 @@ const IntegratedModelManagement = () => {
               )}
               {activeTab === 'categories' && (
                 <div className="categories-content">
+                  <div className="section-header">
+                    <h2>模型分类</h2>
+                    <p>管理和配置 AI 助手可用的模型分类</p>
+                  </div>
                   <ModelCategoryManagement />
                 </div>
               )}
               {activeTab === 'capabilities' && (
                 <div className="capabilities-content">
+                  <div className="section-header">
+                    <h2>模型能力</h2>
+                    <p>管理和配置 AI 助手可用的模型能力</p>
+                  </div>
                   <CapabilityManagementTabs />
                 </div>
               )}
               {activeTab === 'parameters' && (
+                
                 <div className="parameters-content">
                   <ParameterManagementMain selectedSupplier={null} />
                 </div>
               )}
               {activeTab === 'skills' && (
-                <div className="skills-content">
-                  <div className="content-placeholder">
-                    <h3>Skills管理</h3>
-                    <p>功能开发中，敬请期待...</p>
+                <div className="skills-management">
+                  <div className="section-header">
+                    <h2>技能管理</h2>
+                    <p>管理和配置 AI 助手可用的技能</p>
                   </div>
+                  <SkillList />
                 </div>
               )}
               {activeTab === 'defaultModel' && (
                 <div className="default-model-content">
+                  <div className="section-header">
+                    <h2>默认模型</h2>
+                    <p>管理和配置 AI 助手的默认模型</p>
+                  </div>
                   <DefaultModelManagement />
                 </div>
               )}

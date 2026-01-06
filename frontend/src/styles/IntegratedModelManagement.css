@@ -127,3 +127,25 @@
     flex: 1;
   }
 }
+
+/* 技能管理样式 */
+.skills-management {
+  padding: 0;
+}
+
+.skills-management .section-header {
+  margin-bottom: 24px;
+}
+
+.skills-management .section-header h2 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.skills-management .section-header p {
+  margin: 0;
+  font-size: 14px;
+  color: #6b7280;
+}

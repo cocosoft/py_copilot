@@ -21,8 +21,9 @@ class Conversation(Base):
     
     # 关系定义
     user = relationship("User", back_populates="conversations")
-    agent = relationship("Agent", back_populates="conversations")  # 添加与Agent的关系
+    agent = relationship("Agent", back_populates="conversations")
     messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan")
+    skill_sessions = relationship("SkillSession", back_populates="conversation", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<Conversation(id={self.id}, title='{self.title}', user_id={self.user_id})>"
