@@ -627,3 +627,14 @@ backend/API_DOCUMENTATION.md
 docs/windows-desktop-assistant-optimization.md
 docs/SKILLS_INTEGRATION.md
 null
+backend/py_copilot_202601061404.zip
+模块关系描述文档.md
+check_memory_tables.py
+test_db_connection.py
+test_model_creation.py
+backend/test_memory_api.py
+backend/alembic/versions/7d9af1a61ae4_update_memory_model_fields.py
+backend/alembic/versions/7768d87238b5_merge_two_branches.py
+backend/alembic/versions/fix_memory_metadata_column.py
+技能管理系统优化建议.md
+全局记忆模块实现状态.md

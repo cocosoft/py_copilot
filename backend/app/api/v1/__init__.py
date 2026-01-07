@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from app.modules.auth.api.auth import router as auth_router
 from app.modules.conversation.api.conversations import router as conversation_router
 from app.modules.llm.api.llm import router as llm_router
+from app.modules.memory.api.memories import router as memory_router
 from app.modules.supplier_model_management.api.model_management import router as model_management_router
 from app.modules.supplier_model_management.api.supplier_model import router as supplier_model_router
 from app.api.v1.model_capabilities import router as model_capabilities_router
@@ -74,3 +75,4 @@ api_router.include_router(workflow_router, tags=["workflows"])
 api_router.include_router(search_management_router)
 api_router.include_router(skills_router, prefix="/skills", tags=["skills"])
 api_router.include_router(external_skills_router, prefix="/external-skills", tags=["external-skills"])
+api_router.include_router(memory_router, prefix="/memory", tags=["memory"])

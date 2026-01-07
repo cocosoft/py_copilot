@@ -2,6 +2,7 @@
 from typing import Generator, Optional
 from sqlalchemy.orm import Session
 import sqlalchemy
+from fastapi import Depends
 
 # 数据库配置
 import os
@@ -30,6 +31,31 @@ from app.api.deps import get_current_user as get_current_user_real
 
 # 为了向后兼容，保留这个名称，但使用实际的实现
 get_current_user = get_current_user_real
+
+# 导入服务类
+from app.services.skill_service import (
+    SkillService, 
+    SkillSessionService, 
+    SkillExecutionService, 
+    SkillRepositoryService
+)
+
+# 服务依赖
+def get_skill_service(db: Session = Depends(get_db)) -> SkillService:
+    """获取技能服务实例的依赖"""
+    return SkillService(db)
+
+def get_session_service(db: Session = Depends(get_db)) -> SkillSessionService:
+    """获取技能会话服务实例的依赖"""
+    return SkillSessionService(db)
+
+def get_execution_service(db: Session = Depends(get_db)) -> SkillExecutionService:
+    """获取技能执行服务实例的依赖"""
+    return SkillExecutionService(db)
+
+def get_repository_service(db: Session = Depends(get_db)) -> SkillRepositoryService:
+    """获取技能仓库服务实例的依赖"""
+    return SkillRepositoryService(db)
 
 # 保留原始的JWT验证相关代码注释
 # 注意：以下代码已被注释，如需使用请取消注释

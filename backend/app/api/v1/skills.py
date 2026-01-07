@@ -3,7 +3,16 @@ from typing import Any, List, Optional, Dict
 from datetime import datetime
 from fastapi import APIRouter, Body, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from app.core.dependencies import get_db
+from app.core.dependencies import (
+    get_db,
+    get_skill_service,
+    get_session_service,
+    get_execution_service,
+    get_repository_service
+)
+from app.api.deps import get_current_active_user, get_current_active_superuser
+from app.models.skill import Skill
+from app.models.user import User
 from app.services.skill_service import SkillService, SkillSessionService, SkillExecutionService, SkillRepositoryService
 from pydantic import BaseModel, Field, validator
 
@@ -144,20 +153,67 @@ class RepositoryResponse(BaseModel):
             return None
 
 
+# 技能版本相关模型
+class SkillVersionCreate(BaseModel):
+    version: str = Field(..., max_length=50)
+    content: Optional[str] = None
+    description: Optional[str] = None
+    parameters_schema: Optional[Dict[str, Any]] = None
+    requirements: Optional[List[str]] = None
+    tags: Optional[List[str]] = None
+    change_log: Optional[str] = None
+
+
+class SkillVersionResponse(BaseModel):
+    id: int
+    skill_id: int
+    version: str
+    description: Optional[str]
+    tags: List[str]
+    is_current: bool
+    change_log: Optional[str]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+    @validator('created_at', pre=True, always=True)
+    def validate_datetime(cls, v):
+        if v is None:
+            return None
+        if isinstance(v, datetime):
+            return v
+        try:
+            return datetime.fromisoformat(str(v))
+        except (ValueError, AttributeError):
+            return None
+
+
+class SkillVersionCompareRequest(BaseModel):
+    version_id_1: int
+    version_id_2: int
+
+
+class SkillVersionCompareResponse(BaseModel):
+    version1: str
+    version2: str
+    diffs: Dict[str, Any]
+
+
 router = APIRouter()
 
 
-@router.get("/", response_model=SkillListResponse)
+@router.get("", response_model=SkillListResponse)
 def list_skills(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=200),
     status: Optional[str] = None,
     tags: Optional[str] = None,
     search: Optional[str] = None,
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    skill_service: SkillService = Depends(get_skill_service)
 ):
     """获取技能列表"""
-    skill_service = SkillService(db)
     tags_list = tags.split(',') if tags else None
     skills, total = skill_service.get_skills(skip=skip, limit=limit, status=status, tags=tags_list, search=search)
     return {
@@ -169,19 +225,17 @@ def list_skills(
 
 
 @router.get("/{skill_id}", response_model=SkillResponse)
-def get_skill(skill_id: int, db: Session = Depends(get_db)):
+def get_skill(skill_id: int, current_user: User = Depends(get_current_active_user), skill_service: SkillService = Depends(get_skill_service)):
     """获取单个技能详情"""
-    skill_service = SkillService(db)
     skill = skill_service.get_skill(skill_id)
     if not skill:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="技能不存在")
     return skill
 
 
-@router.post("/", response_model=SkillResponse, status_code=status.HTTP_201_CREATED)
-def create_skill(skill_data: SkillCreate, db: Session = Depends(get_db)):
+@router.post("", response_model=SkillResponse, status_code=status.HTTP_201_CREATED)
+def create_skill(skill_data: SkillCreate, current_user: User = Depends(get_current_active_superuser), skill_service: SkillService = Depends(get_skill_service)):
     """创建新技能"""
-    skill_service = SkillService(db)
     existing = skill_service.get_skill_by_name(skill_data.name)
     if existing:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="技能名称已存在")
@@ -190,9 +244,8 @@ def create_skill(skill_data: SkillCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{skill_id}", response_model=SkillResponse)
-def update_skill(skill_id: int, skill_data: SkillUpdate, db: Session = Depends(get_db)):
+def update_skill(skill_id: int, skill_data: SkillUpdate, current_user: User = Depends(get_current_active_superuser), skill_service: SkillService = Depends(get_skill_service)):
     """更新技能"""
-    skill_service = SkillService(db)
     skill = skill_service.update_skill(skill_id, skill_data.model_dump(exclude_unset=True))
     if not skill:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="技能不存在")
@@ -200,18 +253,16 @@ def update_skill(skill_id: int, skill_data: SkillUpdate, db: Session = Depends(g
 
 
 @router.delete("/{skill_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_skill(skill_id: int, db: Session = Depends(get_db)):
+def delete_skill(skill_id: int, current_user: User = Depends(get_current_active_superuser), skill_service: SkillService = Depends(get_skill_service)):
     """删除技能"""
-    skill_service = SkillService(db)
     if not skill_service.delete_skill(skill_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="技能不存在")
     return None
 
 
 @router.post("/{skill_id}/enable", response_model=SkillResponse)
-def enable_skill(skill_id: int, db: Session = Depends(get_db)):
+def enable_skill(skill_id: int, current_user: User = Depends(get_current_active_superuser), skill_service: SkillService = Depends(get_skill_service)):
     """启用技能"""
-    skill_service = SkillService(db)
     skill = skill_service.enable_skill(skill_id)
     if not skill:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="技能不存在")
@@ -219,9 +270,8 @@ def enable_skill(skill_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{skill_id}/disable", response_model=SkillResponse)
-def disable_skill(skill_id: int, db: Session = Depends(get_db)):
+def disable_skill(skill_id: int, current_user: User = Depends(get_current_active_superuser), skill_service: SkillService = Depends(get_skill_service)):
     """禁用技能"""
-    skill_service = SkillService(db)
     skill = skill_service.disable_skill(skill_id)
     if not skill:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="技能不存在")
@@ -229,9 +279,8 @@ def disable_skill(skill_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/match", response_model=SkillMatchResponse)
-def match_skills(request: SkillMatchRequest, db: Session = Depends(get_db)):
+def match_skills(request: SkillMatchRequest, current_user: User = Depends(get_current_active_user), skill_service: SkillService = Depends(get_skill_service)):
     """根据任务描述匹配技能"""
-    skill_service = SkillService(db)
     matched_skills = skill_service.match_skills(request.task_description, limit=request.limit)
     return {
         "matched_skills": matched_skills,
@@ -240,15 +289,13 @@ def match_skills(request: SkillMatchRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/activate", response_model=List[SkillResponse])
-def activate_skills(request: SkillActivateRequest, db: Session = Depends(get_db)):
+def activate_skills(request: SkillActivateRequest, current_user: User = Depends(get_current_active_user), session_service: SkillSessionService = Depends(get_session_service), skill_service: SkillService = Depends(get_skill_service)):
     """在会话中激活技能"""
-    session_service = SkillSessionService(db)
     sessions = session_service.activate_skills(
         conversation_id=request.conversation_id,
         skill_ids=request.skill_ids,
         context=request.context
     )
-    skill_service = SkillService(db)
     skills = [session_service.db.query(Skill).filter(Skill.id == session.skill_id).first() for session in sessions]
     return [s for s in skills if s is not None]
 
@@ -257,20 +304,18 @@ def activate_skills(request: SkillActivateRequest, db: Session = Depends(get_db)
 def deactivate_skills(
     conversation_id: int,
     skill_ids: Optional[List[int]] = None,
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    session_service: SkillSessionService = Depends(get_session_service)
 ):
     """在会话中停用技能"""
-    session_service = SkillSessionService(db)
     count = session_service.deactivate_skills(conversation_id, skill_ids)
     return {"deactivated_count": count}
 
 
 @router.get("/context/{conversation_id}")
-def get_active_skills(conversation_id: int, db: Session = Depends(get_db)):
+def get_active_skills(conversation_id: int, current_user: User = Depends(get_current_active_user), session_service: SkillSessionService = Depends(get_session_service), skill_service: SkillService = Depends(get_skill_service)):
     """获取会话中激活的技能"""
-    session_service = SkillSessionService(db)
     sessions = session_service.get_active_skills(conversation_id)
-    skill_service = SkillService(db)
     skills = []
     for session in sessions:
         skill = skill_service.get_skill(session.skill_id)
@@ -289,10 +334,10 @@ def execute_skill(
     request: SkillExecuteRequest,
     session_id: Optional[int] = None,
     conversation_id: Optional[int] = None,
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    execution_service: SkillExecutionService = Depends(get_execution_service)
 ):
     """执行技能"""
-    execution_service = SkillExecutionService(db)
     result = execution_service.execute_skill(
         skill_id=skill_id,
         task=request.task,
@@ -304,9 +349,8 @@ def execute_skill(
 
 
 @router.post("/load-from-file")
-def load_skill_from_file(file_path: str, db: Session = Depends(get_db)):
+def load_skill_from_file(file_path: str, current_user: User = Depends(get_current_active_superuser), skill_service: SkillService = Depends(get_skill_service)):
     """从文件加载技能"""
-    skill_service = SkillService(db)
     skill = skill_service.load_skill_from_file(file_path)
     if not skill:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="无法加载技能文件")
@@ -314,9 +358,8 @@ def load_skill_from_file(file_path: str, db: Session = Depends(get_db)):
 
 
 @router.post("/load-from-directory")
-def load_skills_from_directory(directory: str, db: Session = Depends(get_db)):
+def load_skills_from_directory(directory: str, current_user: User = Depends(get_current_active_superuser), skill_service: SkillService = Depends(get_skill_service)):
     """从目录加载所有技能"""
-    skill_service = SkillService(db)
     skills = skill_service.load_skills_from_directory(directory)
     return {
         "loaded_count": len(skills),
@@ -326,22 +369,88 @@ def load_skills_from_directory(directory: str, db: Session = Depends(get_db)):
 
 
 @router.get("/repositories/", response_model=List[RepositoryResponse])
-def list_repositories(db: Session = Depends(get_db)):
+def list_repositories(current_user: User = Depends(get_current_active_superuser), repo_service: SkillRepositoryService = Depends(get_repository_service)):
     """获取技能仓库列表"""
-    repo_service = SkillRepositoryService(db)
     return repo_service.get_repositories()
 
 
 @router.post("/repositories/", response_model=RepositoryResponse, status_code=status.HTTP_201_CREATED)
-def create_repository(repo_data: RepositoryCreate, db: Session = Depends(get_db)):
+def create_repository(repo_data: RepositoryCreate, current_user: User = Depends(get_current_active_superuser), repo_service: SkillRepositoryService = Depends(get_repository_service)):
     """创建技能仓库"""
-    repo_service = SkillRepositoryService(db)
     return repo_service.create_repository(repo_data.model_dump())
 
 
 @router.post("/repositories/{repository_id}/sync")
-def sync_repository(repository_id: int, db: Session = Depends(get_db)):
+def sync_repository(repository_id: int, current_user: User = Depends(get_current_active_superuser), repo_service: SkillRepositoryService = Depends(get_repository_service)):
     """同步技能仓库"""
-    repo_service = SkillRepositoryService(db)
     result = repo_service.sync_repository(repository_id)
     return result
+
+
+# 技能版本管理相关API
+@router.get("/{skill_id}/versions", response_model=List[SkillVersionResponse])
+def get_skill_versions(
+    skill_id: int,
+    current_user: User = Depends(get_current_active_user),
+    skill_service: SkillService = Depends(get_skill_service)
+):
+    """获取技能版本列表"""
+    versions = skill_service.get_skill_versions(skill_id)
+    return versions
+
+
+@router.get("/versions/{version_id}", response_model=SkillVersionResponse)
+def get_version(
+    version_id: int,
+    current_user: User = Depends(get_current_active_user),
+    skill_service: SkillService = Depends(get_skill_service)
+):
+    """获取单个版本详情"""
+    version = skill_service.get_skill_version(version_id)
+    if not version:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="版本不存在")
+    return version
+
+
+@router.post("/{skill_id}/versions", response_model=SkillVersionResponse, status_code=status.HTTP_201_CREATED)
+def create_version(
+    skill_id: int,
+    version_data: SkillVersionCreate,
+    current_user: User = Depends(get_current_active_superuser),
+    skill_service: SkillService = Depends(get_skill_service)
+):
+    """创建新的技能版本"""
+    version = skill_service.create_skill_version(
+        skill_id=skill_id,
+        version_data={**version_data.model_dump(), "author_id": current_user.id}
+    )
+    if not version:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="技能不存在")
+    return version
+
+
+@router.post("/{skill_id}/versions/{version_id}/rollback", response_model=SkillResponse)
+def rollback_version(
+    skill_id: int,
+    version_id: int,
+    current_user: User = Depends(get_current_active_superuser),
+    skill_service: SkillService = Depends(get_skill_service)
+):
+    """回滚到指定版本"""
+    skill = skill_service.rollback_skill_version(skill_id, version_id)
+    if not skill:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="技能或版本不存在")
+    return skill
+
+
+@router.post("/versions/compare", response_model=SkillVersionCompareResponse)
+def compare_versions(
+    compare_request: SkillVersionCompareRequest,
+    current_user: User = Depends(get_current_active_user),
+    skill_service: SkillService = Depends(get_skill_service)
+):
+    """比较两个版本的差异"""
+    diffs = skill_service.compare_skill_versions(compare_request.version_id_1, compare_request.version_id_2)
+    if not diffs:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="版本不存在")
+    return diffs

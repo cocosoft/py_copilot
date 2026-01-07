@@ -13,6 +13,7 @@ from app.models.supplier_db import SupplierDB, ModelDB
 from app.models.default_model import DefaultModel
 from app.models.parameter_template import ParameterTemplate, ParameterTemplateVersion
 from app.models.skill import Skill, SkillSession, SkillModelBinding, SkillExecutionLog, SkillRepository, RemoteSkill
+from app.models.memory import GlobalMemory, ConversationMemoryMapping, KnowledgeMemoryMapping, MemoryAssociation, MemoryAccessLog, UserMemoryConfig
 
 __all__ = [
     "User",
@@ -39,5 +40,11 @@ __all__ = [
     "SkillModelBinding",
     "SkillExecutionLog",
     "SkillRepository",
-    "RemoteSkill"
+    "RemoteSkill",
+    "GlobalMemory",
+    "ConversationMemoryMapping",
+    "KnowledgeMemoryMapping",
+    "MemoryAssociation",
+    "MemoryAccessLog",
+    "UserMemoryConfig"
 ]

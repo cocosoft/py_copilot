@@ -6,12 +6,12 @@ from datetime import datetime
 
 class SkillBase(BaseModel):
     """技能基础模型"""
-    name: str = Field(..., max_length=100, description="技能名称")
-    display_name: Optional[str] = Field(None, max_length=200, description="技能显示名称")
-    description: Optional[str] = Field(None, description="技能描述")
-    version: str = Field("1.0.0", max_length=50, description="版本号")
+    name: str = Field(..., min_length=1, max_length=100, description="技能名称")
+    display_name: Optional[str] = Field(None, min_length=1, max_length=200, description="技能显示名称")
+    description: str = Field(..., min_length=10, description="技能描述")
+    version: str = Field("1.0.0", min_length=1, max_length=50, pattern=r"^\d+\.\d+\.\d+$", description="版本号")
     license: Optional[str] = Field(None, max_length=100, description="许可证")
-    tags: List[str] = Field(default_factory=list, description="标签列表")
+    tags: List[str] = Field(default_factory=list, max_items=10, description="标签列表")
     source: str = Field("local", max_length=50, description="来源")
     source_url: Optional[str] = Field(None, max_length=500, description="来源URL")
     remote_id: Optional[str] = Field(None, max_length=100, description="远程ID")
@@ -33,11 +33,11 @@ class SkillCreate(SkillBase):
 
 class SkillUpdate(BaseModel):
     """更新技能模型"""
-    display_name: Optional[str] = Field(None, max_length=200)
-    description: Optional[str] = None
-    version: Optional[str] = Field(None, max_length=50)
+    display_name: Optional[str] = Field(None, min_length=1, max_length=200)
+    description: Optional[str] = Field(None, min_length=10)
+    version: Optional[str] = Field(None, min_length=1, max_length=50, pattern=r"^\d+\.\d+\.\d+$")
     license: Optional[str] = Field(None, max_length=100)
-    tags: Optional[List[str]] = None
+    tags: Optional[List[str]] = Field(None, max_items=10)
     content: Optional[str] = None
     parameters_schema: Optional[Dict[str, Any]] = None
     status: Optional[str] = Field(None, max_length=20)

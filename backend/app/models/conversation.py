@@ -24,6 +24,7 @@ class Conversation(Base):
     agent = relationship("Agent", back_populates="conversations")
     messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan")
     skill_sessions = relationship("SkillSession", back_populates="conversation", cascade="all, delete-orphan")
+    memory_mappings = relationship("ConversationMemoryMapping", back_populates="conversation", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<Conversation(id={self.id}, title='{self.title}', user_id={self.user_id})>"
