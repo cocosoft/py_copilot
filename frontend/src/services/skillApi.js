@@ -25,12 +25,13 @@ export const skillApi = {
     if (params.search) query.set('search', params.search);
     if (params.page) query.set('page', params.page.toString());
     if (params.pageSize) query.set('page_size', params.pageSize.toString());
-    return fetchApi(`/?${query.toString()}`);
+    const queryString = query.toString();
+    return fetchApi(queryString ? `?${queryString}` : '');
   },
 
   get: (skillId) => fetchApi(`/${skillId}`),
 
-  create: (skillData) => fetchApi('/', {
+  create: (skillData) => fetchApi('', {
     method: 'POST',
     body: JSON.stringify(skillData),
   }),
@@ -52,9 +53,9 @@ export const skillApi = {
     method: 'POST',
   }),
 
-  execute: (skillId, task) => fetchApi(`/${skillId}/execute`, {
+  execute: (skillId, task, params) => fetchApi(`/${skillId}/execute`, {
     method: 'POST',
-    body: JSON.stringify({ task }),
+    body: JSON.stringify({ task, params }),
   }),
 
   match: (taskDescription) => fetchApi('/match', {
@@ -75,6 +76,25 @@ export const skillApi = {
   getContext: (conversationId) => fetchApi(`/context/${conversationId}`),
 
   getContextForPrompt: (conversationId) => fetchApi(`/context/${conversationId}/prompt`),
+
+  // 版本管理相关API
+  getVersions: (skillId) => fetchApi(`/${skillId}/versions`),
+
+  getVersion: (versionId) => fetchApi(`/versions/${versionId}`),
+
+  createVersion: (skillId, versionData) => fetchApi(`/${skillId}/versions`, {
+    method: 'POST',
+    body: JSON.stringify(versionData),
+  }),
+
+  rollbackVersion: (skillId, versionId) => fetchApi(`/${skillId}/versions/${versionId}/rollback`, {
+    method: 'POST',
+  }),
+
+  compareVersions: (versionId1, versionId2) => fetchApi('/versions/compare', {
+    method: 'POST',
+    body: JSON.stringify({ version_id_1: versionId1, version_id_2: versionId2 }),
+  }),
 };
 
 export default skillApi;

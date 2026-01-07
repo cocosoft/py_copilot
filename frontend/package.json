@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.16",
+    "@tanstack/react-virtual": "^3.13.17",
     "axios": "^1.13.2",
     "d3": "^7.9.0",
     "immer": "^11.1.3",
