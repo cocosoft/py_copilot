@@ -39,6 +39,7 @@ from app.services.skill_service import (
     SkillExecutionService, 
     SkillRepositoryService
 )
+from app.services.skill_execution_engine import SkillExecutionEngine
 
 # 服务依赖
 def get_skill_service(db: Session = Depends(get_db)) -> SkillService:
@@ -56,6 +57,10 @@ def get_execution_service(db: Session = Depends(get_db)) -> SkillExecutionServic
 def get_repository_service(db: Session = Depends(get_db)) -> SkillRepositoryService:
     """获取技能仓库服务实例的依赖"""
     return SkillRepositoryService(db)
+
+def get_skill_execution_engine(db: Session = Depends(get_db)) -> SkillExecutionEngine:
+    """获取技能执行引擎实例的依赖"""
+    return SkillExecutionEngine(db)
 
 # 保留原始的JWT验证相关代码注释
 # 注意：以下代码已被注释，如需使用请取消注释

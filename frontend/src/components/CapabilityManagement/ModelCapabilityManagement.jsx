@@ -40,20 +40,6 @@ const ModelCapabilityManagement = () => {
       let capabilitiesData = [];
       let totalCount = 0;
       
-      // 调试：输出API响应格式
-      console.log('🔍 API响应:', JSON.stringify(response, null, 2));
-      
-      if (response?.capabilities && Array.isArray(response.capabilities)) {
-        capabilitiesData = response.capabilities;
-        totalCount = response.total || capabilitiesData.length;
-        console.log('🔍 解析结果 - capabilities长度:', capabilitiesData.length, 'totalCount:', totalCount);
-      } else if (Array.isArray(response)) {
-        // 现在获取的是所有数据，使用数组长度作为总数
-        capabilitiesData = response;
-        totalCount = response.length;
-        console.log('🔍 完整数据模式 - capabilities长度:', capabilitiesData.length, 'totalCount:', totalCount);
-      }
-      
       // 标准化能力数据，确保每个能力都有必要的属性
       const normalizedCapabilities = capabilitiesData
         .map(capability => ({
@@ -93,14 +79,12 @@ const ModelCapabilityManagement = () => {
       filtered = capabilities.filter(cap => cap.capability_type === activeTab);
     }
     
-    console.log('🔍 筛选结果 - 原始数据:', capabilities.length, '筛选后:', filtered.length);
     return filtered;
   };
 
   // 获取筛选后的总数
   const getFilteredTotal = () => {
     const filtered = filterCapabilities();
-    console.log('🔍 getFilteredTotal调用，返回:', filtered.length);
     return filtered.length;
   };
   
@@ -182,7 +166,6 @@ const ModelCapabilityManagement = () => {
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = startIndex + pageSize;
     const pagedData = filtered.slice(startIndex, endIndex);
-    console.log('🔍 分页结果 - 当前页:', currentPage, '每页大小:', pageSize, '分页数据长度:', pagedData.length);
     return pagedData;
   };
   

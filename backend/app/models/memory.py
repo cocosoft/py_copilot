@@ -3,6 +3,9 @@ from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
+# 导入KnowledgeBase模型
+from app.modules.knowledge.models.knowledge_document import KnowledgeBase, KnowledgeDocument
+
 
 class GlobalMemory(Base):
     """全局记忆主表"""

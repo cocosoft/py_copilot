@@ -21,6 +21,9 @@ class Skill(Base):
     remote_id = Column(String(100), nullable=True)
     content = Column(Text)
     parameters_schema = Column(JSON, nullable=True)
+    parameters_ui = Column(JSON, nullable=True)  # 新增：定义参数的UI展示方式
+    artifact_types = Column(JSON, default=list)  # 新增：支持的输出artifact类型
+    execution_flow = Column(JSON, default=list)  # 新增：技能执行流程定义
     status = Column(String(20), default="disabled", index=True)
     is_system = Column(Boolean, default=False)
     icon = Column(String(255), nullable=True)
@@ -37,6 +40,7 @@ class Skill(Base):
     skill_sessions = relationship("SkillSession", back_populates="skill", cascade="all, delete-orphan")
     skill_model_bindings = relationship("SkillModelBinding", back_populates="skill", cascade="all, delete-orphan")
     versions = relationship("SkillVersion", back_populates="skill", cascade="all, delete-orphan")
+    dependencies = relationship("SkillDependency", back_populates="skill", cascade="all, delete-orphan", foreign_keys="[SkillDependency.skill_id]")
 
 
 class SkillSession(Base):
@@ -96,12 +100,45 @@ class SkillExecutionLog(Base):
     error_message = Column(Text, nullable=True)
     execution_time_ms = Column(Integer, nullable=True, index=True)
     token_usage = Column(JSON, nullable=True)
+    execution_steps = Column(JSON, default=list)  # 新增：记录执行步骤详情
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
     skill = relationship("Skill")
     session = relationship("SkillSession")
     conversation = relationship("app.models.conversation.Conversation")
     user = relationship("app.models.user.User")
+    artifacts = relationship("SkillArtifact", back_populates="execution", cascade="all, delete-orphan")
+
+
+class SkillArtifact(Base):
+    """技能执行生成的Artifact模型"""
+    __tablename__ = "skill_artifacts"
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(Integer, primary_key=True, index=True)
+    skill_execution_id = Column(Integer, ForeignKey("skill_execution_logs.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(200), nullable=False)
+    type = Column(String(50), nullable=False)  # html, js, md, etc.
+    content = Column(Text)
+    file_path = Column(String(500), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    execution = relationship("SkillExecutionLog", back_populates="artifacts")
+
+
+class SkillDependency(Base):
+    """技能依赖关系模型"""
+    __tablename__ = "skill_dependencies"
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(Integer, primary_key=True, index=True)
+    skill_id = Column(Integer, ForeignKey("skills.id", ondelete="CASCADE"), nullable=False, index=True)
+    dependency_skill_id = Column(Integer, ForeignKey("skills.id", ondelete="CASCADE"), nullable=False)
+    version_requirement = Column(String(50), nullable=True)  # e.g., ">=1.0.0"
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    skill = relationship("Skill", foreign_keys=[skill_id], back_populates="dependencies")
+    dependency_skill = relationship("Skill", foreign_keys=[dependency_skill_id])
 
 
 class SkillRepository(Base):

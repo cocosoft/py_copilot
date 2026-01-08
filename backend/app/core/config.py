@@ -56,6 +56,9 @@ class Settings(BaseSettings):
     external_api_key: Optional[str] = Field(default="your-external-api-key-change-this-in-production", env="EXTERNAL_API_KEY")
     enable_external_api: bool = Field(default=True, env="ENABLE_EXTERNAL_API")
     
+    # 文件上传配置
+    upload_folder: str = Field(default=os.path.join(BASE_DIR, "uploads"), env="UPLOAD_FOLDER")
+    
     class Config:
         env_file = ".env"
         case_sensitive = False

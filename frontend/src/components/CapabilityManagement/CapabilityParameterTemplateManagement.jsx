@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { capabilityApi } from '../../utils/api/capabilityApi';
+import modelApi from '../../utils/api/modelApi';
 
 const CapabilityParameterTemplateManagement = () => {
   const [templates, setTemplates] = useState([]);
@@ -64,7 +65,7 @@ const CapabilityParameterTemplateManagement = () => {
       
       // 加载所有参数模板
       try {
-        const templatesResponse = await capabilityApi.getParameterTemplates();
+        const templatesResponse = await modelApi.getParameterTemplates();
         const processedTemplates = Array.isArray(templatesResponse?.templates)
           ? templatesResponse.templates
           : Array.isArray(templatesResponse) ? templatesResponse : [];

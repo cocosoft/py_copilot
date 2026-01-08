@@ -49,6 +49,202 @@
   min-width: 150px;
 }
 
+/* 图表渲染器样式 */
+.chart-renderer {
+  padding: 16px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e1e5e9;
+  margin-bottom: 16px;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.chart-type {
+  font-size: 12px;
+  color: #6b7280;
+  padding: 4px 8px;
+  background: #f3f4f6;
+  border-radius: 4px;
+}
+
+.d3-chart {
+  width: 100%;
+  height: 250px;
+  background: #f8fafc;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+.chart-controls {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.chart-controls button {
+  padding: 6px 12px;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #374151;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.chart-controls button:hover {
+  background: #f3f4f6;
+}
+
+.chart-controls button.active {
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+/* 图表加载动画 */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.chart-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 300px;
+  flex-direction: column;
+}
+
+.chart-loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f4f6;
+  border-top: 4px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+.chart-error {
+  padding: 16px;
+  background: #fef2f2;
+  border-radius: 8px;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+}
+
+.chart-error pre {
+  background: #f8fafc;
+  padding: 8px;
+  border-radius: 4px;
+  overflow: auto;
+  font-size: 10px;
+  max-height: 200px;
+  margin-top: 8px;
+}
+
+/* 图表类型特定样式 */
+.bar-chart .bar {
+  fill: #3b82f6;
+  transition: fill 0.2s;
+}
+
+.bar-chart .bar:hover {
+  fill: #2563eb;
+}
+
+.line-chart .line {
+  fill: none;
+  stroke: #3b82f6;
+  stroke-width: 2px;
+}
+
+.pie-chart .slice {
+  stroke: white;
+  stroke-width: 1px;
+  transition: transform 0.2s;
+}
+
+.pie-chart .slice:hover {
+  transform: scale(1.05);
+}
+
+/* 图表轴样式 */
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #cbd5e1;
+  shape-rendering: crispEdges;
+}
+
+.axis text {
+  font-size: 10px;
+  fill: #64748b;
+}
+
+.grid line {
+  stroke: #e2e8f0;
+  stroke-width: 1px;
+  shape-rendering: crispEdges;
+}
+
+.grid path {
+  stroke-width: 0;
+}
+
+.trend-line {
+  stroke: #ef4444;
+  stroke-width: 1px;
+  stroke-dasharray: 5,5;
+}
+
+/* 图表工具提示 */
+.chart-tooltip {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+/* Artifacts 样式 */
+.artifact-chart {
+  padding: 16px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e1e5e9;
+}
+
+.chart-container {
+  width: 100%;
+  height: 300px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #f8fafc;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+.chart-container svg {
+  max-width: 100%;
+  max-height: 100%;
+}
+
 .skill-filter-select {
   width: 100%;
   padding: 10px 16px;
@@ -1196,6 +1392,491 @@
 
 .toggle-btn:hover {
   background: #2563eb;
+}
+
+/* 技能详情模态框标签页样式 */
+.skill-tabs {
+  display: flex;
+  border-bottom: 1px solid #e1e5e9;
+  margin-bottom: 20px;
+}
+
+.tab-button {
+  padding: 12px 20px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-button:hover {
+  color: #374151;
+  background-color: #f9fafb;
+}
+
+.tab-button.active {
+  color: #3b82f6;
+  border-bottom-color: #3b82f6;
+  background-color: #f0f9ff;
+}
+
+.tab-content {
+  min-height: 300px;
+}
+
+.skill-detail-content {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* 依赖管理组件样式 */
+.dependency-management {
+  padding: 20px 0;
+}
+
+.dependency-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.dependency-list {
+  margin-bottom: 20px;
+}
+
+.dependency-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #e1e5e9;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  background: white;
+}
+
+.dependency-info {
+  flex: 1;
+}
+
+.dependency-name {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.dependency-version {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.dependency-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.dependency-form {
+  background: #f9fafb;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.form-field {
+  flex: 1;
+}
+
+.form-field label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.form-field input,
+.form-field select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* 执行流程组件样式 */
+.execution-flow {
+  padding: 20px 0;
+}
+
+.flow-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.flow-steps {
+  margin-bottom: 20px;
+}
+
+.flow-step {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #e1e5e9;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  background: white;
+}
+
+.step-number {
+  width: 24px;
+  height: 24px;
+  background: #3b82f6;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  margin-right: 12px;
+}
+
+.step-info {
+  flex: 1;
+}
+
+.step-name {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.step-description {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.step-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.flow-editor {
+  background: #f9fafb;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+/* Artifacts查看器样式 */
+.artifacts-viewer {
+  padding: 20px 0;
+}
+
+.artifacts-header {
+  margin-bottom: 20px;
+}
+
+.artifacts-list {
+  margin-bottom: 20px;
+}
+
+.artifact-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #e1e5e9;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  background: white;
+}
+
+.artifact-info {
+  flex: 1;
+}
+
+.artifact-name {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.artifact-type {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.artifact-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.artifact-preview {
+  background: #f9fafb;
+  padding: 16px;
+  border-radius: 8px;
+  margin-top: 20px;
+}
+
+.preview-content {
+  max-height: 400px;
+  overflow-y: auto;
+  background: white;
+  padding: 16px;
+  border-radius: 4px;
+  border: 1px solid #e1e5e9;
+}
+
+/* 通用按钮样式 */
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background: #3b82f6;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #2563eb;
+}
+
+.btn-secondary {
+  background: #6b7280;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background: #4b5563;
+}
+
+.btn-danger {
+  background: #dc2626;
+  color: white;
+}
+
+.btn-danger:hover {
+  background: #b91c1c;
+}
+
+.btn-success {
+  background: #10b981;
+  color: white;
+}
+
+.btn-success:hover {
+  background: #059669;
+}
+
+.btn-outline {
+  background: white;
+  border: 1px solid #d1d5db;
+  color: #374151;
+}
+
+/* 图表渲染器样式 */
+.artifact-chart {
+  padding: 16px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e1e5e9;
+}
+
+.chart-container {
+  width: 100%;
+  height: 300px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #f8fafc;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+.chart-container svg {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.chart-tooltip {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 8px;
+  background: #f8fafc;
+  border-radius: 4px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+/* 图表类型特定样式 */
+.bar-chart .bar {
+  fill: #3b82f6;
+  transition: fill 0.2s;
+}
+
+.bar-chart .bar:hover {
+  fill: #2563eb;
+}
+
+.line-chart .line {
+  fill: none;
+  stroke: #3b82f6;
+  stroke-width: 2px;
+}
+
+.line-chart .point {
+  fill: #3b82f6;
+  stroke: white;
+  stroke-width: 1px;
+  transition: r 0.2s;
+}
+
+.line-chart .point:hover {
+  r: 6px;
+}
+
+.pie-chart .slice {
+  stroke: white;
+  stroke-width: 1px;
+  transition: transform 0.2s;
+}
+
+.pie-chart .slice:hover {
+  transform: scale(1.05);
+}
+
+.scatter-chart .point {
+  fill: #3b82f6;
+  stroke: white;
+  stroke-width: 1px;
+  transition: r 0.2s;
+}
+
+.scatter-chart .point:hover {
+  r: 6px;
+}
+
+/* 图表轴样式 */
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #cbd5e1;
+  shape-rendering: crispEdges;
+}
+
+.axis text {
+  font-size: 10px;
+  fill: #64748b;
+}
+
+.grid line {
+  stroke: #e2e8f0;
+  stroke-width: 1px;
+  shape-rendering: crispEdges;
+}
+
+.grid path {
+  stroke-width: 0;
+}
+
+/* 响应式图表 */
+@media (max-width: 768px) {
+  .chart-container {
+    height: 250px;
+  }
+  
+  .artifact-chart {
+    padding: 12px;
+  }
+}
+
+.btn-outline:hover {
+  background: #f9fafb;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.btn-xs {
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+/* 错误和加载状态 */
+.error-message {
+  padding: 12px;
+  background: #fee2e2;
+  color: #dc2626;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #f3f4f6;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #6b7280;
+}
+
+.empty-state p {
+  margin: 8px 0 0 0;
+  font-size: 14px;
 }
 
 .form-row {

@@ -7,7 +7,7 @@ import subprocess
 from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, and_, func
+from sqlalchemy import or_, and_, func, text
 
 from app.core.logging_config import logger
 from app.models.skill import Skill, SkillSession, SkillModelBinding, SkillExecutionLog, SkillRepository, RemoteSkill, SkillVersion
@@ -43,7 +43,17 @@ class SkillService:
         
         if tags:
             for tag in tags:
-                query = query.filter(Skill.tags.contains([tag]))
+                # 对于SQLite，使用字符串匹配方式检查JSON数组是否包含特定元素
+                # SQLite将JSON数组存储为字符串，例如 ["tag1", "tag2"]
+                # 我们需要精确匹配标签，考虑三种情况：开头、中间、结尾
+                query = query.filter(
+                    or_(
+                        Skill.tags.like(f"%[\"{tag}\"]%"),    # 匹配只有一个标签的情况
+                        Skill.tags.like(f"%[\"{tag}\",%"),   # 匹配开头的标签
+                        Skill.tags.like(f"%,\"{tag}\"]%"),   # 匹配结尾的标签
+                        Skill.tags.like(f"%,\"{tag}\",%")    # 匹配中间的标签
+                    )
+                )
         
         if search:
             search_term = f"%{search}%"
