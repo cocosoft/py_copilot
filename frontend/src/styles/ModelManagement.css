@@ -499,6 +499,340 @@
   background-image: linear-gradient(145deg, #ffffff, #f0f0f0);
 }
 
+/* 默认模型管理样式 */
+.default-model-management {
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.setting-card {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.setting-header {
+  margin-bottom: 20px;
+}
+
+.setting-header h4 {
+  margin: 0 0 8px 0;
+  color: #2c3e50;
+  font-size: 18px;
+}
+
+.setting-header p {
+  margin: 0;
+  color: #6c757d;
+  font-size: 14px;
+}
+
+.setting-item {
+  margin-bottom: 20px;
+}
+
+.setting-item label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.field-error {
+  color: #e74c3c;
+  font-size: 12px;
+  margin-top: 4px;
+  display: block;
+}
+
+.setting-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.save-btn {
+  background-color: #3498db;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.save-btn:disabled {
+  background-color: #bdc3c7;
+  cursor: not-allowed;
+}
+
+.unsaved-changes-indicator {
+  color: #e67e22;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* 场景标题样式 */
+.scene-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.scene-title label {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.recommend-btn {
+  background: linear-gradient(135deg, #f39c12, #e67e22);
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.recommend-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(243, 156, 18, 0.3);
+}
+
+.recommend-btn:disabled {
+  background: #bdc3c7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.scene-description {
+  color: #7f8c8d;
+  font-size: 13px;
+  font-style: italic;
+}
+
+/* 能力徽章样式 */
+.capability-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+.capability-badge.excellent {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.capability-badge.good {
+  background-color: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+}
+
+.capability-badge.fair {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.capability-badge.poor {
+  background-color: #e2e3e5;
+  color: #383d41;
+  border: 1px solid #d6d8db;
+}
+
+/* 能力信息样式 */
+.capability-info {
+  margin-top: 8px;
+}
+
+.info-text {
+  color: #6c757d;
+  font-size: 12px;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.recommendation-list {
+  margin-top: 6px;
+}
+
+.recommendation-title {
+  color: #495057;
+  font-size: 12px;
+  font-weight: 600;
+  margin-right: 8px;
+}
+
+.recommendation-item {
+  color: #6c757d;
+  font-size: 11px;
+  margin-right: 12px;
+  display: inline-block;
+}
+
+/* 模型选择下拉列表样式 */
+.custom-select-container {
+  position: relative;
+  width: 100%;
+}
+
+.custom-select {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 10px 12px;
+  cursor: pointer;
+  background-color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: border-color 0.3s ease;
+}
+
+.custom-select:hover {
+  border-color: #3498db;
+}
+
+.custom-select.open {
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+}
+
+.custom-select.disabled {
+  background-color: #f8f9fa;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.custom-select__selected {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.model-info {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 10px;
+}
+
+.model-logo {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.model-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.model-name {
+  font-weight: 500;
+  color: #2c3e50;
+  font-size: 14px;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.supplier-name {
+  color: #6c757d;
+  font-size: 12px;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.custom-select__arrow {
+  color: #6c757d;
+  transition: transform 0.3s ease;
+}
+
+.custom-select.open .custom-select__arrow {
+  transform: rotate(180deg);
+}
+
+.custom-select__dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.custom-select__option {
+  padding: 10px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background-color 0.2s ease;
+}
+
+.custom-select__option:hover {
+  background-color: #f8f9fa;
+}
+
+.custom-select__option.selected {
+  background-color: #e3f2fd;
+}
+
+.option-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.error-message {
+  background-color: #f8d7da;
+  color: #721c24;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  border: 1px solid #f5c6cb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.retry-btn {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.retry-btn:hover {
+  background-color: #c82333;
+}
+}
+
 /* 添加开关激活时的背景渐变效果 */
 input:checked + .toggle-slider {
   background: linear-gradient(135deg, #3498db, #2980b9);

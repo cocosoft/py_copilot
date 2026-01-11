@@ -40,6 +40,17 @@ const ModelCapabilityManagement = () => {
       let capabilitiesData = [];
       let totalCount = 0;
       
+      // 检查API响应格式
+      if (response && Array.isArray(response)) {
+        capabilitiesData = response;
+        totalCount = response.length;
+      } else if (response && response.data && Array.isArray(response.data)) {
+        capabilitiesData = response.data;
+        totalCount = response.data.length;
+      } else if (response && response.total !== undefined) {
+        totalCount = response.total;
+      }
+      
       // 标准化能力数据，确保每个能力都有必要的属性
       const normalizedCapabilities = capabilitiesData
         .map(capability => ({
@@ -52,6 +63,13 @@ const ModelCapabilityManagement = () => {
           is_system: capability.is_system ?? false,
           ...capability
         }));
+      
+      console.log('📊 能力数据处理完成', {
+        response, 
+        capabilitiesData: capabilitiesData.length, 
+        totalCount, 
+        normalizedCapabilities: normalizedCapabilities.length
+      });
        
       setCapabilities(normalizedCapabilities);
       setTotal(totalCount);

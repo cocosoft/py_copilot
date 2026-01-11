@@ -295,8 +295,12 @@ export const supplierApi = {
 
   // 从API获取模型列表
   fetchModelsFromApi: async (id, apiConfig) => {
-    // 确保ID是数字类型
-    const numericId = Number(id);
+    
+    // 确保id是数字
+    const numericId = parseInt(id, 10);
+    if (isNaN(numericId)) {
+      throw new Error('供应商ID必须是有效的数字');
+    }
     
     // 添加调试信息
     console.log('调用fetchModelsFromApi，传递的apiConfig:', JSON.stringify(apiConfig, null, 2));
@@ -325,6 +329,80 @@ export const supplierApi = {
     }
     
     return response;
+  },
+
+  // 获取所有模型
+  getModels: async () => {
+    try {
+      const response = await request('/v1/models', {
+        method: 'GET'
+      });
+      
+      // 处理后端返回格式
+      let modelsData = [];
+      
+      // 后端返回的是直接数组格式
+      if (Array.isArray(response)) {
+        modelsData = response;
+      }
+      // 如果是对象格式，检查是否有items属性
+      else if (typeof response === 'object' && response !== null && Array.isArray(response.items)) {
+        modelsData = response.items;
+      }
+      // 如果是对象格式且有models属性
+      else if (typeof response === 'object' && response !== null && Array.isArray(response.models)) {
+        modelsData = response.models;
+      }
+      
+      return modelsData;
+    } catch (error) {
+      console.error('获取模型列表失败:', error);
+      throw error;
+    }
+  },
+
+  // 根据场景获取模型
+  getModelsByScene: async (scene) => {
+    try {
+      const response = await request(`/v1/models/by-scene/${scene}`, {
+        method: 'GET'
+      });
+      
+      // 处理后端返回格式
+      let modelsData = [];
+      
+      // 后端返回的是直接数组格式
+      if (Array.isArray(response)) {
+        modelsData = response;
+      }
+      // 如果是对象格式，检查是否有items属性
+      else if (typeof response === 'object' && response !== null && Array.isArray(response.items)) {
+        modelsData = response.items;
+      }
+      // 如果是对象格式且有models属性
+      else if (typeof response === 'object' && response !== null && Array.isArray(response.models)) {
+        modelsData = response.models;
+      }
+      
+      return modelsData;
+    } catch (error) {
+      console.error(`获取场景 ${scene} 的模型列表失败:`, error);
+      throw error;
+    }
+  },
+
+  // 获取模型的能力分数
+  getModelCapabilityScores: async (modelId, scene) => {
+    try {
+      const response = await request(`/v1/models/${modelId}/capability-scores/${scene}`, {
+        method: 'GET'
+      });
+      
+      return response;
+    } catch (error) {
+      console.error(`获取模型 ${modelId} 在场景 ${scene} 的能力分数失败:`, error);
+      throw error;
+    }
   }
 };
 

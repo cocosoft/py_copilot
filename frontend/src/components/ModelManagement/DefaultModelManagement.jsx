@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { defaultModelApi } from '../../utils/api';
+import { defaultModelApi, supplierApi } from '../../utils/api';
 import ModelSelectDropdown from './ModelSelectDropdown';
 
 const DefaultModelManagement = () => {
@@ -24,6 +24,11 @@ const DefaultModelManagement = () => {
   const [sceneModelConfigs, setSceneModelConfigs] = useState({});
   const [validationErrors, setValidationErrors] = useState({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [sceneModels, setSceneModels] = useState({
+    chat: [],
+    translate: []
+  });
+  const [capabilityScores, setCapabilityScores] = useState({});
 
   // 加载模型数据和默认配置
   useEffect(() => {
@@ -94,6 +99,89 @@ const DefaultModelManagement = () => {
     return Object.keys(errors).length === 0;
   };
 
+  // 计算模型的能力匹配度
+  const calculateCapabilityScore = async (model, scene) => {
+    try {
+      // 尝试从后端获取真实的能力匹配度
+      const response = await supplierApi.getModelCapabilityScores(model.id, scene);
+      if (response?.data?.score) {
+        return Math.round(response.data.score * 100);
+      }
+    } catch (error) {
+      console.warn(`获取模型 ${model.id} 在场景 ${scene} 的能力分数失败:`, error);
+    }
+    
+    // 如果后端API不可用，使用基于模型参数的简单计算
+    const sceneCapabilities = {
+      chat: ['chat', 'multi_turn_conversation', 'context_management'],
+      translate: ['language_translation', 'multilingual_support', 'translation_quality']
+    };
+    
+    const requiredCapabilities = sceneCapabilities[scene] || [];
+    if (requiredCapabilities.length === 0) return 0;
+    
+    // 基于模型参数的简单匹配度计算
+    let baseScore = 0.7; // 基础分数
+    
+    // 根据模型参数规模调整分数
+    if (model.parameters) {
+      try {
+        const params = parseInt(model.parameters.replace(/[BM]/g, ''));
+        if (model.parameters.includes('B')) {
+          // 十亿级参数模型
+          baseScore += 0.2;
+        } else if (model.parameters.includes('M') && params > 100) {
+          // 大模型（超过1亿参数）
+          baseScore += 0.1;
+        }
+      } catch (e) {
+        // 参数解析失败，使用基础分数
+      }
+    }
+    
+    // 根据模型类型调整分数
+    if (model.type === scene) {
+      baseScore += 0.1;
+    }
+    
+    // 确保分数在合理范围内
+    baseScore = Math.min(Math.max(baseScore, 0.5), 0.95);
+    return Math.round(baseScore * 100);
+  };
+
+  // 获取场景的推荐模型
+  const getRecommendedModels = (scene) => {
+    const modelsForScene = sceneModels[scene] || [];
+    if (modelsForScene.length === 0) return [];
+    
+    // 根据能力匹配度排序，返回前3个推荐模型
+    return modelsForScene
+      .map(model => ({
+        ...model,
+        score: capabilityScores[`${scene}_${model.id}`] || 0
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3);
+  };
+
+  // 智能推荐模型
+  const recommendModelForScene = (scene) => {
+    const recommendedModels = getRecommendedModels(scene);
+    if (recommendedModels.length === 0) return null;
+    
+    // 返回匹配度最高的模型
+    return recommendedModels[0];
+  };
+
+  // 应用智能推荐
+  const applySmartRecommendation = (scene) => {
+    const recommendedModel = recommendModelForScene(scene);
+    if (recommendedModel && !sceneDefaultModels[scene]) {
+      // 如果没有设置默认模型，应用推荐
+      handleSceneModelSelect(scene)(recommendedModel);
+    }
+  };
+
   // 加载模型列表和默认配置
   const loadModelsAndConfigs = async () => {
     try {
@@ -124,29 +212,93 @@ const DefaultModelManagement = () => {
 
       // 设置场景默认模型ID
       const sceneDefaults = {};
-      Object.keys(sceneDefaultModels).forEach(scene => {
+      // 遍历所有可能的场景（与初始状态保持一致）
+      const allScenes = ['chat', 'image', 'video', 'voice', 'translate', 'knowledge', 'workflow', 'tool', 'search', 'mcp'];
+      allScenes.forEach(scene => {
         if (sceneConfigs[scene]?.model_id) {
           sceneDefaults[scene] = sceneConfigs[scene].model_id.toString();
+        } else {
+          sceneDefaults[scene] = ''; // 确保所有场景都有值
         }
       });
-      setSceneDefaultModels(prev => ({ ...prev, ...sceneDefaults }));
+      setSceneDefaultModels(sceneDefaults);
 
-      // 加载模型列表（这里需要根据实际的模型API进行调整）
-      // 目前使用模拟数据，后续需要集成真实的模型API
-      const mockModels = [
-        { id: 'model-123', name: '通用聊天模型', supplier: 'openai', type: 'chat' },
-        { id: 'model-456', name: '高级推理模型', supplier: 'anthropic', type: 'chat' },
-        { id: 'model-789', name: '图像生成模型', supplier: 'openai', type: 'image' },
-        { id: 'model-101', name: '视频分析模型', supplier: 'google', type: 'video' },
-        { id: 'model-102', name: '语音识别模型', supplier: 'baidu', type: 'voice' },
-        { id: 'model-103', name: '多语言翻译模型', supplier: 'microsoft', type: 'translate' },
-        { id: 'model-104', name: '知识库模型', supplier: 'openai', type: 'knowledge' },
-        { id: 'model-105', name: '工作流模型', supplier: 'anthropic', type: 'workflow' },
-        { id: 'model-106', name: '工具调用模型', supplier: 'openai', type: 'tool' },
-        { id: 'model-107', name: '搜索增强模型', supplier: 'google', type: 'search' },
-        { id: 'model-108', name: 'MCP上下文模型', supplier: 'openai', type: 'mcp' }
-      ];
-      setModels(mockModels);
+      // 加载所有模型列表
+      const allModelsResponse = await supplierApi.getModels().catch(() => []);
+      // 处理API返回格式：可能是直接数组或包含items属性的对象
+      const allModels = Array.isArray(allModelsResponse) ? allModelsResponse : (allModelsResponse?.items || []);
+      setModels(allModels);
+
+      // 为chat和translate场景加载特定模型
+      try {
+        const [chatModelsResponse, translateModelsResponse] = await Promise.all([
+          supplierApi.getModelsByScene('chat').catch((error) => {
+            console.error('获取chat场景模型失败:', error);
+            return { items: [] };
+          }),
+          supplierApi.getModelsByScene('translate').catch((error) => {
+            console.error('获取translate场景模型失败:', error);
+            return { items: [] };
+          })
+        ]);
+
+        // 调试信息：打印API响应
+        console.log('=== 调试信息：场景模型API响应 ===');
+        console.log('chat场景模型响应:', chatModelsResponse);
+        console.log('translate场景模型响应:', translateModelsResponse);
+        console.log('所有模型数量:', allModels.length);
+        console.log('所有模型列表:', allModels.map(m => ({ id: m.id, name: m.model_name, type: m.type })));
+
+        // 处理API返回格式：可能是直接数组或包含items属性的对象
+        const chatModels = Array.isArray(chatModelsResponse) ? chatModelsResponse : (chatModelsResponse?.items || []);
+        const translateModels = Array.isArray(translateModelsResponse) ? translateModelsResponse : (translateModelsResponse?.items || []);
+
+        // 调试信息：打印场景模型数据
+        console.log('chat场景模型数量:', chatModels.length);
+        console.log('chat场景模型列表:', chatModels.map(m => ({ id: m.id, name: m.model_name, type: m.type })));
+        console.log('translate场景模型数量:', translateModels.length);
+        console.log('translate场景模型列表:', translateModels.map(m => ({ id: m.id, name: m.model_name, type: m.type })));
+
+        setSceneModels({
+          chat: chatModels,
+          translate: translateModels
+        });
+
+        // 异步计算能力匹配度
+        const scores = {};
+        
+        // 并行计算所有模型的能力匹配度
+        const scorePromises = [];
+        
+        // 计算chat场景的匹配度
+        chatModels.forEach(model => {
+          scorePromises.push(
+            calculateCapabilityScore(model, 'chat').then(score => {
+              scores[`chat_${model.id}`] = score;
+            })
+          );
+        });
+        
+        // 计算translate场景的匹配度
+        translateModels.forEach(model => {
+          scorePromises.push(
+            calculateCapabilityScore(model, 'translate').then(score => {
+              scores[`translate_${model.id}`] = score;
+            })
+          );
+        });
+        
+        // 等待所有分数计算完成
+        await Promise.all(scorePromises);
+        setCapabilityScores(scores);
+      } catch (error) {
+        console.warn('获取场景特定模型失败，使用默认模型列表:', error);
+        // 如果API调用失败，使用默认模型列表
+        setSceneModels({
+          chat: allModels.filter(model => model.type === 'chat'),
+          translate: allModels.filter(model => model.type === 'translate')
+        });
+      }
 
     } catch (err) {
       console.error('加载默认模型配置失败:', err);
@@ -216,9 +368,44 @@ const DefaultModelManagement = () => {
 
   return (
     <div className="default-model-management">
-      <div className="content-header">
-        <h3>默认模型</h3>
-        <p>设置系统默认使用的AI模型</p>
+      
+      {/* 调试信息面板 */}
+      <div className="debug-panel" style={{ 
+        background: '#f5f5f5', 
+        border: '1px solid #ddd', 
+        padding: '10px', 
+        marginBottom: '20px',
+        borderRadius: '4px',
+        fontSize: '12px'
+      }}>
+        <h4 style={{ margin: '0 0 10px 0', color: '#666' }}>调试信息</h4>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+          <div>
+            <strong>数据状态:</strong>
+            <ul style={{ margin: '5px 0', paddingLeft: '15px' }}>
+              <li>所有模型数量: {models.length}</li>
+              <li>chat场景模型: {sceneModels.chat.length}</li>
+              <li>translate场景模型: {sceneModels.translate.length}</li>
+              <li>加载状态: {isLoadingModels ? '加载中...' : '完成'}</li>
+            </ul>
+          </div>
+          <div>
+            <strong>API端点:</strong>
+            <ul style={{ margin: '5px 0', paddingLeft: '15px' }}>
+              <li>/api/v1/models: {models.length > 0 ? '✅ 有数据' : '❌ 无数据'}</li>
+              <li>/api/v1/models/by-scene/chat: {sceneModels.chat.length > 0 ? '✅ 有数据' : '❌ 无数据'}</li>
+              <li>/api/v1/models/by-scene/translate: {sceneModels.translate.length > 0 ? '✅ 有数据' : '❌ 无数据'}</li>
+            </ul>
+          </div>
+        </div>
+        <div>
+          <strong>问题分析:</strong>
+          <p style={{ margin: '5px 0', fontSize: '11px', color: '#d63384' }}>
+            {sceneModels.chat.length === 0 && sceneModels.translate.length === 0 
+              ? '⚠️ 场景模型为空：可能原因 - 1. 数据库能力关联数据不足 2. 能力强度要求过高 3. API路径错误' 
+              : '✅ 数据正常'}
+          </p>
+        </div>
       </div>
       
       {/* 错误显示 */}
@@ -252,7 +439,10 @@ const DefaultModelManagement = () => {
             disabled={isLoadingModels}
             getModelLogoUrl={(model) => {
               // 根据供应商返回不同的LOGO URL
-              return `/logos/providers/${model.supplier || 'default'}.png`;
+              const supplier = model.supplier;
+              // 优先使用供应商LOGO文件名，如果没有则使用供应商名称
+              const logoFileName = supplier?.logo || supplier?.name || supplier?.display_name || supplier?.id || 'default';
+              return `/logos/providers/${logoFileName}`;
             }}
           />
           {validationErrors.global && (
@@ -270,18 +460,60 @@ const DefaultModelManagement = () => {
         
         {/* 聊天场景 */}
         <div className="setting-item">
-          <label htmlFor="chatModel">聊天场景</label>
+          <div className="scene-header">
+            <div className="scene-title">
+              <label htmlFor="chatModel">聊天场景</label>
+              <button 
+                className="recommend-btn"
+                onClick={() => applySmartRecommendation('chat')}
+                disabled={isLoadingModels || sceneModels.chat.length === 0}
+                title="应用智能推荐"
+              >
+                💡 智能推荐
+              </button>
+            </div>
+            <span className="scene-description">对话、多轮对话、上下文管理</span>
+          </div>
           <ModelSelectDropdown
-            models={getModelsByType('chat')}
-            selectedModel={getModelsByType('chat').find(model => model.id === sceneDefaultModels.chat) || null}
+            models={sceneModels.chat.length > 0 ? sceneModels.chat : getModelsByType('chat')}
+            selectedModel={(sceneModels.chat.length > 0 ? sceneModels.chat : getModelsByType('chat')).find(model => model.id === sceneDefaultModels.chat) || null}
             onModelSelect={handleSceneModelSelect('chat')}
             placeholder="请选择模型"
             disabled={isLoadingModels}
-            getModelLogoUrl={(model) => `/logos/providers/${model.supplier || 'default'}.png`}
+            getModelLogoUrl={(model) => {
+              const supplier = model.supplier;
+              // 优先使用供应商LOGO文件名，如果没有则使用供应商名称
+              const logoFileName = supplier?.logo || supplier?.name || supplier?.display_name || supplier?.id || 'default';
+              return `/logos/providers/${logoFileName}`;
+            }}
+            getModelBadge={(model) => {
+              const score = capabilityScores[`chat_${model.id}`];
+              if (score) {
+                return (
+                  <span className={`capability-badge ${score >= 90 ? 'excellent' : score >= 80 ? 'good' : score >= 70 ? 'fair' : 'poor'}`}>
+                    {score}% 匹配
+                  </span>
+                );
+              }
+              return null;
+            }}
           />
           {validationErrors.chat && (
             <span className="field-error">{validationErrors.chat}</span>
           )}
+          <div className="capability-info">
+            <span className="info-text">基于对话、多轮对话、上下文管理能力进行匹配</span>
+            {getRecommendedModels('chat').length > 0 && (
+              <div className="recommendation-list">
+                <span className="recommendation-title">推荐模型：</span>
+                {getRecommendedModels('chat').map((model, index) => (
+                  <span key={model.id} className="recommendation-item">
+                    {index + 1}. {model.model_name || model.name} ({model.score}%)
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         
         {/* 图像场景 */}
@@ -293,7 +525,12 @@ const DefaultModelManagement = () => {
             onModelSelect={handleSceneModelSelect('image')}
             placeholder="请选择模型"
             disabled={isLoadingModels}
-            getModelLogoUrl={(model) => `/logos/providers/${model.supplier || 'default'}.png`}
+            getModelLogoUrl={(model) => {
+              const supplier = model.supplier;
+              // 优先使用供应商LOGO文件名，如果没有则使用供应商名称
+              const logoFileName = supplier?.logo || supplier?.name || supplier?.display_name || supplier?.id || 'default';
+              return `/logos/providers/${logoFileName}`;
+            }}
           />
           {validationErrors.image && (
             <span className="field-error">{validationErrors.image}</span>
@@ -309,7 +546,12 @@ const DefaultModelManagement = () => {
             onModelSelect={handleSceneModelSelect('video')}
             placeholder="请选择模型"
             disabled={isLoadingModels}
-            getModelLogoUrl={(model) => `/logos/providers/${model.supplier || 'default'}.png`}
+            getModelLogoUrl={(model) => {
+              const supplier = model.supplier;
+              // 优先使用供应商LOGO文件名，如果没有则使用供应商名称
+              const logoFileName = supplier?.logo || supplier?.name || supplier?.display_name || supplier?.id || 'default';
+              return `/logos/providers/${logoFileName}`;
+            }}
           />
           {validationErrors.video && (
             <span className="field-error">{validationErrors.video}</span>
@@ -325,7 +567,12 @@ const DefaultModelManagement = () => {
             onModelSelect={handleSceneModelSelect('voice')}
             placeholder="请选择模型"
             disabled={isLoadingModels}
-            getModelLogoUrl={(model) => `/logos/providers/${model.supplier || 'default'}.png`}
+            getModelLogoUrl={(model) => {
+              const supplier = model.supplier;
+              // 优先使用供应商LOGO文件名，如果没有则使用供应商名称
+              const logoFileName = supplier?.logo || supplier?.name || supplier?.display_name || supplier?.id || 'default';
+              return `/logos/providers/${logoFileName}`;
+            }}
           />
           {validationErrors.voice && (
             <span className="field-error">{validationErrors.voice}</span>
@@ -334,18 +581,60 @@ const DefaultModelManagement = () => {
         
         {/* 翻译场景 */}
         <div className="setting-item">
-          <label htmlFor="translateModel">翻译场景</label>
+          <div className="scene-header">
+            <div className="scene-title">
+              <label htmlFor="translateModel">翻译场景</label>
+              <button 
+                className="recommend-btn"
+                onClick={() => applySmartRecommendation('translate')}
+                disabled={isLoadingModels || sceneModels.translate.length === 0}
+                title="应用智能推荐"
+              >
+                💡 智能推荐
+              </button>
+            </div>
+            <span className="scene-description">语言翻译、多语言支持、翻译质量</span>
+          </div>
           <ModelSelectDropdown
-            models={getModelsByType('translate')}
-            selectedModel={getModelsByType('translate').find(model => model.id === sceneDefaultModels.translate) || null}
+            models={sceneModels.translate.length > 0 ? sceneModels.translate : getModelsByType('translate')}
+            selectedModel={(sceneModels.translate.length > 0 ? sceneModels.translate : getModelsByType('translate')).find(model => model.id === sceneDefaultModels.translate) || null}
             onModelSelect={handleSceneModelSelect('translate')}
             placeholder="请选择模型"
             disabled={isLoadingModels}
-            getModelLogoUrl={(model) => `/logos/providers/${model.supplier || 'default'}.png`}
+            getModelLogoUrl={(model) => {
+              const supplier = model.supplier;
+              // 优先使用供应商LOGO文件名，如果没有则使用供应商名称
+              const logoFileName = supplier?.logo || supplier?.name || supplier?.display_name || supplier?.id || 'default';
+              return `/logos/providers/${logoFileName}`;
+            }}
+            getModelBadge={(model) => {
+              const score = capabilityScores[`translate_${model.id}`];
+              if (score) {
+                return (
+                  <span className={`capability-badge ${score >= 90 ? 'excellent' : score >= 80 ? 'good' : score >= 70 ? 'fair' : 'poor'}`}>
+                    {score}% 匹配
+                  </span>
+                );
+              }
+              return null;
+            }}
           />
           {validationErrors.translate && (
             <span className="field-error">{validationErrors.translate}</span>
           )}
+          <div className="capability-info">
+            <span className="info-text">基于语言翻译、多语言支持、翻译质量能力进行匹配</span>
+            {getRecommendedModels('translate').length > 0 && (
+              <div className="recommendation-list">
+                <span className="recommendation-title">推荐模型：</span>
+                {getRecommendedModels('translate').map((model, index) => (
+                  <span key={model.id} className="recommendation-item">
+                    {index + 1}. {model.model_name || model.name} ({model.score}%)
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         
         {/* 知识库场景 */}
@@ -357,7 +646,12 @@ const DefaultModelManagement = () => {
             onModelSelect={handleSceneModelSelect('knowledge')}
             placeholder="请选择模型"
             disabled={isLoadingModels}
-            getModelLogoUrl={(model) => `/logos/providers/${model.supplier || 'default'}.png`}
+            getModelLogoUrl={(model) => {
+              const supplier = model.supplier;
+              // 优先使用供应商LOGO文件名，如果没有则使用供应商名称
+              const logoFileName = supplier?.logo || supplier?.name || supplier?.display_name || supplier?.id || 'default';
+              return `/logos/providers/${logoFileName}`;
+            }}
           />
           {validationErrors.knowledge && (
             <span className="field-error">{validationErrors.knowledge}</span>
@@ -373,7 +667,12 @@ const DefaultModelManagement = () => {
             onModelSelect={handleSceneModelSelect('workflow')}
             placeholder="请选择模型"
             disabled={isLoadingModels}
-            getModelLogoUrl={(model) => `/logos/providers/${model.supplier || 'default'}.png`}
+            getModelLogoUrl={(model) => {
+              const supplier = model.supplier;
+              // 优先使用供应商LOGO文件名，如果没有则使用供应商名称
+              const logoFileName = supplier?.logo || supplier?.name || supplier?.display_name || supplier?.id || 'default';
+              return `/logos/providers/${logoFileName}`;
+            }}
           />
           {validationErrors.workflow && (
             <span className="field-error">{validationErrors.workflow}</span>
@@ -389,7 +688,12 @@ const DefaultModelManagement = () => {
             onModelSelect={handleSceneModelSelect('tool')}
             placeholder="请选择模型"
             disabled={isLoadingModels}
-            getModelLogoUrl={(model) => `/logos/providers/${model.supplier || 'default'}.png`}
+            getModelLogoUrl={(model) => {
+              const supplier = model.supplier;
+              // 优先使用供应商LOGO文件名，如果没有则使用供应商名称
+              const logoFileName = supplier?.logo || supplier?.name || supplier?.display_name || supplier?.id || 'default';
+              return `/logos/providers/${logoFileName}`;
+            }}
           />
           {validationErrors.tool && (
             <span className="field-error">{validationErrors.tool}</span>
@@ -405,7 +709,12 @@ const DefaultModelManagement = () => {
             onModelSelect={handleSceneModelSelect('search')}
             placeholder="请选择模型"
             disabled={isLoadingModels}
-            getModelLogoUrl={(model) => `/logos/providers/${model.supplier || 'default'}.png`}
+            getModelLogoUrl={(model) => {
+              const supplier = model.supplier;
+              // 优先使用供应商LOGO文件名，如果没有则使用供应商名称
+              const logoFileName = supplier?.logo || supplier?.name || supplier?.display_name || supplier?.id || 'default';
+              return `/logos/providers/${logoFileName}`;
+            }}
           />
           {validationErrors.search && (
             <span className="field-error">{validationErrors.search}</span>
@@ -421,7 +730,12 @@ const DefaultModelManagement = () => {
             onModelSelect={handleSceneModelSelect('mcp')}
             placeholder="请选择模型"
             disabled={isLoadingModels}
-            getModelLogoUrl={(model) => `/logos/providers/${model.supplier || 'default'}.png`}
+            getModelLogoUrl={(model) => {
+              const supplier = model.supplier;
+              // 优先使用供应商LOGO文件名，如果没有则使用供应商名称
+              const logoFileName = supplier?.logo || supplier?.name || supplier?.display_name || supplier?.id || 'default';
+              return `/logos/providers/${logoFileName}`;
+            }}
           />
           {validationErrors.mcp && (
             <span className="field-error">{validationErrors.mcp}</span>

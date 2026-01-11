@@ -2,11 +2,86 @@
 .chat-container {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 40px); /* 减去主内容区域的padding */
+  height: 100vh;
   background-color: #f5f5f5;
-  border-radius: 8px;
+  border-radius: 0;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: none;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .chat-container {
+    height: 100vh;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  
+  /* 触摸友好的交互优化 */
+  .action-btn, .input-btn, .send-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* 防止移动端缩放 */
+  .message-input {
+    font-size: 16px; /* 防止iOS缩放 */
+  }
+  
+  /* 移动端滚动优化 */
+  .chat-messages {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+  
+  /* 移动端键盘优化 */
+  .chat-input {
+    position: sticky;
+    bottom: 0;
+    background-color: #ffffff;
+    z-index: 10;
+  }
+  
+  /* 移动端安全区域支持 */
+  @supports (padding: max(0px)) {
+    .chat-container {
+      padding-left: max(12px, env(safe-area-inset-left));
+      padding-right: max(12px, env(safe-area-inset-right));
+      padding-bottom: max(12px, env(safe-area-inset-bottom));
+    }
+  }
+}
+
+/* 超小屏幕优化 */
+@media (max-width: 480px) {
+  .chat-header {
+    padding: 8px 10px;
+  }
+  
+  .chat-messages {
+    padding: 8px 6px;
+    gap: 8px;
+  }
+  
+  .message {
+    max-width: 95%;
+    margin-bottom: 8px;
+  }
+  
+  .message-bubble {
+    padding: 6px 10px;
+    border-radius: 12px;
+    font-size: 13px;
+  }
+  
+  .chat-input {
+    padding: 8px 10px;
+  }
+  
+  .message-input {
+    padding: 6px 10px;
+    font-size: 14px;
+  }
 }
 
 /* 聊天头部 */
@@ -14,25 +89,281 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px 20px;
+  padding: 12px 16px;
   background-color: #ffffff;
   border-bottom: 1px solid #e1e8ed;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .chat-title {
   display: flex;
   align-items: center;
+  flex-direction: row;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
 }
 
 .bot-avatar {
-  font-size: 32px;
-  margin-right: 12px;
+  font-size: 28px;
+  margin-right: 10px;
+  flex-shrink: 0;
 }
 
 .chat-title h2 {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   color: #2c3e50;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-subtitle {
+  font-size: 11px;
+  color: #7f8c8d;
+  margin-top: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 移动端头部优化 */
+@media (max-width: 768px) {
+  .chat-header {
+    padding: 10px 12px;
+    gap: 8px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .chat-title {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+  
+  .bot-avatar {
+    font-size: 24px;
+    margin-right: 8px;
+  }
+  
+  .chat-title h2 {
+    font-size: 14px;
+  }
+  
+  .chat-subtitle {
+    font-size: 10px;
+  }
+}
+
+/* 连接状态指示器 */
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.status-dot.connected {
+  background-color: #27ae60;
+  box-shadow: 0 0 4px rgba(39, 174, 96, 0.5);
+}
+
+.status-dot.checking {
+  background-color: #f39c12;
+  animation: pulse 1.5s infinite;
+}
+
+.status-dot.sending {
+  background-color: #3498db;
+  animation: pulse 1s infinite;
+}
+
+.status-dot.error {
+  background-color: #e74c3c;
+  box-shadow: 0 0 4px rgba(231, 76, 60, 0.5);
+}
+
+.status-text {
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.status-text.connected {
+  color: #27ae60;
+}
+
+.status-text.checking {
+  color: #f39c12;
+}
+
+.status-text.sending {
+  color: #3498db;
+}
+
+.status-text.error {
+  color: #e74c3c;
+}
+
+.response-time {
+  font-size: 10px;
+  color: #95a5a6;
+  background-color: #f8f9fa;
+  padding: 1px 4px;
+  border-radius: 8px;
+  border: 1px solid #e1e8ed;
+  white-space: nowrap;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+.model-selector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.model-selector label {
+  font-size: 12px;
+  color: #2c3e50;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.model-dropdown-container {
+  min-width: 200px;
+  max-width: 250px;
+  flex: 1;
+}
+
+.chat-model-dropdown {
+  width: 100%;
+}
+
+.model-loading {
+  padding: 6px 10px;
+  background-color: #f8f9fa;
+  border: 1px solid #e1e8ed;
+  border-radius: 4px;
+  color: #6c757d;
+  font-size: 12px;
+  text-align: center;
+}
+
+/* 移动端状态指示器和模型选择器优化 */
+@media (max-width: 768px) {
+  .status-indicator {
+    gap: 4px;
+    justify-content: center;
+    margin: 4px 0;
+  }
+  
+  .status-dot {
+    width: 5px;
+    height: 5px;
+  }
+  
+  .status-text {
+    font-size: 10px;
+  }
+  
+  .response-time {
+    font-size: 9px;
+    padding: 1px 3px;
+  }
+  
+  .model-selector {
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+    margin: 4px 0;
+  }
+  
+  .model-selector label {
+    font-size: 11px;
+    text-align: center;
+  }
+  
+  .model-dropdown-container {
+    min-width: 100%;
+    max-width: 100%;
+  }
+  
+  .model-loading {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+}
+
+.model-dropdown {
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
+  font-size: 14px;
+  min-width: 180px;
+  transition: all 0.3s ease;
+}
+
+.model-dropdown:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+}
+
+.model-dropdown:disabled {
+  background-color: #f8f9fa;
+  color: #95a5a6;
+  cursor: not-allowed;
+}
+
+/* 模型状态徽章 */
+.model-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  margin-left: 6px;
+  font-weight: 500;
+}
+
+.model-status.available {
+  background-color: #d5f4e6;
+  color: #27ae60;
+  border: 1px solid #27ae60;
+}
+
+.model-status.unavailable {
+  background-color: #fdeaea;
+  color: #e74c3c;
+  border: 1px solid #e74c3c;
+}
+
+.model-status.checking {
+  background-color: #fef5e7;
+  color: #f39c12;
+  border: 1px solid #f39c12;
 }
 
 .chat-actions {
@@ -57,17 +388,48 @@
 /* 聊天消息区域 */
 .chat-messages {
   flex: 1;
-  padding: 20px;
+  padding: 16px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 12px;
   background-color: #f9f9f9;
   background-image: 
     radial-gradient(#e1e8ed 1px, transparent 1px),
     radial-gradient(#e1e8ed 1px, transparent 1px);
   background-size: 20px 20px;
   background-position: 0 0, 10px 10px;
+  min-width: 0;
+  width: 100%;
+  overflow-x: visible;
+}
+
+/* 确保包含块级公式的消息能够扩展到所需宽度 */
+.message.has-block-math {
+  max-width: 100% !important;
+  width: fit-content !important;
+  min-width: auto !important;
+  align-self: flex-start !important;
+  flex-shrink: 0;
+}
+
+/* 确保包含块级公式的消息内容能够扩展到所需宽度 */
+.message.has-block-math .message-content {
+  max-width: 100% !important;
+  width: 100% !important;
+  min-width: 100% !important;
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+/* 移动端消息区域优化 */
+@media (max-width: 768px) {
+  .chat-messages {
+    padding: 12px 8px;
+    gap: 10px;
+    background-size: 15px 15px;
+    background-position: 0 0, 7.5px 7.5px;
+  }
 }
 
 /* Markdown 样式 */
@@ -153,6 +515,9 @@
   margin: 0.5em 0 !important;
   overflow-x: auto;
   overflow-y: hidden;
+  width: auto !important;
+  max-width: none !important;
+  white-space: nowrap !important;
 }
 
 .message-bubble .katex-display > .katex {
@@ -175,10 +540,148 @@
 .message {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  max-width: 80%; /* 增加最大宽度，减少截断可能性 */
+  gap: 8px;
+  max-width: 70%;
   width: fit-content;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+  min-width: 0;
+}
+
+/* 包含数学公式的消息，允许更宽的显示区域 */
+.message.has-math {
+  max-width: 70%;
+  width: fit-content;
+}
+
+/* 包含块级公式的消息，使用默认宽度 */
+.message.has-block-math {
+  max-width: 70% !important;
+  width: fit-content !important;
+  align-self: flex-start !important;
+  flex-shrink: 0;
+}
+
+/* 包含块级公式的消息内容 */
+.message.has-block-math .message-content {
+  max-width: 100% !important;
+  width: fit-content !important;
+  flex-shrink: 0;
+  padding-left: 0 !important;
+  margin-left: 0 !important;
+}
+
+/* 包含块级公式的消息气泡 */
+.message.has-block-math .message-bubble {
+  max-width: 100% !important;
+  width: fit-content !important;
+  flex-shrink: 0;
+  overflow: visible !important;
+  border-radius: 16px 16px 0 16px;
+  padding: 10px 14px !important;
+}
+
+/* 独立的数学公式容器，完全绕过消息气泡限制 */
+.independent-math-container {
+  display: block !important;
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: 100vw !important;
+  margin: 0 !important;
+  padding: 10px 14px !important;
+  background-color: #ffffff !important;
+  border-radius: 0 0 16px 16px !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+  overflow: auto !important;
+  position: relative !important;
+  z-index: 2 !important;
+  text-align: left !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
+  /* 突破所有可能的宽度限制 */
+  flex: none !important;
+  align-self: stretch !important;
+  width: max-content !important;
+  /* 确保公式容器可以扩展到视口宽度 */
+  margin-left: -14px !important;
+  margin-right: -14px !important;
+  padding-left: 14px !important;
+  padding-right: 14px !important;
+}
+
+/* 独立容器中的块级公式 */
+.independent-math-container .katex-display {
+  display: block !important;
+  width: auto !important;
+  min-width: min-content !important;
+  max-width: 100% !important;
+  margin: 0.5em 0 !important;
+  padding: 0 !important;
+  text-align: left !important;
+  overflow: auto !important;
+}
+
+/* 独立容器中的行内公式 */
+.independent-math-container .katex {
+  display: inline-block !important;
+  font-size: 1.1em !important;
+  white-space: nowrap !important;
+  vertical-align: middle;
+}
+
+/* 特殊数学消息的样式 - 完全重写布局 */
+.special-math-message {
+  max-width: 100% !important;
+  width: fit-content !important;
+  align-self: flex-start !important;
+  margin-bottom: 12px !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-start !important;
+  gap: 8px !important;
+  flex-shrink: 0 !important;
+}
+
+/* 特殊数学消息的内容区域 */
+.special-math-message .message-content {
+  max-width: 100% !important;
+  width: fit-content !important;
+  flex-shrink: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding-left: 0 !important;
+}
+
+/* 特殊数学消息的消息气泡 */
+.special-math-message .message-bubble {
+  max-width: 100% !important;
+  width: fit-content !important;
+  flex-shrink: 0 !important;
+  overflow: visible !important;
+  border-radius: 16px 16px 0 16px !important;
+  padding: 10px 14px !important;
+}
+
+/* 测试集消息的特殊处理 */
+.special-math-message:has(.message-bubble:contains("精简测试集")) {
+  max-width: 100% !important;
+  width: fit-content !important;
+}
+
+/* 确保测试集的公式不被换行 */
+.special-math-message .independent-math-container {
+  width: auto !important;
+  min-width: 100% !important;
+  max-width: none !important;
+  overflow: auto !important;
+}
+
+/* 确保测试集的公式容器有足够的宽度 */
+.special-math-message .independent-math-container .katex-display {
+  width: auto !important;
+  min-width: min-content !important;
+  max-width: none !important;
+  white-space: nowrap !important;
+  overflow: auto !important;
 }
 
 .user-message {
@@ -190,27 +693,274 @@
   align-self: flex-start;
 }
 
+.bot-message.error .message-bubble {
+  border-left: 3px solid #e74c3c;
+  background-color: #fdf2f2;
+}
+
+.bot-message.success .message-bubble {
+  border-left: 3px solid #27ae60;
+}
+
 .message-avatar {
-  font-size: 24px;
+  font-size: 20px;
   flex-shrink: 0;
 }
 
+/* 修复内容起始位置被挤到气泡最左侧的问题 */
 .message-content {
   flex: 1;
+  min-width: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  padding-left: 0 !important;
+  margin-left: 0 !important;
+  text-align: left !important;
+}
+
+/* 包含数学公式的消息内容，确保不被压缩 */
+.message.has-math .message-content {
+  min-width: 50%;
+  max-width: 100%;
 }
 
 .message-bubble {
   background-color: #ffffff;
-  padding: 12px 16px;
-  border-radius: 18px;
+  padding: 10px 14px;
+  border-radius: 16px;
   position: relative;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   word-wrap: break-word;
   overflow-wrap: break-word;
   white-space: pre-wrap;
-  max-width: 100%; /* 确保在消息容器内占满可用空间 */
+  max-width: 100%;
   overflow: visible;
   text-overflow: clip;
+  min-width: 0;
+  flex: 1;
+}
+
+/* 包含数学公式的消息气泡，确保公式有足够的显示空间 */
+.message.has-math .message-bubble {
+  max-width: 100%;
+  min-width: 0;
+  /* 确保气泡不被压缩 */
+  flex-shrink: 0;
+  /* 允许气泡根据内容自动调整大小 */
+  width: fit-content;
+  /* 但不超过最大宽度 */
+  max-width: 100%;
+}
+
+/* 包含数学公式的消息气泡，优化公式显示 */
+.message.has-math .message-bubble .math-content {
+  width: 100%;
+  min-width: 100%;
+  /* 确保公式容器有足够的宽度 */
+  max-width: none;
+}
+
+/* 包含块级公式的消息，提供特殊处理 */
+.message.has-block-math {
+  max-width: 70% !important;
+  width: fit-content !important;
+  flex-shrink: 0;
+}
+
+.message.has-block-math .message-content {
+  max-width: 100% !important;
+  width: 100% !important;
+  flex-shrink: 0;
+}
+
+.message.has-block-math .message-bubble {
+  max-width: 100% !important;
+  width: 100% !important;
+  flex-shrink: 0;
+  overflow: visible !important;
+}
+
+.message.has-block-math .math-container {
+  max-width: 100% !important;
+  width: auto !important;
+  min-width: 100% !important;
+  flex-shrink: 0;
+}
+
+.message.has-block-math .math-content {
+  max-width: 100% !important;
+  width: auto !important;
+  min-width: 100% !important;
+  flex-shrink: 0;
+}
+
+/* 移动端消息优化 */
+@media (max-width: 768px) {
+  .message {
+    gap: 6px;
+    max-width: 90%;
+    margin-bottom: 10px;
+  }
+  
+  .message-avatar {
+    font-size: 18px;
+  }
+  
+  .message-bubble {
+    padding: 8px 12px;
+    border-radius: 14px;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  
+  .bot-message.error .message-bubble {
+    border-left-width: 2px;
+  }
+  
+  .bot-message.success .message-bubble {
+    border-left-width: 2px;
+  }
+}
+
+.message-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.model-badge {
+  background-color: #3498db;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.status-badge {
+  padding: 2px 5px;
+  border-radius: 6px;
+  font-size: 9px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.status-badge.success {
+  background-color: #d5f4e6;
+  color: #27ae60;
+}
+
+.status-badge.error {
+  background-color: #fadbd8;
+  color: #e74c3c;
+}
+
+.status-badge.processing {
+  background-color: #e8f4fd;
+  color: #3498db;
+  animation: pulse 1.5s infinite;
+}
+
+.fallback-info {
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 4px;
+  padding: 3px 6px;
+  margin-top: 6px;
+  font-size: 10px;
+  color: #856404;
+}
+
+.message-timestamp {
+  font-size: 9px;
+  color: #95a5a6;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* 移动端消息头部优化 */
+@media (max-width: 768px) {
+  .message-header {
+    gap: 4px;
+    margin-bottom: 4px;
+  }
+  
+  .model-badge {
+    padding: 1px 4px;
+    border-radius: 8px;
+    font-size: 9px;
+  }
+  
+  .status-badge {
+    padding: 1px 3px;
+    border-radius: 4px;
+    font-size: 8px;
+  }
+  
+  .fallback-info {
+    padding: 2px 4px;
+    margin-top: 4px;
+    font-size: 9px;
+  }
+  
+  .message-timestamp {
+    font-size: 8px;
+  }
+}
+
+.message-metrics {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.metric-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: #7f8c8d;
+}
+
+.metric-value {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+/* 消息状态指示器 */
+.message-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: #95a5a6;
+}
+
+.status-icon {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.status-icon.sent {
+  background-color: #27ae60;
+}
+
+.status-icon.sending {
+  background-color: #f39c12;
+  animation: pulse 1s infinite;
+}
+
+.status-icon.error {
+  background-color: #e74c3c;
 }
 
 .user-message .message-bubble {
@@ -229,27 +979,324 @@
   hyphens: auto;
 }
 
-/* 确保ReactMarkdown渲染的所有元素都能正确换行 */
+/* 确保ReactMarkdown渲染的所有元素都能正确换行 - 更精确的修复 */
 .message-bubble > * {
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  white-space: pre-wrap;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  white-space: pre-wrap !important;
   overflow: visible !important;
-  text-overflow: clip;
+  text-overflow: clip !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  width: auto !important;
 }
 
-/* 确保数学公式不会导致内容截断 */
+/* 确保ReactMarkdown容器不会限制内容显示 */
+.message-bubble .react-markdown {
+  width: 100% !important;
+  min-width: 0 !important;
+  overflow: visible !important;
+  display: block !important;
+  max-width: none !important;
+}
+
+/* 确保所有内联元素都能正确换行 */
+.message-bubble * {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  white-space: pre-wrap !important;
+  overflow-wrap: break-word !important;
+}
+
+/* Markdown表格样式 - 增强版 */
+.markdown-renderer table,
+.math-renderer table,
+.independent-math-container table,
+.special-math-message table,
+.message.has-block-math table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+  overflow-x: auto;
+  display: block;
+  white-space: normal;
+  word-break: normal;
+  table-layout: fixed;
+}
+
+.markdown-renderer th,
+.math-renderer th,
+.independent-math-container th,
+.special-math-message th,
+.message.has-block-math th,
+.markdown-renderer td,
+.math-renderer td,
+.independent-math-container td,
+.special-math-message td,
+.message.has-block-math td {
+  border: 1px solid #ddd;
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 12px;
+  vertical-align: top;
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  box-sizing: border-box;
+  max-width: 300px;
+}
+
+.markdown-renderer th,
+.math-renderer th,
+.independent-math-container th,
+.special-math-message th,
+.message.has-block-math th {
+  background-color: #f8f9fa;
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.markdown-renderer tr:nth-child(even),
+.math-renderer tr:nth-child(even),
+.independent-math-container tr:nth-child(even),
+.special-math-message tr:nth-child(even),
+.message.has-block-math tr:nth-child(even) {
+  background-color: #f8f9fa;
+}
+
+.markdown-renderer tr:hover,
+.math-renderer tr:hover,
+.independent-math-container tr:hover,
+.special-math-message tr:hover,
+.message.has-block-math tr:hover {
+  background-color: #e9ecef;
+}
+
+/* 表格容器样式，确保表格不会溢出 */
+.markdown-renderer,
+.math-renderer,
+.independent-math-container,
+.special-math-message,
+.message.has-block-math {
+  overflow-x: auto;
+  display: block;
+  width: 100%;
+}
+
+/* 表格内公式样式调整 */
+.markdown-renderer td .katex,
+.math-renderer td .katex,
+.independent-math-container td .katex,
+.special-math-message td .katex,
+.message.has-block-math td .katex {
+  font-size: 1em !important;
+  white-space: normal !important;
+  overflow-wrap: break-word !important;
+}
+
+/* 表格内块级公式样式调整 */
+.markdown-renderer td .katex-display,
+.math-renderer td .katex-display,
+.independent-math-container td .katex-display,
+.special-math-message td .katex-display,
+.message.has-block-math td .katex-display {
+  margin: 0.2em 0 !important;
+  padding: 0 !important;
+  text-align: center !important;
+}
+
+/* 响应式表格设计 */
+@media (max-width: 768px) {
+  .markdown-renderer th,
+  .math-renderer th,
+  .independent-math-container th,
+  .special-math-message th,
+  .message.has-block-math th,
+  .markdown-renderer td,
+  .math-renderer td,
+  .independent-math-container td,
+  .special-math-message td,
+  .message.has-block-math td {
+    padding: 6px 8px;
+    font-size: 11px;
+    max-width: 200px;
+  }
+}
+
+/* 特别针对文本内容进行修复 */
+.message-bubble p,
+.message-bubble span,
+.message-bubble div {
+  white-space: pre-wrap !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+/* 强制移除任何可能的内容截断 */
+.message-bubble {
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: pre-wrap !important;
+  max-width: none !important;
+  width: auto !important;
+  min-width: 0 !important;
+  display: block !important;
+}
+
+/* 确保消息内容容器没有任何限制 */
+.message-content {
+  min-width: 0 !important;
+  max-width: none !important;
+  width: 100% !important;
+  overflow: visible !important;
+}
+
+/* 确保消息容器没有任何限制 */
+.message {
+  min-width: 0 !important;
+  max-width: none !important;
+  width: fit-content !important;
+}
+
+/* 重置所有KaTeX相关样式 */
+.message-bubble .katex,
+.message-bubble .katex-display,
+.message-bubble .katex-html {
+  all: unset;
+}
+
+/* 专用数学公式渲染容器 - 完全独立的布局 */
+.math-renderer {
+  display: block;
+  width: 100%;
+  margin: 1em 0;
+  padding: 0;
+  text-align: left;
+  overflow: visible;
+  position: relative;
+  z-index: 1;
+}
+
+/* 块级公式容器 */
+.math-renderer .katex-display {
+  display: block !important;
+  width: auto !important;
+  min-width: min-content !important;
+  max-width: none !important;
+  margin: 0.5em auto !important;
+  padding: 0 !important;
+  text-align: center !important;
+  overflow: auto !important;
+  white-space: nowrap !important;
+}
+
+/* 行内公式容器 */
+.math-renderer .katex {
+  display: inline-block !important;
+  font-size: 1.1em !important;
+  white-space: nowrap !important;
+  vertical-align: middle;
+}
+
+/* 流式响应中的文本内容 */
+.streaming-content {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* 基础公式样式 */
 .message-bubble .katex-display {
+  display: block !important;
+  text-align: center !important;
+  margin: 0 !important;
+  width: auto !important;
+  min-width: min-content !important;
+  overflow: visible !important;
+}
+
+/* 确保块公式有足够的空间 */
+.message-bubble .katex-display > .katex {
+  display: inline-block !important;
+  width: auto !important;
+  min-width: min-content !important;
+  white-space: nowrap !important;
+}
+
+/* 行内公式样式 */
+.message-bubble .katex {
+  display: inline-block !important;
+  font-size: 1.1em !important;
+  white-space: nowrap !important;
+  min-width: 0 !important;
+  vertical-align: middle;
+}
+
+/* MathRenderer组件专用样式 */
+.math-content {
+  width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
-  white-space: nowrap;
-  max-width: 100%;
-  margin: 0.5em 0;
+  /* 确保公式容器能够利用所有可用宽度 */
+  min-width: 100%;
+  max-width: none;
 }
 
-.message-bubble .katex {
-  font-size: 1.1em;
-  overflow: visible;
+.math-content.math-streaming {
+  /* 流式响应中的公式特殊处理 */
+  background-color: rgba(245, 245, 245, 0.3);
+  border-radius: 4px;
+  padding: 4px;
+  margin: 2px 0;
+  /* 流式响应中确保公式有足够宽度 */
+  min-width: 100%;
+}
+
+/* 包含数学公式的消息，优化公式容器宽度 */
+.message.has-math .math-content {
+  /* 确保公式容器有足够的宽度显示复杂公式 */
+  min-width: 100%;
+  max-width: none;
+  /* 允许水平滚动而不是换行 */
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.math-content .katex-display {
+  margin: 0.5em 0 !important;
+  overflow-x: auto !important;
+  white-space: nowrap !important;
+  display: block !important;
+  text-align: center;
+  width: auto !important;
+  max-width: none !important;
+}
+
+.math-content.math-streaming .katex-display {
+  /* 流式响应中的公式显示样式 */
+  background-color: rgba(200, 200, 200, 0.2);
+  border: 1px dashed #ccc;
+  padding: 6px;
+  border-radius: 3px;
+  text-align: left;
+}
+
+.math-content .katex {
+  font-size: 1.1em !important;
+  overflow-x: auto !important;
+  white-space: nowrap !important;
+  display: inline-block !important;
+}
+
+/* 确保公式在流式传输过程中不被压缩 */
+.math-content.math-streaming .katex {
+  min-width: max-content !important;
+  flex-shrink: 0 !important;
 }
 
 .message-time {
@@ -298,26 +1345,28 @@
 .chat-input {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 15px 20px;
+  gap: 8px;
+  padding: 12px 16px;
   background-color: #ffffff;
   border-top: 1px solid #e1e8ed;
 }
 
 .input-actions {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .input-btn {
   background: none;
   border: none;
-  font-size: 18px;
+  font-size: 16px;
   cursor: pointer;
-  padding: 8px;
+  padding: 6px;
   border-radius: 50%;
   transition: background-color 0.3s;
+  flex-shrink: 0;
 }
 
 .input-btn:hover {
@@ -328,15 +1377,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   background-color: #3498db;
   color: white;
   border-radius: 50%;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 12px;
   cursor: help;
   transition: background-color 0.3s;
+  flex-shrink: 0;
 }
 
 .markdown-hint:hover {
@@ -345,40 +1395,148 @@
 
 .message-input {
   flex: 1;
-  padding: 12px 16px;
+  padding: 10px 14px;
   border: 1px solid #d1d5db;
-  border-radius: 20px;
-  font-size: 16px;
+  border-radius: 18px;
+  font-size: 14px;
   outline: none;
-  transition: border-color 0.3s, min-height 0.3s;
-  min-height: 42px;
-  max-height: 150px;
+  transition: all 0.3s ease;
+  min-height: 38px;
+  max-height: 120px;
   font-family: inherit;
+  background-color: #f8f9fa;
 }
 
 .message-input:focus {
   border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+  background-color: #ffffff;
+}
+
+.message-input:disabled {
+  background-color: #f0f0f0;
+  color: #95a5a6;
+  cursor: not-allowed;
+}
+
+/* 移动端输入区域优化 */
+@media (max-width: 768px) {
+  .chat-input {
+    gap: 6px;
+    padding: 10px 12px;
+    flex-wrap: wrap;
+  }
+  
+  .input-actions {
+    gap: 4px;
+    order: 2;
+    width: 100%;
+    justify-content: center;
+    margin-top: 6px;
+  }
+  
+  .input-btn {
+    font-size: 14px;
+    padding: 4px;
+  }
+  
+  .markdown-hint {
+    width: 24px;
+    height: 24px;
+    font-size: 10px;
+  }
+  
+  .message-input {
+    padding: 8px 12px;
+    border-radius: 16px;
+    font-size: 13px;
+    min-height: 34px;
+    max-height: 100px;
+    order: 1;
+    width: 100%;
+  }
+  
+  .send-btn {
+    order: 1;
+    margin-left: auto;
+  }
 }
 
 .send-btn {
-  padding: 10px 20px;
+  padding: 8px 16px;
   background-color: #3498db;
   color: white;
   border: none;
-  border-radius: 20px;
+  border-radius: 18px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
-  transition: background-color 0.3s;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 70px;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.send-btn:hover {
+.send-btn:hover:not(:disabled) {
   background-color: #2980b9;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(52, 152, 219, 0.3);
+}
+
+.send-btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 3px rgba(52, 152, 219, 0.3);
 }
 
 .send-btn:disabled {
   background-color: #bdc3c7;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.send-btn.sending {
+  background-color: #f39c12;
+  animation: pulse 1.5s infinite;
+}
+
+.send-btn.sending:hover {
+  background-color: #e67e22;
+}
+
+.send-icon {
+  font-size: 14px;
+}
+
+.send-text {
+  font-weight: 500;
+}
+
+/* 移动端发送按钮优化 */
+@media (max-width: 768px) {
+  .send-btn {
+    padding: 6px 12px;
+    border-radius: 16px;
+    font-size: 12px;
+    min-width: 60px;
+    gap: 3px;
+  }
+  
+  .send-icon {
+    font-size: 12px;
+  }
+  
+  .send-btn:hover:not(:disabled) {
+    transform: none;
+    box-shadow: none;
+  }
+  
+  .send-btn:active:not(:disabled) {
+    transform: scale(0.95);
+  }
 }
 
 /* 滚动条样式 */
@@ -419,5 +1577,540 @@
   
   .chat-input {
     padding: 10px 15px;
+  }
+}
+
+/* 流式响应和思维链样式 */
+.streaming-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-right: 8px;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #666;
+  cursor: pointer;
+  transition: color 0.3s;
+}
+
+.toggle-label:hover {
+  color: #333;
+}
+
+.toggle-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.toggle-label:has(input:disabled) {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toggle-text {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* 流式消息样式 */
+.bot-message.streaming .message-bubble {
+  border-left: 3px solid #3498db;
+  background-color: #f8f9fa;
+  animation: streaming-pulse 2s infinite;
+}
+
+@keyframes streaming-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+/* 思维链容器样式 */
+.thinking-chain-container {
+  margin: 8px 0;
+}
+
+/* 思维链切换按钮样式 */
+.thinking-chain-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 12px;
+  color: #856404;
+  user-select: none;
+}
+
+.thinking-chain-toggle:hover {
+  background-color: #ffeaa7;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 切换图标样式 */
+.toggle-icon {
+  font-size: 10px;
+  font-weight: bold;
+  transition: transform 0.2s ease;
+}
+
+/* 切换文本样式 */
+.toggle-text {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* 思维链显示样式 */
+.thinking-chain {
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #856404;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: thinking-fade 0.5s ease-in-out;
+}
+
+@keyframes thinking-fade {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.thinking-chain::before {
+  content: "💭";
+  font-size: 14px;
+}
+
+/* 流式响应打字效果 */
+.streaming-text {
+  position: relative;
+}
+
+.streaming-text::after {
+  content: "▋";
+  animation: cursor-blink 1s infinite;
+  color: #3498db;
+  margin-left: 2px;
+}
+
+@keyframes cursor-blink {
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0;
+  }
+}
+
+/* 移动端流式响应控件优化 */
+@media (max-width: 768px) {
+  .streaming-controls {
+    gap: 8px;
+    margin-right: 0;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    margin-bottom: 8px;
+  }
+  
+  .toggle-label {
+    font-size: 11px;
+  }
+  
+  .toggle-label input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+  }
+  
+  .thinking-chain {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+}
+
+/* 话题管理功能样式 */
+.topic-management {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.topic-toggle-btn {
+  background: none;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #4b5563;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.topic-toggle-btn:hover {
+  background-color: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.topic-toggle-btn.active {
+  background-color: #3498db;
+  border-color: #3498db;
+  color: white;
+}
+
+.topic-toggle-icon {
+  font-size: 14px;
+}
+
+.topic-panel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  width: 320px;
+  background-color: white;
+  border: 1px solid #e1e8ed;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  margin-top: 8px;
+  animation: panel-slide 0.3s ease-out;
+}
+
+@keyframes panel-slide {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.topic-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e1e8ed;
+  background-color: #f8f9fa;
+  border-radius: 8px 8px 0 0;
+}
+
+.topic-panel-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0;
+}
+
+.topic-panel-close {
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.3s;
+}
+
+.topic-panel-close:hover {
+  background-color: #e5e7eb;
+  color: #374151;
+}
+
+.topic-panel-content {
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.topic-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.topic-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background-color 0.3s;
+  cursor: pointer;
+}
+
+.topic-item:hover {
+  background-color: #f9fafb;
+}
+
+.topic-item.active {
+  background-color: #eff6ff;
+  border-left: 3px solid #3498db;
+}
+
+.topic-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.topic-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #2c3e50;
+  margin: 0 0 4px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topic-description {
+  font-size: 11px;
+  color: #6b7280;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topic-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.topic-item:hover .topic-actions {
+  opacity: 1;
+}
+
+.topic-action-btn {
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.3s;
+}
+
+.topic-action-btn:hover {
+  background-color: #e5e7eb;
+  color: #374151;
+}
+
+.topic-action-btn.delete:hover {
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+
+.topic-action-btn.edit:hover {
+  background-color: #dbeafe;
+  color: #2563eb;
+}
+
+.topic-create-section {
+  padding: 16px;
+  border-top: 1px solid #e1e8ed;
+  background-color: #f8f9fa;
+}
+
+.topic-create-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.topic-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.topic-input-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #4b5563;
+}
+
+.topic-input {
+  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.3s;
+}
+
+.topic-input:focus {
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+}
+
+.topic-create-btn {
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  margin-top: 4px;
+}
+
+.topic-create-btn:hover:not(:disabled) {
+  background-color: #2980b9;
+}
+
+.topic-create-btn:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.active-topic-badge {
+  background-color: #3498db;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 500;
+  margin-left: 8px;
+}
+
+/* 移动端话题管理优化 */
+@media (max-width: 768px) {
+  .topic-management {
+    gap: 6px;
+  }
+  
+  .topic-toggle-btn {
+    padding: 4px 8px;
+    font-size: 11px;
+    gap: 3px;
+  }
+  
+  .topic-toggle-icon {
+    font-size: 12px;
+  }
+  
+  .topic-panel {
+    width: 280px;
+    right: -10px;
+  }
+  
+  .topic-panel-header {
+    padding: 10px 12px;
+  }
+  
+  .topic-panel-title {
+    font-size: 13px;
+  }
+  
+  .topic-panel-close {
+    font-size: 14px;
+    padding: 3px;
+  }
+  
+  .topic-item {
+    padding: 10px 12px;
+  }
+  
+  .topic-title {
+    font-size: 12px;
+  }
+  
+  .topic-description {
+    font-size: 10px;
+  }
+  
+  .topic-action-btn {
+    font-size: 11px;
+    padding: 3px;
+  }
+  
+  .topic-create-section {
+    padding: 12px;
+  }
+  
+  .topic-input {
+    padding: 5px 7px;
+    font-size: 11px;
+  }
+  
+  .topic-create-btn {
+    padding: 5px 10px;
+    font-size: 11px;
+  }
+  
+  .active-topic-badge {
+    font-size: 9px;
+    padding: 1px 4px;
+    margin-left: 6px;
+  }
+}
+
+/* 超小屏幕话题管理优化 */
+@media (max-width: 480px) {
+  .topic-panel {
+    width: 260px;
+    right: -20px;
+  }
+  
+  .topic-toggle-btn {
+    font-size: 10px;
+    padding: 3px 6px;
+  }
+  
+  .topic-panel-header {
+    padding: 8px 10px;
+  }
+  
+  .topic-panel-title {
+    font-size: 12px;
+  }
+  
+  .topic-item {
+    padding: 8px 10px;
+  }
+  
+  .topic-title {
+    font-size: 11px;
+  }
+  
+  .topic-description {
+    font-size: 9px;
   }
 }

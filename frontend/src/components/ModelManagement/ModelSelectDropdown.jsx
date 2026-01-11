@@ -10,6 +10,7 @@ import React, { useState, useRef } from 'react';
  * @param {string} props.placeholder - 占位文本
  * @param {boolean} props.disabled - 是否禁用
  * @param {Function} props.getModelLogoUrl - 自定义获取模型LOGO URL的函数
+ * @param {Function} props.getModelBadge - 自定义获取模型徽章的函数
  */
 const ModelSelectDropdown = ({ 
   models = [], 
@@ -18,7 +19,8 @@ const ModelSelectDropdown = ({
   className = '', 
   placeholder = '-- 请选择模型 --',
   disabled = false,
-  getModelLogoUrl = null
+  getModelLogoUrl = null,
+  getModelBadge = null
 }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const selectRef = useRef(null);
@@ -36,11 +38,11 @@ const ModelSelectDropdown = ({
     }
     
     // 如果没有模型LOGO，使用供应商LOGO
-    if (model.supplier && model.supplier.logo) {
-      if (model.supplier.logo.startsWith('http') || model.supplier.logo.startsWith('/')) {
-        return model.supplier.logo;
+    if (model.supplier_logo) {
+      if (model.supplier_logo.startsWith('http') || model.supplier_logo.startsWith('/')) {
+        return model.supplier_logo;
       }
-      return `/logos/providers/${model.supplier.logo}`;
+      return `/logos/providers/${model.supplier_logo}`;
     }
     
     // 如果都没有，返回默认图标
@@ -84,16 +86,20 @@ const ModelSelectDropdown = ({
                 alt={selectedModel.model_name || '模型LOGO'} 
                 className="model-logo"
               />
-              <span className="model-name">
-                {selectedModel.model_name || selectedModel.name || '未知模型'} 
-                ({selectedModel.model_id || selectedModel.id || '未知ID'})
-              </span>
-              <span className="supplier-name">
-                {(selectedModel.supplier && (selectedModel.supplier.display_name || selectedModel.supplier.name)) || 
-                 selectedModel.supplierDisplayName || 
-                 selectedModel.supplierName || 
-                 '未知供应商'}
-              </span>
+              <div className="model-details">
+                <span className="model-name">
+                  {selectedModel.model_name || selectedModel.name || '未知模型'} 
+                  ({selectedModel.model_id || selectedModel.id || '未知ID'})
+                </span>
+                <span className="supplier-name">
+                  {selectedModel.supplier_display_name || selectedModel.supplier_name || 
+                   (selectedModel.supplier && (selectedModel.supplier.display_name || selectedModel.supplier.name)) || 
+                   selectedModel.supplierDisplayName || 
+                   selectedModel.supplierName || 
+                   '未知供应商'}
+                </span>
+              </div>
+              {getModelBadge && getModelBadge(selectedModel)}
             </div>
           ) : (
             <span>{placeholder}</span>
@@ -123,12 +129,14 @@ const ModelSelectDropdown = ({
                     ({model.model_id || model.id || '未知ID'})
                   </span>
                   <span className="supplier-name">
-                    {(model.supplier && (model.supplier.display_name || model.supplier.name)) || 
+                    {model.supplier_display_name || model.supplier_name || 
+                     (model.supplier && (model.supplier.display_name || model.supplier.name)) || 
                      model.supplierDisplayName || 
                      model.supplierName || 
                      '未知供应商'}
                   </span>
                 </div>
+                {getModelBadge && getModelBadge(model)}
               </div>
             ))
           )}

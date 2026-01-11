@@ -167,6 +167,102 @@ export const conversationApi = {
       console.error('清除所有对话失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
+  },
+  
+  // 获取对话模型列表
+  getConversationModels: async () => {
+    try {
+      return await request('/v1/conversations/models/conversation', {
+        method: 'GET'
+      });
+    } catch (error) {
+      console.error('获取对话模型列表失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+      throw error;
+    }
+  },
+  
+  // 话题管理API
+  // 创建话题
+  createTopic: async (conversationId, title, description = '') => {
+    try {
+      return await request(`/v1/conversations/${conversationId}/topics`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ title, description })
+      });
+    } catch (error) {
+      console.error(`创建话题失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+      throw error;
+    }
+  },
+  
+  // 获取对话的所有话题
+  getConversationTopics: async (conversationId) => {
+    try {
+      return await request(`/v1/conversations/${conversationId}/topics`, {
+        method: 'GET'
+      });
+    } catch (error) {
+      console.error(`获取话题列表失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+      throw error;
+    }
+  },
+  
+  // 更新话题
+  updateTopic: async (conversationId, topicId, title, description) => {
+    try {
+      return await request(`/v1/conversations/${conversationId}/topics/${topicId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ title, description })
+      });
+    } catch (error) {
+      console.error(`更新话题失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+      throw error;
+    }
+  },
+  
+  // 删除话题
+  deleteTopic: async (conversationId, topicId) => {
+    try {
+      return await request(`/v1/conversations/${conversationId}/topics/${topicId}`, {
+        method: 'DELETE'
+      });
+    } catch (error) {
+      console.error(`删除话题失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+      throw error;
+    }
+  },
+  
+  // 切换话题
+  switchTopic: async (conversationId, topicId) => {
+    try {
+      return await request(`/v1/conversations/${conversationId}/topics/${topicId}/switch`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+    } catch (error) {
+      console.error(`切换话题失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+      throw error;
+    }
+  },
+  
+  // 获取当前活跃话题
+  getActiveTopic: async (conversationId) => {
+    try {
+      return await request(`/v1/conversations/${conversationId}/active_topic`, {
+        method: 'GET'
+      });
+    } catch (error) {
+      console.error(`获取活跃话题失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+      throw error;
+    }
   }
 };
 
