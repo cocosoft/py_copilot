@@ -365,7 +365,16 @@
   color: #f39c12;
   border: 1px solid #f39c12;
 }
-
+/* 隐藏表格前的空段落 */
+table {
+  margin-top: 0 !important;
+}
+table::before {
+  content: none !important;
+}
+p:empty {
+  display: none !important; /* 隐藏所有空段落 */
+}
 .chat-actions {
   display: flex;
   gap: 10px;
