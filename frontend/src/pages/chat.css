@@ -404,23 +404,7 @@
   overflow-x: visible;
 }
 
-/* 确保包含块级公式的消息能够扩展到所需宽度 */
-.message.has-block-math {
-  max-width: 100% !important;
-  width: fit-content !important;
-  min-width: auto !important;
-  align-self: flex-start !important;
-  flex-shrink: 0;
-}
 
-/* 确保包含块级公式的消息内容能够扩展到所需宽度 */
-.message.has-block-math .message-content {
-  max-width: 100% !important;
-  width: 100% !important;
-  min-width: 100% !important;
-  flex-shrink: 0;
-  overflow: visible;
-}
 
 /* 移动端消息区域优化 */
 @media (max-width: 768px) {
@@ -506,34 +490,9 @@
   font-family: monospace;
 }
 
-/* KaTeX 公式样式调整 */
-.message-bubble .katex {
-  font-size: 1.1em !important;
-}
-
-.message-bubble .katex-display {
-  margin: 0.5em 0 !important;
-  overflow-x: auto;
-  overflow-y: hidden;
-  width: auto !important;
-  max-width: none !important;
-  white-space: nowrap !important;
-}
-
-.message-bubble .katex-display > .katex {
-  padding: 0.2em 0;
-}
-
-/* 确保公式在消息气泡中正确显示 */
+/* 确保消息气泡中内容正确显示 */
 .message-bubble {
   overflow-wrap: break-word;
-}
-
-/* 优化公式在移动端的显示 */
-@media (max-width: 768px) {
-  .message-bubble .katex {
-    font-size: 1em !important;
-  }
 }
 
 /* 消息样式 */
@@ -547,142 +506,7 @@
   min-width: 0;
 }
 
-/* 包含数学公式的消息，允许更宽的显示区域 */
-.message.has-math {
-  max-width: 70%;
-  width: fit-content;
-}
 
-/* 包含块级公式的消息，使用默认宽度 */
-.message.has-block-math {
-  max-width: 70% !important;
-  width: fit-content !important;
-  align-self: flex-start !important;
-  flex-shrink: 0;
-}
-
-/* 包含块级公式的消息内容 */
-.message.has-block-math .message-content {
-  max-width: 100% !important;
-  width: fit-content !important;
-  flex-shrink: 0;
-  padding-left: 0 !important;
-  margin-left: 0 !important;
-}
-
-/* 包含块级公式的消息气泡 */
-.message.has-block-math .message-bubble {
-  max-width: 100% !important;
-  width: fit-content !important;
-  flex-shrink: 0;
-  overflow: visible !important;
-  border-radius: 16px 16px 0 16px;
-  padding: 10px 14px !important;
-}
-
-/* 独立的数学公式容器，完全绕过消息气泡限制 */
-.independent-math-container {
-  display: block !important;
-  width: 100% !important;
-  min-width: 100% !important;
-  max-width: 100vw !important;
-  margin: 0 !important;
-  padding: 10px 14px !important;
-  background-color: #ffffff !important;
-  border-radius: 0 0 16px 16px !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
-  overflow: auto !important;
-  position: relative !important;
-  z-index: 2 !important;
-  text-align: left !important;
-  flex-shrink: 0 !important;
-  box-sizing: border-box !important;
-  /* 突破所有可能的宽度限制 */
-  flex: none !important;
-  align-self: stretch !important;
-  width: max-content !important;
-  /* 确保公式容器可以扩展到视口宽度 */
-  margin-left: -14px !important;
-  margin-right: -14px !important;
-  padding-left: 14px !important;
-  padding-right: 14px !important;
-}
-
-/* 独立容器中的块级公式 */
-.independent-math-container .katex-display {
-  display: block !important;
-  width: auto !important;
-  min-width: min-content !important;
-  max-width: 100% !important;
-  margin: 0.5em 0 !important;
-  padding: 0 !important;
-  text-align: left !important;
-  overflow: auto !important;
-}
-
-/* 独立容器中的行内公式 */
-.independent-math-container .katex {
-  display: inline-block !important;
-  font-size: 1.1em !important;
-  white-space: nowrap !important;
-  vertical-align: middle;
-}
-
-/* 特殊数学消息的样式 - 完全重写布局 */
-.special-math-message {
-  max-width: 100% !important;
-  width: fit-content !important;
-  align-self: flex-start !important;
-  margin-bottom: 12px !important;
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: flex-start !important;
-  gap: 8px !important;
-  flex-shrink: 0 !important;
-}
-
-/* 特殊数学消息的内容区域 */
-.special-math-message .message-content {
-  max-width: 100% !important;
-  width: fit-content !important;
-  flex-shrink: 0 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  padding-left: 0 !important;
-}
-
-/* 特殊数学消息的消息气泡 */
-.special-math-message .message-bubble {
-  max-width: 100% !important;
-  width: fit-content !important;
-  flex-shrink: 0 !important;
-  overflow: visible !important;
-  border-radius: 16px 16px 0 16px !important;
-  padding: 10px 14px !important;
-}
-
-/* 测试集消息的特殊处理 */
-.special-math-message:has(.message-bubble:contains("精简测试集")) {
-  max-width: 100% !important;
-  width: fit-content !important;
-}
-
-/* 确保测试集的公式不被换行 */
-.special-math-message .independent-math-container {
-  width: auto !important;
-  min-width: 100% !important;
-  max-width: none !important;
-  overflow: auto !important;
-}
-
-/* 确保测试集的公式容器有足够的宽度 */
-.special-math-message .independent-math-container .katex-display {
-  width: auto !important;
-  min-width: min-content !important;
-  max-width: none !important;
-  white-space: nowrap !important;
-  overflow: auto !important;
-}
 
 .user-message {
   align-self: flex-end;
@@ -719,12 +543,6 @@
   text-align: left !important;
 }
 
-/* 包含数学公式的消息内容，确保不被压缩 */
-.message.has-math .message-content {
-  min-width: 50%;
-  max-width: 100%;
-}
-
 .message-bubble {
   background-color: #ffffff;
   padding: 10px 14px;
@@ -739,60 +557,6 @@
   text-overflow: clip;
   min-width: 0;
   flex: 1;
-}
-
-/* 包含数学公式的消息气泡，确保公式有足够的显示空间 */
-.message.has-math .message-bubble {
-  max-width: 100%;
-  min-width: 0;
-  /* 确保气泡不被压缩 */
-  flex-shrink: 0;
-  /* 允许气泡根据内容自动调整大小 */
-  width: fit-content;
-  /* 但不超过最大宽度 */
-  max-width: 100%;
-}
-
-/* 包含数学公式的消息气泡，优化公式显示 */
-.message.has-math .message-bubble .math-content {
-  width: 100%;
-  min-width: 100%;
-  /* 确保公式容器有足够的宽度 */
-  max-width: none;
-}
-
-/* 包含块级公式的消息，提供特殊处理 */
-.message.has-block-math {
-  max-width: 70% !important;
-  width: fit-content !important;
-  flex-shrink: 0;
-}
-
-.message.has-block-math .message-content {
-  max-width: 100% !important;
-  width: 100% !important;
-  flex-shrink: 0;
-}
-
-.message.has-block-math .message-bubble {
-  max-width: 100% !important;
-  width: 100% !important;
-  flex-shrink: 0;
-  overflow: visible !important;
-}
-
-.message.has-block-math .math-container {
-  max-width: 100% !important;
-  width: auto !important;
-  min-width: 100% !important;
-  flex-shrink: 0;
-}
-
-.message.has-block-math .math-content {
-  max-width: 100% !important;
-  width: auto !important;
-  min-width: 100% !important;
-  flex-shrink: 0;
 }
 
 /* 移动端消息优化 */
@@ -1009,11 +773,7 @@
 }
 
 /* Markdown表格样式 - 增强版 */
-.markdown-renderer table,
-.math-renderer table,
-.independent-math-container table,
-.special-math-message table,
-.message.has-block-math table {
+.markdown-renderer table {
   border-collapse: collapse;
   width: 100%;
   margin: 1em 0;
@@ -1025,15 +785,7 @@
 }
 
 .markdown-renderer th,
-.math-renderer th,
-.independent-math-container th,
-.special-math-message th,
-.message.has-block-math th,
-.markdown-renderer td,
-.math-renderer td,
-.independent-math-container td,
-.special-math-message td,
-.message.has-block-math td {
+.markdown-renderer td {
   border: 1px solid #ddd;
   padding: 8px 12px;
   text-align: left;
@@ -1046,162 +798,22 @@
   max-width: 300px;
 }
 
-.markdown-renderer th,
-.math-renderer th,
-.independent-math-container th,
-.special-math-message th,
-.message.has-block-math th {
+.markdown-renderer th {
   background-color: #f8f9fa;
   font-weight: 500;
   color: #2c3e50;
 }
 
-.markdown-renderer tr:nth-child(even),
-.math-renderer tr:nth-child(even),
-.independent-math-container tr:nth-child(even),
-.special-math-message tr:nth-child(even),
-.message.has-block-math tr:nth-child(even) {
+.markdown-renderer tr:nth-child(even) {
   background-color: #f8f9fa;
 }
 
-.markdown-renderer tr:hover,
-.math-renderer tr:hover,
-.independent-math-container tr:hover,
-.special-math-message tr:hover,
-.message.has-block-math tr:hover {
+.markdown-renderer tr:hover {
   background-color: #e9ecef;
 }
 
 /* 表格容器样式，确保表格不会溢出 */
 .markdown-renderer,
-.math-renderer,
-.independent-math-container,
-.special-math-message,
-.message.has-block-math {
-  overflow-x: auto;
-  display: block;
-  width: 100%;
-}
-
-/* 表格内公式样式调整 */
-.markdown-renderer td .katex,
-.math-renderer td .katex,
-.independent-math-container td .katex,
-.special-math-message td .katex,
-.message.has-block-math td .katex {
-  font-size: 1em !important;
-  white-space: normal !important;
-  overflow-wrap: break-word !important;
-}
-
-/* 表格内块级公式样式调整 */
-.markdown-renderer td .katex-display,
-.math-renderer td .katex-display,
-.independent-math-container td .katex-display,
-.special-math-message td .katex-display,
-.message.has-block-math td .katex-display {
-  margin: 0.2em 0 !important;
-  padding: 0 !important;
-  text-align: center !important;
-}
-
-/* 响应式表格设计 */
-@media (max-width: 768px) {
-  .markdown-renderer th,
-  .math-renderer th,
-  .independent-math-container th,
-  .special-math-message th,
-  .message.has-block-math th,
-  .markdown-renderer td,
-  .math-renderer td,
-  .independent-math-container td,
-  .special-math-message td,
-  .message.has-block-math td {
-    padding: 6px 8px;
-    font-size: 11px;
-    max-width: 200px;
-  }
-}
-
-/* 特别针对文本内容进行修复 */
-.message-bubble p,
-.message-bubble span,
-.message-bubble div {
-  white-space: pre-wrap !important;
-  word-wrap: break-word !important;
-  overflow-wrap: break-word !important;
-  overflow: visible !important;
-  text-overflow: clip !important;
-  max-width: 100% !important;
-  min-width: 0 !important;
-}
-
-/* 强制移除任何可能的内容截断 */
-.message-bubble {
-  overflow: visible !important;
-  text-overflow: clip !important;
-  white-space: pre-wrap !important;
-  max-width: none !important;
-  width: auto !important;
-  min-width: 0 !important;
-  display: block !important;
-}
-
-/* 确保消息内容容器没有任何限制 */
-.message-content {
-  min-width: 0 !important;
-  max-width: none !important;
-  width: 100% !important;
-  overflow: visible !important;
-}
-
-/* 确保消息容器没有任何限制 */
-.message {
-  min-width: 0 !important;
-  max-width: none !important;
-  width: fit-content !important;
-}
-
-/* 重置所有KaTeX相关样式 */
-.message-bubble .katex,
-.message-bubble .katex-display,
-.message-bubble .katex-html {
-  all: unset;
-}
-
-/* 专用数学公式渲染容器 - 完全独立的布局 */
-.math-renderer {
-  display: block;
-  width: 100%;
-  margin: 1em 0;
-  padding: 0;
-  text-align: left;
-  overflow: visible;
-  position: relative;
-  z-index: 1;
-}
-
-/* 块级公式容器 */
-.math-renderer .katex-display {
-  display: block !important;
-  width: auto !important;
-  min-width: min-content !important;
-  max-width: none !important;
-  margin: 0.5em auto !important;
-  padding: 0 !important;
-  text-align: center !important;
-  overflow: auto !important;
-  white-space: nowrap !important;
-}
-
-/* 行内公式容器 */
-.math-renderer .katex {
-  display: inline-block !important;
-  font-size: 1.1em !important;
-  white-space: nowrap !important;
-  vertical-align: middle;
-}
-
 /* 流式响应中的文本内容 */
 .streaming-content {
   white-space: pre-wrap;
@@ -1210,94 +822,64 @@
   line-height: 1.5;
 }
 
-/* 基础公式样式 */
-.message-bubble .katex-display {
-  display: block !important;
-  text-align: center !important;
-  margin: 0 !important;
-  width: auto !important;
-  min-width: min-content !important;
-  overflow: visible !important;
+/* 表格样式 */
+table {
+  overflow: auto;
+  margin: 1em 0;
+  border-collapse: collapse;
+  border: 1px solid #ddd;
 }
 
-/* 确保块公式有足够的空间 */
-.message-bubble .katex-display > .katex {
-  display: inline-block !important;
-  width: auto !important;
-  min-width: min-content !important;
-  white-space: nowrap !important;
+th, td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
 }
 
-/* 行内公式样式 */
-.message-bubble .katex {
-  display: inline-block !important;
-  font-size: 1.1em !important;
-  white-space: nowrap !important;
-  min-width: 0 !important;
-  vertical-align: middle;
+th {
+  background-color: #f5f5f5;
+  font-weight: bold;
 }
 
-/* MathRenderer组件专用样式 */
-.math-content {
+/* 确保消息内容容器样式 */
+.message-bubble {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow: visible;
+}
+
+.message-content {
   width: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
-  /* 确保公式容器能够利用所有可用宽度 */
-  min-width: 100%;
-  max-width: none;
+  overflow: visible;
 }
 
-.math-content.math-streaming {
-  /* 流式响应中的公式特殊处理 */
-  background-color: rgba(245, 245, 245, 0.3);
-  border-radius: 4px;
-  padding: 4px;
-  margin: 2px 0;
-  /* 流式响应中确保公式有足够宽度 */
-  min-width: 100%;
+.message {
+  width: fit-content;
 }
 
-/* 包含数学公式的消息，优化公式容器宽度 */
-.message.has-math .math-content {
-  /* 确保公式容器有足够的宽度显示复杂公式 */
-  min-width: 100%;
-  max-width: none;
-  /* 允许水平滚动而不是换行 */
-  overflow-x: auto;
-  overflow-y: hidden;
-}
-
-.math-content .katex-display {
-  margin: 0.5em 0 !important;
-  overflow-x: auto !important;
-  white-space: nowrap !important;
-  display: block !important;
-  text-align: center;
-  width: auto !important;
-  max-width: none !important;
-}
-
-.math-content.math-streaming .katex-display {
-  /* 流式响应中的公式显示样式 */
-  background-color: rgba(200, 200, 200, 0.2);
-  border: 1px dashed #ccc;
-  padding: 6px;
-  border-radius: 3px;
+/* Markdown渲染器样式 */
+.markdown-renderer {
+  display: block;
+  width: 100%;
+  margin: 0.5em 0;
+  padding: 0;
   text-align: left;
 }
 
-.math-content .katex {
-  font-size: 1.1em !important;
-  overflow-x: auto !important;
-  white-space: nowrap !important;
-  display: inline-block !important;
+/* 响应式表格设计 */
+@media (max-width: 768px) {
+  table {
+    font-size: 14px;
+  }
+  
+  th, td {
+    padding: 6px 8px;
+  }
 }
 
-/* 确保公式在流式传输过程中不被压缩 */
-.math-content.math-streaming .katex {
-  min-width: max-content !important;
-  flex-shrink: 0 !important;
-}
+
+
+
 
 .message-time {
   font-size: 11px;

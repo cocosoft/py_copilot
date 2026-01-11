@@ -2,110 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { conversationApi } from '../utils/api';
 import { API_BASE_URL } from '../utils/apiUtils';
 import ReactMarkdown from 'react-markdown';
-import 'katex/dist/katex.min.css';
-import '../styles/katex.css';
-import { InlineMath, BlockMath } from 'react-katex';
-import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
-import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
-import katex from 'katex';
-// 导入mhchem扩展用于化学公式渲染
-import 'katex/contrib/mhchem';
 import ModelSelectDropdown from '../components/ModelManagement/ModelSelectDropdown';
 import './chat.css';
 
-// 化学公式渲染组件，专门处理化学公式
-const ChemFormulaRenderer = ({ content }) => {
-  const [renderedHtml, setRenderedHtml] = useState('');
-  
-  useEffect(() => {
-    if (!content) {
-      setRenderedHtml('');
-      return;
-    }
-    
-    try {
-      // 检测并处理化学公式
-      const chemRegex = /(\\ce\{[^}]+\}|\\CE\{[^}]+\})/g;
-      let processedContent = content;
-      let hasChemFormula = false;
-      
-      // 如果包含化学公式，手动渲染
-      if (chemRegex.test(content)) {
-        hasChemFormula = true;
-        processedContent = content.replace(chemRegex, (match) => {
-          // 去除e和{}
-          const formula = match.replace(/\\ce|\\CE/g, '').replace(/\{|\}/g, '');
-          
-          // 使用katex手动渲染化学公式
-          try {
-            return katex.renderToString(formula, {
-              throwOnError: false,
-              displayMode: true,
-              fleqn: true,
-              strict: false
-            });
-          } catch (error) {
-            console.error('化学公式渲染错误:', error);
-            return match;
-          }
-        });
-      }
-      
-      setRenderedHtml(processedContent);
-    } catch (error) {
-      console.error('ChemFormulaRenderer错误:', error);
-      setRenderedHtml(content);
-    }
-  }, [content]);
-  
-  return <div dangerouslySetInnerHTML={{ __html: renderedHtml }} />;
-};
 
-// 公式渲染组件，专门处理流式响应中的公式显示
+
+// 简化的Markdown渲染组件，只处理基本的Markdown渲染
 const MathRenderer = ({ content, isStreaming }) => {
-  const [renderedContent, setRenderedContent] = useState('');
-  const [hasMath, setHasMath] = useState(false);
-  const [hasTable, setHasTable] = useState(false);
-  
-  useEffect(() => {
-    // 检测内容中是否包含数学公式
-    const mathRegex = /\$[^$]+\$|\\\[.*?\\\]|\\\(.*?\\\)/;
-    const containsMath = mathRegex.test(content);
-    setHasMath(containsMath);
-    
-    // 检测内容中是否包含表格
-    const tableRegex = /\|.*\|/;
-    const containsTable = tableRegex.test(content);
-    setHasTable(containsTable);
-    
-    setRenderedContent(content);
-  }, [content]);
-  
-  // 如果包含表格，使用普通的Markdown渲染方式，避免数学公式渲染逻辑导致的问题
-  if (hasTable) {
-    return (
-      <div className="markdown-renderer">
-        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-          {renderedContent}
-        </ReactMarkdown>
-      </div>
-    );
-  }
-  
-  // 如果没有数学公式，仍然使用ReactMarkdown渲染Markdown内容
-  if (!hasMath) {
-    return (
-      <div className="markdown-renderer">
-        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-          {renderedContent}
-        </ReactMarkdown>
-      </div>
-    );
-  }
-  
-  // 如果是流式响应，只显示纯文本，不渲染公式
+  // 如果是流式响应，只显示纯文本
   if (isStreaming) {
     return (
       <div className="streaming-content">
@@ -114,14 +20,25 @@ const MathRenderer = ({ content, isStreaming }) => {
     );
   }
   
-  // 流式响应完成后，使用专用容器渲染数学公式
+  // 清理内容中的多余空白行，特别是表格周围的空白
+  const cleanedContent = content
+    // 移除连续的空白行（保留单个空行）
+    .replace(/\n{3,}/g, '\n\n')
+    // 移除表格前的多余空白行
+    .replace(/\n+((?:\|.*?\|\n)+)/g, '\n$1')
+    // 移除表格后的多余空白行
+    .replace(/((?:\|.*?\|\n)+)\n+/g, '$1\n')
+    // 移除行首和行尾的多余空白
+    .trim();
+  
+  // 只使用基本的Markdown渲染，不包含公式渲染
   return (
-    <div className="math-renderer">
+    <div className="markdown-renderer">
       <ReactMarkdown
-        remarkPlugins={[remarkMath, remarkGfm]}
-        rehypePlugins={[[rehypeKatex, { extensions: ['mhchem'] }], rehypeRaw]}
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeRaw]}
       >
-        {renderedContent}
+        {cleanedContent}
       </ReactMarkdown>
     </div>
   );
@@ -501,22 +418,7 @@ const Chat = () => {
                   )
                 );
                 
-                // 强制触发KaTeX重新渲染，解决公式显示问题
-                setTimeout(() => {
-                  if (window.renderMathInElement) {
-                    const messageBubbles = document.querySelectorAll('.message-bubble');
-                    messageBubbles.forEach(bubble => {
-                      if (bubble.textContent.includes('$')) {
-                        window.renderMathInElement(bubble, {
-                          delimiters: [
-                            {left: '$$', right: '$$', display: true},
-                            {left: '$', right: '$', display: false}
-                          ]
-                        });
-                      }
-                    });
-                  }
-                }, 100);
+
                 break;
                 
               case 'complete':
@@ -951,116 +853,14 @@ const Chat = () => {
       
       <div className="chat-messages">
         {messages.map(message => {
-          // 检测消息内容是否包含数学公式
-          const containsMath = /\$[^$]+\$|\\\[.*?\\\]|\\\(.*?\\\)/.test(message.text);
-          
-          // 如果是包含块级公式的机器人消息，使用特殊的渲染方式
-          // 检测任何类型的数学公式
-          const mathRegex = /\$[^$]+\$|\\\[.*?\\\]|\\\(.*?\\\)/;
-          const hasAnyMath = mathRegex.test(message.text);
-          
-          // 使用多种方式检测块级公式
-          const blockMathRegex1 = /\\\[.*?\\\]/;
-          const blockMathRegex2 = /\\begin\{equation\}.*?\\end\{equation\}/;
-          const hasBlockMath = blockMathRegex1.test(message.text) || blockMathRegex2.test(message.text);
-          
-          // 检测是否包含测试标记（T1-T6）
-          const hasTestMarkers = /T\d+:/i.test(message.text);
-          
           // 检测是否包含表格
           const hasTable = /\|.*\|/.test(message.text);
-          
-          // 只有包含数学公式但不包含表格的机器人消息才使用特殊的渲染方式
-          if (message.sender === 'bot' && !message.isStreaming && hasAnyMath && !hasTable) {
-            return (
-              <div 
-                key={message.id} 
-                className="message bot-message has-block-math special-math-message"
-              >
-                <div className="message-avatar">🤖</div>
-                <div className="message-content">
-                  <div className="message-bubble">
-                    <div className="message-header">
-                      <div className="message-status">
-                        {message.model && (
-                          <span className="model-badge">{message.model}</span>
-                        )}
-                        <span className="status-badge success">✅ 成功</span>
-                      </div>
-                      <span className="message-timestamp">{formatTime(message.timestamp)}</span>
-                    </div>
-                    
-                    {/* 思维链显示 */}
-                    {message.thinking && (
-                      <div className="thinking-chain-container">
-                        {message.isStreaming ? (
-                          <div className="thinking-chain">
-                            {message.thinking}
-                          </div>
-                        ) : (
-                          <>
-                            <div className="thinking-chain-toggle" onClick={() => toggleThinkingChain(message.id)}>
-                              <span className="toggle-icon">
-                                {expandedThinkingChains[message.id] ? '▼' : '▶'}
-                              </span>
-                              <span className="toggle-text">思维链</span>
-                            </div>
-                            {expandedThinkingChains[message.id] && (
-                              <div className="thinking-chain">
-                                {message.thinking}
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* 使用独立的容器渲染数学公式，完全绕过消息气泡限制 */}
-                  <div className="independent-math-container">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkMath, remarkGfm]}
-                      rehypePlugins={[[rehypeKatex, { extensions: ['mhchem'] }], rehypeRaw]}
-                    >
-                      {message.text}
-                    </ReactMarkdown>
-                  </div>
-                  
-                  {message.fallbackInfo && (
-                    <div className="fallback-info">
-                      🔄 {message.fallbackInfo}
-                    </div>
-                  )}
-                  {message.metrics && (
-                    <div className="message-metrics">
-                      {message.metrics.execution_time && (
-                        <span className="metric-item">
-                          ⏱️ <span className="metric-value">{formatDuration(message.metrics.execution_time)}</span>
-                        </span>
-                      )}
-                      {message.metrics.tokens_used && (
-                        <span className="metric-item">
-                          📊 <span className="metric-value">{message.metrics.tokens_used} tokens</span>
-                        </span>
-                      )}
-                      {message.metrics.success !== undefined && (
-                        <span className="metric-item">
-                          {message.metrics.success ? '✅' : '❌'} 
-                          <span className="metric-value">{message.metrics.success ? '成功' : '失败'}</span>
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          }
           
           // 普通消息渲染
           return (
             <div 
               key={message.id} 
-              className={`message ${message.sender === 'user' ? 'user-message' : 'bot-message'} ${message.status || 'success'} ${!hasTable && containsMath ? 'has-math' : ''} ${!hasTable && hasBlockMath ? 'has-block-math' : ''}`}
+              className={`message ${message.sender === 'user' ? 'user-message' : 'bot-message'} ${message.status || 'success'}`}
             >
             {message.sender === 'bot' && <div className="message-avatar">🤖</div>}
             <div className="message-content">
