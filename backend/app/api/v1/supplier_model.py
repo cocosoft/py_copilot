@@ -1,6 +1,6 @@
 """供应商和模型相关的API路由"""
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request
+from typing import List, Optional, Dict, Any
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from datetime import datetime
@@ -16,6 +16,7 @@ from app.schemas.supplier_model import (
 from app.schemas.model_management import (
     ModelResponse, ModelListResponse, ModelWithSupplierResponse, ModelSupplierResponse
 )
+from app.services.capability_model_filter import CapabilityBasedModelFilter
 
 router = APIRouter()
 
@@ -415,10 +416,12 @@ def get_all_models(db: Session = Depends(get_db)):
                 model_name=str(getattr(model, "model_name", model.model_id)) if getattr(model, "model_name", model.model_id) is not None else "",
                 description=str(model.description) if model.description is not None else None,
                 supplier_id=int(model.supplier_id),
+                type=getattr(model, "type", "chat"),  # 添加type字段，默认为chat
                 context_window=int(model.context_window) if model.context_window is not None else None,
-                max_tokens=int(getattr(model, "max_tokens", model.default_max_tokens)) if getattr(model, "max_tokens", model.default_max_tokens) is not None else None,
+                max_tokens=int(model.max_tokens) if model.max_tokens is not None else None,
                 is_default=bool(model.is_default),
                 is_active=bool(model.is_active),
+                created_at=model.created_at if hasattr(model, 'created_at') else datetime.now(),  # 添加created_at字段
                 supplier=ModelSupplierResponse(
                     id=model.supplier.id,
                     name=model.supplier.name,
@@ -1178,4 +1181,211 @@ async def test_api_config(supplier_id: int, api_config: dict, db: Session = Depe
             "message": f"测试过程中发生错误: {str(e)}",
             "status_code": 0,
             "response_text": str(e)
+        }
+
+
+# 基于场景的模型查询API
+@router.get("/models/by-scene/{scene}")
+def get_models_by_scene(
+    scene: str,
+    include_match_score: bool = Query(False, description="是否包含能力匹配度评分"),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    根据场景获取符合条件的模型列表
+    
+    Args:
+        scene: 场景名称（chat、translate等）
+        include_match_score: 是否包含能力匹配度评分
+        db: 数据库会话
+        
+    Returns:
+        包含模型列表和匹配度信息的响应
+    """
+    try:
+        # 创建能力筛选器
+        filter_service = CapabilityBasedModelFilter(db)
+        
+        # 获取可用的场景列表
+        available_scenes = filter_service.get_available_scenes()
+        
+        if scene not in available_scenes:
+            return {
+                "status": "error",
+                "message": f"场景 '{scene}' 不支持。支持的场景: {', '.join(available_scenes)}",
+                "available_scenes": available_scenes
+            }
+        
+        if include_match_score:
+            # 包含匹配度评分
+            models_with_scores = filter_service.get_models_with_capability_scores(scene)
+            
+            # 转换为前端友好的格式，包含完整的供应商信息
+            result_models = []
+            for item in models_with_scores:
+                model = item["model"]
+                # 获取供应商信息
+                supplier = db.query(SupplierDB).filter(SupplierDB.id == model.supplier_id).first()
+                
+                result_models.append({
+                    "id": model.id,
+                    "model_id": model.model_id,
+                    "model_name": model.model_name,
+                    "description": model.description,
+                    "supplier_id": model.supplier_id,
+                    "supplier": {
+                        "id": supplier.id if supplier else None,
+                        "name": supplier.name if supplier else "未知供应商",
+                        "display_name": supplier.display_name if supplier else None,
+                        "logo": supplier.logo if supplier else None
+                    },
+                    "context_window": model.context_window,
+                    "max_tokens": model.max_tokens,
+                    "is_default": model.is_default,
+                    "is_active": model.is_active,
+                    "match_score": item["match_score"],
+                    "match_percentage": item["match_percentage"],
+                    "satisfied_requirements": item["satisfied_requirements"]
+                })
+            
+            return {
+                "status": "success",
+                "message": f"成功获取 {len(result_models)} 个模型",
+                "scene": scene,
+                "models": result_models,
+                "total": len(result_models)
+            }
+        else:
+            # 仅返回模型列表
+            models = filter_service.get_models_for_scene(scene)
+            
+            # 转换为前端友好的格式，包含完整的供应商信息
+            result_models = []
+            for model in models:
+                # 获取供应商信息
+                supplier = db.query(SupplierDB).filter(SupplierDB.id == model.supplier_id).first()
+                
+                result_models.append({
+                    "id": model.id,
+                    "model_id": model.model_id,
+                    "model_name": model.model_name,
+                    "description": model.description,
+                    "supplier_id": model.supplier_id,
+                    "supplier": {
+                        "id": supplier.id if supplier else None,
+                        "name": supplier.name if supplier else "未知供应商",
+                        "display_name": supplier.display_name if supplier else None,
+                        "logo": supplier.logo if supplier else None
+                    },
+                    "context_window": model.context_window,
+                    "max_tokens": model.max_tokens,
+                    "is_default": model.is_default,
+                    "is_active": model.is_active
+                })
+            
+            return {
+                "status": "success",
+                "message": f"成功获取 {len(result_models)} 个模型",
+                "scene": scene,
+                "models": result_models,
+                "total": len(result_models)
+            }
+    
+    except Exception as e:
+        import logging
+        logger = logging.getLogger()
+        logger.error(f"[场景模型查询] 错误 - 场景: {scene}, 错误: {str(e)}", exc_info=True)
+        
+        return {
+            "status": "error",
+            "message": f"查询模型失败: {str(e)}",
+            "scene": scene,
+            "models": [],
+            "total": 0
+        }
+
+
+@router.get("/models/available-scenes")
+def get_available_scenes(db: Session = Depends(get_db)) -> Dict[str, Any]:
+    """
+    获取所有可用的场景列表
+    
+    Args:
+        db: 数据库会话
+        
+    Returns:
+        包含可用场景列表的响应
+    """
+    try:
+        filter_service = CapabilityBasedModelFilter(db)
+        available_scenes = filter_service.get_available_scenes()
+        
+        return {
+            "status": "success",
+            "message": f"成功获取 {len(available_scenes)} 个可用场景",
+            "available_scenes": available_scenes
+        }
+    
+    except Exception as e:
+        import logging
+        logger = logging.getLogger()
+        logger.error(f"[获取可用场景] 错误: {str(e)}", exc_info=True)
+        
+        return {
+            "status": "error",
+            "message": f"获取可用场景失败: {str(e)}",
+            "available_scenes": []
+        }
+
+
+@router.get("/models/{model_id}/capability-scores/{scene}")
+def get_model_capability_scores(
+    model_id: int,
+    scene: str,
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    获取指定模型在特定场景下的能力匹配度评分
+    
+    Args:
+        model_id: 模型ID
+        scene: 场景名称
+        db: 数据库会话
+        
+    Returns:
+        包含能力匹配度评分的响应
+    """
+    try:
+        filter_service = CapabilityBasedModelFilter(db)
+        
+        # 获取模型
+        model = db.query(ModelDB).filter(ModelDB.id == model_id).first()
+        if not model:
+            return {
+                "status": "error",
+                "message": f"模型 ID {model_id} 不存在",
+                "score": 0.0
+            }
+        
+        # 计算模型在指定场景下的能力匹配度
+        score = filter_service.calculate_capability_score(model, scene)
+        
+        return {
+            "status": "success",
+            "message": f"成功获取模型 {model.model_name} 在场景 {scene} 的能力匹配度",
+            "score": score,
+            "model_id": model_id,
+            "model_name": model.model_name,
+            "scene": scene
+        }
+    
+    except Exception as e:
+        import logging
+        logger = logging.getLogger()
+        logger.error(f"[获取模型能力评分] 错误: {str(e)}", exc_info=True)
+        
+        return {
+            "status": "error",
+            "message": f"获取模型能力评分失败: {str(e)}",
+            "score": 0.0
         }

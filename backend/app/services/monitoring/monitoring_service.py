@@ -60,7 +60,7 @@ class Alert:
 class MonitoringService:
     """监控服务"""
     
-    def __init__(self, db: Session):
+    def __init__(self, db: Optional[Session] = None):
         self.db = db
         self.metrics: Dict[str, List[Dict[str, Any]]] = {}
         self.alerts: Dict[str, Alert] = {}

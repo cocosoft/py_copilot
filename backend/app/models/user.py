@@ -3,6 +3,8 @@ from sqlalchemy import Column, Integer, String, Boolean, DateTime, func
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
+# 导入相关模型
+from app.models.chat_enhancements import UploadedFile, VoiceInput, SearchQuery
 
 
 class User(Base):
@@ -33,6 +35,9 @@ class User(Base):
     global_memories = relationship("GlobalMemory", back_populates="user", cascade="all, delete-orphan")
     memory_access_logs = relationship("MemoryAccessLog", back_populates="user", cascade="all, delete-orphan")
     memory_config = relationship("UserMemoryConfig", back_populates="user", cascade="all, delete-orphan", uselist=False)
+    uploaded_files = relationship("UploadedFile", back_populates="user", cascade="all, delete-orphan")
+    voice_inputs = relationship("VoiceInput", back_populates="user", cascade="all, delete-orphan")
+    search_queries = relationship("SearchQuery", back_populates="user", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}', email='{self.email}')>"

@@ -211,29 +211,42 @@ async def set_scene_default_model(
                 detail=f"备选模型 ID {request.fallback_model_id} 不存在"
             )
     
-    # 先停用该场景现有的默认模型
-    db.query(DefaultModel).filter(
+    # 检查是否已存在该场景的默认模型
+    existing_default_model = db.query(DefaultModel).filter(
         and_(
             DefaultModel.scope == 'scene',
             DefaultModel.scene == request.scene
         )
-    ).update({'is_active': False})
+    ).first()
     
-    # 创建新的场景默认模型
-    new_default_model = DefaultModel(
-        scope='scene',
-        scene=request.scene,
-        model_id=request.model_id,
-        priority=request.priority if request.priority else 1,
-        fallback_model_id=request.fallback_model_id,
-        is_active=True
-    )
-    
-    db.add(new_default_model)
-    db.commit()
-    db.refresh(new_default_model)
-    
-    return new_default_model
+    if existing_default_model:
+        # 更新现有记录
+        existing_default_model.model_id = request.model_id
+        existing_default_model.priority = request.priority if request.priority else 1
+        existing_default_model.fallback_model_id = request.fallback_model_id
+        existing_default_model.is_active = True
+        existing_default_model.updated_at = datetime.now()
+        
+        db.commit()
+        db.refresh(existing_default_model)
+        
+        return existing_default_model
+    else:
+        # 创建新的场景默认模型
+        new_default_model = DefaultModel(
+            scope='scene',
+            scene=request.scene,
+            model_id=request.model_id,
+            priority=request.priority if request.priority else 1,
+            fallback_model_id=request.fallback_model_id,
+            is_active=True
+        )
+        
+        db.add(new_default_model)
+        db.commit()
+        db.refresh(new_default_model)
+        
+        return new_default_model
 
 # 创建默认模型配置
 @router.post("/default-models", response_model=DefaultModelResponse)

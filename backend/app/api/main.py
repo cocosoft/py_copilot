@@ -128,34 +128,24 @@ async def unicode_decode_error_handler(request: Request, exc: UnicodeDecodeError
 #     )
 
 # 导入监控系统
-from app.core.performance_middleware import PerformanceMiddleware, get_performance_monitor
+from app.core.performance_middleware import PerformanceMiddleware
 from app.services.monitoring.monitoring_service import MonitoringService
-from app.services.monitoring.alert_notifier import NotificationManager
-from app.api.deps import get_db
 
-# 创建全局监控服务实例
+# 创建简化的监控服务实例（避免数据库依赖）
 _monitoring_service = None
-_performance_monitor = None
 
-# 注释掉监控服务的初始化，避免在服务器启动时立即访问数据库
-# def get_monitoring_service():
-#     """获取监控服务实例"""
-#     global _monitoring_service
-#     if _monitoring_service is None:
-#         # 使用数据库依赖获取数据库会话
-#         db = next(get_db())
-#         _monitoring_service = MonitoringService(db)
-#         
-#         # 添加告警通知处理器
-#         notification_manager = NotificationManager()
-#         _monitoring_service.add_alert_handler(notification_manager.send_alert_notification)
-#     
-#     return _monitoring_service
+def get_monitoring_service():
+    """获取监控服务实例（简化版，避免数据库依赖）"""
+    global _monitoring_service
+    if _monitoring_service is None:
+        # 创建不依赖数据库的监控服务实例
+        _monitoring_service = MonitoringService()
+    
+    return _monitoring_service
 
-# 注释掉性能监控中间件，避免启动时的数据库依赖
-# monitoring_service = get_monitoring_service()
-# performance_monitor = get_performance_monitor(monitoring_service)
-# app.add_middleware(PerformanceMiddleware, monitoring_service=monitoring_service)
+# 启用性能监控中间件
+monitoring_service = get_monitoring_service()
+app.add_middleware(PerformanceMiddleware, monitoring_service=monitoring_service)
 
 # 请求日志中间件（增强版，包含性能监控）
 @app.middleware("http")

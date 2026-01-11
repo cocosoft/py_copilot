@@ -4,7 +4,7 @@ from typing import Dict, Any, List, Optional, Union
 import logging
 
 from app.core.config import settings
-from app.services.llm_service import llm_service
+from app.modules.llm.services.llm_service_enhanced import enhanced_llm_service
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +14,7 @@ class LLMTasks:
     
     def __init__(self, llm_service=None):
         """初始化LLM任务处理服务"""
-        from app.services.llm_service import llm_service as default_llm_service
+        from app.modules.llm.services.llm_service_enhanced import enhanced_llm_service as default_llm_service
         self.llm_service = llm_service or default_llm_service
     
     def summarize_text(self, text: str, **options) -> Dict[str, Any]:

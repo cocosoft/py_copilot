@@ -84,7 +84,7 @@ class LLMService:
             return self.text_completion(
                 prompt=prompt,
                 model_name=kwargs.get("model_name"),
-                max_tokens=kwargs.get("max_tokens", 1000),
+                max_tokens=kwargs.get("max_tokens", 4000),
                 temperature=kwargs.get("temperature", 0.7)
             )
         except Exception as e:
@@ -102,7 +102,7 @@ class LLMService:
             return self.chat_completion(
                 messages=messages,
                 model_name=kwargs.get("model_name"),
-                max_tokens=kwargs.get("max_tokens", 1000),
+                max_tokens=kwargs.get("max_tokens", 4000),
                 temperature=kwargs.get("temperature", 0.7),
                 db=kwargs.get("db")
             )
