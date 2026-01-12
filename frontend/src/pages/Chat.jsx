@@ -1,79 +1,30 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { conversationApi } from '../utils/api';
 import { API_BASE_URL } from '../utils/apiUtils';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import rehypeRaw from 'rehype-raw';
 import ModelSelectDropdown from '../components/ModelManagement/ModelSelectDropdown';
 import './chat.css';
-
-
-
-// 自定义remark插件，用于在Markdown解析过程中移除表格前的空白行
-const removeEmptyLinesBeforeTables = () => {
-  return (tree) => {
-    // 遍历Markdown AST，找到所有表格节点
-    const findTables = (node, index, parent) => {
-      if (node.type === 'table') {
-        // 如果表格不是父节点的第一个子节点，检查前面的节点
-        if (index > 0) {
-          const previousNode = parent.children[index - 1];
-          // 如果前面的节点是空白行，移除它
-          if (previousNode.type === 'paragraph' && previousNode.children.length === 1 && previousNode.children[0].type === 'text' && !previousNode.children[0].value.trim()) {
-            parent.children.splice(index - 1, 1);
-          }
-        }
-      }
-      // 递归遍历子节点
-      if (node.children) {
-        node.children.forEach((child, i) => findTables(child, i, node));
-      }
-    };
-    
-    findTables(tree, 0, { children: [tree] });
-    
-    return tree;
-  };
-};
-
-// 简化的Markdown渲染组件，只处理基本的Markdown渲染
-const MathRenderer = ({ content, isStreaming }) => {
-  // 如果是流式响应，只显示纯文本
-  if (isStreaming) {
-    return (
-      <div className="streaming-content">
-        {content}
-      </div>
-    );
-  }
-  
-  // 清理内容中的多余空白行，特别是表格前的空白
-  let cleanedContent = content
-    // 移除连续的空白行（保留单个空行）
-    .replace(/\n{3,}/g, '\n\n')
-    // 移除行首和行尾的多余空白
-    .trim();
-  
-  // 只使用基本的Markdown渲染，不包含公式渲染
-  return (
-    <div className="markdown-renderer">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm, removeEmptyLinesBeforeTables]}
-        rehypePlugins={[rehypeRaw]}
-      >
-        {cleanedContent}
-      </ReactMarkdown>
-    </div>
-  );
-};
 
 const Chat = () => {
   const [messages, setMessages] = useState([
     {
       id: 1,
       sender: 'bot',
-      text: '你好！我是 **Py Copilot** 智能助手，现在支持调用真实的大语言模型进行对话！\n\n**新功能：**\n- ✅ 支持多种大模型（Ollama、DeepSeek等）\n- ✅ 智能回退机制（模型失败时自动切换）\n- ✅ 实时状态显示\n- ✅ 更好的错误处理\n\n请选择模型并开始对话吧！',
+      text: '你好！我是 Py Copilot 智能助手，现在支持调用真实的大语言模型进行对话！\n\n新功能：\n- ✅ 支持多种大模型（Ollama、DeepSeek等）\n- ✅ 智能回退机制（模型失败时自动切换）\n- ✅ 实时状态显示\n- ✅ 更好的错误处理\n\n请选择模型并开始对话吧！',
       timestamp: new Date(Date.now() - 3600000),
+      status: 'success'
+    },
+    {
+      id: 2,
+      sender: 'bot',
+      text: '表格渲染测试\n\n这是一个测试表格，用于验证表格前的空白行问题是否已解决：\n\n| 项目 | 数量 | 价格 |\n|------|------|------|\n| 苹果 | 5    | ¥10  |\n| 香蕉 | 3    | ¥15  |\n| 橙子 | 8    | ¥20  |\n\n表格前应该没有多余的空白行。',
+      timestamp: new Date(Date.now() - 1800000),
+      status: 'success'
+    },
+    {
+      id: 3,
+      sender: 'bot',
+      text: '多个表格测试\n\n第一个表格：\n\n| 姓名 | 年龄 | 城市 |\n|------|------|------|\n| 张三 | 25   | 北京 |\n| 李四 | 30   | 上海 |\n\n第二个表格紧随其后：\n\n| 产品 | 库存 | 状态 |\n|------|------|------|\n| 手机 | 100  | 有货 |\n| 电脑 | 50   | 缺货 |\n\n两个表格之间应该只有适当的间距。',
+      timestamp: new Date(Date.now() - 900000),
       status: 'success'
     }
   ]);
@@ -87,13 +38,13 @@ const Chat = () => {
   const [isLoadingModels, setIsLoadingModels] = useState(true);
   const [enableStreaming, setEnableStreaming] = useState(true);
   const [enableThinkingChain, setEnableThinkingChain] = useState(false);
-  const [currentStreamingMessage, setCurrentStreamingMessage] = useState(null);
   const [topics, setTopics] = useState([]);
   const [activeTopic, setActiveTopic] = useState(null);
   const [showTopicPanel, setShowTopicPanel] = useState(false);
   const [newTopicTitle, setNewTopicTitle] = useState('');
   const [newTopicDescription, setNewTopicDescription] = useState('');
   const [expandedThinkingChains, setExpandedThinkingChains] = useState({}); // 管理各个消息的思维链展开/收缩状态
+  const [currentStreamingMessage, setCurrentStreamingMessage] = useState(null);
   const messagesEndRef = useRef(null);
   
   // 滚动到底部
@@ -199,7 +150,7 @@ const Chat = () => {
           {
             id: 1,
             sender: 'bot',
-            text: `已切换到话题：**${response.active_topic.title}**\n\n${response.active_topic.description || '请开始新的对话吧！'}`,
+            text: `已切换到话题：${response.active_topic.title}\n\n${response.active_topic.description || '请开始新的对话吧！'}`,
             timestamp: new Date(),
             status: 'success'
           }
@@ -440,8 +391,6 @@ const Chat = () => {
                       : msg
                   )
                 );
-                
-
                 break;
                 
               case 'complete':
@@ -876,9 +825,6 @@ const Chat = () => {
       
       <div className="chat-messages">
         {messages.map(message => {
-          // 检测是否包含表格
-          const hasTable = /\|.*\|/.test(message.text);
-          
           // 普通消息渲染
           return (
             <div 
@@ -934,10 +880,9 @@ const Chat = () => {
                   </div>
                 )}
                 
-                <MathRenderer 
-                  content={message.text} 
-                  isStreaming={message.isStreaming}
-                />
+                <div className={`message-text ${message.isStreaming ? 'streaming-text' : ''}`}>
+                  {message.text}
+                </div>
                 {message.fallbackInfo && (
                   <div className="fallback-info">
                     🔄 {message.fallbackInfo}
@@ -967,8 +912,7 @@ const Chat = () => {
             </div>
             {message.sender === 'user' && <div className="message-avatar">👤</div>}
           </div>
-        );
-      })}
+        );})}
         
         {isTyping && (
           <div className="message bot-message">
@@ -990,10 +934,9 @@ const Chat = () => {
           <button type="button" className="input-btn">📷</button>
           <button type="button" className="input-btn">📁</button>
           <button type="button" className="input-btn">✨</button>
-          <div className="markdown-hint" title="支持 Markdown 格式：**粗体**、*斜体*、# 标题、- 列表等">MD</div>
         </div>
         <textarea
-          placeholder="输入消息... 支持 Markdown 格式和数学公式($公式$ 或 $$块公式$$)，使用 Shift+Enter 换行"
+          placeholder="输入消息... 使用 Shift+Enter 换行"
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
           onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage(e)}

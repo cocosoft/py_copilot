@@ -1,6 +1,6 @@
 """供应商和模型相关的API路由"""
 from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request, Query
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request, Query, Body
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from datetime import datetime
@@ -330,7 +330,7 @@ async def update_supplier(
         raise HTTPException(status_code=500, detail=f"更新供应商失败: {str(e)}")
 
 @router.patch("/suppliers/{supplier_id}/status")
-def update_supplier_status(supplier_id: int, is_active: bool, db: Session = Depends(get_db)):
+def update_supplier_status(supplier_id: int, is_active: bool = Body(..., embed=True), db: Session = Depends(get_db)):
     """更新供应商状态"""
     # 检查供应商是否存在 - 使用ORM模型查询
     supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
