@@ -334,14 +334,6 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
         return;
       }
 
-      // 测试API配置
-      console.log('即将调用testApiConfig，传递的参数:', JSON.stringify({
-        id: selectedSupplier.id,
-        apiConfig: {
-          apiUrl: localApiConfig.apiUrl,
-          apiKey: localApiConfig.apiKey
-        }
-      }, null, 2));
       const result = await supplierApi.testApiConfig(selectedSupplier.id, {
         apiUrl: localApiConfig.apiUrl,
         apiKey: localApiConfig.apiKey

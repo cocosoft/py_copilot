@@ -257,13 +257,6 @@ export const supplierApi = {
     // 确保ID是数字类型
     const numericId = Number(id);
     
-    // 添加调试信息
-    console.log('调用testApiConfig，传递的apiConfig:', JSON.stringify(apiConfig, null, 2));
-    console.log('要发送到后端的请求体:', JSON.stringify({
-      apiUrl: apiConfig.apiUrl,
-      apiKey: apiConfig.apiKey
-    }, null, 2));
-    
     const endpoint = `/v1/suppliers/${numericId}/test-api`;
     const response = await request(endpoint, {
       method: 'POST',
