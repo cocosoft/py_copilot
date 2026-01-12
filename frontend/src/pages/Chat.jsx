@@ -9,6 +9,33 @@ import './chat.css';
 
 
 
+// 自定义remark插件，用于在Markdown解析过程中移除表格前的空白行
+const removeEmptyLinesBeforeTables = () => {
+  return (tree) => {
+    // 遍历Markdown AST，找到所有表格节点
+    const findTables = (node, index, parent) => {
+      if (node.type === 'table') {
+        // 如果表格不是父节点的第一个子节点，检查前面的节点
+        if (index > 0) {
+          const previousNode = parent.children[index - 1];
+          // 如果前面的节点是空白行，移除它
+          if (previousNode.type === 'paragraph' && previousNode.children.length === 1 && previousNode.children[0].type === 'text' && !previousNode.children[0].value.trim()) {
+            parent.children.splice(index - 1, 1);
+          }
+        }
+      }
+      // 递归遍历子节点
+      if (node.children) {
+        node.children.forEach((child, i) => findTables(child, i, node));
+      }
+    };
+    
+    findTables(tree, 0, { children: [tree] });
+    
+    return tree;
+  };
+};
+
 // 简化的Markdown渲染组件，只处理基本的Markdown渲染
 const MathRenderer = ({ content, isStreaming }) => {
   // 如果是流式响应，只显示纯文本
@@ -20,14 +47,10 @@ const MathRenderer = ({ content, isStreaming }) => {
     );
   }
   
-  // 清理内容中的多余空白行，特别是表格周围的空白
-  const cleanedContent = content
+  // 清理内容中的多余空白行，特别是表格前的空白
+  let cleanedContent = content
     // 移除连续的空白行（保留单个空行）
     .replace(/\n{3,}/g, '\n\n')
-    // 移除表格前的多余空白行
-    .replace(/\n+((?:\|.*?\|\n)+)/g, '\n$1')
-    // 移除表格后的多余空白行
-    .replace(/((?:\|.*?\|\n)+)\n+/g, '$1\n')
     // 移除行首和行尾的多余空白
     .trim();
   
@@ -35,7 +58,7 @@ const MathRenderer = ({ content, isStreaming }) => {
   return (
     <div className="markdown-renderer">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, removeEmptyLinesBeforeTables]}
         rehypePlugins={[rehypeRaw]}
       >
         {cleanedContent}

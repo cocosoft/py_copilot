@@ -365,16 +365,7 @@
   color: #f39c12;
   border: 1px solid #f39c12;
 }
-/* 隐藏表格前的空段落 */
-table {
-  margin-top: 0 !important;
-}
-table::before {
-  content: none !important;
-}
-p:empty {
-  display: none !important; /* 隐藏所有空段落 */
-}
+
 .chat-actions {
   display: flex;
   gap: 10px;
@@ -413,7 +404,103 @@ p:empty {
   overflow-x: visible;
 }
 
+/* 表格样式优化 */
+.chat-messages table {
+  margin: 0.5rem 0 !important;
+  border-collapse: collapse;
+  width: 100%;
+  overflow-x: auto;
+}
 
+/* 隐藏所有空元素 */
+.chat-messages p:empty,
+.chat-messages p:blank,
+.chat-messages div:empty,
+.chat-messages span:empty,
+.chat-messages .markdown-renderer > p:empty,
+.chat-messages .markdown-renderer > p:blank,
+.chat-messages .markdown-renderer > div:empty,
+.chat-messages .markdown-renderer > span:empty,
+.chat-messages .markdown-renderer > :empty {
+  display: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* 强制移除表格前的所有空白 */
+.chat-messages .markdown-renderer {
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1.5;
+}
+
+/* 确保所有元素的默认边距和内边距正确 */
+.chat-messages .markdown-renderer > * {
+  margin: 0.5rem 0 !important;
+}
+
+/* 特别处理表格，确保没有多余空白 */
+.chat-messages .markdown-renderer > table {
+  margin: 0.5rem 0 !important;
+}
+
+/* 移除表格前的所有空白 */
+.chat-messages .markdown-renderer > table {
+  border-top: 0 !important;
+  padding-top: 0 !important;
+  margin-top: 0.5rem !important;
+}
+
+/* 移除任何可能导致空白的伪元素 */
+.chat-messages table::before,
+.chat-messages table::after,
+.chat-messages .markdown-renderer::before,
+.chat-messages .markdown-renderer::after,
+.chat-messages .markdown-renderer > *::before,
+.chat-messages .markdown-renderer > *::after {
+  content: none !important;
+}
+
+/* 强制所有元素的默认边距和内边距为0 */
+.chat-messages .markdown-renderer > * {
+  margin: 0.5rem 0 !important;
+  padding: 0 !important;
+}
+
+/* 强制设置表格前后的间距 */
+.chat-messages .markdown-renderer > * + table {
+  margin-top: 0.5rem !important;
+}
+
+.chat-messages .markdown-renderer > table + * {
+  margin-top: 0.5rem !important;
+}
+
+/* 确保表格不会有任何额外的间距 */
+.chat-messages .markdown-renderer > table {
+  clear: both !important;
+  display: table !important;
+  width: 100% !important;
+}
+
+/* 确保ReactMarkdown渲染的内容没有多余空白 */
+.chat-messages .markdown-renderer {
+  font-size: inherit;
+  line-height: inherit;
+}
+
+/* 移除任何可能的空白 */
+.chat-messages .message-bubble {
+  margin: 0 !important;
+  padding: 10px 14px !important;
+}
+
+/* 确保所有元素都正确显示 */
+.chat-messages .markdown-renderer > * {
+  display: block !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
 
 /* 移动端消息区域优化 */
 @media (max-width: 768px) {
