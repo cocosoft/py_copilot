@@ -1,6 +1,6 @@
 module.exports = {
   // 测试环境
-  testEnvironment: 'jsdom',
+  testEnvironment: 'jest-environment-jsdom',
   
   // 测试文件匹配模式
   testMatch: [

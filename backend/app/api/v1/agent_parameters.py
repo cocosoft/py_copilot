@@ -52,10 +52,6 @@ def get_agent_parameters(
             detail="智能体不存在"
         )
     
-    query = db.query(AgentParameterManager.__class__).filter(
-        AgentParameterManager.__tablename__ == "agent_parameters"
-    )
-    
     params = db.query(AgentParameter).filter(
         AgentParameter.agent_id == agent_id
     )
@@ -68,8 +64,11 @@ def get_agent_parameters(
         AgentParameter.agent_id == agent_id
     ).count()
     
+    # 将数据库模型转换为响应模型
+    param_responses = [AgentParameterResponse.from_orm(param) for param in params]
+    
     return AgentParameterListResponse(
-        parameters=params,
+        parameters=param_responses,
         total=total
     )
 

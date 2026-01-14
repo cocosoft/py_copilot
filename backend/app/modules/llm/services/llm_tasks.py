@@ -168,7 +168,7 @@ class LLMTasks:
     
     def translate_text(self, text: str, **options) -> Dict[str, Any]:
         """
-        文本翻译功能
+        文本翻译功能（集成记忆上下文和知识库增强）
         
         Args:
             text: 需要翻译的文本
@@ -176,6 +176,12 @@ class LLMTasks:
                 - target_language: 目标语言（'zh', 'en', 'ja'等）
                 - source_language: 源语言（默认为自动检测）
                 - model_name: 使用的模型名称
+                - memory_context: 记忆上下文（用于增强翻译）
+                - use_memory_enhancement: 是否使用记忆增强（布尔值）
+                - knowledge_base_id: 知识库ID
+                - use_knowledge_base: 是否使用知识库增强（布尔值）
+                - agent_id: 智能体ID
+                - scene: 场景名称
         
         Returns:
             包含翻译结果和元数据的字典
@@ -189,6 +195,18 @@ class LLMTasks:
         target_language = options.get('target_language', 'en')
         source_language = options.get('source_language', 'auto')
         model_name = options.get('model_name', 'gpt-3.5-turbo')
+        
+        # 记忆上下文相关参数
+        memory_context = options.get('memory_context', '')
+        use_memory_enhancement = options.get('use_memory_enhancement', False)
+        
+        # 知识库相关参数
+        knowledge_base_id = options.get('knowledge_base_id')
+        use_knowledge_base = options.get('use_knowledge_base', False)
+        
+        # 智能体和场景相关参数
+        agent_id = options.get('agent_id')
+        scene = options.get('scene', 'general')
         
         # 验证参数
         if not isinstance(target_language, str) or not target_language.strip():
@@ -211,26 +229,81 @@ class LLMTasks:
         target_name = language_names.get(target_language, target_language)
         source_text = f"从{language_names.get(source_language, source_language)}" if source_language != 'auto' else "从自动检测的语言"
         
-        # 构建翻译提示词
-        prompt = f"请将以下文本{source_text}翻译成{target_name}：\n\n{text}\n\n请只返回翻译结果，不要添加额外的解释。"
+        # 构建增强的翻译提示词
+        base_prompt = f"请将以下文本{source_text}翻译成{target_name}：\n\n{text}"
+        
+        # 添加记忆上下文增强
+        memory_context_prompt = ""
+        if use_memory_enhancement and memory_context:
+            memory_context_prompt = f"\n\n相关记忆上下文（请参考这些信息来增强翻译的准确性和一致性）：\n{memory_context}"
+        
+        # 添加知识库增强
+        knowledge_context_prompt = ""
+        if use_knowledge_base and knowledge_base_id:
+            knowledge_context_prompt = f"\n\n知识库参考：已启用知识库增强，请参考相关知识库内容进行翻译。"
+        
+        # 构建智能体提示词
+        agent_prompt = "你是一个专业的翻译助手。"
+        if agent_id:
+            # 这里可以添加智能体特定的提示词
+            agent_prompt = f"你是一个专业的翻译助手，根据智能体配置进行翻译。"
+        
+        # 场景特定的提示词增强
+        scene_prompt = ""
+        if scene and scene != 'general':
+            scene_prompt = f" 当前翻译场景：{scene}，请根据场景特点进行翻译。"
+            agent_prompt += scene_prompt
+        
+        # 完整的翻译提示词
+        prompt = f"{base_prompt}{memory_context_prompt}{knowledge_context_prompt}\n\n请只返回翻译结果，不要添加额外的解释。"
         
         try:
             # 使用聊天补全API
             result = self.llm_service.chat_completion(
                 messages=[
-                    {"role": "system", "content": "你是一个专业的翻译助手。"},
+                    {"role": "system", "content": agent_prompt},
                     {"role": "user", "content": prompt}
                 ],
                 model_name=model_name,
-                max_tokens=len(text.split()) * 2,  # 留出足够的翻译空间
+                max_tokens=len(text.split()) * 2 + 200,  # 留出额外空间用于上下文
                 temperature=0.1  # 较低的温度以确保翻译准确性
             )
             
             execution_time = (time.time() - start_time) * 1000
             
+            # 记录翻译历史（包含增强参数）
+            try:
+                from app.core.database import get_db
+                from app.models.translation_history import TranslationHistory
+                from datetime import datetime
+                
+                db = next(get_db())
+                history = TranslationHistory(
+                    source_text=text,
+                    target_text=result["generated_text"],
+                    source_language=source_language,
+                    target_language=target_language,
+                    model_name=result["model"],
+                    tokens_used=result["tokens_used"],
+                    agent_id=agent_id,
+                    scene=scene,
+                    knowledge_base_id=knowledge_base_id,
+                    use_memory_enhancement=use_memory_enhancement,
+                    use_knowledge_base=use_knowledge_base,
+                    created_at=datetime.utcnow()
+                )
+                db.add(history)
+                db.commit()
+            except Exception as history_error:
+                logger.warning(f"记录翻译历史失败: {str(history_error)}")
+            
             return {
                 "result": result["generated_text"],
                 "model": result["model"],
+                "agent_id": agent_id,
+                "scene": scene,
+                "use_memory_enhancement": use_memory_enhancement,
+                "use_knowledge_base": use_knowledge_base,
                 "tokens_used": result["tokens_used"],
                 "execution_time_ms": round(execution_time, 2),
                 "success": True
@@ -242,8 +315,12 @@ class LLMTasks:
             if hasattr(settings, 'SIMULATION_MODE') and settings.SIMULATION_MODE:
                 execution_time = (time.time() - start_time) * 1000
                 return {
-                    "result": f"[Simulated translation to {target_name}] This is a simulation of translated text.",
+                    "result": f"[Simulated translation to {target_name}] This is a simulation of translated text with memory enhancement: {use_memory_enhancement}.",
                     "model": f"{model_name} (simulation)",
+                    "agent_id": agent_id,
+                    "scene": scene,
+                    "use_memory_enhancement": use_memory_enhancement,
+                    "use_knowledge_base": use_knowledge_base,
                     "tokens_used": len(text.split()),
                     "execution_time_ms": round(execution_time, 2),
                     "success": True

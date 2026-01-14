@@ -23,6 +23,9 @@ class KnowledgeBase(Base):
     # 关系：一个知识库包含多个文档
     documents = relationship("KnowledgeDocument", back_populates="knowledge_base", cascade="all, delete-orphan")
     
+    # 关系：一个知识库有多个翻译历史记录
+    translation_history = relationship("TranslationHistory", back_populates="knowledge_base", cascade="all, delete-orphan")
+    
     def __repr__(self):
         return f"<KnowledgeBase(id={self.id}, name='{self.name}')>"
 

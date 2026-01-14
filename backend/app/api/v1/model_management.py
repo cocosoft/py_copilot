@@ -891,12 +891,38 @@ def get_parameters(
             parameters = ParameterManager.get_model_parameters_with_templates(db, model_id)
         elif level == "model_type" and supplier_id:
             # 模型类型级别参数
-            # TODO: 实现模型类型级别参数查询
+            # 获取供应商的所有模型，然后提取模型类型参数
+            models = db.query(ModelDB).filter(ModelDB.supplier_id == supplier_id).all()
+            model_type_ids = set(model.model_type_id for model in models if model.model_type_id)
+            
             parameters = []
+            for model_type_id in model_type_ids:
+                model_type_params = ParameterManager.get_model_type_parameters(db, model_type_id)
+                if model_type_params:
+                    # 将字典参数转换为列表格式
+                    for param_name, param_value in model_type_params.items():
+                        parameters.append({
+                            "parameter_name": param_name,
+                            "parameter_value": param_value,
+                            "parameter_type": "string",  # 默认类型，实际应从模板获取
+                            "description": f"模型类型级别参数: {param_name}",
+                            "level": "model_type",
+                            "model_type_id": model_type_id,
+                            "supplier_id": supplier_id
+                        })
         elif level == "agent" and supplier_id:
             # 代理级别参数
-            # TODO: 实现代理级别参数查询
+            # 由于当前数据库设计中代理和模型没有直接关联，
+            # 这里返回所有代理的参数配置
+            from app.models.agent import Agent
+            
+            # 获取所有代理
+            agents = db.query(Agent).all()
+            
             parameters = []
+            for agent in agents:
+                agent_params = ParameterManager.get_agent_parameters(db, agent.id)
+                parameters.extend(agent_params)
         
         return {"parameters": parameters}
     except Exception as e:

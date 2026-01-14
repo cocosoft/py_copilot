@@ -376,6 +376,149 @@ class MemoryService:
         return db_query.offset(offset).limit(limit).all()
 
     @staticmethod
+    def get_intelligent_context_memories(
+        db: Session,
+        user_id: int,
+        conversation_id: int,
+        query: Optional[str] = None,
+        limit: int = 10,
+        use_semantic_search: bool = True,
+        use_recency_boost: bool = True,
+        use_importance_boost: bool = True
+    ) -> List[GlobalMemory]:
+        """智能上下文记忆检索 - 根据对话上下文智能检索相关记忆"""
+        
+        # 1. 获取当前对话相关的记忆作为基础上下文
+        conversation_memories = MemoryService.get_conversation_memories(
+            db, conversation_id, user_id, limit=20, offset=0
+        )
+        
+        # 如果没有查询词，直接返回对话相关记忆
+        if not query:
+            return conversation_memories[:limit]
+        
+        # 2. 构建智能搜索查询
+        enhanced_query = query
+        
+        # 使用对话上下文增强查询
+        if conversation_memories:
+            # 提取对话记忆的关键内容
+            conversation_context = " ".join([
+                f"{mem.content[:100]}" for mem in conversation_memories[:5] if mem.content
+            ])
+            enhanced_query = f"{query} [对话上下文: {conversation_context}]"
+        
+        # 3. 执行语义搜索
+        semantic_results = []
+        if use_semantic_search:
+            try:
+                # 使用Chroma向量数据库进行语义搜索
+                search_results = chroma_service.search_similar(
+                    query=enhanced_query,
+                    filter_conditions={"user_id": user_id},
+                    n_results=limit * 2  # 获取更多结果用于后续排序
+                )
+                
+                # 将搜索结果转换为记忆对象
+                memory_ids = [int(result["metadata"]["memory_id"]) for result in search_results]
+                if memory_ids:
+                    semantic_results = db.query(GlobalMemory).filter(
+                        GlobalMemory.id.in_(memory_ids),
+                        GlobalMemory.user_id == user_id,
+                        GlobalMemory.is_active == True
+                    ).all()
+            except Exception as e:
+                # 如果向量搜索失败，回退到文本搜索
+                import logging
+                logging.warning(f"语义搜索失败: {str(e)}, 回退到文本搜索")
+                semantic_results = MemoryService.search_memories_by_text(
+                    db, query, user_id, limit=limit * 2
+                )
+        else:
+            # 不使用语义搜索，直接进行文本搜索
+            semantic_results = MemoryService.search_memories_by_text(
+                db, query, user_id, limit=limit * 2
+            )
+        
+        # 4. 智能排序算法
+        all_results = list(set(conversation_memories + semantic_results))
+        
+        # 计算每个记忆的智能分数
+        scored_memories = []
+        for memory in all_results:
+            score = MemoryService.calculate_context_relevance_score(
+                memory, query, conversation_memories,
+                use_recency_boost=use_recency_boost,
+                use_importance_boost=use_importance_boost
+            )
+            scored_memories.append((memory, score))
+        
+        # 按分数排序
+        scored_memories.sort(key=lambda x: x[1], reverse=True)
+        
+        # 返回前limit个结果
+        return [memory for memory, score in scored_memories[:limit]]
+
+    @staticmethod
+    def search_memories_by_text(db: Session, query: str, user_id: int, limit: int = 10) -> List[GlobalMemory]:
+        """基于文本内容搜索记忆"""
+        from sqlalchemy import or_
+        
+        return db.query(GlobalMemory).filter(
+            GlobalMemory.user_id == user_id,
+            GlobalMemory.is_active == True,
+            or_(
+                GlobalMemory.title.ilike(f"%{query}%"),
+                GlobalMemory.content.ilike(f"%{query}%"),
+                GlobalMemory.summary.ilike(f"%{query}%")
+            )
+        ).order_by(desc(GlobalMemory.created_at)).limit(limit).all()
+
+    @staticmethod
+    def calculate_context_relevance_score(
+        memory: GlobalMemory,
+        query: str,
+        conversation_memories: List[GlobalMemory],
+        use_recency_boost: bool = True,
+        use_importance_boost: bool = True
+    ) -> float:
+        """计算记忆在特定上下文中的相关性分数"""
+        base_score = 0.5
+        
+        # 1. 文本匹配分数
+        query_terms = query.lower().split()
+        memory_text = f"{memory.title or ''} {memory.content or ''} {memory.summary or ''}".lower()
+        
+        # 计算查询词在记忆中的出现频率
+        term_matches = sum(1 for term in query_terms if term in memory_text)
+        text_match_score = term_matches / len(query_terms) if query_terms else 0
+        base_score += text_match_score * 0.3
+        
+        # 2. 时间相关性（最近性）
+        if use_recency_boost and memory.created_at:
+            # 计算记忆的新鲜度（越新分数越高）
+            days_ago = (datetime.now() - memory.created_at).days
+            recency_score = max(0, 1 - (days_ago / 30))  # 30天内线性衰减
+            base_score += recency_score * 0.2
+        
+        # 3. 重要性分数
+        if use_importance_boost and memory.importance_score:
+            base_score += memory.importance_score * 0.2
+        
+        # 4. 对话上下文相关性
+        conversation_memory_ids = [m.id for m in conversation_memories]
+        if memory.id in conversation_memory_ids:
+            base_score += 0.3  # 属于当前对话的记忆加分
+        
+        # 5. 会话ID匹配（如果属于同一会话）
+        if conversation_memories and memory.session_id:
+            current_session_ids = set(m.session_id for m in conversation_memories if m.session_id)
+            if memory.session_id in current_session_ids:
+                base_score += 0.2
+        
+        return min(base_score, 1.0)  # 确保分数不超过1.0
+
+    @staticmethod
     def get_user_memory_stats(db: Session, user_id: int, time_range: str = "30d") -> Dict[str, any]:
         """获取用户记忆统计信息"""
         # 解析时间范围

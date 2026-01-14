@@ -8,7 +8,7 @@ export const supplierApi = {
       const response = await request('/v1/suppliers-list', {
         method: 'GET'
       });
-       
+
       // 处理后端返回格式
       let suppliersData = [];
       
@@ -19,6 +19,7 @@ export const supplierApi = {
       // 检查是否直接返回了数组
       else if (Array.isArray(response)) {
         suppliersData = response;
+      } else {
       }
       
       // 转换后端数据格式为前端所需格式，包含website、is_active和logo字段

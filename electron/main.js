@@ -109,7 +109,6 @@ class ElectronApp {
         this.updateManager = new UpdateManager(this.windowManager);
       }
 
-      console.log('所有管理器初始化完成');
     } catch (error) {
       console.error('管理器初始化失败:', error);
       app.quit();
@@ -205,8 +204,6 @@ class ElectronApp {
           require('electron-devtools-installer');
         
         installExtension(REACT_DEVELOPER_TOOLS)
-          .then((name) => console.log(`已安装扩展: ${name}`))
-          .catch((err) => console.log('扩展安装失败:', err));
       }
     }
   }

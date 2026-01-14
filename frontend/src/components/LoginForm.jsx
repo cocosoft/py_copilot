@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { saveAuthToken, saveUserInfo } from '../utils/authUtils';
+import useAuthStore from '../stores/authStore';
 
 const LoginForm = ({ onLoginSuccess, onLoginFailure }) => {
   const navigate = useNavigate();
+  const { setToken, setUser } = useAuthStore();
   const [email, setEmail] = useState('test@example.com');
   const [password, setPassword] = useState('test1234');
   const [loading, setLoading] = useState(false);
@@ -26,9 +27,9 @@ const LoginForm = ({ onLoginSuccess, onLoginFailure }) => {
 
       if (response.ok) {
         const data = await response.json();
-        // 保存令牌和用户信息
-        saveAuthToken(data.token.access_token);
-        saveUserInfo(data.user);
+        // 保存令牌和用户信息到auth store
+        setToken(data.token.access_token);
+        setUser(data.user);
         if (onLoginSuccess) {
           onLoginSuccess(data);
         }

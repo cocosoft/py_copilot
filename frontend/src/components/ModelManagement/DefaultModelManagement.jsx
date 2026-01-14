@@ -242,22 +242,10 @@ const DefaultModelManagement = () => {
           })
         ]);
 
-        // 调试信息：打印API响应
-        console.log('=== 调试信息：场景模型API响应 ===');
-        console.log('chat场景模型响应:', chatModelsResponse);
-        console.log('translate场景模型响应:', translateModelsResponse);
-        console.log('所有模型数量:', allModels.length);
-        console.log('所有模型列表:', allModels.map(m => ({ id: m.id, name: m.model_name, type: m.type })));
 
         // 处理API返回格式：可能是直接数组或包含items属性的对象
         const chatModels = Array.isArray(chatModelsResponse) ? chatModelsResponse : (chatModelsResponse?.items || []);
         const translateModels = Array.isArray(translateModelsResponse) ? translateModelsResponse : (translateModelsResponse?.items || []);
-
-        // 调试信息：打印场景模型数据
-        console.log('chat场景模型数量:', chatModels.length);
-        console.log('chat场景模型列表:', chatModels.map(m => ({ id: m.id, name: m.model_name, type: m.type })));
-        console.log('translate场景模型数量:', translateModels.length);
-        console.log('translate场景模型列表:', translateModels.map(m => ({ id: m.id, name: m.model_name, type: m.type })));
 
         setSceneModels({
           chat: chatModels,

@@ -36,12 +36,12 @@ class TemplateManager:
         existing_template = db.query(ParameterTemplate).filter(
             and_(
                 ParameterTemplate.name == template_data.name,
-                ParameterTemplate.level == template_data.level
+                ParameterTemplate.scene == template_data.scene
             )
         ).first()
         
         if existing_template:
-            raise ValueError(f"在层级 {template_data.level} 下已存在同名模板 '{template_data.name}'")
+            raise ValueError(f"在场景 {template_data.scene} 下已存在同名模板 '{template_data.name}'")
         
         # 验证能力维度关系
         is_valid, errors = TemplateManager.validate_capability_relations(
@@ -145,28 +145,28 @@ class TemplateManager:
         return db.query(ParameterTemplate).filter(ParameterTemplate.id == template_id).first()
     
     @staticmethod
-    def get_templates_by_level(
+    def get_templates_by_scene(
         db: Session, 
-        level: str, 
-        level_id: Optional[int] = None,
+        scene: str, 
+        scene_id: Optional[int] = None,
         active_only: bool = True
     ) -> List[ParameterTemplate]:
         """
-        根据层级获取模板列表
+        根据场景获取模板列表
         
         Args:
             db: 数据库会话
-            level: 层级名称
-            level_id: 层级特定ID
+            scene: 场景名称
+            scene_id: 场景特定ID
             active_only: 是否只返回激活的模板
             
         Returns:
             模板列表
         """
-        query = db.query(ParameterTemplate).filter(ParameterTemplate.level == level)
+        query = db.query(ParameterTemplate).filter(ParameterTemplate.scene == scene)
         
-        if level_id is not None:
-            query = query.filter(ParameterTemplate.level_id == level_id)
+        if scene_id is not None:
+            query = query.filter(ParameterTemplate.id == scene_id)
         
         if active_only:
             query = query.filter(ParameterTemplate.is_active == True)
@@ -300,7 +300,7 @@ class TemplateManager:
     def search_templates(
         db: Session,
         name: Optional[str] = None,
-        level: Optional[str] = None,
+        scene: Optional[str] = None,
         description: Optional[str] = None,
         active_only: bool = True,
         dimension_id: Optional[int] = None,
@@ -313,7 +313,7 @@ class TemplateManager:
         Args:
             db: 数据库会话
             name: 模板名称（模糊匹配）
-            level: 层级
+            scene: 场景
             description: 描述（模糊匹配）
             active_only: 是否只返回激活的模板
             dimension_id: 能力维度ID
@@ -328,8 +328,8 @@ class TemplateManager:
         if name:
             query = query.filter(ParameterTemplate.name.ilike(f"%{name}%"))
         
-        if level:
-            query = query.filter(ParameterTemplate.level == level)
+        if scene:
+            query = query.filter(ParameterTemplate.scene == scene)
         
         if description:
             query = query.filter(ParameterTemplate.description.ilike(f"%{description}%"))

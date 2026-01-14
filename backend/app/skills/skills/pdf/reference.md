@@ -61,7 +61,6 @@ async function manipulatePDF() {
 
     // Get page count
     const pageCount = pdfDoc.getPageCount();
-    console.log(`Document has ${pageCount} pages`);
 
     // Add new page
     const newPage = pdfDoc.addPage([600, 400]);
@@ -183,7 +182,6 @@ async function renderPDF() {
     const loadingTask = pdfjsLib.getDocument('document.pdf');
     const pdf = await loadingTask.promise;
 
-    console.log(`Loaded PDF with ${pdf.numPages} pages`);
 
     // Get first page
     const page = await pdf.getPage(1);
@@ -236,7 +234,6 @@ async function extractText() {
         }));
     }
 
-    console.log(fullText);
     return fullText;
 }
 ```
@@ -253,11 +250,6 @@ async function extractAnnotations() {
         const page = await pdf.getPage(i);
         const annotations = await page.getAnnotations();
 
-        annotations.forEach(annotation => {
-            console.log(`Annotation type: ${annotation.subtype}`);
-            console.log(`Content: ${annotation.contents}`);
-            console.log(`Coordinates: ${JSON.stringify(annotation.rect)}`);
-        });
     }
 }
 ```

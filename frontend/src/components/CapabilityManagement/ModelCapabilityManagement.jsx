@@ -63,13 +63,7 @@ const ModelCapabilityManagement = () => {
           is_system: capability.is_system ?? false,
           ...capability
         }));
-      
-      console.log('📊 能力数据处理完成', {
-        response, 
-        capabilitiesData: capabilitiesData.length, 
-        totalCount, 
-        normalizedCapabilities: normalizedCapabilities.length
-      });
+
        
       setCapabilities(normalizedCapabilities);
       setTotal(totalCount);
@@ -191,7 +185,6 @@ const ModelCapabilityManagement = () => {
   const getTotalPages = () => {
     const filteredTotal = getFilteredTotal();
     const totalPages = Math.ceil(filteredTotal / pageSize);
-    console.log('🔍 总页数计算 - 筛选总数:', filteredTotal, '每页大小:', pageSize, '总页数:', totalPages);
     return totalPages;
   };
   

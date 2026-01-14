@@ -1788,3 +1788,172 @@ th {
     font-size: 9px;
   }
 }
+
+/* ====================== */
+/* 公式渲染样式增强 */
+/* ====================== */
+
+/* 数学公式样式 */
+.message-bubble .katex {
+  font-size: 1.1em;
+  line-height: 1.4;
+}
+
+.message-bubble .katex-display {
+  margin: 0.8rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.5rem 0;
+}
+
+.message-bubble .katex-display > .katex {
+  display: inline-block;
+  text-align: left;
+}
+
+/* 行内公式样式 */
+.message-bubble .katex:not(.katex-display) {
+  font-size: 1em;
+  vertical-align: middle;
+}
+
+/* 化学公式样式 */
+.message-bubble .chem-formula {
+  font-family: 'Times New Roman', serif;
+  font-style: italic;
+  background-color: #f8f9fa;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  border: 1px solid #e1e8ed;
+}
+
+/* 公式渲染容器 */
+.message-bubble .enhanced-markdown {
+  line-height: 1.6;
+  font-size: 14px;
+  color: inherit;
+}
+
+/* 代码块样式增强 */
+.message-bubble .code-block {
+  margin: 0.8rem 0;
+  border-radius: 6px;
+  overflow: hidden;
+  background-color: #1e1e1e;
+}
+
+.message-bubble .inline-code {
+  background-color: #f1f3f4;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 0.9em;
+  color: #d73a49;
+}
+
+/* 表格样式增强 */
+.message-bubble .table-container {
+  margin: 0.8rem 0;
+  overflow-x: auto;
+}
+
+.message-bubble .markdown-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.9em;
+}
+
+.message-bubble .markdown-table th,
+.message-bubble .markdown-table td {
+  border: 1px solid #dfe2e5;
+  padding: 0.5rem 0.8rem;
+  text-align: left;
+}
+
+.message-bubble .markdown-table th {
+  background-color: #f6f8fa;
+  font-weight: 600;
+}
+
+/* 流式响应中的公式样式 */
+.message-bubble.streaming .katex {
+  opacity: 0.8;
+  transition: opacity 0.3s ease;
+}
+
+.message-bubble.streaming .enhanced-markdown {
+  opacity: 0.9;
+}
+
+/* 响应式公式渲染 */
+@media (max-width: 768px) {
+  .message-bubble .katex {
+    font-size: 1em;
+  }
+  
+  .message-bubble .katex-display {
+    font-size: 0.9em;
+    margin: 0.6rem 0;
+  }
+  
+  .message-bubble .enhanced-markdown {
+    font-size: 13px;
+  }
+  
+  .message-bubble .table-container {
+    font-size: 0.8em;
+  }
+  
+  .message-bubble .markdown-table th,
+  .message-bubble .markdown-table td {
+    padding: 0.4rem 0.6rem;
+  }
+}
+
+/* 超小屏幕公式优化 */
+@media (max-width: 480px) {
+  .message-bubble .katex {
+    font-size: 0.9em;
+  }
+  
+  .message-bubble .katex-display {
+    font-size: 0.8em;
+    margin: 0.4rem 0;
+  }
+  
+  .message-bubble .enhanced-markdown {
+    font-size: 12px;
+  }
+}
+
+/* 公式渲染性能优化 */
+.message-bubble .katex-display {
+  transform: translateZ(0); /* 启用GPU加速 */
+  will-change: transform;
+}
+
+/* 公式错误处理 */
+.message-bubble .katex-error {
+  background-color: #fdf2f2;
+  border: 1px solid #fbbfbc;
+  color: #92400e;
+  padding: 0.5rem;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+/* 公式渲染加载状态 */
+.message-bubble .katex-loading {
+  opacity: 0.5;
+  animation: formula-pulse 1.5s infinite;
+}
+
+@keyframes formula-pulse {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}

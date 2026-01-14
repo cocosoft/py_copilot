@@ -14,6 +14,7 @@ from app.models.default_model import DefaultModel
 from app.models.parameter_template import ParameterTemplate, ParameterTemplateVersion
 from app.models.skill import Skill, SkillSession, SkillModelBinding, SkillExecutionLog, SkillRepository, RemoteSkill
 from app.models.memory import GlobalMemory, ConversationMemoryMapping, KnowledgeMemoryMapping, MemoryAssociation, MemoryAccessLog, UserMemoryConfig
+from app.models.translation_history import TranslationHistory
 
 __all__ = [
     "User",
@@ -46,5 +47,6 @@ __all__ = [
     "KnowledgeMemoryMapping",
     "MemoryAssociation",
     "MemoryAccessLog",
-    "UserMemoryConfig"
+    "UserMemoryConfig",
+    "TranslationHistory"
 ]

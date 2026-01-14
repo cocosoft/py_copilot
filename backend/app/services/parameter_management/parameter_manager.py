@@ -1361,8 +1361,8 @@ class ParameterManager:
 
         # 获取应用于该模型的参数模板
         model_template = db.query(ParameterTemplate).filter(
-            ParameterTemplate.level == "model",
-            ParameterTemplate.level_id == model_id
+            ParameterTemplate.scene == "model",
+            ParameterTemplate.id == model_id
         ).first()
 
         if model_template:
@@ -1630,14 +1630,14 @@ class ParameterManager:
         
         # 获取模型类型级参数模板
         model_type_template = db.query(ParameterTemplate).filter(
-            ParameterTemplate.level == "model_type",
-            ParameterTemplate.level_id == model.model_type_id
+            ParameterTemplate.scene == "model_type",
+            ParameterTemplate.id == model.model_type_id
         ).first()
         
         # 获取模型级参数模板
         model_template = db.query(ParameterTemplate).filter(
-            ParameterTemplate.level == "model",
-            ParameterTemplate.level_id == model_id
+            ParameterTemplate.scene == "model",
+            ParameterTemplate.id == model_id
         ).first()
         
         # 获取模型自身的参数
@@ -1747,6 +1747,49 @@ class ParameterManager:
         else:
             raise ValueError(f"不支持的转换类型: {conversion_type}")
     
+    @staticmethod
+    def get_agent_parameters(db: Session, agent_id: int) -> List[Dict[str, Any]]:
+        """
+        获取代理级别的参数配置
+        
+        Args:
+            db: 数据库会话
+            agent_id: 代理ID
+            
+        Returns:
+            代理级别的参数列表
+        """
+        # 导入代理相关模型
+        from app.models.agent import Agent
+        from app.models.agent_parameter import AgentParameter
+        
+        # 验证代理是否存在
+        agent = db.query(Agent).filter(Agent.id == agent_id).first()
+        if not agent:
+            return []
+        
+        # 获取代理级别的参数覆盖
+        agent_params = db.query(AgentParameter).filter(
+            AgentParameter.agent_id == agent_id
+        ).all()
+        
+        # 构建参数列表
+        result = []
+        
+        # 直接返回代理级别的参数（由于代理和模型没有直接关联）
+        for agent_param in agent_params:
+            result.append({
+                "parameter_name": agent_param.parameter_name,
+                "parameter_value": agent_param.parameter_value,
+                "parameter_type": agent_param.parameter_type or "string",
+                "description": agent_param.description or "",
+                "level": "agent",
+                "agent_id": agent_id,
+                "override": True,
+                "source": "agent_specific"
+            })
+        
+        return result
     @staticmethod
     def sync_model_parameters_with_template(db: Session, model_id: int, template_id: Optional[int] = None) -> ModelDB:
         """

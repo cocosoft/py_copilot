@@ -127,32 +127,70 @@ async def create_supplier(
 @router.get("/suppliers-list", response_model=List[SupplierResponse])
 def get_all_suppliers(db: Session = Depends(get_db)):
     """获取所有供应商"""
-    # 使用ORM模型查询，确保API密钥正确解密
-    suppliers = db.query(SupplierDB).all()
+    # 使用原始SQL查询避免ORM模型初始化问题
+    from sqlalchemy import text
+    import logging
     
-    # 构建响应数据列表，包含所有API相关字段
-    supplier_responses = []
-    for supplier in suppliers:
-        # 创建响应字典，包含所有字段
-        supplier_dict = {
-            "id": supplier.id,
-            "name": supplier.name,
-            "display_name": supplier.display_name if supplier.display_name is not None else supplier.name,
-            "description": supplier.description,
-            "logo": supplier.logo,
-            "website": supplier.website,
-            "api_endpoint": supplier.api_endpoint,
-            "api_key": supplier.api_key,  # 使用属性获取器，自动解密
-            "api_key_required": supplier.api_key_required if supplier.api_key_required is not None else False,
-            "category": supplier.category,
-            "api_docs": supplier.api_docs,
-            "created_at": supplier.created_at,
-            "updated_at": supplier.updated_at,
-            "is_active": supplier.is_active if supplier.is_active is not None else True
-        }
-        supplier_responses.append(supplier_dict)
-    
-    return supplier_responses
+    try:
+        logging.info("接收到/suppliers-list请求")
+        # 直接查询数据库表
+        logging.info("开始执行SQL查询获取供应商列表")
+        result = db.execute(text("""
+            SELECT id, name, display_name, description, logo, website, 
+                   api_endpoint, api_key, api_key_required, category, api_docs,
+                   created_at, updated_at, is_active
+            FROM suppliers
+            ORDER BY id
+        """))
+        
+        suppliers = result.fetchall()
+        logging.info(f"成功获取到{len(suppliers)}个供应商数据")
+        
+        # 构建响应数据列表
+        supplier_responses = []
+        for supplier in suppliers:
+            logging.info(f"处理供应商: {supplier.name} (ID: {supplier.id})")
+            # 手动解密API密钥（如果存在）
+            api_key = None
+            if supplier.api_key:
+                try:
+                    from app.core.encryption import decrypt_string
+                    logging.info(f"解密供应商 {supplier.name} 的API密钥")
+                    api_key = decrypt_string(supplier.api_key)
+                except Exception as e:
+                    logging.error(f"解密供应商 {supplier.name} 的API密钥失败: {str(e)}")
+                    # 如果解密失败，返回原始值
+                    api_key = supplier.api_key
+            
+            # 创建响应字典
+            supplier_dict = {
+                "id": supplier.id,
+                "name": supplier.name,
+                "display_name": supplier.display_name if supplier.display_name is not None else supplier.name,
+                "description": supplier.description,
+                "logo": supplier.logo,
+                "website": supplier.website,
+                "api_endpoint": supplier.api_endpoint,
+                "api_key": api_key,  # 手动解密后的API密钥
+                "api_key_required": bool(supplier.api_key_required) if supplier.api_key_required is not None else False,
+                "category": supplier.category,
+                "api_docs": supplier.api_docs,
+                "created_at": supplier.created_at,
+                "updated_at": supplier.updated_at,
+                "is_active": bool(supplier.is_active) if supplier.is_active is not None else True
+            }
+            supplier_responses.append(supplier_dict)
+        
+        logging.info(f"成功构建{len(supplier_responses)}个供应商响应")
+        return supplier_responses
+        
+    except Exception as e:
+        # 记录详细错误信息
+        import logging
+        logging.error(f"Error in get_all_suppliers: {str(e)}")
+        import traceback
+        logging.error(f"异常堆栈信息: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"获取供应商列表失败: {str(e)}")
 
 # 将获取单个供应商的路由移到获取所有供应商路由之后
 @router.get("/suppliers/{supplier_id}", response_model=SupplierResponse)

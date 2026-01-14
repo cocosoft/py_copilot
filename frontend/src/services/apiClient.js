@@ -4,7 +4,7 @@ import useAuthStore from '../stores/authStore';
 
 // Create axios instance
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
+  baseURL: '/api', // Use relative path to go through Vite proxy
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',

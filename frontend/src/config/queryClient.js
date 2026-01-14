@@ -59,4 +59,21 @@ export const queryKeys = {
   // Workflows
   workflows: ['workflows'],
   workflow: (id) => ['workflows', id],
+
+  // Translation
+  supportedLanguages: ['translation', 'languages'],
+  translationHistory: ['translation', 'history'],
+  translationAgents: ['translation', 'agents'],
+  translationModels: ['translation', 'models'],
+  translationStats: ['translation', 'stats'],
+  translationQuality: ['translation', 'quality'],
+  translationRatings: ['translation', 'ratings'],
+  translationFeedback: ['translation', 'feedback'],
+  translationMemory: ['translation', 'memory'],
+  terminology: ['translation', 'terminology'],
+  knowledgeBases: ['translation', 'knowledge-bases'],
+  memoryContext: ['translation', 'memory-context'],
+  defaultTranslationModel: ['translation', 'default-model'],
+  modelCapabilities: ['translation', 'capabilities'],
+  recommendedModels: ['translation', 'recommended-models'],
 };

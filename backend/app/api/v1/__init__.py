@@ -76,3 +76,26 @@ api_router.include_router(search_management_router)
 api_router.include_router(skills_router, prefix="/skills", tags=["skills"])
 api_router.include_router(external_skills_router, prefix="/external-skills", tags=["external-skills"])
 api_router.include_router(memory_router, prefix="/memory", tags=["memory"])
+
+# 注册翻译历史路由
+from app.api.v1.translation_history import router as translation_history_router
+api_router.include_router(translation_history_router, prefix="/translation-history", tags=["translation-history"])
+
+# 注册文档翻译路由
+from app.api.v1.document_translation import router as document_translation_router
+api_router.include_router(document_translation_router, prefix="/translate", tags=["document-translation"])
+
+# 注册批量翻译路由
+from app.api.v1.batch_translation import router as batch_translation_router
+api_router.include_router(batch_translation_router, prefix="/batch-translate", tags=["batch-translation"])
+
+# 注册任务处理路由
+from app.api.v1.tasks import router as tasks_router
+api_router.include_router(tasks_router, prefix="/tasks", tags=["tasks"])
+
+# 注册术语库路由
+from app.api.v1.terminology import router as terminology_router
+api_router.include_router(terminology_router, tags=["terminology"])
+
+# 导出API路由对象
+__all__ = ["api_router"]

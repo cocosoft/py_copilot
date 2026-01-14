@@ -293,7 +293,6 @@ async function createPresentation() {
 
     // Save
     await pptx.writeFile({ fileName: 'presentation.pptx' });
-    console.log('Presentation created successfully!');
 }
 
 createPresentation().catch(console.error);

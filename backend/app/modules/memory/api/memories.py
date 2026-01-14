@@ -214,14 +214,25 @@ async def get_knowledge_memories(
 @router.get("/context/memories", response_model=List[MemoryResponse])
 async def get_session_context_memories(
     conversation_id: int = Query(..., description="对话ID"),
+    query: Optional[str] = Query(None, description="当前对话内容或查询关键词"),
     limit: int = Query(10, ge=1, le=50, description="结果数量限制"),
+    use_semantic_search: bool = Query(True, description="是否使用语义搜索"),
+    use_recency_boost: bool = Query(True, description="是否提升最近记忆的权重"),
+    use_importance_boost: bool = Query(True, description="是否提升重要记忆的权重"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """为对话获取相关上下文记忆"""
-    # 暂时复用conversation_memories接口
-    memories = MemoryService.get_conversation_memories(
-        db, conversation_id, current_user.id, limit, 0
+    """为对话智能检索相关上下文记忆"""
+    # 智能上下文记忆检索
+    memories = MemoryService.get_intelligent_context_memories(
+        db=db,
+        user_id=current_user.id,
+        conversation_id=conversation_id,
+        query=query,
+        limit=limit,
+        use_semantic_search=use_semantic_search,
+        use_recency_boost=use_recency_boost,
+        use_importance_boost=use_importance_boost
     )
     return memories
 

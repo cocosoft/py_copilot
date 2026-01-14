@@ -1,5 +1,5 @@
-// API基础配置 - 使用相对路径，让Vite代理处理请求
-export const API_BASE_URL = '/api';
+// API基础配置 - 直接使用后端完整URL，绕过代理问题
+export const API_BASE_URL = 'http://127.0.0.1:8000/api';
 
 // 本地存储前缀
 export const STORAGE_PREFIX = 'llm_admin_';
@@ -73,15 +73,11 @@ export const request = async (endpoint, options = {}) => {
   }
   
   try {
-    // 生产环境中移除调试日志
-    // console.log('即将发送请求:', JSON.stringify({
-    //   url: url,
-    //   options: mergedOptions
-    // }, null, 2));
-    
+
     // 发送请求
     const response = await fetch(url, mergedOptions);
     
+
     // 检查响应状态
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));

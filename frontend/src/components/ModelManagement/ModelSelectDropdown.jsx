@@ -28,7 +28,7 @@ const ModelSelectDropdown = ({
   // 默认的获取模型LOGO URL函数
   const defaultGetModelLogoUrl = (model) => {
     // 优先使用模型LOGO
-    if (model.logo) {
+    if (model.logo !== null && model.logo !== undefined && model.logo !== '') {
       // 检查是否已经是完整URL
       if (model.logo.startsWith('http') || model.logo.startsWith('/')) {
         return model.logo;
@@ -38,7 +38,7 @@ const ModelSelectDropdown = ({
     }
     
     // 如果没有模型LOGO，使用供应商LOGO
-    if (model.supplier_logo) {
+    if (model.supplier_logo !== null && model.supplier_logo !== undefined && model.supplier_logo !== '') {
       if (model.supplier_logo.startsWith('http') || model.supplier_logo.startsWith('/')) {
         return model.supplier_logo;
       }

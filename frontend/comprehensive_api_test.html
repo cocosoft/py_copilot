@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Comprehensive API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .log { background-color: #f8f9fa; padding: 10px; margin: 10px 0; font-family: monospace; white-space: pre-wrap; max-height: 300px; overflow-y: auto; }
+        button { margin: 5px; padding: 10px 15px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Comprehensive API Test</h1>
+    
+    <div class="test-section">
+        <h2>测试API端点</h2>
+        <button onclick="testAllApis()">测试所有API端点</button>
+        <button onclick="clearAll()">清除所有结果</button>
+    </div>
+    
+    <div class="test-section" id="supplierSection">
+        <h2>1. 供应商API (/api/v1/suppliers-list)</h2>
+        <button onclick="testApi('/api/v1/suppliers-list', 'supplierResult')">测试</button>
+        <div id="supplierResult" class="log"></div>
+    </div>
+    
+    <div class="test-section" id="categorySection">
+        <h2>2. 分类API (/api/v1/categories/)</h2>
+        <button onclick="testApi('/api/v1/categories/', 'categoryResult')">测试</button>
+        <div id="categoryResult" class="log"></div>
+    </div>
+    
+    <div class="test-section" id="capabilitySection">
+        <h2>3. 能力API (/api/v1/capabilities)</h2>
+        <button onclick="testApi('/api/v1/capabilities', 'capabilityResult')">测试</button>
+        <div id="capabilityResult" class="log"></div>
+    </div>
+
+    <script>
+        async function testAllApis() {
+            await testApi('/api/v1/suppliers-list', 'supplierResult');
+            await testApi('/api/v1/categories/', 'categoryResult');
+            await testApi('/api/v1/capabilities', 'capabilityResult');
+        }
+        
+        async function testApi(endpoint, resultId) {
+            const resultDiv = document.getElementById(resultId);
+            const sectionDiv = resultDiv.parentElement;
+            
+            resultDiv.innerHTML = '测试中...';
+            sectionDiv.classList.remove('success', 'error');
+            
+            try {
+                // 测试通过Vite代理的API
+                console.log(`测试: ${endpoint}`);
+                
+                const startTime = Date.now();
+                const response = await fetch(endpoint, {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                const endTime = Date.now();
+                
+                console.log('响应状态:', response.status);
+                console.log('响应头:', Object.fromEntries(response.headers));
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('响应数据:', data);
+                console.log('数据类型:', typeof data);
+                console.log('是数组吗:', Array.isArray(data));
+                
+                // 分析数据结构
+                const analysis = analyzeDataStructure(data);
+                
+                resultDiv.innerHTML = `
+                    <strong>测试结果:</strong>
+                    <p>✅ 成功</p>
+                    <p>响应状态码: ${response.status}</p>
+                    <p>响应时间: ${endTime - startTime}ms</p>
+                    <p>数据类型: ${typeof data}</p>
+                    <p>是数组吗: ${Array.isArray(data)}</p>
+                    <p>数据长度: ${Array.isArray(data) ? data.length : 'N/A'}</p>
+                    <p>数据结构分析:</p>
+                    <pre>${analysis}</pre>
+                    <p>前2条数据:</p>
+                    <pre>${JSON.stringify(Array.isArray(data) ? data.slice(0, 2) : data, null, 2)}</pre>
+                `;
+                
+                sectionDiv.classList.add('success');
+                
+            } catch (error) {
+                console.error(`测试失败: ${endpoint}`, error);
+                
+                resultDiv.innerHTML = `
+                    <strong>测试结果:</strong>
+                    <p>❌ 失败</p>
+                    <p>错误信息: ${error.message}</p>
+                    <p>错误详情: ${JSON.stringify(error)}</p>
+                `;
+                
+                sectionDiv.classList.add('error');
+            }
+        }
+        
+        function analyzeDataStructure(data) {
+            if (!data) return '数据为null或undefined';
+            
+            if (Array.isArray(data)) {
+                if (data.length === 0) return '空数组';
+                
+                // 分析第一个元素的结构
+                const firstItem = data[0];
+                const properties = Object.keys(firstItem).join(', ');
+                return `数组，包含 ${data.length} 个元素，第一个元素属性: ${properties}`;
+            } else if (typeof data === 'object') {
+                const properties = Object.keys(data).join(', ');
+                return `对象，属性: ${properties}`;
+            } else {
+                return `基本类型: ${typeof data}`;
+            }
+        }
+        
+        function clearAll() {
+            document.getElementById('supplierResult').innerHTML = '';
+            document.getElementById('categoryResult').innerHTML = '';
+            document.getElementById('capabilityResult').innerHTML = '';
+            
+            document.getElementById('supplierSection').classList.remove('success', 'error');
+            document.getElementById('categorySection').classList.remove('success', 'error');
+            document.getElementById('capabilitySection').classList.remove('success', 'error');
+        }
+    </script>
+</body>
+</html>

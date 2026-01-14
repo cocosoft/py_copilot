@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { conversationApi } from '../utils/api';
 import { API_BASE_URL } from '../utils/apiUtils';
 import ModelSelectDropdown from '../components/ModelManagement/ModelSelectDropdown';
+import EnhancedMarkdownRenderer from '../components/EnhancedMarkdownRenderer/EnhancedMarkdownRenderer';
 import './chat.css';
 
 const Chat = () => {
@@ -16,14 +17,14 @@ const Chat = () => {
     {
       id: 2,
       sender: 'bot',
-      text: '表格渲染测试\n\n这是一个测试表格，用于验证表格前的空白行问题是否已解决：\n\n| 项目 | 数量 | 价格 |\n|------|------|------|\n| 苹果 | 5    | ¥10  |\n| 香蕉 | 3    | ¥15  |\n| 橙子 | 8    | ¥20  |\n\n表格前应该没有多余的空白行。',
+      text: '数学与物理公式测试\n\n## 基础数学公式\n\n二次方程求根公式：\nx = (-b ± √(b² - 4ac)) / (2a)\n\n三角函数恒等式：\nsin²x + cos²x = 1\nsin(2x) = 2sinx·cosx\n\n积分公式：\n∫ₐᵇ xⁿ dx = (bⁿ⁺¹ - aⁿ⁺¹)/(n+1)\n∫ eˣ dx = eˣ + C\n\n## 物理公式\n\n牛顿第二定律：\nF = ma\n\n万有引力定律：\nF = G·m₁·m₂ / r²\n\n爱因斯坦质能方程：\nE = mc²\n\n动能公式：\nEₖ = (1/2)mv²',
       timestamp: new Date(Date.now() - 1800000),
       status: 'success'
     },
     {
       id: 3,
       sender: 'bot',
-      text: '多个表格测试\n\n第一个表格：\n\n| 姓名 | 年龄 | 城市 |\n|------|------|------|\n| 张三 | 25   | 北京 |\n| 李四 | 30   | 上海 |\n\n第二个表格紧随其后：\n\n| 产品 | 库存 | 状态 |\n|------|------|------|\n| 手机 | 100  | 有货 |\n| 电脑 | 50   | 缺货 |\n\n两个表格之间应该只有适当的间距。',
+      text: '化学公式测试\n\n水的电解反应：\n2H₂O → 2H₂↑ + O₂↑\n\n酸碱中和反应：\nHCl + NaOH → NaCl + H₂O\n\n甲烷燃烧反应：\nCH₄ + 2O₂ → CO₂ + 2H₂O\n\n分子结构公式：\nCH₃CH₂OH（乙醇）\nC₆H₁₂O₆（葡萄糖）',
       timestamp: new Date(Date.now() - 900000),
       status: 'success'
     }
@@ -57,14 +58,24 @@ const Chat = () => {
     try {
       setIsLoadingModels(true);
       const response = await conversationApi.getConversationModels();
-      if (response.status === 'success') {
-        setAvailableModels(response.models);
+      // 检查后端返回的数据格式
+      let modelsData = [];
+      if (response.models) {
+        // 后端直接返回models和total格式
+        modelsData = response.models;
+      } else if (response.status === 'success' && response.models) {
+        // 兼容旧的status格式
+        modelsData = response.models;
+      }
+      
+      if (modelsData.length > 0) {
+        setAvailableModels(modelsData);
         // 如果有默认模型，自动选择
-        const defaultModel = response.models.find(model => model.is_default);
+        const defaultModel = modelsData.find(model => model.is_default);
         if (defaultModel) {
           setSelectedModel(defaultModel);
-        } else if (response.models.length > 0) {
-          setSelectedModel(response.models[0]);
+        } else {
+          setSelectedModel(modelsData[0]);
         }
       }
     } catch (error) {
@@ -272,7 +283,7 @@ const Chat = () => {
       setMessages(prevMessages => [...prevMessages, streamingMessage]);
 
       // 使用fetch API的流式响应功能
-      const response = await fetch(`${API_BASE_URL}/v1/conversations/${conversationId}/messages/stream`, {
+      const response = await fetch(`/api/v1/conversations/${conversationId}/messages/stream`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -881,7 +892,10 @@ const Chat = () => {
                 )}
                 
                 <div className={`message-text ${message.isStreaming ? 'streaming-text' : ''}`}>
-                  {message.text}
+                  <EnhancedMarkdownRenderer 
+                    content={message.text} 
+                    className={message.isStreaming ? 'streaming' : ''}
+                  />
                 </div>
                 {message.fallbackInfo && (
                   <div className="fallback-info">

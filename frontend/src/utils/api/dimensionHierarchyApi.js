@@ -98,7 +98,6 @@ const dimensionHierarchyApi = {
       for (const endpoint of endpoints) {
         try {
           response = await request(endpoint, { method: 'GET' });
-          console.log(`根据维度和分类获取模型列表API响应 (${endpoint}):`, response);
           return response.models || [];
         } catch (err) {
           console.warn(`尝试端点 ${endpoint} 失败:`, err.message);
@@ -120,7 +119,6 @@ const dimensionHierarchyApi = {
     try {
       // 检查模型ID是否包含斜杠（如供应商/模型ID格式）
       if (typeof modelId === 'string' && modelId.includes('/')) {
-        console.log('检测到包含斜杠的模型ID，直接返回默认维度数据');
         return { dimensions: {} };
       }
       

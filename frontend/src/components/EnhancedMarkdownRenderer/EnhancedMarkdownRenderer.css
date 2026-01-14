@@ -1,0 +1,182 @@
+.enhanced-markdown {
+  line-height: 1.6;
+  font-size: 14px;
+  color: #333;
+}
+
+.enhanced-markdown h1,
+.enhanced-markdown h2,
+.enhanced-markdown h3,
+.enhanced-markdown h4,
+.enhanced-markdown h5,
+.enhanced-markdown h6 {
+  margin: 16px 0 8px 0;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.enhanced-markdown h1 {
+  font-size: 1.8em;
+  border-bottom: 1px solid #eaecef;
+  padding-bottom: 8px;
+}
+
+.enhanced-markdown h2 {
+  font-size: 1.5em;
+  border-bottom: 1px solid #eaecef;
+  padding-bottom: 6px;
+}
+
+.enhanced-markdown h3 {
+  font-size: 1.25em;
+}
+
+.enhanced-markdown h4 {
+  font-size: 1.1em;
+}
+
+.enhanced-markdown p {
+  margin: 8px 0;
+}
+
+.enhanced-markdown ul,
+.enhanced-markdown ol {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+
+.enhanced-markdown li {
+  margin: 4px 0;
+}
+
+.enhanced-markdown blockquote {
+  margin: 16px 0;
+  padding: 8px 16px;
+  border-left: 4px solid #dfe2e5;
+  background-color: #f6f8fa;
+  color: #6a737d;
+}
+
+.enhanced-markdown .inline-code {
+  background-color: #f1f3f4;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 0.9em;
+  color: #d73a49;
+}
+
+.enhanced-markdown .code-block {
+  margin: 16px 0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.enhanced-markdown .table-container {
+  margin: 16px 0;
+  overflow-x: auto;
+}
+
+.enhanced-markdown .markdown-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.9em;
+}
+
+.enhanced-markdown .markdown-table th,
+.enhanced-markdown .markdown-table td {
+  border: 1px solid #dfe2e5;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.enhanced-markdown .markdown-table th {
+  background-color: #f6f8fa;
+  font-weight: 600;
+}
+
+.enhanced-markdown .image-container {
+  margin: 16px 0;
+  text-align: center;
+}
+
+.enhanced-markdown .markdown-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+.enhanced-markdown .image-caption {
+  margin-top: 8px;
+  font-size: 0.9em;
+  color: #6a737d;
+  font-style: italic;
+}
+
+/* KaTeX 公式样式 */
+.enhanced-markdown .katex {
+  font-size: 1.1em;
+}
+
+.enhanced-markdown .katex-display {
+  margin: 16px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.enhanced-markdown .katex-display > .katex {
+  display: inline-block;
+  text-align: left;
+}
+
+/* 行内公式 - 优化垂直对齐 */
+.enhanced-markdown .katex:not(.katex-display) {
+  font-size: 1em;
+  vertical-align: -0.15em; /* 优化垂直对齐，解决公式偏上问题 */
+  line-height: 1.2; /* 调整行高，确保公式与文本协调 */
+}
+
+/* 优化数学符号显示 */
+.enhanced-markdown .katex .mrel, /* 关系符号：=, <, > 等 */
+.enhanced-markdown .katex .mop, /* 算子符号：sin, cos, log 等 */
+.enhanced-markdown .katex .mbin  /* 二元运算符号：+, -, *, / 等 */ {
+  margin: 0 0.1em; /* 增加符号间距，提高可读性 */
+}
+
+/* 优化上下标显示 */
+.enhanced-markdown .katex .msup, /* 上标 */
+.enhanced-markdown .katex .msub, /* 下标 */
+.enhanced-markdown .katex .msubsup /* 上下标 */ {
+  font-size: 0.85em; /* 调整上下标大小，提高可读性 */
+}
+
+/* 化学公式样式 */
+.enhanced-markdown .chem-formula {
+  font-family: 'Times New Roman', serif;
+  font-style: italic;
+}
+
+/* 流式响应中的特殊样式 */
+.enhanced-markdown.streaming {
+  opacity: 0.9;
+}
+
+.enhanced-markdown.streaming .katex {
+  opacity: 0.8;
+  transition: opacity 0.3s ease;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .enhanced-markdown {
+    font-size: 13px;
+  }
+  
+  .enhanced-markdown .katex-display {
+    font-size: 0.9em;
+  }
+  
+  .enhanced-markdown .table-container {
+    font-size: 0.8em;
+  }
+}

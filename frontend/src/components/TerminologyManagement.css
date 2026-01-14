@@ -1,0 +1,342 @@
+.terminology-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.terminology-modal-content {
+  background: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 800px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.terminology-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.terminology-modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #8c8c8c;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.close-button:hover {
+  background-color: #f5f5f5;
+  color: #262626;
+}
+
+.terminology-tabs {
+  display: flex;
+  border-bottom: 1px solid #e8e8e8;
+  background-color: #fafafa;
+}
+
+.tab-button {
+  flex: 1;
+  padding: 12px 16px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: #595959;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.tab-button:hover {
+  background-color: #f0f0f0;
+  color: #262626;
+}
+
+.tab-button.active {
+  color: #1890ff;
+  border-bottom-color: #1890ff;
+  background-color: white;
+}
+
+.terminology-tab-content {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+/* 搜索标签页样式 */
+.search-input-group {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.search-input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #40a9ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.search-button {
+  padding: 10px 20px;
+  background-color: #1890ff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.search-button:hover:not(:disabled) {
+  background-color: #40a9ff;
+}
+
+.search-button:disabled {
+  background-color: #d9d9d9;
+  cursor: not-allowed;
+}
+
+/* 术语卡片样式 */
+.term-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 16px;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  background-color: #fafafa;
+  transition: all 0.2s ease;
+}
+
+.term-card:hover {
+  border-color: #40a9ff;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.1);
+}
+
+.term-content {
+  flex: 1;
+  margin-right: 12px;
+}
+
+.term-pair {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.source-term {
+  font-weight: 600;
+  color: #262626;
+  font-size: 16px;
+}
+
+.arrow {
+  color: #8c8c8c;
+  font-size: 14px;
+}
+
+.target-term {
+  font-weight: 600;
+  color: #1890ff;
+  font-size: 16px;
+}
+
+.term-meta {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.term-domain {
+  background-color: #e6f7ff;
+  color: #1890ff;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.term-usage {
+  color: #8c8c8c;
+  font-size: 12px;
+}
+
+.term-description {
+  color: #595959;
+  font-size: 14px;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.use-term-button {
+  padding: 6px 12px;
+  background-color: #52c41a;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+}
+
+.use-term-button:hover {
+  background-color: #73d13d;
+}
+
+/* 表单样式 */
+.add-term-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-weight: 500;
+  color: #262626;
+  font-size: 14px;
+}
+
+.form-input, .form-select, .form-textarea {
+  padding: 8px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.2s;
+}
+
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  outline: none;
+  border-color: #40a9ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.save-button {
+  padding: 10px 24px;
+  background-color: #1890ff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.save-button:hover:not(:disabled) {
+  background-color: #40a9ff;
+}
+
+.save-button:disabled {
+  background-color: #d9d9d9;
+  cursor: not-allowed;
+}
+
+/* 空状态样式 */
+.no-results, .no-terms {
+  text-align: center;
+  color: #8c8c8c;
+  padding: 40px 20px;
+  font-size: 14px;
+}
+
+/* 结果列表样式 */
+.results-list h4 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  color: #262626;
+  font-weight: 600;
+}
+
+.terminology-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .terminology-modal-content {
+    width: 95%;
+    max-height: 90vh;
+  }
+  
+  .terminology-tabs {
+    flex-direction: column;
+  }
+  
+  .tab-button {
+    text-align: left;
+    padding: 12px 16px;
+  }
+  
+  .search-input-group {
+    flex-direction: column;
+  }
+  
+  .term-card {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .term-content {
+    margin-right: 0;
+  }
+  
+  .use-term-button {
+    align-self: flex-end;
+  }
+}

@@ -85,7 +85,6 @@ electron/
 // 打开文件
 const result = await window.electronAPI.openFile();
 if (!result.canceled) {
-  console.log('选中的文件:', result.filePaths[0]);
 }
 
 // 保存文件

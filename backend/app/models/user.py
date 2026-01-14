@@ -27,7 +27,7 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     last_login = Column(DateTime(timezone=True), nullable=True)
     
-    # 关系定义
+    # 关系定义 - 使用字符串引用避免循环导入
     conversations = relationship("Conversation", back_populates="user", cascade="all, delete-orphan")
     llm_requests = relationship("LLMRequestHistory", back_populates="user", cascade="all, delete-orphan")
     agents = relationship("Agent", back_populates="user", cascade="all, delete-orphan")
@@ -38,6 +38,7 @@ class User(Base):
     uploaded_files = relationship("UploadedFile", back_populates="user", cascade="all, delete-orphan")
     voice_inputs = relationship("VoiceInput", back_populates="user", cascade="all, delete-orphan")
     search_queries = relationship("SearchQuery", back_populates="user", cascade="all, delete-orphan")
+    translation_history = relationship("TranslationHistory", back_populates="user", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}', email='{self.email}')>"
