@@ -129,6 +129,10 @@ async def translate_document(
         if agent_id:
             translation_params["agent_id"] = agent_id
         
+        # 添加用户ID和数据库会话到翻译参数
+        translation_params["user_id"] = current_user.id
+        translation_params["db"] = db
+        
         # 调用翻译服务
         translation_result = llm_tasks.translate_text(**translation_params)
         

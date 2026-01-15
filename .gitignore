@@ -721,3 +721,4 @@ backend/test_suppliers.py
 backend/test_translation_history.py
 frontend/simple_api_test.html
 frontend/test_api_connection.html
+应用升级方案.md

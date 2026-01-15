@@ -473,6 +473,32 @@ class MemoryService:
                 GlobalMemory.summary.ilike(f"%{query}%")
             )
         ).order_by(desc(GlobalMemory.created_at)).limit(limit).all()
+    
+    @staticmethod
+    async def retrieve_relevant_memories(db: Session, user_id: int, query: str, limit: int = 5) -> List[Dict[str, Any]]:
+        """检索用户的相关记忆，用于聊天增强"""
+        # 使用智能上下文记忆检索功能
+        memories = MemoryService.get_intelligent_context_memories(
+            db=db,
+            user_id=user_id,
+            conversation_id=0,  # 临时值，不影响搜索
+            query=query,
+            limit=limit,
+            use_semantic_search=True,
+            use_recency_boost=True,
+            use_importance_boost=True
+        )
+        
+        # 转换为字典格式返回
+        return [{
+            "id": mem.id,
+            "title": mem.title or "无标题记忆",
+            "content": mem.content,
+            "memory_type": mem.memory_type,
+            "memory_category": mem.memory_category,
+            "importance_score": mem.importance_score,
+            "created_at": mem.created_at.isoformat()
+        } for mem in memories]
 
     @staticmethod
     def calculate_context_relevance_score(

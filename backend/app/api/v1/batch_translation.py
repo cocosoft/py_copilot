@@ -209,6 +209,10 @@ async def process_batch_translation(
             if agent_id:
                 translation_params["agent_id"] = agent_id
             
+            # 添加用户ID和数据库会话到翻译参数
+            translation_params["user_id"] = batch_tasks[batch_id]["user_id"]
+            translation_params["db"] = db
+            
             # 调用翻译服务
             start_time = asyncio.get_event_loop().time()
             translation_result = llm_tasks.translate_text(**translation_params)

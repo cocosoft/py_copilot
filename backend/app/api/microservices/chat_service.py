@@ -60,6 +60,7 @@ class ChatService:
         try:
             # 1. 检索相关记忆
             relevant_memories = await self.memory_service.retrieve_relevant_memories(
+                db=db,
                 user_id=chat_request.user_id,
                 query=chat_request.message,
                 limit=5

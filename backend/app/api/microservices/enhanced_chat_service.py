@@ -106,6 +106,7 @@ class EnhancedChatService:
         try:
             db = next(get_db())
             memories = await self.memory_service.retrieve_relevant_memories(
+                db=db,
                 user_id=user_id,
                 query=query,
                 limit=limit
@@ -325,9 +326,10 @@ class EnhancedChatService:
                 memory_id = memory.get("id")
                 if memory_id:
                     # 更新记忆的访问计数
-                    await self.memory_service.update_preferences_based_on_access(
+                    MemoryService.update_preferences_based_on_access(
                         db, memory_id, user_id, "READ"
                     )
+            db.commit()
             db.close()
         except Exception as e:
             print(f"记忆访问更新失败: {e}")

@@ -176,6 +176,8 @@ class LLMTasks:
                 - target_language: 目标语言（'zh', 'en', 'ja'等）
                 - source_language: 源语言（默认为自动检测）
                 - model_name: 使用的模型名称
+                - user_id: 用户ID（可选，用于记忆检索）
+                - db: 数据库会话（可选，用于记忆检索）
         
         Returns:
             包含翻译结果和元数据的字典
@@ -189,6 +191,8 @@ class LLMTasks:
         target_language = options.get('target_language', 'en')
         source_language = options.get('source_language', 'auto')
         model_name = options.get('model_name', 'gpt-3.5-turbo')
+        user_id = options.get('user_id')
+        db = options.get('db')
         
         # 验证参数
         if not isinstance(target_language, str) or not target_language.strip():
@@ -214,6 +218,42 @@ class LLMTasks:
         # 构建翻译提示词
         prompt = f"请将以下文本{source_text}翻译成{target_name}：\n\n{text}\n\n请只返回翻译结果，不要添加额外的解释。"
         
+        # 检索相关记忆（如果提供了用户ID和数据库会话）
+        memory_context = ""
+        if user_id and db:
+            try:
+                from app.modules.memory.services.memory_service import MemoryService
+                
+                # 检索与翻译相关的记忆
+                memories = MemoryService.get_intelligent_context_memories(
+                    db=db,
+                    user_id=user_id,
+                    conversation_id=0,  # 临时值
+                    query=f"翻译 {source_language} 到 {target_language}: {text[:100]}...",
+                    limit=3,
+                    use_semantic_search=True,
+                    use_recency_boost=True,
+                    use_importance_boost=True
+                )
+                
+                # 构建记忆上下文
+                if memories:
+                    memory_items = []
+                    for mem in memories:
+                        if mem.content:
+                            memory_items.append(f"- {mem.content.strip()}")
+                    
+                    if memory_items:
+                        memory_context = f"\n\n参考用户之前的翻译相关记忆：\n{chr(10).join(memory_items)}"
+            except Exception as e:
+                logger.warning(f"记忆检索失败: {str(e)}")
+                # 即使记忆检索失败，翻译仍然继续
+                pass
+        
+        # 如果有记忆上下文，添加到提示词中
+        if memory_context:
+            prompt += memory_context
+        
         try:
             # 使用聊天补全API
             result = self.llm_service.chat_completion(
@@ -228,8 +268,41 @@ class LLMTasks:
             
             execution_time = (time.time() - start_time) * 1000
             
+            # 将翻译结果保存到用户记忆中（如果提供了用户ID和数据库会话）
+            translated_text = result["generated_text"]
+            if user_id and db:
+                try:
+                    from app.modules.memory.services.memory_service import MemoryService
+                    from app.schemas.memory import MemoryCreate
+                    
+                    # 准备记忆数据
+                    memory_data = MemoryCreate(
+                        session_id="",
+                        memory_type="LONG_TERM",
+                        memory_category="TRANSLATION",
+                        title=f"翻译: {source_language} → {target_language}",
+                        content=f"原文: {text[:100]}...\n翻译: {translated_text[:100]}...",
+                        summary=f"将{source_language}翻译成{target_language}",
+                        importance_score=0.5,
+                        relevance_score=0.7,
+                        tags=["translation", source_language, target_language],
+                        source_info={
+                            "source_language": source_language,
+                            "target_language": target_language,
+                            "model_used": result["model"]
+                        },
+                        source_type="TRANSLATION_RESULT"
+                    )
+                    
+                    # 创建记忆记录
+                    MemoryService.create_memory(db, memory_data, user_id)
+                except Exception as e:
+                    logger.warning(f"保存翻译记忆失败: {str(e)}")
+                    # 即使记忆保存失败，翻译结果仍然返回
+                    pass
+            
             return {
-                "result": result["generated_text"],
+                "result": translated_text,
                 "model": result["model"],
                 "tokens_used": result["tokens_used"],
                 "execution_time_ms": round(execution_time, 2),
