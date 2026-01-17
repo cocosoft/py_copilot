@@ -11,6 +11,9 @@ class AgentBase(BaseModel):
     avatar: Optional[str] = Field(None, description="智能体头像")
     prompt: str = Field(..., description="智能体提示词")
     knowledge_base: Optional[str] = Field(None, description="关联的知识库")
+    category_id: Optional[int] = Field(None, description="智能体分类ID")
+    default_model: Optional[int] = Field(None, description="默认模型ID")
+    skills: Optional[list] = Field(None, description="智能体技能列表")
     is_public: Optional[bool] = Field(False, description="是否公开")
     is_recommended: Optional[bool] = Field(False, description="是否推荐")
     is_favorite: Optional[bool] = Field(False, description="是否收藏")
@@ -24,16 +27,28 @@ class AgentCreate(AgentBase):
 class AgentUpdate(AgentBase):
     """更新智能体请求"""
     name: Optional[str] = Field(None, min_length=1, max_length=100, description="智能体名称")
+    description: Optional[str] = Field(None, description="智能体描述")
+    avatar: Optional[str] = Field(None, description="智能体头像")
     prompt: Optional[str] = Field(None, description="智能体提示词")
+    knowledge_base: Optional[str] = Field(None, description="关联的知识库")
+    category_id: Optional[int] = Field(None, description="智能体分类ID")
+    default_model: Optional[int] = Field(None, description="默认模型ID")
+    skills: Optional[list] = Field(None, description="智能体技能列表")
+    is_public: Optional[bool] = Field(None, description="是否公开")
+    is_recommended: Optional[bool] = Field(None, description="是否推荐")
+    is_favorite: Optional[bool] = Field(None, description="是否收藏")
 
 
 class AgentResponse(BaseModel):
     """智能体响应"""
     name: str = Field(..., min_length=1, max_length=100, description="智能体名称")
     description: Optional[str] = Field(None, description="智能体描述")
-    avatar: Optional[str] = Field(None, exclude=True, description="智能体头像")
+    avatar: Optional[str] = Field(None, description="智能体头像")
     prompt: str = Field(..., description="智能体提示词")
     knowledge_base: Optional[str] = Field(None, description="关联的知识库")
+    category_id: Optional[int] = Field(None, description="智能体分类ID")
+    default_model: Optional[int] = Field(None, description="默认模型ID")
+    skills: Optional[list] = Field(None, description="智能体技能列表")
     is_public: Optional[bool] = Field(False, description="是否公开")
     is_recommended: Optional[bool] = Field(False, description="是否推荐")
     is_favorite: Optional[bool] = Field(False, description="是否收藏")
@@ -50,8 +65,8 @@ class AgentResponse(BaseModel):
             # 如果已经是完整URL，直接返回
             if self.avatar.startswith(('http://', 'https://')):
                 return self.avatar
-            # 否则转换为完整URL路径
-            return f"/logos/agents/{self.avatar}"
+            # 否则转换为完整的后端URL
+            return f"http://localhost:8000/logos/agents/{self.avatar}"
         return None
     
     model_config = {

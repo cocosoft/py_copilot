@@ -57,7 +57,7 @@ api_router.include_router(system_parameters_router, tags=["system-parameters"])
 from app.api.v1.dimension_hierarchy import router as dimension_hierarchy_router
 api_router.include_router(dimension_hierarchy_router, prefix="/dimension-hierarchy", tags=["dimension-hierarchy"])
 api_router.include_router(model_capabilities_router, tags=["model_capabilities"])
-api_router.include_router(capability_router, tags=["capability"])
+api_router.include_router(capability_router, tags=["model_capabilities"])
 api_router.include_router(capability_types_router, tags=["capability_types"])
 api_router.include_router(capability_dimensions_router, tags=["capability_dimensions"])
 # 先注册支持文件上传的model_categories_router
@@ -96,6 +96,10 @@ api_router.include_router(tasks_router, prefix="/tasks", tags=["tasks"])
 # 注册术语库路由
 from app.api.v1.terminology import router as terminology_router
 api_router.include_router(terminology_router, tags=["terminology"])
+
+# 注册智能体编排系统路由
+from app.modules.orchestration.api import router as orchestration_router
+api_router.include_router(orchestration_router, prefix="/orchestration", tags=["orchestration"])
 
 # 导出API路由对象
 __all__ = ["api_router"]

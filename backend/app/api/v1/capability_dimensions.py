@@ -26,7 +26,7 @@ from app.api.deps import get_current_user
 from app.models.user import User
 
 # 创建路由器
-router = APIRouter(prefix="/capability/dimensions", tags=["capability_dimensions"])
+router = APIRouter(prefix="/model-capability/dimensions", tags=["capability_dimensions"])
 
 
 # ---------------------------

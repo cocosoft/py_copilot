@@ -196,6 +196,15 @@ export const request = async (endpoint, options = {}) => {
     }
   } catch (error) {
     console.error('❌ API请求异常:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+    
+    // 处理连接错误，提供更清晰的错误信息
+    if (error.message && (error.message.includes('Failed to fetch') || error.message.includes('ERR_CONNECTION_REFUSED'))) {
+      const connectionError = new Error('无法连接到服务器，请确保后端服务器已启动并运行在正确的端口上。');
+      connectionError.originalError = error;
+      connectionError.status = 0; // 自定义状态码表示连接错误
+      throw connectionError;
+    }
+    
     throw error;
   }
 };

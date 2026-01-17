@@ -1,5 +1,5 @@
 """智能体参数数据库模型"""
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, UniqueConstraint, Boolean, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
@@ -16,6 +16,17 @@ class AgentParameter(Base):
     parameter_type = Column(String(50), nullable=False)
     description = Column(Text, nullable=True)
     parameter_group = Column(String(50), nullable=True)
+    
+    # 参数来源字段
+    source = Column(String(20), default="agent")
+    inherited = Column(Boolean, default=False)
+    inherited_from = Column(String(100), nullable=True)
+    
+    # 参数版本字段
+    version = Column(String(50), default="1.0.0")
+    
+    # 参数约束字段
+    constraints = Column(JSON, default=dict)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     

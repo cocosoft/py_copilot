@@ -1,5 +1,5 @@
 """智能体数据模型"""
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -31,6 +31,12 @@ class Agent(Base):
     category_id = Column(Integer, ForeignKey("agent_categories.id"), nullable=True)
     category = relationship("AgentCategory", back_populates="agents")
     
+    # 默认模型字段
+    default_model = Column(Integer, nullable=True)
+    
+    # 技能字段
+    skills = Column(JSON, default=list)
+    
     # 与对话的关系
     conversations = relationship("Conversation", back_populates="agent", cascade="all, delete-orphan")
     
@@ -39,6 +45,20 @@ class Agent(Base):
     
     # 与翻译历史的关系
     translation_history = relationship("TranslationHistory", back_populates="agent", cascade="all, delete-orphan")
+    
+    # 模型关联字段 - 暂时移除，因为数据库中没有这个字段
+    # model_id = Column(Integer, ForeignKey("models.id", ondelete="SET NULL"), nullable=True)
+    # model = relationship("ModelDB", backref="agents")
+    # model_version = Column(String(50), nullable=True)
+    
+    # 能力映射字段 - 暂时移除，因为数据库中没有这个字段
+    # capabilities = Column(JSON, default=list)
+    
+    # 技能关联字段 - 暂时移除，因为数据库中没有这个字段
+    # skills = Column(JSON, default=list)
+    
+    # 执行配置字段 - 暂时移除，因为数据库中没有这个字段
+    # execution_config = Column(JSON, default=dict)
     
     def __repr__(self):
         return f"<Agent(id={self.id}, name='{self.name}')>"

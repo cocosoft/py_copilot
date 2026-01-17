@@ -108,3 +108,14 @@ class WorkflowNodeExecutionResult(BaseModel):
     status: str
     output_data: Optional[Dict[str, Any]]
     error_message: Optional[str]
+
+# 自动生成工作流相关模型
+class WorkflowAutoComposeRequest(BaseModel):
+    task_description: str = Field(..., description="任务描述")
+    optimize: bool = Field(False, description="是否优化工作流")
+
+class WorkflowAutoComposeResponse(BaseModel):
+    workflow: Workflow
+    message: str
+    node_count: int
+    edge_count: int

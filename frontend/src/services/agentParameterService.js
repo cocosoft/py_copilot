@@ -2,6 +2,19 @@ import { API_BASE_URL, request } from '../utils/apiUtils';
 
 const AGENT_PARAMETER_API_BASE = '/v1/agents';
 
+// 类型检查辅助函数
+const checkResponseType = (response, expectedType) => {
+  if (!response || typeof response !== 'object') {
+    throw new Error('无效的响应格式');
+  }
+  if (expectedType === 'list' && !Array.isArray(response.parameters)) {
+    throw new Error('智能体参数列表格式错误');
+  }
+  if (expectedType === 'single' && !response.parameter) {
+    throw new Error('智能体参数详情格式错误');
+  }
+}
+
 export const agentParameterApi = {
   getParameters: async (agentId, skip = 0, limit = 100, parameterGroup = null) => {
     try {
@@ -10,6 +23,7 @@ export const agentParameterApi = {
         url += `&parameter_group=${encodeURIComponent(parameterGroup)}`;
       }
       const response = await request(url);
+      checkResponseType(response, 'list');
       return response;
     } catch (error) {
       console.error('获取智能体参数失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
@@ -40,6 +54,7 @@ export const agentParameterApi = {
   getParameter: async (agentId, parameterName) => {
     try {
       const response = await request(`${AGENT_PARAMETER_API_BASE}/${agentId}/parameters/${encodeURIComponent(parameterName)}`);
+      checkResponseType(response, 'single');
       return response;
     } catch (error) {
       console.error('获取智能体参数失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
@@ -56,6 +71,7 @@ export const agentParameterApi = {
         },
         body: JSON.stringify(parameterData)
       });
+      checkResponseType(response, 'single');
       return response;
     } catch (error) {
       console.error('创建智能体参数失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
@@ -76,6 +92,7 @@ export const agentParameterApi = {
         },
         body: JSON.stringify(requestBody)
       });
+      checkResponseType(response, 'list');
       return response;
     } catch (error) {
       console.error('批量创建智能体参数失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
@@ -92,6 +109,7 @@ export const agentParameterApi = {
         },
         body: JSON.stringify(parameterData)
       });
+      checkResponseType(response, 'single');
       return response;
     } catch (error) {
       console.error('更新智能体参数失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));

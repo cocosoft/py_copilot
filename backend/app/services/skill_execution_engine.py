@@ -262,10 +262,11 @@ class SkillExecutionEngine:
         self.artifact_manager = ArtifactManager(db)
     
     def execute(self, skill_id: int, task: Optional[str] = None, params: Optional[Dict[str, Any]] = None, 
-                session_id: Optional[int] = None, conversation_id: Optional[int] = None, user_id: Optional[int] = None) -> Dict[str, Any]:
+                session_id: Optional[int] = None, conversation_id: Optional[int] = None, user_id: Optional[int] = None, 
+                context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """执行技能（API兼容方法）"""
         # 调用核心执行方法
-        execution_log = self.execute_skill(skill_id=skill_id, user_id=user_id, params=params)
+        execution_log = self.execute_skill(skill_id=skill_id, user_id=user_id, params=params, context=context)
         
         # 获取artifacts
         artifacts = self.artifact_manager.get_artifacts(execution_log.id)
@@ -288,7 +289,8 @@ class SkillExecutionEngine:
             "artifacts": artifact_list
         }
     
-    def execute_skill(self, skill_id: int, user_id: Optional[int] = None, params: Optional[Dict[str, Any]] = None) -> SkillExecutionLog:
+    def execute_skill(self, skill_id: int, user_id: Optional[int] = None, params: Optional[Dict[str, Any]] = None, 
+                      context: Optional[Dict[str, Any]] = None) -> SkillExecutionLog:
         """执行技能"""
         # 获取技能
         skill = self.db.query(Skill).filter(Skill.id == skill_id).first()
@@ -311,7 +313,9 @@ class SkillExecutionEngine:
             input_params=validated_params,
             status="running",
             execution_steps=[],
-            created_at=datetime.now()
+            created_at=datetime.now(),
+            conversation_id=context.get('conversation_id') if context else None,
+            session_id=context.get('session_id') if context else None
         )
         self.db.add(execution_log)
         self.db.commit()
@@ -322,16 +326,22 @@ class SkillExecutionEngine:
         try:
             # 准备执行环境
             with ExecutionEnvironment(skill) as env:
+                # 合并上下文信息到环境中
                 env_info = env.prepare_environment(validated_params)
+                if context:
+                    env_info["context"] = context
                 
-                # 更新执行步骤
-                self._update_execution_step(execution_log, "environment_prepared", {
+                # 更新执行步骤，包含上下文信息
+                step_data = {
                     "message": "执行环境准备完成",
                     "environment_info": env_info
-                })
+                }
+                if context:
+                    step_data["context"] = context
+                self._update_execution_step(execution_log, "environment_prepared", step_data)
                 
-                # 执行技能逻辑
-                result, artifacts = self._execute_skill_logic(skill, validated_params, env_info, execution_log)
+                # 执行技能逻辑，传递上下文
+                result, artifacts = self._execute_skill_logic(skill, validated_params, env_info, execution_log, context)
                 
                 # 更新执行步骤
                 self._update_execution_step(execution_log, "skill_executed", {
@@ -498,17 +508,19 @@ class SkillExecutionEngine:
                 
         return 0
     
-    def _execute_skill_logic(self, skill: Skill, params: Dict[str, Any], env_info: Dict[str, Any], execution_log: SkillExecutionLog) -> tuple:
+    def _execute_skill_logic(self, skill: Skill, params: Dict[str, Any], env_info: Dict[str, Any], execution_log: SkillExecutionLog, 
+                            context: Optional[Dict[str, Any]] = None) -> tuple:
         """执行技能逻辑"""
         # 检查是否有执行流程定义
         if skill.execution_flow and isinstance(skill.execution_flow, list) and len(skill.execution_flow) > 0:
             # 执行多步骤流程
-            return self._execute_flow_logic(skill, params, env_info, execution_log)
+            return self._execute_flow_logic(skill, params, env_info, execution_log, context)
         else:
             # 执行单步骤逻辑
-            return self._execute_single_step_logic(skill, params, env_info, execution_log)
+            return self._execute_single_step_logic(skill, params, env_info, execution_log, context)
     
-    def _execute_flow_logic(self, skill: Skill, params: Dict[str, Any], env_info: Dict[str, Any], execution_log: SkillExecutionLog) -> tuple:
+    def _execute_flow_logic(self, skill: Skill, params: Dict[str, Any], env_info: Dict[str, Any], execution_log: SkillExecutionLog, 
+                            context: Optional[Dict[str, Any]] = None) -> tuple:
         """执行多步骤流程逻辑"""
         results = []
         artifacts = []
@@ -517,21 +529,24 @@ class SkillExecutionEngine:
             step_name = step_config.get("name", f"step_{step_index + 1}")
             step_type = step_config.get("type", "script")
             
-            # 更新执行步骤
-            self._update_execution_step(execution_log, f"step_{step_index + 1}_started", {
+            # 更新执行步骤，包含上下文信息
+            step_data = {
                 "message": f"开始执行步骤: {step_name}",
                 "step_type": step_type,
                 "step_config": step_config
-            })
+            }
+            if context:
+                step_data["context"] = context
+            self._update_execution_step(execution_log, f"step_{step_index + 1}_started", step_data)
             
             try:
-                # 根据步骤类型执行不同的逻辑
+                # 根据步骤类型执行不同的逻辑，传递上下文
                 if step_type == "script":
-                    step_result = self._execute_script_step(step_config, params, env_info, execution_log)
+                    step_result = self._execute_script_step(step_config, params, env_info, execution_log, context)
                 elif step_type == "template":
-                    step_result = self._execute_template_step(step_config, params, env_info, execution_log)
+                    step_result = self._execute_template_step(step_config, params, env_info, execution_log, context)
                 elif step_type == "api_call":
-                    step_result = self._execute_api_step(step_config, params, env_info, execution_log)
+                    step_result = self._execute_api_step(step_config, params, env_info, execution_log, context)
                 else:
                     step_result = f"未知步骤类型: {step_type}"
                 
@@ -541,11 +556,14 @@ class SkillExecutionEngine:
                     "result": step_result
                 })
                 
-                # 更新执行步骤
-                self._update_execution_step(execution_log, f"step_{step_index + 1}_completed", {
+                # 更新执行步骤，包含上下文信息
+                step_data = {
                     "message": f"步骤执行完成: {step_name}",
                     "result": step_result
-                })
+                }
+                if context:
+                    step_data["context"] = context
+                self._update_execution_step(execution_log, f"step_{step_index + 1}_completed", step_data)
                 
             except Exception as e:
                 # 记录步骤执行错误
@@ -563,35 +581,51 @@ class SkillExecutionEngine:
         
         return final_result, artifacts
     
-    def _execute_single_step_logic(self, skill: Skill, params: Dict[str, Any], env_info: Dict[str, Any], execution_log: SkillExecutionLog) -> tuple:
+    def _execute_single_step_logic(self, skill: Skill, params: Dict[str, Any], env_info: Dict[str, Any], execution_log: SkillExecutionLog, 
+                                  context: Optional[Dict[str, Any]] = None) -> tuple:
         """执行单步骤逻辑"""
         # 这里是技能执行的核心逻辑
         # 根据技能的内容和参数执行相应的操作
         
+        # 在结果中包含上下文信息
         result = f"技能 {skill.name} 执行成功，参数: {json.dumps(params, ensure_ascii=False)}"
+        if context:
+            result += f"，上下文: {json.dumps(context, ensure_ascii=False)}"
         
         # 生成artifacts
         artifacts = self._generate_artifacts(result, skill, execution_log)
         
         return result, artifacts
     
-    def _execute_script_step(self, step_config: Dict[str, Any], params: Dict[str, Any], env_info: Dict[str, Any], execution_log: SkillExecutionLog) -> str:
+    def _execute_script_step(self, step_config: Dict[str, Any], params: Dict[str, Any], env_info: Dict[str, Any], execution_log: SkillExecutionLog, 
+                            context: Optional[Dict[str, Any]] = None) -> str:
         """执行脚本步骤"""
         script_content = step_config.get("script", "")
-        # 这里可以扩展为执行实际的脚本逻辑
-        return f"脚本步骤执行完成: {script_content[:100]}..."
+        # 这里可以扩展为执行实际的脚本逻辑，上下文可用于脚本执行
+        result = f"脚本步骤执行完成: {script_content[:100]}..."
+        if context:
+            result += f" (上下文: {json.dumps(context, ensure_ascii=False)[:50]}...)"
+        return result
     
-    def _execute_template_step(self, step_config: Dict[str, Any], params: Dict[str, Any], env_info: Dict[str, Any], execution_log: SkillExecutionLog) -> str:
+    def _execute_template_step(self, step_config: Dict[str, Any], params: Dict[str, Any], env_info: Dict[str, Any], execution_log: SkillExecutionLog, 
+                              context: Optional[Dict[str, Any]] = None) -> str:
         """执行模板步骤"""
         template_name = step_config.get("template", "")
-        # 这里可以扩展为模板渲染逻辑
-        return f"模板步骤执行完成: {template_name}"
+        # 这里可以扩展为模板渲染逻辑，上下文可用于模板变量替换
+        result = f"模板步骤执行完成: {template_name}"
+        if context:
+            result += f" (上下文: {json.dumps(context, ensure_ascii=False)[:50]}...)"
+        return result
     
-    def _execute_api_step(self, step_config: Dict[str, Any], params: Dict[str, Any], env_info: Dict[str, Any], execution_log: SkillExecutionLog) -> str:
+    def _execute_api_step(self, step_config: Dict[str, Any], params: Dict[str, Any], env_info: Dict[str, Any], execution_log: SkillExecutionLog, 
+                         context: Optional[Dict[str, Any]] = None) -> str:
         """执行API调用步骤"""
         api_url = step_config.get("url", "")
-        # 这里可以扩展为实际的API调用逻辑
-        return f"API步骤执行完成: {api_url}"
+        # 这里可以扩展为实际的API调用逻辑，上下文可用于API请求头或参数
+        result = f"API步骤执行完成: {api_url}"
+        if context:
+            result += f" (上下文: {json.dumps(context, ensure_ascii=False)[:50]}...)"
+        return result
     
     def _generate_final_result(self, step_results: List[Dict[str, Any]], skill: Skill, params: Dict[str, Any]) -> str:
         """生成最终执行结果"""

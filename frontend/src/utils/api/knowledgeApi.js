@@ -10,10 +10,7 @@ export const createKnowledgeBase = async (name, description) => {
 };
 
 export const getKnowledgeBases = async (skip = 0, limit = 10) => {
-    const response = await request('/v1/knowledge/knowledge-bases', {
-        method: 'GET',
-        params: { skip, limit }
-    });
+    const response = await request('/v1/knowledge/knowledge-bases', {    method: 'GET',    params: { skip, limit }    });
     return response;
 };
 

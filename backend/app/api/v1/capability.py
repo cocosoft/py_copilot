@@ -10,7 +10,7 @@ from app.core.logging_config import logger
 # 创建路由器
 router = APIRouter()
 
-@router.post("/capabilities", response_model=CapabilityResponse)
+@router.post("/model-capabilities", response_model=CapabilityResponse)
 def create_capability(
     capability: CapabilityCreate,
     db: Session = Depends(get_db),
@@ -43,7 +43,7 @@ def create_capability(
         is_active=db_capability.is_active
     )
 
-@router.get("/capabilities", response_model=List[CapabilityResponse])
+@router.get("/model-capabilities", response_model=List[CapabilityResponse])
 def get_capabilities(
     skip: int = 0,
     limit: int = 100,
@@ -67,7 +67,7 @@ def get_capabilities(
     
     return capabilities
 
-@router.get("/capabilities/{capability_id}", response_model=CapabilityResponse)
+@router.get("/model-capabilities/{capability_id}", response_model=CapabilityResponse)
 def get_capability(
     capability_id: int,
     db: Session = Depends(get_db),
@@ -89,7 +89,7 @@ def get_capability(
     except HTTPException:
         raise
 
-@router.put("/capabilities/{capability_id}", response_model=CapabilityResponse)
+@router.put("/model-capabilities/{capability_id}", response_model=CapabilityResponse)
 def update_capability(
     capability_id: int,
     capability_update: CapabilityUpdate,
@@ -123,7 +123,7 @@ def update_capability(
     except HTTPException:
         raise
 
-@router.delete("/capabilities/{capability_id}", status_code=204)
+@router.delete("/model-capabilities/{capability_id}", status_code=204)
 def delete_capability(
     capability_id: int,
     db: Session = Depends(get_db),
@@ -136,7 +136,7 @@ def delete_capability(
     except HTTPException:
         raise
 
-@router.get("/capabilities/{capability_id}/parameter-templates")
+@router.get("/model-capabilities/{capability_id}/parameter-templates")
 def get_capability_parameter_templates(
     capability_id: int,
     db: Session = Depends(get_db),
@@ -158,7 +158,7 @@ def get_capability_parameter_templates(
 # 分类默认能力相关API
 from app.modules.capability_category.services.model_category_service import model_category_service
 
-@router.get("/capability/categories/{category_id}/default-capabilities")
+@router.get("/model-capability/categories/{category_id}/default-capabilities")
 def get_category_default_capabilities(
     category_id: int,
     db: Session = Depends(get_db),
@@ -176,7 +176,7 @@ def get_category_default_capabilities(
             detail=f"获取分类默认能力失败: {str(e)}"
         )
 
-@router.post("/capability/categories/{category_id}/default-capabilities")
+@router.post("/model-capability/categories/{category_id}/default-capabilities")
 def set_category_default_capabilities(
     category_id: int,
     capability_data: dict,

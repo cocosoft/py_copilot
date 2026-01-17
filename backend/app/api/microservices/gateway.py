@@ -206,7 +206,7 @@ async def proxy_v1_request(path: str, request: Request):
     path_parts = path.split('/')
     
     # 检查是否是供应商、模型、对话、知识、工作流、搜索或主题相关的API请求
-    if path_parts and path_parts[0] in ["suppliers", "suppliers-list", "models", "model-capabilities", "capabilities", "capability", "capability-types", "capability-dimensions", "model-management", "default-model", "default-models", "parameter-template", "parameter-templates", "parameter-normalization-rules", "parameter-mappings", "system-parameters", "model-categories", "category-templates", "categories", "agents", "agent-categories", "agent-parameters", "search-management", "skills", "external-skills", "conversations", "topics", "knowledge", "knowledge-graph", "workflows", "executions", "search", "memory"]:
+    if path_parts and path_parts[0] in ["suppliers", "suppliers-list", "models", "model-capabilities", "capability-types", "capability-dimensions", "model-management", "default-model", "default-models", "parameter-template", "parameter-templates", "parameter-normalization-rules", "parameter-mappings", "system-parameters", "model-categories", "category-templates", "categories", "agents", "agent-categories", "agent-parameters", "search-management", "skills", "external-skills", "conversations", "topics", "knowledge", "knowledge-graph", "workflows", "executions", "search", "memory"]:
         # 这些请求应该由主应用程序处理，直接转发到主应用程序的端口
         try:
             # 获取请求信息

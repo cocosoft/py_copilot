@@ -148,6 +148,22 @@ class WorkflowService {
       throw error;
     }
   }
+
+  async autoComposeWorkflow(taskDescription, optimize = false) {
+    try {
+      const response = await request('/v1/workflows/auto-compose', {
+        method: 'POST',
+        data: {
+          task_description: taskDescription,
+          optimize: optimize
+        }
+      });
+      return response;
+    } catch (error) {
+      console.error('自动生成工作流失败:', error);
+      throw error;
+    }
+  }
 }
 
 export default new WorkflowService();

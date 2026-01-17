@@ -4,10 +4,19 @@ from sqlalchemy.exc import SQLAlchemyError
 from functools import wraps
 from ..models.workflow import Workflow, WorkflowExecution, WorkflowNode, NodeExecution
 from ..schemas.workflow import WorkflowCreate, WorkflowUpdate, WorkflowExecutionCreate
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import logging
 import traceback
+import asyncio
+
+# 导入缓存服务
+from app.core.cache import cache_service
+# 导入消息队列服务
+from app.core.microservices import get_message_queue
+
+# 导入WorkflowAutoComposer
+from .workflow_auto_composer import WorkflowAutoComposer
 
 # 导入性能监控装饰器
 from app.core.logging_config import log_execution
@@ -202,15 +211,107 @@ class WorkflowService:
             raise
     
     @log_execution
+    async def create_workflow_from_description(
+        self, 
+        task_description: str,
+        user_id: int
+    ) -> Workflow:
+        """
+        根据任务描述自动生成并创建工作流
+        
+        Args:
+            task_description: 任务描述
+            user_id: 用户ID
+            
+        Returns:
+            创建的工作流对象
+        """
+        logger.info(f"开始从任务描述创建工作流: {task_description[:50]}...")
+        
+        try:
+            # 初始化工作流自动生成器
+            auto_composer = WorkflowAutoComposer()
+            
+            # 生成工作流定义
+            generated_workflow = await auto_composer.compose_workflow(
+                task_description=task_description,
+                user_id=user_id
+            )
+            
+            # 验证生成的工作流
+            is_valid, error_msg = auto_composer.validate_workflow(generated_workflow["definition"])
+            if not is_valid:
+                logger.error(f"生成的工作流无效: {error_msg}")
+                raise ValueError(f"工作流生成失败: {error_msg}")
+            
+            # 创建WorkflowCreate对象
+            workflow_data = WorkflowCreate(
+                name=generated_workflow["name"],
+                description=generated_workflow["description"],
+                definition=generated_workflow["definition"]
+            )
+            
+            # 创建工作流
+            workflow = self.create_workflow(workflow_data, user_id)
+            
+            logger.info(f"从任务描述创建工作流成功: ID={workflow.id}")
+            return workflow
+            
+        except Exception as e:
+            logger.error(f"从任务描述创建工作流失败: {str(e)}")
+            logger.error(f"错误堆栈: {traceback.format_exc()}")
+            raise
+    
+    @log_execution
     def get_workflow(self, workflow_id: int) -> Optional[Workflow]:
         """获取工作流详情"""
         logger.info(f"获取工作流详情: ID={workflow_id}")
         
+        # 构建缓存键
+        cache_key = f"workflow:detail:{workflow_id}"
+        cache_timeout = timedelta(minutes=5)
+        
         try:
+            # 尝试从缓存获取
+            async def get_cached_workflow():
+                return await cache_service.get(cache_key)
+            
+            loop = asyncio.get_event_loop()
+            cached_workflow = loop.run_until_complete(get_cached_workflow())
+            
+            if cached_workflow:
+                logger.info(f"从缓存获取工作流详情: ID={workflow_id}")
+                # 将缓存数据转换为Workflow对象
+                workflow_data = cached_workflow["data"]
+                workflow = Workflow(**workflow_data)
+                return workflow
+            
+            # 缓存未命中，从数据库获取
             workflow = self.db.query(Workflow).filter(Workflow.id == workflow_id).first()
             
             if workflow:
                 logger.info(f"成功获取工作流: ID={workflow_id}, 名称={workflow.name}")
+                
+                # 将工作流数据存入缓存
+                async def set_cached_workflow():
+                    workflow_dict = {
+                        "id": workflow.id,
+                        "name": workflow.name,
+                        "description": workflow.description,
+                        "definition": workflow.definition,
+                        "is_active": workflow.is_active,
+                        "created_at": workflow.created_at.isoformat() if workflow.created_at else None,
+                        "updated_at": workflow.updated_at.isoformat() if workflow.updated_at else None,
+                        "created_by": workflow.created_by,
+                        "tags": workflow.tags
+                    }
+                    await cache_service.set(
+                        cache_key,
+                        {"data": workflow_dict},
+                        cache_timeout
+                    )
+                
+                loop.run_until_complete(set_cached_workflow())
             else:
                 logger.warning(f"工作流不存在: ID={workflow_id}")
                 
@@ -224,7 +325,12 @@ class WorkflowService:
         except Exception as e:
             logger.error(f"获取工作流失败: {str(e)}")
             logger.error(f"错误堆栈: {traceback.format_exc()}")
-            raise
+            # 缓存操作失败不影响主流程，继续执行
+            try:
+                workflow = self.db.query(Workflow).filter(Workflow.id == workflow_id).first()
+                return workflow
+            except:
+                raise
     
     @log_execution
     def get_workflows(self, skip: int = 0, limit: int = 100) -> List[Workflow]:
@@ -238,9 +344,52 @@ class WorkflowService:
             limit = 100
             logger.warning(f"limit参数超出范围，使用默认值: {limit}")
         
+        # 构建缓存键
+        cache_key = f"workflow:list:{skip}:{limit}"
+        cache_timeout = timedelta(minutes=5)
+        
         try:
+            # 尝试从缓存获取
+            async def get_cached_workflows():
+                return await cache_service.get(cache_key)
+            
+            loop = asyncio.get_event_loop()
+            cached_workflows = loop.run_until_complete(get_cached_workflows())
+            
+            if cached_workflows:
+                logger.info(f"从缓存获取工作流列表: skip={skip}, limit={limit}")
+                # 将缓存数据转换为Workflow对象列表
+                workflows_data = cached_workflows["data"]
+                workflows = [Workflow(**workflow_data) for workflow_data in workflows_data]
+                return workflows
+            
+            # 缓存未命中，从数据库获取
             workflows = self.db.query(Workflow).offset(skip).limit(limit).all()
             logger.info(f"成功获取工作流列表: 数量={len(workflows)}")
+            
+            # 将工作流数据存入缓存
+            async def set_cached_workflows():
+                workflows_list = []
+                for workflow in workflows:
+                    workflow_dict = {
+                        "id": workflow.id,
+                        "name": workflow.name,
+                        "description": workflow.description,
+                        "is_active": workflow.is_active,
+                        "created_at": workflow.created_at.isoformat() if workflow.created_at else None,
+                        "updated_at": workflow.updated_at.isoformat() if workflow.updated_at else None,
+                        "tags": workflow.tags
+                    }
+                    workflows_list.append(workflow_dict)
+                
+                await cache_service.set(
+                    cache_key,
+                    {"data": workflows_list},
+                    cache_timeout
+                )
+            
+            loop.run_until_complete(set_cached_workflows())
+            
             return workflows
             
         except SQLAlchemyError as e:
@@ -251,7 +400,12 @@ class WorkflowService:
         except Exception as e:
             logger.error(f"获取工作流列表失败: {str(e)}")
             logger.error(f"错误堆栈: {traceback.format_exc()}")
-            raise
+            # 缓存操作失败不影响主流程，继续执行
+            try:
+                workflows = self.db.query(Workflow).offset(skip).limit(limit).all()
+                return workflows
+            except:
+                raise
     
     @log_execution
     def update_workflow(self, workflow_id: int, workflow_data: WorkflowUpdate) -> Optional[Workflow]:
@@ -281,6 +435,17 @@ class WorkflowService:
             self.db.commit()
             self.db.refresh(workflow)
             
+            # 清除相关缓存
+            async def clear_cache():
+                # 清除工作流详情缓存
+                await cache_service.delete(f"workflow:detail:{workflow_id}")
+                # 清除工作流列表缓存 (使用模式匹配)
+                # TODO: 实现缓存服务的模式匹配删除功能
+                logger.info(f"清除工作流相关缓存: ID={workflow_id}")
+            
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(clear_cache())
+            
             logger.info(f"工作流更新成功: ID={workflow_id}")
             return workflow
             
@@ -309,6 +474,17 @@ class WorkflowService:
             
             self.db.delete(workflow)
             self.db.commit()
+            
+            # 清除相关缓存
+            async def clear_cache():
+                # 清除工作流详情缓存
+                await cache_service.delete(f"workflow:detail:{workflow_id}")
+                # 清除工作流列表缓存 (使用模式匹配)
+                # TODO: 实现缓存服务的模式匹配删除功能
+                logger.info(f"清除工作流相关缓存: ID={workflow_id}")
+            
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(clear_cache())
             
             logger.info(f"工作流删除成功: ID={workflow_id}")
             return True
@@ -606,7 +782,7 @@ class WorkflowEngine:
     
     @log_execution
     def execute_workflow(self, workflow_id: int, input_data: Optional[Dict[str, Any]] = None, user_id: Optional[int] = None) -> WorkflowExecution:
-        """执行工作流"""
+        """执行工作流（异步）"""
         logger.info(f"开始执行工作流: ID={workflow_id}")
         
         # 验证输入数据
@@ -624,7 +800,7 @@ class WorkflowEngine:
         
         try:
             # 开始事务
-            self.workflow_service.begin_transaction()
+            self.begin_transaction()
             
             # 创建工作流执行实例
             execution_data = WorkflowExecutionCreate(
@@ -632,16 +808,16 @@ class WorkflowEngine:
                 input_data=input_data
             )
             
-            execution = self.workflow_service.create_execution(execution_data, user_id)
+            execution = self.create_execution(execution_data, user_id)
             logger.info(f"工作流执行实例创建成功: ID={execution.id}")
             
             # 获取工作流定义
-            workflow = self.workflow_service.get_workflow(workflow_id)
+            workflow = self.get_workflow(workflow_id)
             if not workflow:
                 error_msg = f"工作流不存在: ID={workflow_id}"
                 logger.error(error_msg)
-                self.workflow_service.update_execution_status(execution.id, "failed", {"error": error_msg})
-                self.workflow_service.commit_transaction()
+                self.update_execution_status(execution.id, "failed", {"error": error_msg})
+                self.commit_transaction()
                 raise ValueError(error_msg)
             
             logger.info(f"获取工作流定义成功: 名称={workflow.name}")
@@ -650,8 +826,8 @@ class WorkflowEngine:
             if not workflow.definition:
                 error_msg = "工作流定义为空"
                 logger.error(error_msg)
-                self.workflow_service.update_execution_status(execution.id, "failed", {"error": error_msg})
-                self.workflow_service.commit_transaction()
+                self.update_execution_status(execution.id, "failed", {"error": error_msg})
+                self.commit_transaction()
                 raise ValueError(error_msg)
             
             # 提取节点和边
@@ -662,15 +838,15 @@ class WorkflowEngine:
             if not isinstance(nodes, list):
                 error_msg = "工作流节点定义格式错误，应为列表类型"
                 logger.error(error_msg)
-                self.workflow_service.update_execution_status(execution.id, "failed", {"error": error_msg})
-                self.workflow_service.commit_transaction()
+                self.update_execution_status(execution.id, "failed", {"error": error_msg})
+                self.commit_transaction()
                 raise ValueError(error_msg)
             
             if len(nodes) == 0:
                 error_msg = "工作流节点定义为空，无法执行"
                 logger.error(error_msg)
-                self.workflow_service.update_execution_status(execution.id, "failed", {"error": error_msg})
-                self.workflow_service.commit_transaction()
+                self.update_execution_status(execution.id, "failed", {"error": error_msg})
+                self.commit_transaction()
                 raise ValueError(error_msg)
             
             # 验证边定义
@@ -678,24 +854,34 @@ class WorkflowEngine:
                 logger.warning("工作流边定义格式错误，应为列表类型，使用空边列表")
                 edges = []
             
-            logger.info(f"开始执行工作流: 节点数量={len(nodes)}, 边数量={len(edges)}")
-            
-            # 按节点连接关系执行工作流
-            result = self.execute_workflow_by_connections(execution.id, nodes, edges, input_data)
-            
-            # 更新执行状态为完成
-            self.workflow_service.update_execution_status(execution.id, "completed", result)
-            
             # 提交事务
-            self.workflow_service.commit_transaction()
-            logger.info(f"工作流执行完成: ID={execution.id}")
+            self.commit_transaction()
+            
+            # 将工作流执行任务发送到消息队列
+            async def publish_workflow_task():
+                message_queue = get_message_queue()
+                task_data = {
+                    "execution_id": execution.id,
+                    "workflow_id": workflow_id,
+                    "nodes": nodes,
+                    "edges": edges,
+                    "input_data": input_data,
+                    "user_id": user_id
+                }
+                await message_queue.publish_message("workflow:execution", task_data)
+                logger.info(f"工作流执行任务已发送到消息队列: execution_id={execution.id}")
+            
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(publish_workflow_task())
+            
+            logger.info(f"工作流执行已提交异步任务: ID={execution.id}")
             
         except Exception as e:
             logger.error(f"工作流执行失败: {str(e)}")
             logger.error(f"错误堆栈: {traceback.format_exc()}")
             
             # 回滚事务
-            self.workflow_service.rollback_transaction()
+            self.rollback_transaction()
             
             # 确保执行实例存在后再更新状态
             if execution:
@@ -705,14 +891,51 @@ class WorkflowEngine:
                         workflow_id=workflow_id,
                         input_data=input_data
                     )
-                    execution = self.workflow_service.create_execution(execution_data, user_id)
-                    self.workflow_service.update_execution_status(execution.id, "failed", {"error": str(e)})
+                    execution = self.create_execution(execution_data, user_id)
+                    self.update_execution_status(execution.id, "failed", {"error": str(e)})
                 except Exception as recovery_error:
                     logger.error(f"恢复执行记录失败: {str(recovery_error)}")
             
             raise
         
         return execution
+    
+    def execute_workflow_async(self, execution_id: int, workflow_id: int, nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]], input_data: Dict[str, Any], user_id: Optional[int] = None) -> None:
+        """异步执行工作流（从消息队列调用）"""
+        logger.info(f"开始异步执行工作流: execution_id={execution_id}")
+        
+        try:
+            # 获取工作流执行实例
+            execution = self.get_execution(execution_id)
+            if not execution:
+                logger.error(f"工作流执行实例不存在: ID={execution_id}")
+                return
+            
+            # 开始事务
+            self.begin_transaction()
+            
+            # 按节点连接关系执行工作流
+            result = self.execute_workflow_by_connections(execution_id, nodes, edges, input_data)
+            
+            # 更新执行状态为完成
+            self.update_execution_status(execution.id, "completed", result)
+            
+            # 提交事务
+            self.commit_transaction()
+            logger.info(f"工作流异步执行完成: ID={execution.id}")
+            
+        except Exception as e:
+            logger.error(f"工作流异步执行失败: {str(e)}")
+            logger.error(f"错误堆栈: {traceback.format_exc()}")
+            
+            # 回滚事务
+            self.rollback_transaction()
+            
+            # 更新执行状态为失败
+            try:
+                self.update_execution_status(execution_id, "failed", {"error": str(e)})
+            except Exception as update_error:
+                logger.error(f"更新执行状态失败: {str(update_error)}")
     
     def execute_workflow_by_connections(self, execution_id: int, nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]], input_data: Dict[str, Any]) -> Dict[str, Any]:
         """按节点连接关系执行工作流"""

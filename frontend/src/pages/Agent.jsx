@@ -2,7 +2,12 @@ import React, { useState, useEffect } from 'react';
 import './agent.css';
 import { createAgent, getAgents, deleteAgent, getPublicAgents, getRecommendedAgents, updateAgent } from '../services/agentService';
 import { createAgentCategory, getAgentCategories, updateAgentCategory, deleteAgentCategory, getAgentCategoryTree } from '../services/agentCategoryService';
+import { getKnowledgeBases } from '../utils/api/knowledgeApi';
+import defaultModelApi from '../utils/api/defaultModelApi';
+import modelApi from '../utils/api/modelApi';
+import skillApi from '../services/skillApi';
 import AgentParameterManagement from '../components/ModelManagement/AgentParameterManagement';
+import ModelSelectDropdown from '../components/ModelManagement/ModelSelectDropdown';
 
 const Agent = () => {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -13,6 +18,9 @@ const Agent = () => {
     avatar: '🤖',
     prompt: '',
     knowledge_base: '',
+    category_id: null,
+    default_model: null,
+    skills: [],
     is_public: false,
     is_recommended: false
   });
@@ -28,6 +36,9 @@ const Agent = () => {
   // 参数管理视图状态
   const [showParameterManagement, setShowParameterManagement] = useState(false);
   const [selectedAgentForParams, setSelectedAgentForParams] = useState(null);
+  
+  // 头像预览状态
+  const [avatarPreview, setAvatarPreview] = useState('🤖');
 
   // 分类相关状态
   const [agentCategories, setAgentCategories] = useState([]);
@@ -39,6 +50,18 @@ const Agent = () => {
     logo: '📁',
     is_system: false
   });
+
+  // 知识库相关状态
+  const [knowledgeBases, setKnowledgeBases] = useState([]);
+  const [loadingKnowledgeBases, setLoadingKnowledgeBases] = useState(false);
+
+  // 默认模型相关状态
+  const [defaultModels, setDefaultModels] = useState([]);
+  const [loadingDefaultModels, setLoadingDefaultModels] = useState(false);
+
+  // 技能相关状态
+  const [skills, setSkills] = useState([]);
+  const [loadingSkills, setLoadingSkills] = useState(false);
 
   const handleCreateAgent = () => {
     setShowCreateDialog(true);
@@ -93,6 +116,9 @@ const Agent = () => {
         avatar: '🤖',
         prompt: '',
         knowledge_base: '',
+        category_id: null,
+        default_model: null,
+        skills: [],
         is_public: false,
         is_recommended: false
       });
@@ -123,6 +149,38 @@ const Agent = () => {
     }));
   };
 
+  // 处理技能选择
+  const handleSkillToggle = (skillId) => {
+    setNewAgent(prev => {
+      const isSelected = prev.skills.includes(skillId);
+      if (isSelected) {
+        return {
+          ...prev,
+          skills: prev.skills.filter(id => id !== skillId)
+        };
+      } else {
+        return {
+          ...prev,
+          skills: [...prev.skills, skillId]
+        };
+      }
+    });
+  };
+
+  // 处理默认模型选择
+  const handleDefaultModelSelect = (model) => {
+    setNewAgent(prev => ({
+      ...prev,
+      default_model: model ? model.id : null
+    }));
+  };
+
+  // 获取当前选中的模型对象
+  const getSelectedDefaultModel = () => {
+    if (!newAgent.default_model || !defaultModels.length) return null;
+    return defaultModels.find(model => model.id === newAgent.default_model) || null;
+  };
+
   // 编辑智能体
   const handleEditAgent = (agent) => {
     setEditingAgent(agent);
@@ -132,11 +190,27 @@ const Agent = () => {
       avatar: agent.avatar || '🤖',
       prompt: agent.prompt,
       knowledge_base: agent.knowledge_base || '',
+      category_id: agent.category_id || null,
+      default_model: agent.default_model || null,
+      skills: agent.skills || [],
       is_public: agent.is_public || false,
       is_recommended: agent.is_recommended || false
     });
     setShowCreateDialog(true);
   };
+  
+  // 头像预览逻辑
+  useEffect(() => {
+    if (newAgent.avatar) {
+      if (newAgent.avatar.startsWith(('http://', 'https://'))) {
+        setAvatarPreview(newAgent.avatar);
+      } else {
+        setAvatarPreview(newAgent.avatar);
+      }
+    } else {
+      setAvatarPreview('🤖');
+    }
+  }, [newAgent.avatar]);
 
   // 删除智能体
   const handleDeleteAgent = async (agentId) => {
@@ -377,6 +451,49 @@ const Agent = () => {
     }
   };
 
+  // 获取知识库列表
+  const fetchKnowledgeBases = async () => {
+    setLoadingKnowledgeBases(true);
+    try {
+      const response = await getKnowledgeBases(0, 50); // 获取最多50个知识库（后端限制）
+      setKnowledgeBases(response || []);
+    } catch (err) {
+      console.error('获取知识库列表失败:', err);
+      setKnowledgeBases([]);
+    } finally {
+      setLoadingKnowledgeBases(false);
+    }
+  };
+
+  // 获取默认模型列表
+  const fetchDefaultModels = async () => {
+    setLoadingDefaultModels(true);
+    try {
+      // 使用modelApi获取所有可用模型，而不是默认模型配置
+      const response = await modelApi.getAll();
+      setDefaultModels(response.models || []);
+    } catch (err) {
+      console.error('获取模型列表失败:', err);
+      setDefaultModels([]);
+    } finally {
+      setLoadingDefaultModels(false);
+    }
+  };
+
+  // 获取技能列表
+  const fetchSkills = async () => {
+    setLoadingSkills(true);
+    try {
+      const response = await skillApi.list({ status: 'active', limit: 100 });
+      setSkills(response.skills || []);
+    } catch (err) {
+      console.error('获取技能列表失败:', err);
+      setSkills([]);
+    } finally {
+      setLoadingSkills(false);
+    }
+  };
+
   // 为树节点添加展开状态的辅助函数
   const addExpansionState = (tree) => {
     return tree.map(category => ({
@@ -386,9 +503,13 @@ const Agent = () => {
     }));
   };
 
-  // 页面加载时获取分类树
+  // 页面加载时获取分类树、分类列表、知识库列表、默认模型列表和技能列表
   useEffect(() => {
     fetchCategoryTree();
+    fetchCategories();
+    fetchKnowledgeBases();
+    fetchDefaultModels();
+    fetchSkills();
   }, []);
 
   return (
@@ -486,22 +607,18 @@ const Agent = () => {
               agents.map(agent => (
                 <div key={agent.id} className="agent-card">
                   <div className="agent-avatar">
-                    {agent.avatar_url ? (
-                      <img
-                        src={agent.avatar_url}
-                        alt={agent.name}
-                        style={{ width: '100%', height: '100%', borderRadius: '50%' }}
+                    {agent.avatar_url && agent.avatar_url.startsWith(('http://', 'https://')) ? (
+                      <img 
+                        src={agent.avatar_url} 
+                        alt={agent.name} 
+                        className="agent-avatar-image"
                         onError={(e) => {
                           e.target.style.display = 'none';
-                          const fallback = document.createElement('div');
-                          fallback.textContent = '🤖';
-                          fallback.style.fontSize = '48px';
-                          e.target.parentNode.appendChild(fallback);
+                          e.target.nextSibling.style.display = 'inline';
                         }}
                       />
-                    ) : (
-                      agent.avatar || '🤖'
-                    )}
+                    ) : null}
+                    <span className="agent-avatar-fallback">{agent.avatar || '🤖'}</span>
                   </div>
                   <h3>{agent.name}</h3>
                   <p>{agent.description}</p>
@@ -646,6 +763,31 @@ const Agent = () => {
 
               <div className="form-group">
                 <label>选择头像</label>
+                
+                {/* 头像预览区域 */}
+                <div className="avatar-preview">
+                  <div className="avatar-preview-label">头像预览：</div>
+                  <div className="preview-container">
+                    {avatarPreview && avatarPreview.startsWith(('http://', 'https://')) ? (
+                      <>
+                        <img 
+                          src={avatarPreview} 
+                          alt="Avatar Preview" 
+                          className="preview-image"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'block';
+                          }}
+                        />
+                        <div className="preview-fallback" style={{ display: 'none' }}>{newAgent.avatar || '🤖'}</div>
+                      </>
+                    ) : (
+                      <div className="preview-emoji">{newAgent.avatar || '🤖'}</div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* 头像选项 */}
                 <div className="avatar-options">
                   {['🤖', '👨‍💻', '📝', '📊', '🎨', '🧠', '🔍', '💡'].map(avatar => (
                     <button
@@ -658,6 +800,16 @@ const Agent = () => {
                     </button>
                   ))}
                 </div>
+                
+                {/* 自定义头像输入 */}
+                <div className="custom-avatar-input">
+                  <input
+                    type="text"
+                    placeholder="输入自定义头像（表情符号或图片URL）"
+                    value={newAgent.avatar}
+                    onChange={(e) => setNewAgent(prev => ({ ...prev, avatar: e.target.value }))}
+                  />
+                </div>
               </div>
 
               <div className="form-group">
@@ -668,13 +820,18 @@ const Agent = () => {
                   value={newAgent.knowledge_base}
                   onChange={handleInputChange}
                   className="knowledge-base-select"
+                  disabled={loadingKnowledgeBases}
                 >
                   <option value="">无（不绑定知识库）</option>
-                  <option value="general_knowledge">通用知识库</option>
-                  <option value="product_docs">产品文档</option>
-                  <option value="technical_manuals">技术手册</option>
-                  <option value="company_info">公司信息</option>
-                  <option value="user_guides">用户指南</option>
+                  {loadingKnowledgeBases ? (
+                    <option value="">加载中...</option>
+                  ) : (
+                    knowledgeBases.map(kb => (
+                      <option key={kb.id} value={kb.id}>
+                        {kb.name}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
 
@@ -697,6 +854,48 @@ const Agent = () => {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="agentDefaultModel">默认模型</label>
+                {loadingDefaultModels ? (
+                  <div className="loading-models">加载中...</div>
+                ) : (
+                  <ModelSelectDropdown
+                    models={defaultModels}
+                    selectedModel={getSelectedDefaultModel()}
+                    onModelSelect={handleDefaultModelSelect}
+                    placeholder="无（使用系统默认）"
+                    disabled={loadingDefaultModels}
+                    getModelLogoUrl={(model) => {
+                      if (model?.logo) return model.logo;
+                      if (model?.supplier_logo) return model.supplier_logo;
+                      return '/logos/models/default.png';
+                    }}
+                  />
+                )}
+              </div>
+
+              <div className="form-group">
+                <label>技能</label>
+                <div className="skills-selection">
+                  {loadingSkills ? (
+                    <div>加载中...</div>
+                  ) : skills.length === 0 ? (
+                    <div>暂无可用技能</div>
+                  ) : (
+                    skills.map(skill => (
+                      <label key={skill.id} className="skill-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={newAgent.skills.includes(skill.id)}
+                          onChange={() => handleSkillToggle(skill.id)}
+                        />
+                        <span>{skill.name}</span>
+                      </label>
+                    ))
+                  )}
+                </div>
               </div>
 
               <div className="form-group">

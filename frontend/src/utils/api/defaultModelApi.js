@@ -161,7 +161,7 @@ const defaultModelApi = {
    * @param {number} params.limit - 限制数量
    */
   async getRecommendedModels(params = {}) {
-    const endpoint = '/v1/default-models/recommendations';
+    const endpoint = '/v1/default-models/recommend';
     const queryParams = new URLSearchParams();
     
     if (params.scene) queryParams.append('scene', params.scene);

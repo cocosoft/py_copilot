@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from app.models.memory import GlobalMemory, UserMemoryConfig, MemoryAccessLog, ConversationMemoryMapping, KnowledgeMemoryMapping, MemoryAssociation
 from app.schemas.memory import MemoryCreate, MemoryUpdate, MemoryStats, MemoryPatterns
 from app.services.knowledge.chroma_service import ChromaService
+from app.services.memory_cache_service import memory_cache_service
 
 # 初始化Chroma服务
 chroma_service = ChromaService(default_collection="memories")
@@ -16,7 +17,7 @@ class MemoryService:
     """记忆服务类"""
     
     @staticmethod
-    def create_memory(db: Session, memory_data: MemoryCreate, user_id: int) -> GlobalMemory:
+    async def create_memory(db: Session, memory_data: MemoryCreate, user_id: int) -> GlobalMemory:
         """创建新的记忆条目"""
         # 处理向量嵌入（JSON序列化）
         embedding_json = json.dumps(memory_data.embedding) if hasattr(memory_data, 'embedding') and memory_data.embedding else None
@@ -78,6 +79,9 @@ class MemoryService:
         
         # 更新用户偏好（基于写入操作）
         MemoryService.update_preferences_based_on_access(db, db_memory.id, user_id, access_type="WRITE")
+        
+        # 清除相关缓存
+        await memory_cache_service.clear_user_cache(user_id)
         
         return db_memory
     
@@ -350,33 +354,14 @@ class MemoryService:
         return db_query.all()
     
     @staticmethod
-    def get_user_memories(db: Session, user_id: int, memory_types: Optional[List[str]] = None,
+    async def get_user_memories(db: Session, user_id: int, memory_types: Optional[List[str]] = None,
                          memory_categories: Optional[List[str]] = None, limit: int = 20,
                          offset: int = 0, session_id: Optional[str] = None) -> List[GlobalMemory]:
-        """获取用户的所有记忆条目"""
-        # 基础查询
-        db_query = db.query(GlobalMemory).filter(
-            GlobalMemory.user_id == user_id,
-            GlobalMemory.is_active == True
-        )
-        
-        # 过滤条件
-        if memory_types:
-            db_query = db_query.filter(GlobalMemory.memory_type.in_(memory_types))
-        
-        if memory_categories:
-            db_query = db_query.filter(GlobalMemory.memory_category.in_(memory_categories))
-        
-        if session_id:
-            db_query = db_query.filter(GlobalMemory.session_id == session_id)
-        
-        # 排序和分页
-        db_query = db_query.order_by(desc(GlobalMemory.created_at))
-        
-        return db_query.offset(offset).limit(limit).all()
+        """获取用户的所有记忆条目，使用缓存优化"""
+        return await memory_cache_service.get_user_memories(db, user_id, memory_types, memory_categories, limit, offset, session_id)
 
     @staticmethod
-    def get_intelligent_context_memories(
+    async def get_intelligent_context_memories(
         db: Session,
         user_id: int,
         conversation_id: int,
@@ -389,7 +374,7 @@ class MemoryService:
         """智能上下文记忆检索 - 根据对话上下文智能检索相关记忆"""
         
         # 1. 获取当前对话相关的记忆作为基础上下文
-        conversation_memories = MemoryService.get_conversation_memories(
+        conversation_memories = await MemoryService.get_conversation_memories(
             db, conversation_id, user_id, limit=20, offset=0
         )
         
@@ -408,32 +393,39 @@ class MemoryService:
             ])
             enhanced_query = f"{query} [对话上下文: {conversation_context}]"
         
-        # 3. 执行语义搜索
+        # 3. 执行语义搜索，使用缓存优化
         semantic_results = []
         if use_semantic_search:
-            try:
-                # 使用Chroma向量数据库进行语义搜索
-                search_results = chroma_service.search_similar(
-                    query=enhanced_query,
-                    filter_conditions={"user_id": user_id},
-                    n_results=limit * 2  # 获取更多结果用于后续排序
-                )
-                
-                # 将搜索结果转换为记忆对象
-                memory_ids = [int(result["metadata"]["memory_id"]) for result in search_results]
-                if memory_ids:
-                    semantic_results = db.query(GlobalMemory).filter(
-                        GlobalMemory.id.in_(memory_ids),
-                        GlobalMemory.user_id == user_id,
-                        GlobalMemory.is_active == True
-                    ).all()
-            except Exception as e:
-                # 如果向量搜索失败，回退到文本搜索
-                import logging
-                logging.warning(f"语义搜索失败: {str(e)}, 回退到文本搜索")
-                semantic_results = MemoryService.search_memories_by_text(
-                    db, query, user_id, limit=limit * 2
-                )
+            # 尝试从缓存获取语义搜索结果
+            cached_results = await memory_cache_service.get_cached_semantic_search(enhanced_query, user_id)
+            if cached_results:
+                semantic_results = cached_results
+            else:
+                try:
+                    # 使用Chroma向量数据库进行语义搜索
+                    search_results = chroma_service.search_similar(
+                        query=enhanced_query,
+                        filter_conditions={"user_id": user_id},
+                        n_results=limit * 2  # 获取更多结果用于后续排序
+                    )
+                    
+                    # 将搜索结果转换为记忆对象
+                    memory_ids = [int(result["metadata"]["memory_id"]) for result in search_results]
+                    if memory_ids:
+                        semantic_results = db.query(GlobalMemory).filter(
+                            GlobalMemory.id.in_(memory_ids),
+                            GlobalMemory.user_id == user_id,
+                            GlobalMemory.is_active == True
+                        ).all()
+                        # 缓存语义搜索结果
+                        await memory_cache_service.cache_semantic_search(enhanced_query, user_id, semantic_results)
+                except Exception as e:
+                    # 如果向量搜索失败，回退到文本搜索
+                    import logging
+                    logging.warning(f"语义搜索失败: {str(e)}, 回退到文本搜索")
+                    semantic_results = MemoryService.search_memories_by_text(
+                        db, query, user_id, limit=limit * 2
+                    )
         else:
             # 不使用语义搜索，直接进行文本搜索
             semantic_results = MemoryService.search_memories_by_text(
@@ -478,7 +470,7 @@ class MemoryService:
     async def retrieve_relevant_memories(db: Session, user_id: int, query: str, limit: int = 5) -> List[Dict[str, Any]]:
         """检索用户的相关记忆，用于聊天增强"""
         # 使用智能上下文记忆检索功能
-        memories = MemoryService.get_intelligent_context_memories(
+        memories = await MemoryService.get_intelligent_context_memories(
             db=db,
             user_id=user_id,
             conversation_id=0,  # 临时值，不影响搜索
@@ -1646,18 +1638,9 @@ class MemoryService:
         return result
     
     @staticmethod
-    def get_conversation_memories(db: Session, conversation_id: int, user_id: int, limit: int = 20, offset: int = 0) -> List[GlobalMemory]:
-        """获取特定对话关联的所有记忆条目"""
-        # 通过映射表查询对话相关的记忆
-        db_query = db.query(GlobalMemory).join(
-            ConversationMemoryMapping, ConversationMemoryMapping.memory_id == GlobalMemory.id
-        ).filter(
-            ConversationMemoryMapping.conversation_id == conversation_id,
-            GlobalMemory.user_id == user_id,
-            GlobalMemory.is_active == True
-        ).order_by(desc(GlobalMemory.created_at))
-        
-        return db_query.offset(offset).limit(limit).all()
+    async def get_conversation_memories(db: Session, conversation_id: int, user_id: int, limit: int = 20, offset: int = 0) -> List[GlobalMemory]:
+        """获取特定对话关联的所有记忆条目，使用缓存优化"""
+        return await memory_cache_service.get_conversation_memories(db, conversation_id, user_id, limit, offset)
     
     @staticmethod
     def get_knowledge_memories(db: Session, knowledge_base_id: int, user_id: int, limit: int = 20, offset: int = 0) -> List[GlobalMemory]:

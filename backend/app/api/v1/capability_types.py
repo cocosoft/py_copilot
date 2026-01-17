@@ -22,7 +22,7 @@ from app.api.deps import get_current_user
 from app.models.user import User
 
 # 创建路由器
-router = APIRouter(prefix="/capability/types", tags=["capability_types"])
+router = APIRouter(prefix="/model-capability/types", tags=["capability_types"])
 
 
 @router.post("/", response_model=SuccessData[CapabilityTypeResponse], status_code=status.HTTP_201_CREATED)

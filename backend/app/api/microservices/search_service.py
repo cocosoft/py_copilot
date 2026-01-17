@@ -108,23 +108,24 @@ class SearchService:
         """网络搜索"""
         try:
             # 调用网络搜索服务
-            web_results = await self.web_search_service.search(
+            web_search_response = self.web_search_service.search(
                 query=search_request.query,
-                limit=search_request.limit
+                num_results=search_request.limit
             )
             
             # 转换为标准格式
             results = []
-            for result in web_results:
-                search_result = SearchResult(
-                    id=f"web_{result.get('id', '')}",
-                    title=result.get('title', ''),
-                    content=result.get('snippet', ''),
-                    source="web",
-                    url=result.get('url'),
-                    metadata=result if search_request.include_metadata else None
-                )
-                results.append(search_result)
+            if web_search_response.get("success"):
+                for result in web_search_response.get("results", []):
+                    search_result = SearchResult(
+                        id=f"web_{result.get('id', '')}",
+                        title=result.get('title', ''),
+                        content=result.get('description', ''),
+                        source="web",
+                        url=result.get('url'),
+                        metadata=result if search_request.include_metadata else None
+                    )
+                    results.append(search_result)
             
             return results
             

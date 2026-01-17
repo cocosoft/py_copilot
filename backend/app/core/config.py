@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     deepseek_api_base: Optional[str] = Field(default="https://api.deepseek.com/v1", env="DEEPSEEK_API_BASE")
     
     # 服务器配置
-    server_host: str = Field(default="0.0.0.0", env="SERVER_HOST")
+    server_host: str = Field(default="127.0.0.1", env="SERVER_HOST")
     server_port: int = Field(default=8000, env="SERVER_PORT")
     server_reload: bool = Field(default=False, env="SERVER_RELOAD")
     server_workers: int = Field(default=1, env="SERVER_WORKERS")
@@ -58,6 +58,10 @@ class Settings(BaseSettings):
     
     # 文件上传配置
     upload_folder: str = Field(default=os.path.join(BASE_DIR, "uploads"), env="UPLOAD_FOLDER")
+    
+    # 性能监控配置
+    enable_performance_logging: bool = Field(default=True, env="ENABLE_PERFORMANCE_LOGGING")
+    performance_log_level: str = Field(default="INFO", env="PERFORMANCE_LOG_LEVEL")
     
     class Config:
         env_file = ".env"

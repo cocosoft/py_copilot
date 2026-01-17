@@ -21,7 +21,10 @@ class AgentParameterManager:
         parameter_value: Any,
         parameter_type: str = "string",
         description: str = None,
-        parameter_group: str = None
+        parameter_group: str = None,
+        source: str = "agent",
+        inherited: bool = False,
+        inherited_from: str = None
     ) -> AgentParameter:
         """
         创建智能体参数
@@ -34,6 +37,9 @@ class AgentParameterManager:
             parameter_type: 参数类型
             description: 参数描述
             parameter_group: 参数分组
+            source: 参数来源 (agent, model, system)
+            inherited: 是否为继承参数
+            inherited_from: 继承来源
             
         Returns:
             创建的智能体参数对象
@@ -54,6 +60,9 @@ class AgentParameterManager:
             existing_param.parameter_type = parameter_type
             existing_param.description = description
             existing_param.parameter_group = parameter_group
+            existing_param.source = source
+            existing_param.inherited = inherited
+            existing_param.inherited_from = inherited_from
             db.add(existing_param)
             db.commit()
             db.refresh(existing_param)
@@ -65,7 +74,10 @@ class AgentParameterManager:
             parameter_value=str(parameter_value),
             parameter_type=parameter_type,
             description=description,
-            parameter_group=parameter_group
+            parameter_group=parameter_group,
+            source=source,
+            inherited=inherited,
+            inherited_from=inherited_from
         )
         
         db.add(agent_param)
@@ -259,32 +271,42 @@ class AgentParameterManager:
         return count
     
     @staticmethod
-    def get_effective_parameters(db: Session, agent_id: int) -> Dict[str, Any]:
-        """
-        获取智能体的有效参数（包含继承自模型的参数）
+    def get_effective_parameters(db: Session, agent_id: int, include_inherited: bool = True) -> Dict[str, Any]:
+        """获取智能体的有效参数（包含系统、模型、智能体三级参数继承）
         
         Args:
             db: 数据库会话
             agent_id: 智能体ID
+            include_inherited: 是否包含继承参数
             
         Returns:
-            合并后的有效参数字典
+            合并后的有效参数字典，优先级：智能体参数 > 模型参数 > 系统参数
         """
-        result = {}
+        from app.services.parameter_management.parameter_manager import ParameterManager
+        from app.services.parameter_management.system_parameter_manager import SystemParameterManager
         
-        agent_params = AgentParameterManager.get_parameters_dict(db, agent_id)
-        result.update(agent_params)
+        result = {}
         
         agent = db.query(Agent).filter(Agent.id == agent_id).first()
         if not agent:
             return result
         
+        # 1. 获取系统默认参数（最低优先级）
+        if include_inherited:
+            system_params = SystemParameterManager.get_system_parameters(db)
+            for param in system_params:
+                result[param["parameter_name"]] = param["parameter_value"]
+        
+        # 2. 获取模型参数（中等优先级）
         model_id = getattr(agent, 'model_id', None)
-        if model_id:
+        if model_id and include_inherited:
             model_params = ParameterManager.get_model_parameters(db, model_id)
             for param in model_params:
-                if param["parameter_name"] not in result:
-                    result[param["parameter_name"]] = param["parameter_value"]
+                result[param["parameter_name"]] = param["parameter_value"]
+        
+        # 3. 获取智能体自定义参数（最高优先级）
+        agent_params = AgentParameterManager.get_parameters_dict(db, agent_id)
+        result.update(agent_params)
         
         return result
     

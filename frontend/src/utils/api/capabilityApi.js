@@ -23,8 +23,8 @@ export const capabilityApi = {
       
       // 构建完整URL
       const url = queryParams.toString() 
-        ? `/v1/capabilities?${queryParams.toString()}` 
-        : '/v1/capabilities';
+        ? `/v1/capabilities/?${queryParams.toString()}` 
+        : '/v1/capabilities/';
       
       const response = await request(url, {
         method: 'GET'

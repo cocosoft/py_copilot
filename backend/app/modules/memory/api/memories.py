@@ -39,7 +39,7 @@ async def get_user_memories(
     db: Session = Depends(get_db)
 ):
     """获取用户的所有记忆条目"""
-    memories = MemoryService.get_user_memories(
+    memories = await MemoryService.get_user_memories(
         db, current_user.id, memory_types, memory_categories, limit, offset, session_id
     )
     return memories
@@ -190,7 +190,7 @@ async def get_conversation_memories(
     db: Session = Depends(get_db)
 ):
     """获取特定对话关联的所有记忆条目"""
-    memories = MemoryService.get_conversation_memories(
+    memories = await MemoryService.get_conversation_memories(
         db, conversation_id, current_user.id, limit, offset
     )
     return memories
@@ -224,7 +224,7 @@ async def get_session_context_memories(
 ):
     """为对话智能检索相关上下文记忆"""
     # 智能上下文记忆检索
-    memories = MemoryService.get_intelligent_context_memories(
+    memories = await MemoryService.get_intelligent_context_memories(
         db=db,
         user_id=current_user.id,
         conversation_id=conversation_id,

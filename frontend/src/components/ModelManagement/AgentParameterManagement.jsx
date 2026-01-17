@@ -41,7 +41,14 @@ const AgentParameterManagement = ({ agent, onBack, onRefreshAgent }) => {
       }, []) || []);
     } catch (err) {
       console.error('加载参数失败:', err);
-      setError('加载参数失败，请重试');
+      // 提供更详细的错误信息
+      if (err.message && err.message.includes('Failed to fetch')) {
+        setError('无法连接到服务器，请检查网络连接或服务器状态');
+      } else if (err.message && err.message.includes('500')) {
+        setError('服务器内部错误，请稍后重试');
+      } else {
+        setError('加载参数失败，请重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -55,6 +62,12 @@ const AgentParameterManagement = ({ agent, onBack, onRefreshAgent }) => {
       setEffectiveParameters(result);
     } catch (err) {
       console.error('加载有效参数失败:', err);
+      // 提供更详细的错误信息
+      if (err.message && err.message.includes('Failed to fetch')) {
+        setError('无法连接到服务器，请检查网络连接或服务器状态');
+      } else if (err.message && err.message.includes('500')) {
+        setError('服务器内部错误，请稍后重试');
+      }
     }
   }, [agent?.id]);
 

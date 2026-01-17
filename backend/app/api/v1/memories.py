@@ -162,7 +162,7 @@ async def get_session_context_memories(
     """为对话获取相关上下文记忆"""
     # TODO: 实现上下文相关记忆检索逻辑
     # 目前返回用户最近的记忆
-    memories = MemoryService.get_user_memories(db, current_user.id, limit=limit)
+    memories = await MemoryService.get_user_memories(db, current_user.id, limit=limit)
     return memories
 
 
@@ -175,7 +175,7 @@ async def get_conversation_memories(
     db: Session = Depends(get_db)
 ):
     """获取特定对话关联的所有记忆条目"""
-    memories = MemoryService.get_conversation_memories(
+    memories = await MemoryService.get_conversation_memories(
         db, conversation_id, current_user.id, limit=limit, offset=offset
     )
     return memories

@@ -6,6 +6,7 @@ import './workflow.css';
 const Workflow = () => {
   const [selectedWorkflow, setSelectedWorkflow] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showAutoComposeModal, setShowAutoComposeModal] = useState(false);
   const [showDesigner, setShowDesigner] = useState(false);
   const [editingWorkflow, setEditingWorkflow] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -15,6 +16,9 @@ const Workflow = () => {
   const [selectedExecution, setSelectedExecution] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [autoComposeLoading, setAutoComposeLoading] = useState(false);
+  const [taskDescription, setTaskDescription] = useState('');
+  const [optimizeWorkflow, setOptimizeWorkflow] = useState(false);
 
   useEffect(() => {
     loadWorkflows();
@@ -148,6 +152,38 @@ const Workflow = () => {
     }
   };
 
+  const handleAutoComposeWorkflow = async () => {
+    try {
+      if (!taskDescription.trim()) {
+        alert('请输入任务描述');
+        return;
+      }
+      
+      setAutoComposeLoading(true);
+      
+      // 调用自动生成工作流API
+      const result = await workflowService.autoComposeWorkflow(taskDescription, optimizeWorkflow);
+      
+      // 重新加载工作流列表
+      await loadWorkflows();
+      
+      // 自动跳转到编辑界面
+      setEditingWorkflow(result.workflow);
+      setShowDesigner(true);
+      
+      // 关闭自动生成模态框
+      setShowAutoComposeModal(false);
+      
+      alert('工作流自动生成成功！');
+      
+    } catch (error) {
+      console.error('自动生成工作流失败:', error);
+      alert('工作流生成失败: ' + error.message);
+    } finally {
+      setAutoComposeLoading(false);
+    }
+  };
+
   // 辅助函数
   const getWorkflowIcon = (type) => {
     const iconMap = {
@@ -201,6 +237,9 @@ const Workflow = () => {
         <div className="header-actions">
           <button className="primary-button" onClick={handleCreateWorkflow}>
             创建新工作流
+          </button>
+          <button className="secondary-button" onClick={() => setShowAutoComposeModal(true)}>
+            自动生成工作流
           </button>
         </div>
       <div className="workflow-controls">
@@ -415,6 +454,58 @@ const Workflow = () => {
                 取消
               </button>
               <button className="primary-button">创建工作流</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAutoComposeModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>自动生成工作流</h2>
+              <button 
+                className="close-button"
+                onClick={() => setShowAutoComposeModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label>任务描述</label>
+                <textarea 
+                  placeholder="输入您想要完成的任务描述，例如：'搜索关于公司A的基本信息，提取关键实体和属性，分析公司A与其他实体的关系'" 
+                  rows="5"
+                  value={taskDescription}
+                  onChange={(e) => setTaskDescription(e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <label>
+                  <input 
+                    type="checkbox" 
+                    checked={optimizeWorkflow}
+                    onChange={(e) => setOptimizeWorkflow(e.target.checked)}
+                  />
+                  优化工作流
+                </label>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button 
+                className="secondary-button"
+                onClick={() => setShowAutoComposeModal(false)}
+              >
+                取消
+              </button>
+              <button 
+                className="primary-button"
+                onClick={handleAutoComposeWorkflow}
+                disabled={autoComposeLoading}
+              >
+                {autoComposeLoading ? '生成中...' : '生成工作流'}
+              </button>
             </div>
           </div>
         </div>
