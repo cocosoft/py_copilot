@@ -1,0 +1,25 @@
+author: Unknown
+author_email: null
+avg_rating: 0.0
+category: !!python/object/apply:app.schemas.skill_metadata.SkillCategory
+- development
+config_schema: null
+created_at: '2026-01-27T15:11:31.550999'
+dependencies: []
+description: Suite of tools for creating elaborate, multi-component claude.ai HTML
+  artifacts using modern frontend web technologies (React, Tailwind CSS, shadcn/ui).
+  Use for complex artifacts requiring state management, routing, or shadcn/ui components
+  - not for simple single-file HTML/JSX artifacts.
+entry_point: app.skills.skills.web-artifacts-builder
+license: Complete terms in LICENSE.txt
+name: web-artifacts-builder
+skill_id: web-artifacts-builder
+status: !!python/object/apply:app.schemas.skill_metadata.SkillStatus
+- active
+tags:
+- migrated
+- development
+- standardized
+updated_at: '2026-01-27T15:11:31.552747'
+usage_count: 0
+version: 1.0.0

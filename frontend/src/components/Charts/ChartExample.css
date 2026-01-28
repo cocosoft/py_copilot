@@ -1,0 +1,424 @@
+/* 图表示例样式 */
+
+.chart-example {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.chart-example__header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.chart-example__header h1 {
+  font-size: var(--ui-font-size-2xl);
+  font-weight: var(--ui-font-weight-bold);
+  color: var(--ui-color-gray-900);
+  margin-bottom: 8px;
+}
+
+.chart-example__header p {
+  font-size: var(--ui-font-size-lg);
+  color: var(--ui-color-gray-600);
+  margin: 0;
+}
+
+.chart-example__tabs {
+  display: flex;
+  border-bottom: 1px solid var(--ui-color-gray-200);
+  margin-bottom: 30px;
+  background-color: var(--ui-color-white);
+  border-radius: var(--ui-radius-lg) var(--ui-radius-lg) 0 0;
+  overflow: hidden;
+}
+
+.chart-example__tab {
+  flex: 1;
+  padding: 16px 24px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: var(--ui-font-size-base);
+  font-weight: var(--ui-font-weight-medium);
+  color: var(--ui-color-gray-600);
+  transition: all var(--ui-transition-fast);
+  border-bottom: 3px solid transparent;
+}
+
+.chart-example__tab:hover {
+  background-color: var(--ui-color-gray-100);
+  color: var(--ui-color-gray-800);
+}
+
+.chart-example__tab--active {
+  color: var(--ui-color-primary-600);
+  border-bottom-color: var(--ui-color-primary-600);
+  background-color: var(--ui-color-primary-50);
+}
+
+.chart-example__content {
+  min-height: 500px;
+}
+
+/* 配置器部分 */
+.chart-example__configurator-section {
+  background-color: var(--ui-color-white);
+  border-radius: var(--ui-radius-lg);
+  box-shadow: var(--ui-shadow-sm);
+  overflow: hidden;
+}
+
+.chart-example__configurator {
+  height: 600px;
+}
+
+/* 已保存配置部分 */
+.chart-example__saved-section {
+  background-color: var(--ui-color-white);
+  border-radius: var(--ui-radius-lg);
+  box-shadow: var(--ui-shadow-sm);
+  padding: 30px;
+}
+
+.chart-example__empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--ui-color-gray-500);
+}
+
+.chart-example__saved-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.chart-example__saved-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border: 1px solid var(--ui-color-gray-200);
+  border-radius: var(--ui-radius-md);
+  transition: all var(--ui-transition-fast);
+}
+
+.chart-example__saved-item:hover {
+  border-color: var(--ui-color-primary-300);
+  box-shadow: var(--ui-shadow-sm);
+}
+
+.chart-example__saved-info h4 {
+  margin: 0 0 8px 0;
+  font-size: var(--ui-font-size-lg);
+  font-weight: var(--ui-font-weight-semibold);
+  color: var(--ui-color-gray-900);
+}
+
+.chart-example__saved-info p {
+  margin: 4px 0;
+  font-size: var(--ui-font-size-sm);
+  color: var(--ui-color-gray-600);
+}
+
+.chart-example__saved-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.chart-example__action-button {
+  padding: 8px 16px;
+  border: 1px solid var(--ui-color-gray-300);
+  border-radius: var(--ui-radius-md);
+  cursor: pointer;
+  font-size: var(--ui-font-size-sm);
+  font-weight: var(--ui-font-weight-medium);
+  transition: all var(--ui-transition-fast);
+}
+
+.chart-example__action-button--primary {
+  background-color: var(--ui-color-primary-600);
+  color: var(--ui-color-white);
+  border-color: var(--ui-color-primary-600);
+}
+
+.chart-example__action-button--primary:hover {
+  background-color: var(--ui-color-primary-700);
+  border-color: var(--ui-color-primary-700);
+}
+
+.chart-example__action-button--danger {
+  background-color: var(--ui-color-error-600);
+  color: var(--ui-color-white);
+  border-color: var(--ui-color-error-600);
+}
+
+.chart-example__action-button--danger:hover {
+  background-color: var(--ui-color-error-700);
+  border-color: var(--ui-color-error-700);
+}
+
+/* 示例图表部分 */
+.chart-example__examples-section {
+  background-color: var(--ui-color-white);
+  border-radius: var(--ui-radius-lg);
+  box-shadow: var(--ui-shadow-sm);
+  padding: 30px;
+}
+
+.chart-example__examples-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 24px;
+}
+
+.chart-example__example-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  border: 1px solid var(--ui-color-gray-200);
+  border-radius: var(--ui-radius-md);
+  transition: all var(--ui-transition-fast);
+}
+
+.chart-example__example-item:hover {
+  border-color: var(--ui-color-primary-300);
+  box-shadow: var(--ui-shadow-sm);
+}
+
+.chart-example__example-item h3 {
+  margin: 0 0 16px 0;
+  font-size: var(--ui-font-size-lg);
+  font-weight: var(--ui-font-weight-semibold);
+  color: var(--ui-color-gray-900);
+  text-align: center;
+}
+
+/* 预览部分 */
+.chart-example__preview {
+  margin-top: 40px;
+  padding: 30px;
+  background-color: var(--ui-color-white);
+  border-radius: var(--ui-radius-lg);
+  box-shadow: var(--ui-shadow-sm);
+}
+
+.chart-example__preview h3 {
+  margin: 0 0 20px 0;
+  font-size: var(--ui-font-size-xl);
+  font-weight: var(--ui-font-weight-semibold);
+  color: var(--ui-color-gray-900);
+  text-align: center;
+}
+
+.chart-example__preview-chart {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+}
+
+.chart-example__error {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--ui-color-error-600);
+  background-color: var(--ui-color-error-50);
+  border-radius: var(--ui-radius-md);
+  border: 1px solid var(--ui-color-error-200);
+}
+
+/* 响应式设计 */
+@media (max-width: 1024px) {
+  .chart-example {
+    padding: 16px;
+  }
+  
+  .chart-example__examples-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .chart-example__configurator {
+    height: 500px;
+  }
+}
+
+@media (max-width: 768px) {
+  .chart-example__header h1 {
+    font-size: var(--ui-font-size-xl);
+  }
+  
+  .chart-example__header p {
+    font-size: var(--ui-font-size-base);
+  }
+  
+  .chart-example__tabs {
+    flex-direction: column;
+  }
+  
+  .chart-example__tab {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--ui-color-gray-200);
+    border-right: none;
+  }
+  
+  .chart-example__tab--active {
+    border-bottom: 3px solid var(--ui-color-primary-600);
+  }
+  
+  .chart-example__saved-item {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  
+  .chart-example__saved-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  
+  .chart-example__example-item {
+    padding: 16px;
+  }
+  
+  .chart-example__preview {
+    padding: 20px;
+    margin-top: 30px;
+  }
+}
+
+@media (max-width: 480px) {
+  .chart-example {
+    padding: 12px;
+  }
+  
+  .chart-example__saved-section,
+  .chart-example__examples-section,
+  .chart-example__preview {
+    padding: 20px;
+  }
+  
+  .chart-example__configurator {
+    height: 400px;
+  }
+  
+  .chart-example__examples-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .chart-example__action-button {
+    padding: 6px 12px;
+    font-size: var(--ui-font-size-xs);
+  }
+}
+
+/* 高对比度模式支持 */
+@media (prefers-contrast: high) {
+  .chart-example__tab--active {
+    border-bottom-width: 4px;
+  }
+  
+  .chart-example__saved-item,
+  .chart-example__example-item {
+    border-width: 2px;
+  }
+  
+  .chart-example__action-button {
+    border-width: 2px;
+  }
+}
+
+/* 减少动画模式支持 */
+@media (prefers-reduced-motion: reduce) {
+  .chart-example__tab,
+  .chart-example__saved-item,
+  .chart-example__example-item,
+  .chart-example__action-button {
+    transition: none;
+  }
+  
+  .chart-example__saved-item:hover,
+  .chart-example__example-item:hover {
+    transform: none;
+  }
+}
+
+/* 深色模式支持 */
+@media (prefers-color-scheme: dark) {
+  .chart-example {
+    background-color: var(--ui-color-gray-900);
+  }
+  
+  .chart-example__header h1 {
+    color: var(--ui-color-gray-100);
+  }
+  
+  .chart-example__header p {
+    color: var(--ui-color-gray-300);
+  }
+  
+  .chart-example__tabs {
+    background-color: var(--ui-color-gray-800);
+    border-bottom-color: var(--ui-color-gray-700);
+  }
+  
+  .chart-example__tab {
+    color: var(--ui-color-gray-300);
+  }
+  
+  .chart-example__tab:hover {
+    background-color: var(--ui-color-gray-700);
+    color: var(--ui-color-gray-100);
+  }
+  
+  .chart-example__tab--active {
+    color: var(--ui-color-primary-400);
+    background-color: var(--ui-color-gray-700);
+  }
+  
+  .chart-example__configurator-section,
+  .chart-example__saved-section,
+  .chart-example__examples-section,
+  .chart-example__preview {
+    background-color: var(--ui-color-gray-800);
+  }
+  
+  .chart-example__saved-item,
+  .chart-example__example-item {
+    border-color: var(--ui-color-gray-700);
+    background-color: var(--ui-color-gray-800);
+  }
+  
+  .chart-example__saved-item:hover,
+  .chart-example__example-item:hover {
+    border-color: var(--ui-color-primary-400);
+  }
+  
+  .chart-example__saved-info h4 {
+    color: var(--ui-color-gray-100);
+  }
+  
+  .chart-example__saved-info p {
+    color: var(--ui-color-gray-300);
+  }
+  
+  .chart-example__empty {
+    color: var(--ui-color-gray-400);
+  }
+  
+  .chart-example__action-button {
+    border-color: var(--ui-color-gray-600);
+  }
+  
+  .chart-example__action-button--primary {
+    background-color: var(--ui-color-primary-600);
+    border-color: var(--ui-color-primary-600);
+  }
+  
+  .chart-example__action-button--danger {
+    background-color: var(--ui-color-error-600);
+    border-color: var(--ui-color-error-600);
+  }
+}

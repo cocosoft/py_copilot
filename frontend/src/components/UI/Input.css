@@ -1,0 +1,181 @@
+/* 输入框组件样式 */
+.ui-input {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+  background-color: var(--ui-color-white);
+  border: 1px solid var(--ui-color-gray-300);
+  border-radius: 6px;
+  transition: all 0.2s ease-in-out;
+  
+  /* 聚焦状态 */
+  &:focus-within {
+    border-color: var(--ui-color-primary-500);
+    box-shadow: 0 0 0 2px var(--ui-color-primary-100);
+  }
+  
+  /* 禁用状态 */
+  &.ui-input--disabled {
+    background-color: var(--ui-color-gray-100);
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  
+  /* 错误状态 */
+  &.ui-input--error {
+    border-color: var(--ui-color-danger-500);
+    
+    &:focus-within {
+      border-color: var(--ui-color-danger-500);
+      box-shadow: 0 0 0 2px var(--ui-color-danger-100);
+    }
+  }
+  
+  /* 成功状态 */
+  &.ui-input--success {
+    border-color: var(--ui-color-success-500);
+    
+    &:focus-within {
+      border-color: var(--ui-color-success-500);
+      box-shadow: 0 0 0 2px var(--ui-color-success-100);
+    }
+  }
+  
+  /* 加载状态 */
+  &.ui-input--loading {
+    pointer-events: none;
+  }
+}
+
+/* 输入框大小 */
+.ui-input--small {
+  min-height: 32px;
+  font-size: 14px;
+}
+
+.ui-input--medium {
+  min-height: 36px;
+  font-size: 14px;
+}
+
+.ui-input--large {
+  min-height: 44px;
+  font-size: 16px;
+}
+
+/* 输入框字段 */
+.ui-input__field {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  padding: 0 12px;
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--ui-color-gray-900);
+  
+  &::placeholder {
+    color: var(--ui-color-gray-500);
+  }
+  
+  &:disabled {
+    cursor: not-allowed;
+  }
+}
+
+/* 图标样式 */
+.ui-input__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ui-color-gray-500);
+  font-size: 16px;
+  
+  &.ui-input__icon--left {
+    padding-left: 12px;
+    order: -1;
+  }
+  
+  &.ui-input__icon--right {
+    padding-right: 12px;
+    order: 1;
+  }
+}
+
+/* 加载指示器 */
+.ui-input__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-right: 12px;
+  color: var(--ui-color-primary-500);
+}
+
+.ui-input__spinner {
+  width: 16px;
+  height: 16px;
+  animation: ui-input-spin 1s linear infinite;
+}
+
+/* 状态图标 */
+.ui-input__error-icon,
+.ui-input__success-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-right: 12px;
+  font-size: 16px;
+}
+
+.ui-input__error-icon {
+  color: var(--ui-color-danger-500);
+}
+
+.ui-input__success-icon {
+  color: var(--ui-color-success-500);
+}
+
+/* 有图标时的内边距调整 */
+.ui-input--has-icon.ui-input--icon-left .ui-input__field {
+  padding-left: 8px;
+}
+
+.ui-input--has-icon.ui-input--icon-right .ui-input__field {
+  padding-right: 8px;
+}
+
+/* 动画 */
+@keyframes ui-input-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .ui-input--medium {
+    min-height: 40px;
+    font-size: 16px; /* 移动端字体稍大 */
+  }
+  
+  .ui-input--large {
+    min-height: 48px;
+    font-size: 17px;
+  }
+  
+  .ui-input__field {
+    padding: 0 16px;
+  }
+  
+  .ui-input--has-icon.ui-input--icon-left .ui-input__field {
+    padding-left: 12px;
+  }
+  
+  .ui-input--has-icon.ui-input--icon-right .ui-input__field {
+    padding-right: 12px;
+  }
+}

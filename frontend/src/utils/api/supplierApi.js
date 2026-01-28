@@ -267,7 +267,8 @@ export const supplierApi = {
       body: JSON.stringify({
         apiUrl: apiConfig.apiUrl,
         apiKey: apiConfig.apiKey
-      })
+      }),
+      timeout: 60000 // 测试API连接设置60秒超时
     });
     
     // 检查后端返回的状态

@@ -1,0 +1,25 @@
+author: Unknown
+author_email: null
+avg_rating: 0.0
+category: !!python/object/apply:app.schemas.skill_metadata.SkillCategory
+- document
+config_schema: null
+created_at: '2026-01-27T15:11:31.515445'
+dependencies: []
+description: Comprehensive PDF manipulation toolkit for extracting text and tables,
+  creating new PDFs, merging/splitting documents, and handling forms. When Claude
+  needs to fill in a PDF form or programmatically process, generate, or analyze PDF
+  documents at scale.
+entry_point: app.skills.skills.pdf
+license: Proprietary. LICENSE.txt has complete terms
+name: pdf
+skill_id: pdf
+status: !!python/object/apply:app.schemas.skill_metadata.SkillStatus
+- active
+tags:
+- migrated
+- document
+- standardized
+updated_at: '2026-01-27T15:11:31.516406'
+usage_count: 0
+version: 1.0.0

@@ -1,0 +1,391 @@
+/* 响应式组件样式 */
+
+/* 响应式容器 */
+.ui-container {
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 var(--ui-space-4);
+}
+
+.ui-container--sm {
+  max-width: 640px;
+}
+
+.ui-container--md {
+  max-width: 768px;
+}
+
+.ui-container--lg {
+  max-width: 1024px;
+}
+
+.ui-container--xl {
+  max-width: 1280px;
+}
+
+.ui-container--full {
+  max-width: none;
+}
+
+/* 容器内边距 */
+.ui-container--padding-none {
+  padding: 0;
+}
+
+.ui-container--padding-compact {
+  padding: 0 var(--ui-space-3);
+}
+
+.ui-container--padding-normal {
+  padding: 0 var(--ui-space-4);
+}
+
+.ui-container--padding-spacious {
+  padding: 0 var(--ui-space-6);
+}
+
+/* 栅格布局 */
+.ui-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--ui-grid-columns, 12), 1fr);
+  width: 100%;
+}
+
+/* 栅格间距 */
+.ui-grid--gap-none {
+  gap: 0;
+}
+
+.ui-grid--gap-small {
+  gap: var(--ui-space-2);
+}
+
+.ui-grid--gap-normal {
+  gap: var(--ui-space-4);
+}
+
+.ui-grid--gap-large {
+  gap: var(--ui-space-6);
+}
+
+/* 栅格项 */
+.ui-grid-item {
+  grid-column: span var(--ui-grid-span, 1);
+}
+
+/* 响应式栅格 */
+.ui-grid--responsive {
+  /* 移动端优先：默认单列布局 */
+  grid-template-columns: 1fr;
+}
+
+/* 断点显示控制 */
+.ui-breakpoint {
+  /* 默认显示 */
+}
+
+/* 显示控制类 */
+.ui-breakpoint--show-mobile {
+  display: none;
+}
+
+.ui-breakpoint--show-tablet {
+  display: none;
+}
+
+.ui-breakpoint--show-desktop {
+  display: none;
+}
+
+.ui-breakpoint--hide-mobile {
+  /* 默认显示 */
+}
+
+.ui-breakpoint--hide-tablet {
+  /* 默认显示 */
+}
+
+.ui-breakpoint--hide-desktop {
+  /* 默认显示 */
+}
+
+/* 响应式图片 */
+.ui-responsive-image {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.ui-responsive-image--cover {
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+}
+
+.ui-responsive-image--contain {
+  object-fit: contain;
+  width: 100%;
+  height: 100%;
+}
+
+.ui-responsive-image--fill {
+  object-fit: fill;
+  width: 100%;
+  height: 100%;
+}
+
+/* 折叠面板 */
+.ui-collapse {
+  border: 1px solid var(--ui-color-gray-200);
+  border-radius: var(--ui-radius-md);
+  overflow: hidden;
+}
+
+.ui-collapse__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--ui-space-4);
+  background-color: var(--ui-color-gray-50);
+  border: none;
+  cursor: pointer;
+  font-size: var(--ui-font-size-base);
+  font-weight: var(--ui-font-weight-medium);
+  color: var(--ui-color-gray-900);
+  transition: all var(--ui-transition-fast);
+  text-align: left;
+}
+
+.ui-collapse__header:hover {
+  background-color: var(--ui-color-gray-100);
+}
+
+.ui-collapse__header:focus-visible {
+  outline: 2px solid var(--ui-color-primary-500);
+  outline-offset: -2px;
+}
+
+.ui-collapse__icon {
+  margin-right: var(--ui-space-3);
+  font-size: 18px;
+}
+
+.ui-collapse__title {
+  flex: 1;
+}
+
+.ui-collapse__arrow {
+  margin-left: var(--ui-space-3);
+  transition: transform var(--ui-transition-fast);
+  font-size: 14px;
+}
+
+.ui-collapse--open .ui-collapse__arrow {
+  transform: rotate(90deg);
+}
+
+.ui-collapse__content {
+  padding: 0;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height var(--ui-transition-normal);
+}
+
+.ui-collapse--open .ui-collapse__content {
+  padding: var(--ui-space-4);
+  max-height: 1000px;
+}
+
+/* 响应式断点 */
+
+/* 小屏幕 (sm) - 640px */
+@media (min-width: 640px) {
+  .ui-container {
+    padding: 0 var(--ui-space-6);
+  }
+  
+  .ui-grid--responsive {
+    grid-template-columns: repeat(var(--ui-grid-columns, 12), 1fr);
+  }
+  
+  .ui-grid-item {
+    grid-column: span var(--ui-grid-span-sm, var(--ui-grid-span, 1));
+  }
+  
+  .ui-breakpoint--show-mobile {
+    display: block;
+  }
+  
+  .ui-breakpoint--hide-mobile {
+    display: none;
+  }
+}
+
+/* 中等屏幕 (md) - 768px */
+@media (min-width: 768px) {
+  .ui-container {
+    padding: 0 var(--ui-space-8);
+  }
+  
+  .ui-grid-item {
+    grid-column: span var(--ui-grid-span-md, var(--ui-grid-span-sm, var(--ui-grid-span, 1)));
+  }
+  
+  .ui-breakpoint--show-tablet {
+    display: block;
+  }
+  
+  .ui-breakpoint--hide-tablet {
+    display: none;
+  }
+}
+
+/* 大屏幕 (lg) - 1024px */
+@media (min-width: 1024px) {
+  .ui-container {
+    padding: 0 var(--ui-space-10);
+  }
+  
+  .ui-grid-item {
+    grid-column: span var(--ui-grid-span-lg, var(--ui-grid-span-md, var(--ui-grid-span-sm, var(--ui-grid-span, 1))));
+  }
+  
+  .ui-breakpoint--show-desktop {
+    display: block;
+  }
+  
+  .ui-breakpoint--hide-desktop {
+    display: none;
+  }
+}
+
+/* 超大屏幕 (xl) - 1280px */
+@media (min-width: 1280px) {
+  .ui-container {
+    padding: 0 var(--ui-space-12);
+  }
+  
+  .ui-grid-item {
+    grid-column: span var(--ui-grid-span-xl, var(--ui-grid-span-lg, var(--ui-grid-span-md, var(--ui-grid-span-sm, var(--ui-grid-span, 1)))));
+  }
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+  .ui-container {
+    padding: 0 var(--ui-space-3);
+  }
+  
+  .ui-container--padding-normal {
+    padding: 0 var(--ui-space-3);
+  }
+  
+  .ui-container--padding-spacious {
+    padding: 0 var(--ui-space-4);
+  }
+  
+  .ui-grid--gap-normal {
+    gap: var(--ui-space-3);
+  }
+  
+  .ui-grid--gap-large {
+    gap: var(--ui-space-4);
+  }
+  
+  .ui-collapse__header {
+    padding: var(--ui-space-3);
+    font-size: var(--ui-font-size-sm);
+  }
+  
+  .ui-collapse--open .ui-collapse__content {
+    padding: var(--ui-space-3);
+  }
+  
+  .ui-collapse__icon {
+    font-size: 16px;
+    margin-right: var(--ui-space-2);
+  }
+  
+  .ui-collapse__arrow {
+    font-size: 12px;
+  }
+}
+
+/* 超小屏幕优化 */
+@media (max-width: 480px) {
+  .ui-container {
+    padding: 0 var(--ui-space-2);
+  }
+  
+  .ui-container--padding-normal {
+    padding: 0 var(--ui-space-2);
+  }
+  
+  .ui-container--padding-spacious {
+    padding: 0 var(--ui-space-3);
+  }
+  
+  .ui-grid--gap-normal {
+    gap: var(--ui-space-2);
+  }
+  
+  .ui-grid--gap-large {
+    gap: var(--ui-space-3);
+  }
+  
+  .ui-collapse__header {
+    padding: var(--ui-space-2);
+    font-size: var(--ui-font-size-sm);
+  }
+  
+  .ui-collapse--open .ui-collapse__content {
+    padding: var(--ui-space-2);
+  }
+}
+
+/* 触摸设备优化 */
+@media (hover: none) and (pointer: coarse) {
+  .ui-button {
+    min-height: 44px; /* 最小触摸目标尺寸 */
+  }
+  
+  .ui-input {
+    min-height: 44px;
+    font-size: 16px; /* 防止iOS缩放 */
+  }
+  
+  .ui-collapse__header {
+    min-height: 44px;
+  }
+}
+
+/* 高对比度模式支持 */
+@media (prefers-contrast: high) {
+  .ui-collapse {
+    border-width: 2px;
+  }
+  
+  .ui-button {
+    border-width: 2px;
+  }
+  
+  .ui-input {
+    border-width: 2px;
+  }
+}
+
+/* 减少动画模式支持 */
+@media (prefers-reduced-motion: reduce) {
+  .ui-button,
+  .ui-input,
+  .ui-collapse,
+  .ui-loading {
+    transition: none;
+    animation: none;
+  }
+  
+  .ui-collapse__content {
+    transition: none;
+  }
+}

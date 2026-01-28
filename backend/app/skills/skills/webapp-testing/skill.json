@@ -1,0 +1,23 @@
+{
+  "skill_id": "webapp-testing",
+  "name": "webapp-testing",
+  "description": "Toolkit for interacting with and testing local web applications using Playwright. Supports verifying frontend functionality, debugging UI behavior, capturing browser screenshots, and viewing browser logs.",
+  "version": "1.0.0",
+  "category": "development",
+  "tags": [
+    "migrated",
+    "development",
+    "standardized"
+  ],
+  "author": "Unknown",
+  "author_email": null,
+  "license": "Complete terms in LICENSE.txt",
+  "status": "active",
+  "created_at": "2026-01-27T15:11:31.558839",
+  "updated_at": "2026-01-27T15:11:31.558839",
+  "entry_point": "app.skills.skills.webapp-testing",
+  "dependencies": [],
+  "config_schema": null,
+  "usage_count": 0,
+  "avg_rating": 0.0
+}

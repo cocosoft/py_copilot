@@ -1,114 +1,127 @@
 import React from 'react';
-import { motion } from 'framer-motion';
-import classNames from 'classnames';
-import PropTypes from 'prop-types';
+import './Card.css';
 
+/**
+ * 统一卡片组件
+ * 支持多种变体、大小和交互状态
+ */
 const Card = ({
   children,
-  title,
-  subtitle,
-  extra,
-  className,
-  headerClassName,
-  bodyClassName,
-  footer,
-  padding = 'default',
-  hover = false,
-  shadow = 'default',
+  variant = 'default', // default, outlined, elevated, interactive
+  size = 'medium', // small, medium, large
+  padding = 'normal', // none, compact, normal, spacious
+  hoverable = false,
+  selected = false,
+  onClick,
+  className = '',
   ...props
 }) => {
-  const paddingClasses = {
-    none: '',
-    small: 'p-4',
-    default: 'p-6',
-    large: 'p-8',
+  const baseClass = 'ui-card';
+  const variantClass = `ui-card--${variant}`;
+  const sizeClass = `ui-card--${size}`;
+  const paddingClass = `ui-card--padding-${padding}`;
+  const hoverableClass = hoverable ? 'ui-card--hoverable' : '';
+  const selectedClass = selected ? 'ui-card--selected' : '';
+  const interactiveClass = onClick ? 'ui-card--interactive' : '';
+  
+  const classes = [
+    baseClass,
+    variantClass,
+    sizeClass,
+    paddingClass,
+    hoverableClass,
+    selectedClass,
+    interactiveClass,
+    className
+  ].filter(Boolean).join(' ');
+
+  const handleClick = (e) => {
+    if (onClick) {
+      onClick(e);
+    }
   };
 
-  const shadowClasses = {
-    none: '',
-    small: 'shadow-sm',
-    default: 'shadow-md',
-    large: 'shadow-lg',
-    xl: 'shadow-xl',
+  const handleKeyDown = (e) => {
+    if (onClick && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      onClick(e);
+    }
   };
-
-  const CardComponent = hover ? motion.div : 'div';
 
   return (
-    <CardComponent
-      className={classNames(
-        'bg-white rounded-xl border border-gray-200',
-        shadowClasses[shadow],
-        className
-      )}
-      {...(hover && {
-        whileHover: { y: -2, boxShadow: '0 10px 25px -3px rgba(0, 0, 0, 0.1)' },
-        transition: { duration: 0.2 }
-      })}
+    <div
+      className={classes}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      tabIndex={onClick ? 0 : -1}
       {...props}
     >
-      {(title || subtitle || extra || footer) && (
-        <div className={classNames(
-          'border-b border-gray-200',
-          headerClassName,
-          paddingClasses[padding]
-        )}>
-          <div className="flex items-center justify-between">
-            <div>
-              {title && (
-                <h3 className="text-lg font-semibold text-gray-900">
-                  {title}
-                </h3>
-              )}
-              {subtitle && (
-                <p className="text-sm text-gray-600 mt-1">
-                  {subtitle}
-                </p>
-              )}
-            </div>
-            {extra && (
-              <div className="flex-shrink-0">
-                {extra}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {children && (
-        <div className={classNames(
-          paddingClasses[padding],
-          bodyClassName
-        )}>
-          {children}
-        </div>
-      )}
-
-      {footer && (
-        <div className={classNames(
-          'border-t border-gray-200',
-          headerClassName,
-          paddingClasses[padding]
-        )}>
-          {footer}
-        </div>
-      )}
-    </CardComponent>
+      {children}
+    </div>
   );
 };
 
-Card.propTypes = {
-  children: PropTypes.node,
-  title: PropTypes.string,
-  subtitle: PropTypes.string,
-  extra: PropTypes.node,
-  className: PropTypes.string,
-  headerClassName: PropTypes.string,
-  bodyClassName: PropTypes.string,
-  footer: PropTypes.node,
-  padding: PropTypes.oneOf(['none', 'small', 'default', 'large']),
-  hover: PropTypes.bool,
-  shadow: PropTypes.oneOf(['none', 'small', 'default', 'large', 'xl']),
+/**
+ * 卡片头部组件
+ */
+const CardHeader = ({ children, className = '', ...props }) => {
+  return (
+    <div className={`ui-card__header ${className}`} {...props}>
+      {children}
+    </div>
+  );
 };
+
+/**
+ * 卡片内容组件
+ */
+const CardContent = ({ children, className = '', ...props }) => {
+  return (
+    <div className={`ui-card__content ${className}`} {...props}>
+      {children}
+    </div>
+  );
+};
+
+/**
+ * 卡片底部组件
+ */
+const CardFooter = ({ children, className = '', ...props }) => {
+  return (
+    <div className={`ui-card__footer ${className}`} {...props}>
+      {children}
+    </div>
+  );
+};
+
+/**
+ * 卡片标题组件
+ */
+const CardTitle = ({ children, level = 'h3', className = '', ...props }) => {
+  const Tag = level;
+  return (
+    <Tag className={`ui-card__title ${className}`} {...props}>
+      {children}
+    </Tag>
+  );
+};
+
+/**
+ * 卡片描述组件
+ */
+const CardDescription = ({ children, className = '', ...props }) => {
+  return (
+    <div className={`ui-card__description ${className}`} {...props}>
+      {children}
+    </div>
+  );
+};
+
+// 导出所有组件
+Card.Header = CardHeader;
+Card.Content = CardContent;
+Card.Footer = CardFooter;
+Card.Title = CardTitle;
+Card.Description = CardDescription;
 
 export default Card;

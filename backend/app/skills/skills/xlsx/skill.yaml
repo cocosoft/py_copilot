@@ -1,0 +1,27 @@
+author: Unknown
+author_email: null
+avg_rating: 0.0
+category: !!python/object/apply:app.schemas.skill_metadata.SkillCategory
+- document
+config_schema: null
+created_at: '2026-01-27T15:11:31.565197'
+dependencies: []
+description: 'Comprehensive spreadsheet creation, editing, and analysis with support
+  for formulas, formatting, data analysis, and visualization. When Claude needs to
+  work with spreadsheets (.xlsx, .xlsm, .csv, .tsv, etc) for: (1) Creating new spreadsheets
+  with formulas and formatting, (2) Reading or analyzing data, (3) Modify existing
+  spreadsheets while preserving formulas, (4) Data analysis and visualization in spreadsheets,
+  or (5) Recalculating formulas'
+entry_point: app.skills.skills.xlsx
+license: Proprietary. LICENSE.txt has complete terms
+name: xlsx
+skill_id: xlsx
+status: !!python/object/apply:app.schemas.skill_metadata.SkillStatus
+- active
+tags:
+- migrated
+- document
+- standardized
+updated_at: '2026-01-27T15:11:31.565197'
+usage_count: 0
+version: 1.0.0

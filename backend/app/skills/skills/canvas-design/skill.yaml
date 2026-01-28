@@ -1,0 +1,26 @@
+author: Unknown
+author_email: null
+avg_rating: 0.0
+category: !!python/object/apply:app.schemas.skill_metadata.SkillCategory
+- design
+config_schema: null
+created_at: '2026-01-27T15:11:31.460458'
+dependencies: []
+description: Create beautiful visual art in .png and .pdf documents using design philosophy.
+  You should use this skill when the user asks to create a poster, piece of art, design,
+  or other static piece. Create original visual designs, never copying existing artists'
+  work to avoid copyright violations.
+entry_point: app.skills.skills.canvas-design
+license: Complete terms in LICENSE.txt
+name: canvas-design
+skill_id: canvas-design
+status: !!python/object/apply:app.schemas.skill_metadata.SkillStatus
+- active
+tags:
+- migrated
+- design
+- standardized
+- creative
+updated_at: '2026-01-27T15:11:31.461997'
+usage_count: 0
+version: 1.0.0

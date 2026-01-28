@@ -1,12 +1,484 @@
 /* 聊天页面样式 */
 .chat-container {
   display: flex;
-  flex-direction: column;
   height: 100vh;
   background-color: #f5f5f5;
   border-radius: 0;
   overflow: hidden;
   box-shadow: none;
+}
+
+/* 左侧控制面板 */
+.chat-sidebar {
+  width: 280px;
+  background-color: #ffffff;
+  border-right: 1px solid #e1e8ed;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s ease;
+  overflow: hidden;
+}
+
+.chat-sidebar.collapsed {
+  width: 60px;
+}
+
+/* 面板头部 */
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e1e8ed;
+  background-color: #f8f9fa;
+}
+
+.sidebar-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2c3e50;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-sidebar.collapsed .sidebar-title {
+  display: none;
+}
+
+/* 面板收缩按钮 */
+.sidebar-toggle {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+  color: #666;
+}
+
+.sidebar-toggle:hover {
+  background-color: #e8e8e8;
+  color: #333;
+}
+
+/* 面板内容 */
+.sidebar-content {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.chat-sidebar.collapsed .sidebar-content {
+  padding: 12px 8px;
+  align-items: center;
+}
+
+/* 面板部分 */
+.sidebar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.chat-sidebar.collapsed .section-title {
+  display: none;
+}
+
+/* 主聊天区域 */
+.chat-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  transition: flex 0.3s ease;
+}
+
+.chat-main.expanded {
+  flex: 1;
+}
+
+/* 面板中的模型选择器 */
+.sidebar-section .model-selector {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.chat-sidebar.collapsed .model-selector label {
+  display: none;
+}
+
+.chat-sidebar.collapsed .model-dropdown-container {
+  width: 100%;
+  min-width: unset;
+  max-width: unset;
+}
+
+/* 面板中的流式控制 */
+.sidebar-section .streaming-controls {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+
+.chat-sidebar.collapsed .streaming-controls {
+  align-items: center;
+}
+
+.chat-sidebar.collapsed .toggle-label {
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chat-sidebar.collapsed .toggle-text {
+  display: none;
+}
+
+/* 面板中的话题管理 */
+.sidebar-section .topic-toggle-btn {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.chat-sidebar.collapsed .topic-toggle-btn {
+  justify-content: center;
+  padding: 8px;
+}
+
+.chat-sidebar.collapsed .topic-toggle-btn span:not(.topic-toggle-icon) {
+  display: none;
+}
+
+/* 左侧面板中的话题创建表单 */
+.sidebar-section .topic-create-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #e1e8ed;
+}
+
+.sidebar-section .topic-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar-section .topic-input-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #4b5563;
+}
+
+.sidebar-section .topic-input {
+  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.3s;
+}
+
+.sidebar-section .topic-input:focus {
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+}
+
+.sidebar-section .topic-create-btn {
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  margin-top: 4px;
+}
+
+.sidebar-section .topic-create-btn:hover:not(:disabled) {
+  background-color: #2980b9;
+}
+
+.sidebar-section .topic-create-btn:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* 左侧面板中的话题列表 */
+.sidebar-section .topic-list-container {
+  margin-top: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.sidebar-section .topic-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sidebar-section .topic-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background-color 0.3s;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.sidebar-section .topic-item:hover {
+  background-color: #f9fafb;
+}
+
+.sidebar-section .topic-item.active {
+  background-color: #eff6ff;
+  border-left: 3px solid #3498db;
+}
+
+.sidebar-section .topic-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar-section .topic-item-title {
+  font-weight: 500;
+  color: #2c3e50;
+  margin: 0 0 2px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-section .topic-item-description {
+  font-size: 10px;
+  color: #6b7280;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-section .topic-item-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.sidebar-section .topic-item:hover .topic-item-actions {
+  opacity: 1;
+}
+
+.sidebar-section .topic-item-action-btn {
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.3s;
+}
+
+.sidebar-section .topic-item-action-btn:hover {
+  background-color: #e5e7eb;
+  color: #374151;
+}
+
+.sidebar-section .topic-item-action-btn.delete:hover {
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+
+.sidebar-section .topic-item-action-btn.edit:hover {
+  background-color: #dbeafe;
+  color: #2563eb;
+}
+
+/* 收缩状态下的话题管理样式 */
+.chat-sidebar.collapsed .sidebar-section .topic-create-form,
+.chat-sidebar.collapsed .sidebar-section .topic-list-container,
+.chat-sidebar.collapsed .sidebar-section .topic-input-label {
+  display: none;
+}
+
+.chat-sidebar.collapsed .sidebar-section .topic-toggle-btn {
+  justify-content: center;
+}
+
+/* 响应式话题管理样式 */
+@media (max-width: 768px) {
+  .sidebar-section .topic-create-form {
+    gap: 6px;
+    padding-top: 6px;
+  }
+  
+  .sidebar-section .topic-input {
+    padding: 5px 7px;
+    font-size: 11px;
+  }
+  
+  .sidebar-section .topic-create-btn {
+    padding: 5px 10px;
+    font-size: 11px;
+  }
+  
+  .sidebar-section .topic-item {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+  
+  .sidebar-section .topic-item-description {
+    font-size: 9px;
+  }
+  
+  .sidebar-section .topic-list-container {
+    max-height: 150px;
+  }
+}
+
+@media (max-width: 480px) {
+  .sidebar-section .topic-create-form {
+    gap: 4px;
+    padding-top: 4px;
+  }
+  
+  .sidebar-section .topic-input {
+    padding: 4px 6px;
+    font-size: 10px;
+  }
+  
+  .sidebar-section .topic-create-btn {
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+  
+  .sidebar-section .topic-item {
+    padding: 5px 8px;
+    font-size: 10px;
+  }
+  
+  .sidebar-section .topic-item-description {
+    font-size: 8px;
+  }
+  
+  .sidebar-section .topic-list-container {
+    max-height: 120px;
+  }
+}
+
+/* 面板中的操作按钮 */
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.chat-sidebar.collapsed .action-buttons {
+  justify-content: center;
+  gap: 12px;
+}
+
+.chat-sidebar.collapsed .action-btn {
+  font-size: 18px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .chat-sidebar {
+    width: 240px;
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100vh;
+    z-index: 1000;
+    transform: translateX(0);
+    transition: transform 0.3s ease;
+  }
+  
+  .chat-sidebar.collapsed {
+    transform: translateX(-100%);
+    width: 240px;
+  }
+  
+  .chat-main {
+    width: 100%;
+  }
+  
+  .sidebar-header {
+    padding: 10px 12px;
+  }
+  
+  .sidebar-content {
+    padding: 12px;
+    gap: 16px;
+  }
+  
+  .sidebar-section {
+    gap: 6px;
+  }
+  
+  .section-title {
+    font-size: 11px;
+  }
+}
+
+/* 超小屏幕优化 */
+@media (max-width: 480px) {
+  .chat-sidebar {
+    width: 200px;
+  }
+  
+  .sidebar-header {
+    padding: 8px 10px;
+  }
+  
+  .sidebar-title {
+    font-size: 12px;
+  }
+  
+  .sidebar-content {
+    padding: 10px;
+    gap: 12px;
+  }
+}
+
+/* 滚动条样式 */
+.sidebar-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 2px;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }
 
 /* 响应式设计 */

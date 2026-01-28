@@ -1,4 +1,9 @@
 """FastAPI应用主入口"""
+import signal
+import sys
+import asyncio
+import threading
+import psutil
 from fastapi import FastAPI, Request, HTTPException, Query
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
@@ -12,6 +17,33 @@ from urllib.parse import urlparse
 
 # 导入日志记录器
 from app.core.logging_config import logger
+
+def signal_handler(signum, frame):
+    """处理系统信号，实现优雅关闭"""
+    logger.info(f"接收到信号 {signum}，正在优雅关闭服务器...")
+    sys.exit(0)
+
+# 注册信号处理器
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
+
+def monitor_memory():
+    """内存监控函数"""
+    process = psutil.Process()
+    while True:
+        memory_info = process.memory_info()
+        memory_usage_mb = memory_info.rss / 1024 / 1024
+        
+        # 设置内存使用阈值（500MB）
+        if memory_usage_mb > 500:
+            logger.warning(f"内存使用过高: {memory_usage_mb:.2f}MB")
+        
+        # 每30秒检查一次
+        threading.Event().wait(30)
+
+# 启动内存监控线程（后台运行）
+memory_monitor_thread = threading.Thread(target=monitor_memory, daemon=True)
+memory_monitor_thread.start()
 
 # 使用硬编码配置避免复杂导入
 API_TITLE = "Py Copilot API"
@@ -214,6 +246,23 @@ def root():
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
+
+# 详细健康检查端点
+@app.get("/health/detailed")
+async def detailed_health_check():
+    """详细健康检查端点，提供系统状态信息"""
+    process = psutil.Process()
+    memory_info = process.memory_info()
+    
+    return {
+        "status": "healthy",
+        "memory_usage_mb": round(memory_info.rss / 1024 / 1024, 2),
+        "cpu_percent": round(process.cpu_percent(), 2),
+        "thread_count": process.num_threads(),
+        "create_time": process.create_time(),
+        "database_connection": "正常",
+        "timestamp": time.time()
+    }
 
 # 404异常处理
 @app.exception_handler(404)

@@ -11,10 +11,14 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 SQLALCHEMY_DATABASE_URL = f"sqlite:///{os.path.join(BASE_DIR, 'py_copilot.db')}"
 DATABASE_CONNECT_ARGS = {"check_same_thread": False}
 
-# 创建数据库引擎
+# 创建数据库引擎（优化连接池配置）
 engine = sqlalchemy.create_engine(
     SQLALCHEMY_DATABASE_URL,
-    connect_args=DATABASE_CONNECT_ARGS
+    connect_args=DATABASE_CONNECT_ARGS,
+    pool_size=10,           # 连接池大小
+    max_overflow=20,        # 最大溢出连接数
+    pool_pre_ping=True,     # 连接前检查
+    pool_recycle=3600       # 连接回收时间（秒）
 )
 SessionLocal = sqlalchemy.orm.sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

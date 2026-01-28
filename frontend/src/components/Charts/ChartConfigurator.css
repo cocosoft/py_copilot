@@ -1,0 +1,493 @@
+/* 图表配置器样式 */
+
+.chart-configurator {
+  width: 100%;
+  height: 100%;
+  background-color: var(--ui-color-white);
+  border-radius: var(--ui-radius-lg);
+  box-shadow: var(--ui-shadow-sm);
+  overflow: hidden;
+}
+
+.chart-configurator__layout {
+  display: flex;
+  height: 100%;
+  min-height: 600px;
+}
+
+/* 配置面板 */
+.chart-configurator__config-panel {
+  width: 400px;
+  min-width: 350px;
+  border-right: 1px solid var(--ui-color-gray-200);
+  display: flex;
+  flex-direction: column;
+  background-color: var(--ui-color-gray-50);
+}
+
+.chart-configurator__tabs {
+  display: flex;
+  border-bottom: 1px solid var(--ui-color-gray-200);
+  background-color: var(--ui-color-white);
+}
+
+.chart-configurator__tab {
+  flex: 1;
+  padding: 12px 16px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: var(--ui-font-size-sm);
+  color: var(--ui-color-gray-600);
+  transition: all var(--ui-transition-fast);
+  border-bottom: 2px solid transparent;
+}
+
+.chart-configurator__tab:hover {
+  background-color: var(--ui-color-gray-100);
+  color: var(--ui-color-gray-800);
+}
+
+.chart-configurator__tab--active {
+  color: var(--ui-color-primary-600);
+  border-bottom-color: var(--ui-color-primary-600);
+  background-color: var(--ui-color-primary-50);
+}
+
+.chart-configurator__tab-content {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  background-color: var(--ui-color-white);
+}
+
+.chart-configurator__actions {
+  padding: 16px 20px;
+  border-top: 1px solid var(--ui-color-gray-200);
+  background-color: var(--ui-color-white);
+  display: flex;
+  gap: 12px;
+}
+
+.chart-configurator__button {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  border-radius: var(--ui-radius-md);
+  cursor: pointer;
+  font-size: var(--ui-font-size-sm);
+  font-weight: var(--ui-font-weight-medium);
+  transition: all var(--ui-transition-fast);
+}
+
+.chart-configurator__button--primary {
+  background-color: var(--ui-color-primary-600);
+  color: var(--ui-color-white);
+}
+
+.chart-configurator__button--primary:hover:not(:disabled) {
+  background-color: var(--ui-color-primary-700);
+  transform: translateY(-1px);
+}
+
+.chart-configurator__button--secondary {
+  background-color: var(--ui-color-gray-200);
+  color: var(--ui-color-gray-800);
+}
+
+.chart-configurator__button--secondary:hover {
+  background-color: var(--ui-color-gray-300);
+}
+
+.chart-configurator__button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* 预览面板 */
+.chart-configurator__preview-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.chart-configurator__preview-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--ui-color-gray-200);
+  background-color: var(--ui-color-white);
+  display: flex;
+  justify-content: between;
+  align-items: center;
+}
+
+.chart-configurator__preview-header h3 {
+  margin: 0;
+  font-size: var(--ui-font-size-lg);
+  font-weight: var(--ui-font-weight-semibold);
+  color: var(--ui-color-gray-900);
+}
+
+.chart-configurator__preview-info {
+  display: flex;
+  gap: 16px;
+  font-size: var(--ui-font-size-sm);
+  color: var(--ui-color-gray-600);
+}
+
+.chart-configurator__preview-content {
+  flex: 1;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--ui-color-gray-50);
+  overflow: auto;
+}
+
+.chart-configurator__preview-empty,
+.chart-configurator__preview-error {
+  text-align: center;
+  color: var(--ui-color-gray-500);
+  padding: 40px 20px;
+}
+
+.chart-configurator__preview-error {
+  color: var(--ui-color-error-600);
+}
+
+.chart-configurator__error {
+  padding: 12px 20px;
+  background-color: var(--ui-color-error-50);
+  color: var(--ui-color-error-700);
+  border-top: 1px solid var(--ui-color-error-200);
+  font-size: var(--ui-font-size-sm);
+}
+
+/* 配置面板通用样式 */
+.config-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.config-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.config-row {
+  display: flex;
+  gap: 12px;
+}
+
+.config-row .config-field {
+  flex: 1;
+}
+
+.config-field__label {
+  font-size: var(--ui-font-size-sm);
+  font-weight: var(--ui-font-weight-medium);
+  color: var(--ui-color-gray-700);
+}
+
+.config-field__input {
+  padding: 8px 12px;
+  border: 1px solid var(--ui-color-gray-300);
+  border-radius: var(--ui-radius-md);
+  font-size: var(--ui-font-size-sm);
+  transition: all var(--ui-transition-fast);
+  background-color: var(--ui-color-white);
+}
+
+.config-field__input:focus {
+  outline: none;
+  border-color: var(--ui-color-primary-500);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.config-field__input--textarea {
+  resize: vertical;
+  min-height: 80px;
+  font-family: 'Courier New', monospace;
+  font-size: var(--ui-font-size-xs);
+}
+
+.config-field__button {
+  padding: 8px 16px;
+  border: 1px solid var(--ui-color-gray-300);
+  border-radius: var(--ui-radius-md);
+  background-color: var(--ui-color-white);
+  color: var(--ui-color-gray-700);
+  cursor: pointer;
+  transition: all var(--ui-transition-fast);
+  font-size: var(--ui-font-size-sm);
+}
+
+.config-field__button:hover:not(:disabled) {
+  background-color: var(--ui-color-gray-100);
+  border-color: var(--ui-color-gray-400);
+}
+
+.config-field__button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 颜色调色板 */
+.color-palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.color-palette__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--ui-font-size-xs);
+}
+
+.color-palette__item input[type="color"] {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--ui-color-gray-300);
+  border-radius: var(--ui-radius-sm);
+  cursor: pointer;
+}
+
+/* 边距配置 */
+.margin-config {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.margin-config__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--ui-font-size-xs);
+}
+
+.margin-config__item label {
+  min-width: 40px;
+  font-weight: var(--ui-font-weight-medium);
+  text-transform: capitalize;
+}
+
+.margin-config__item input {
+  width: 60px;
+  padding: 4px 8px;
+  border: 1px solid var(--ui-color-gray-300);
+  border-radius: var(--ui-radius-sm);
+  font-size: var(--ui-font-size-xs);
+}
+
+/* 滑块样式 */
+input[type="range"] {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--ui-color-gray-300);
+  outline: none;
+  -webkit-appearance: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--ui-color-primary-600);
+  cursor: pointer;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--ui-color-primary-600);
+  cursor: pointer;
+  border: none;
+}
+
+/* 复选框和单选按钮样式 */
+.config-field__label input[type="checkbox"],
+.config-field__label input[type="radio"] {
+  margin-right: 8px;
+  transform: scale(1.1);
+}
+
+/* 响应式设计 */
+@media (max-width: 1024px) {
+  .chart-configurator__layout {
+    flex-direction: column;
+    height: auto;
+  }
+  
+  .chart-configurator__config-panel {
+    width: 100%;
+    min-width: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--ui-color-gray-200);
+  }
+  
+  .chart-configurator__preview-panel {
+    min-height: 400px;
+  }
+}
+
+@media (max-width: 768px) {
+  .chart-configurator__tab-content {
+    padding: 16px;
+  }
+  
+  .chart-configurator__preview-header {
+    padding: 12px 16px;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  
+  .chart-configurator__preview-info {
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .config-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .margin-config {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .chart-configurator__tabs {
+    flex-wrap: wrap;
+  }
+  
+  .chart-configurator__tab {
+    flex: 1 0 50%;
+    padding: 10px 12px;
+    font-size: var(--ui-font-size-xs);
+  }
+  
+  .chart-configurator__actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .color-palette {
+    justify-content: center;
+  }
+}
+
+/* 高对比度模式支持 */
+@media (prefers-contrast: high) {
+  .chart-configurator {
+    border: 2px solid var(--ui-color-gray-900);
+  }
+  
+  .chart-configurator__config-panel {
+    border-right-width: 2px;
+  }
+  
+  .chart-configurator__tab--active {
+    border-bottom-width: 3px;
+  }
+  
+  .config-field__input {
+    border-width: 2px;
+  }
+}
+
+/* 减少动画模式支持 */
+@media (prefers-reduced-motion: reduce) {
+  .chart-configurator__tab,
+  .chart-configurator__button,
+  .config-field__input,
+  .config-field__button {
+    transition: none;
+  }
+  
+  .chart-configurator__button:hover:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* 深色模式支持 */
+@media (prefers-color-scheme: dark) {
+  .chart-configurator {
+    background-color: var(--ui-color-gray-900);
+    color: var(--ui-color-gray-100);
+  }
+  
+  .chart-configurator__config-panel {
+    background-color: var(--ui-color-gray-800);
+    border-right-color: var(--ui-color-gray-700);
+  }
+  
+  .chart-configurator__tabs {
+    background-color: var(--ui-color-gray-800);
+    border-bottom-color: var(--ui-color-gray-700);
+  }
+  
+  .chart-configurator__tab {
+    color: var(--ui-color-gray-300);
+  }
+  
+  .chart-configurator__tab:hover {
+    background-color: var(--ui-color-gray-700);
+    color: var(--ui-color-gray-100);
+  }
+  
+  .chart-configurator__tab--active {
+    color: var(--ui-color-primary-400);
+    background-color: var(--ui-color-gray-700);
+  }
+  
+  .chart-configurator__tab-content {
+    background-color: var(--ui-color-gray-800);
+  }
+  
+  .chart-configurator__actions {
+    background-color: var(--ui-color-gray-800);
+    border-top-color: var(--ui-color-gray-700);
+  }
+  
+  .chart-configurator__preview-header {
+    background-color: var(--ui-color-gray-800);
+    border-bottom-color: var(--ui-color-gray-700);
+  }
+  
+  .chart-configurator__preview-content {
+    background-color: var(--ui-color-gray-900);
+  }
+  
+  .config-field__input {
+    background-color: var(--ui-color-gray-700);
+    border-color: var(--ui-color-gray-600);
+    color: var(--ui-color-gray-100);
+  }
+  
+  .config-field__input:focus {
+    border-color: var(--ui-color-primary-400);
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+  }
+  
+  .chart-configurator__button--secondary {
+    background-color: var(--ui-color-gray-700);
+    color: var(--ui-color-gray-100);
+    border-color: var(--ui-color-gray-600);
+  }
+  
+  .chart-configurator__button--secondary:hover {
+    background-color: var(--ui-color-gray-600);
+  }
+}

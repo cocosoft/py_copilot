@@ -1,0 +1,23 @@
+{
+  "skill_id": "brand-guidelines",
+  "name": "brand-guidelines",
+  "description": "Applies Anthropic's official brand colors and typography to any sort of artifact that may benefit from having Anthropic's look-and-feel. Use it when brand colors or style guidelines, visual formatting, or company design standards apply.",
+  "version": "1.0.0",
+  "category": "utility",
+  "tags": [
+    "utility",
+    "standardized",
+    "migrated"
+  ],
+  "author": "Unknown",
+  "author_email": null,
+  "license": "Complete terms in LICENSE.txt",
+  "status": "active",
+  "created_at": "2026-01-27T15:11:31.450535",
+  "updated_at": "2026-01-27T15:11:31.450535",
+  "entry_point": "app.skills.skills.brand-guidelines",
+  "dependencies": [],
+  "config_schema": null,
+  "usage_count": 0,
+  "avg_rating": 0.0
+}

@@ -1,0 +1,236 @@
+/* 卡片组件样式 */
+.ui-card {
+  background-color: var(--ui-color-white);
+  border-radius: 8px;
+  transition: all 0.2s ease-in-out;
+  box-sizing: border-box;
+  
+  /* 聚焦状态 */
+  &:focus-visible {
+    outline: 2px solid var(--ui-color-primary-500);
+    outline-offset: 2px;
+  }
+}
+
+/* 卡片变体 */
+.ui-card--default {
+  border: 1px solid var(--ui-color-gray-200);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.ui-card--outlined {
+  border: 1px solid var(--ui-color-gray-300);
+  background-color: transparent;
+}
+
+.ui-card--elevated {
+  border: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.ui-card--interactive {
+  border: 1px solid var(--ui-color-gray-200);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+}
+
+/* 悬停效果 */
+.ui-card--hoverable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.ui-card--interactive:hover {
+  border-color: var(--ui-color-primary-300);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.ui-card--interactive:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* 选中状态 */
+.ui-card--selected {
+  border-color: var(--ui-color-primary-500);
+  box-shadow: 0 0 0 2px var(--ui-color-primary-100);
+}
+
+/* 卡片大小 */
+.ui-card--small {
+  max-width: 300px;
+}
+
+.ui-card--medium {
+  max-width: 400px;
+}
+
+.ui-card--large {
+  max-width: 500px;
+}
+
+/* 内边距 */
+.ui-card--padding-none {
+  padding: 0;
+}
+
+.ui-card--padding-compact {
+  padding: 12px;
+}
+
+.ui-card--padding-normal {
+  padding: 16px;
+}
+
+.ui-card--padding-spacious {
+  padding: 24px;
+}
+
+/* 卡片内部组件 */
+.ui-card__header {
+  padding: 16px 16px 0;
+  margin-bottom: 12px;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.ui-card__content {
+  padding: 0 16px;
+  flex: 1;
+  
+  &:first-child {
+    padding-top: 16px;
+  }
+  
+  &:last-child {
+    padding-bottom: 16px;
+  }
+}
+
+.ui-card__footer {
+  padding: 0 16px 16px;
+  margin-top: 12px;
+  border-top: 1px solid var(--ui-color-gray-100);
+  padding-top: 16px;
+  
+  &:first-child {
+    margin-top: 0;
+  }
+}
+
+/* 卡片标题 */
+.ui-card__title {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ui-color-gray-900);
+  line-height: 1.4;
+}
+
+/* 卡片描述 */
+.ui-card__description {
+  margin: 0;
+  font-size: 14px;
+  color: var(--ui-color-gray-600);
+  line-height: 1.5;
+}
+
+/* 无内边距时的内部组件调整 */
+.ui-card--padding-none .ui-card__header,
+.ui-card--padding-none .ui-card__content,
+.ui-card--padding-none .ui-card__footer {
+  padding: 0;
+}
+
+/* 紧凑内边距时的调整 */
+.ui-card--padding-compact .ui-card__header {
+  padding: 12px 12px 0;
+}
+
+.ui-card--padding-compact .ui-card__content {
+  padding: 0 12px;
+  
+  &:first-child {
+    padding-top: 12px;
+  }
+  
+  &:last-child {
+    padding-bottom: 12px;
+  }
+}
+
+.ui-card--padding-compact .ui-card__footer {
+  padding: 0 12px 12px;
+  padding-top: 12px;
+}
+
+/* 宽敞内边距时的调整 */
+.ui-card--padding-spacious .ui-card__header {
+  padding: 24px 24px 0;
+}
+
+.ui-card--padding-spacious .ui-card__content {
+  padding: 0 24px;
+  
+  &:first-child {
+    padding-top: 24px;
+  }
+  
+  &:last-child {
+    padding-bottom: 24px;
+  }
+}
+
+.ui-card--padding-spacious .ui-card__footer {
+  padding: 0 24px 24px;
+  padding-top: 24px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .ui-card {
+    border-radius: 6px;
+  }
+  
+  .ui-card--small,
+  .ui-card--medium,
+  .ui-card--large {
+    max-width: none;
+    width: 100%;
+  }
+  
+  .ui-card--padding-normal {
+    padding: 12px;
+  }
+  
+  .ui-card--padding-spacious {
+    padding: 16px;
+  }
+  
+  .ui-card__header {
+    padding: 12px 12px 0;
+  }
+  
+  .ui-card__content {
+    padding: 0 12px;
+    
+    &:first-child {
+      padding-top: 12px;
+    }
+    
+    &:last-child {
+      padding-bottom: 12px;
+    }
+  }
+  
+  .ui-card__footer {
+    padding: 0 12px 12px;
+    padding-top: 12px;
+  }
+  
+  .ui-card__title {
+    font-size: 16px;
+  }
+}

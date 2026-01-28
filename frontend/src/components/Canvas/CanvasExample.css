@@ -1,0 +1,329 @@
+/* 画布示例样式 */
+
+.canvas-example {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--ui-color-gray-50);
+}
+
+/* 画布工具栏 */
+.canvas-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background-color: var(--ui-color-white);
+  border-bottom: 1px solid var(--ui-color-gray-200);
+  box-shadow: var(--ui-shadow-sm);
+  z-index: var(--ui-z-index-sticky);
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toolbar-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background-color: var(--ui-color-gray-100);
+  border: 1px solid var(--ui-color-gray-300);
+  border-radius: var(--ui-radius-md);
+  color: var(--ui-color-gray-700);
+  font-size: var(--ui-font-size-sm);
+  font-weight: var(--ui-font-weight-medium);
+  cursor: pointer;
+  transition: all var(--ui-transition-fast);
+}
+
+.toolbar-button:hover:not(:disabled) {
+  background-color: var(--ui-color-gray-200);
+  border-color: var(--ui-color-gray-400);
+  color: var(--ui-color-gray-900);
+}
+
+.toolbar-button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.toolbar-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toolbar-button--danger {
+  background-color: var(--ui-color-danger-50);
+  border-color: var(--ui-color-danger-200);
+  color: var(--ui-color-danger-700);
+}
+
+.toolbar-button--danger:hover:not(:disabled) {
+  background-color: var(--ui-color-danger-100);
+  border-color: var(--ui-color-danger-300);
+  color: var(--ui-color-danger-800);
+}
+
+.toolbar-info {
+  font-size: var(--ui-font-size-sm);
+  color: var(--ui-color-gray-600);
+  padding: 4px 8px;
+  background-color: var(--ui-color-gray-100);
+  border-radius: var(--ui-radius-sm);
+}
+
+/* 画布区域 */
+.canvas-area {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.canvas-example__canvas {
+  width: 100%;
+  height: 100%;
+}
+
+/* 画布状态栏 */
+.canvas-statusbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px;
+  background-color: var(--ui-color-white);
+  border-top: 1px solid var(--ui-color-gray-200);
+  font-size: var(--ui-font-size-xs);
+  color: var(--ui-color-gray-600);
+}
+
+.canvas-statusbar span {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+/* 工作流画布示例 */
+.workflow-canvas-example {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.workflow-header {
+  padding: 16px 24px;
+  background: linear-gradient(135deg, var(--ui-color-primary-50) 0%, var(--ui-color-primary-100) 100%);
+  border-bottom: 1px solid var(--ui-color-primary-200);
+}
+
+.workflow-header h2 {
+  margin: 0 0 4px 0;
+  font-size: var(--ui-font-size-xl);
+  font-weight: var(--ui-font-weight-semibold);
+  color: var(--ui-color-gray-900);
+}
+
+.workflow-header p {
+  margin: 0 0 16px 0;
+  font-size: var(--ui-font-size-sm);
+  color: var(--ui-color-gray-600);
+}
+
+.workflow-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.workflow-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  background-color: var(--ui-color-white);
+  border: 1px solid var(--ui-color-gray-300);
+  border-radius: var(--ui-radius-md);
+  color: var(--ui-color-gray-700);
+  font-size: var(--ui-font-size-sm);
+  font-weight: var(--ui-font-weight-medium);
+  cursor: pointer;
+  transition: all var(--ui-transition-fast);
+  box-shadow: var(--ui-shadow-sm);
+}
+
+.workflow-button:hover:not(:disabled) {
+  background-color: var(--ui-color-gray-50);
+  border-color: var(--ui-color-gray-400);
+  transform: translateY(-1px);
+  box-shadow: var(--ui-shadow-md);
+}
+
+.workflow-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.workflow-button--primary {
+  background-color: var(--ui-color-primary-500);
+  border-color: var(--ui-color-primary-600);
+  color: var(--ui-color-white);
+}
+
+.workflow-button--primary:hover:not(:disabled) {
+  background-color: var(--ui-color-primary-600);
+  border-color: var(--ui-color-primary-700);
+}
+
+/* 响应式设计 */
+@media (max-width: 1024px) {
+  .canvas-toolbar {
+    padding: 8px 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .toolbar-group {
+    gap: 6px;
+  }
+  
+  .toolbar-button {
+    padding: 6px 10px;
+    font-size: var(--ui-font-size-xs);
+  }
+  
+  .workflow-header {
+    padding: 12px 16px;
+  }
+  
+  .workflow-controls {
+    gap: 8px;
+  }
+  
+  .workflow-button {
+    padding: 8px 12px;
+    font-size: var(--ui-font-size-xs);
+  }
+}
+
+@media (max-width: 768px) {
+  .canvas-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  
+  .toolbar-group {
+    justify-content: center;
+  }
+  
+  .toolbar-button {
+    flex: 1;
+    justify-content: center;
+    min-width: 80px;
+  }
+  
+  .workflow-header {
+    text-align: center;
+  }
+  
+  .workflow-controls {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  
+  .canvas-statusbar {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    padding: 6px 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .toolbar-button {
+    min-width: 60px;
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+  
+  .workflow-button {
+    padding: 6px 10px;
+    font-size: var(--ui-font-size-xs);
+  }
+  
+  .canvas-statusbar {
+    font-size: 10px;
+    gap: 8px;
+  }
+}
+
+/* 触摸设备优化 */
+@media (hover: none) and (pointer: coarse) {
+  .toolbar-button,
+  .workflow-button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .toolbar-button {
+    padding: 12px 16px;
+  }
+  
+  .workflow-button {
+    padding: 14px 18px;
+  }
+}
+
+/* 动画效果 */
+@keyframes workflow-running {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.workflow-button:disabled {
+  animation: workflow-running 2s ease-in-out infinite;
+}
+
+/* 高对比度模式支持 */
+@media (prefers-contrast: high) {
+  .canvas-toolbar {
+    border-bottom-width: 2px;
+  }
+  
+  .toolbar-button {
+    border-width: 2px;
+  }
+  
+  .workflow-button {
+    border-width: 2px;
+  }
+  
+  .canvas-statusbar {
+    border-top-width: 2px;
+  }
+}
+
+/* 减少动画模式支持 */
+@media (prefers-reduced-motion: reduce) {
+  .toolbar-button,
+  .workflow-button {
+    transition: none;
+  }
+  
+  .toolbar-button:hover,
+  .workflow-button:hover {
+    transform: none;
+  }
+  
+  .workflow-button:disabled {
+    animation: none;
+  }
+}

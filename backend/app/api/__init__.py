@@ -3,6 +3,7 @@ from fastapi import APIRouter
 
 from app.api.v1 import api_router as api_router_v1
 from app.api.endpoints.monitoring import router as monitoring_router
+from app.websocket.websocket_router import router as websocket_router
 
 api_router = APIRouter()
 
@@ -11,3 +12,6 @@ api_router.include_router(api_router_v1, prefix="/v1")
 
 # 包含监控API路由
 api_router.include_router(monitoring_router, prefix="/monitoring", tags=["monitoring"])
+
+# 包含WebSocket路由
+api_router.include_router(websocket_router, prefix="/ws", tags=["websocket"])

@@ -13,20 +13,6 @@ const Chat = () => {
       text: '你好！我是 Py Copilot 智能助手，现在支持调用真实的大语言模型进行对话！\n\n新功能：\n- ✅ 支持多种大模型（Ollama、DeepSeek等）\n- ✅ 智能回退机制（模型失败时自动切换）\n- ✅ 实时状态显示\n- ✅ 更好的错误处理\n\n请选择模型并开始对话吧！',
       timestamp: new Date(Date.now() - 3600000),
       status: 'success'
-    },
-    {
-      id: 2,
-      sender: 'bot',
-      text: '数学与物理公式测试\n\n## 基础数学公式\n\n二次方程求根公式：\nx = (-b ± √(b² - 4ac)) / (2a)\n\n三角函数恒等式：\nsin²x + cos²x = 1\nsin(2x) = 2sinx·cosx\n\n积分公式：\n∫ₐᵇ xⁿ dx = (bⁿ⁺¹ - aⁿ⁺¹)/(n+1)\n∫ eˣ dx = eˣ + C\n\n## 物理公式\n\n牛顿第二定律：\nF = ma\n\n万有引力定律：\nF = G·m₁·m₂ / r²\n\n爱因斯坦质能方程：\nE = mc²\n\n动能公式：\nEₖ = (1/2)mv²',
-      timestamp: new Date(Date.now() - 1800000),
-      status: 'success'
-    },
-    {
-      id: 3,
-      sender: 'bot',
-      text: '化学公式测试\n\n水的电解反应：\n2H₂O → 2H₂↑ + O₂↑\n\n酸碱中和反应：\nHCl + NaOH → NaCl + H₂O\n\n甲烷燃烧反应：\nCH₄ + 2O₂ → CO₂ + 2H₂O\n\n分子结构公式：\nCH₃CH₂OH（乙醇）\nC₆H₁₂O₆（葡萄糖）',
-      timestamp: new Date(Date.now() - 900000),
-      status: 'success'
     }
   ]);
   
@@ -41,11 +27,11 @@ const Chat = () => {
   const [enableThinkingChain, setEnableThinkingChain] = useState(false);
   const [topics, setTopics] = useState([]);
   const [activeTopic, setActiveTopic] = useState(null);
-  const [showTopicPanel, setShowTopicPanel] = useState(false);
   const [newTopicTitle, setNewTopicTitle] = useState('');
   const [newTopicDescription, setNewTopicDescription] = useState('');
   const [expandedThinkingChains, setExpandedThinkingChains] = useState({}); // 管理各个消息的思维链展开/收缩状态
   const [currentStreamingMessage, setCurrentStreamingMessage] = useState(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // 左侧控制面板伸缩状态
   const messagesEndRef = useRef(null);
   
   // 滚动到底部
@@ -138,7 +124,6 @@ const Chat = () => {
       if (response.status === 'success') {
         setNewTopicTitle('');
         setNewTopicDescription('');
-        setShowTopicPanel(false);
         await fetchTopics(conversationId);
         
         // 自动切换到新创建的话题
@@ -658,181 +643,200 @@ const Chat = () => {
 
   return (
     <div className="chat-container">
-      <div className="chat-header">
-        <div className="chat-title">
-          <div className="bot-avatar">🤖</div>
-          <div>
-            <h2>Py Copilot</h2>
-            <span className="chat-subtitle">智能大模型对话助手</span>
-          </div>
-        </div>
-        
-        <div className="status-indicator">
-          <div className={`status-dot ${connectionStatus}`}></div>
-          <span className="status-text">
-            {connectionStatus === 'connected' && '已连接'}
-            {connectionStatus === 'checking' && '检查中...'}
-            {connectionStatus === 'sending' && '发送中...'}
-            {connectionStatus === 'error' && '连接错误'}
-            {connectionStatus === 'offline' && '离线'}
-          </span>
-          {lastResponseTime && connectionStatus === 'connected' && (
-            <span className="response-time">{lastResponseTime}ms</span>
-          )}
-        </div>
-        
-        <div className="model-selector">
-          <label>模型:</label>
-          <div className="model-dropdown-container">
-            {isLoadingModels ? (
-              <div className="model-loading">加载中...</div>
-            ) : (
-              <ModelSelectDropdown
-                models={availableModels}
-                selectedModel={selectedModel}
-                onModelSelect={handleModelSelect}
-                className="chat-model-dropdown"
-                placeholder="请选择对话模型"
-                disabled={connectionStatus === 'sending'}
-              />
-            )}
-          </div>
-        </div>
-        
-        <div className="chat-actions">
-          <div className="streaming-controls">
-            <label className="toggle-label">
-              <input 
-                type="checkbox" 
-                checked={enableStreaming} 
-                onChange={(e) => setEnableStreaming(e.target.checked)}
-                disabled={connectionStatus === 'sending'}
-              />
-              <span className="toggle-text">流式响应</span>
-            </label>
-            <label className="toggle-label">
-              <input 
-                type="checkbox" 
-                checked={enableThinkingChain} 
-                onChange={(e) => setEnableThinkingChain(e.target.checked)}
-                disabled={connectionStatus === 'sending' || !enableStreaming}
-              />
-              <span className="toggle-text">思维链</span>
-            </label>
-          </div>
-          <div className="topic-management">
-            <button 
-              className={`topic-toggle-btn ${showTopicPanel ? 'active' : ''}`}
-              title="话题管理"
-              onClick={() => setShowTopicPanel(!showTopicPanel)}
-              disabled={connectionStatus === 'sending'}
-            >
-              <span className="topic-toggle-icon">📚</span>
-              <span>话题</span>
-              {activeTopic && <span className="active-topic-badge">{activeTopic.title}</span>}
-            </button>
-          </div>
+      {/* 左侧控制面板 */}
+      <div className={`chat-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
+        <div className="sidebar-header">
+          <div className="sidebar-title">控制面板</div>
           <button 
-            className="action-btn" 
-            title="清除对话"
-            onClick={clearConversation}
-            disabled={connectionStatus === 'sending'}
-          >🗑️</button>
-          <button className="action-btn" title="设置">⚙️</button>
+            className="sidebar-toggle"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            title={sidebarCollapsed ? '展开面板' : '收起面板'}
+          >
+            {sidebarCollapsed ? '▶' : '◀'}
+          </button>
         </div>
-      </div>
-      
-      {/* 话题面板 */}
-      {showTopicPanel && (
-        <div className="topic-panel">
-          <div className="topic-panel-header">
-            <h3 className="topic-panel-title">话题管理</h3>
-            <button 
-              className="topic-panel-close" 
-              onClick={() => setShowTopicPanel(false)}
-              title="关闭话题面板"
-            >✕</button>
-          </div>
-          
-          <div className="topic-panel-content">
-            <ul className="topic-list">
-              {topics.length === 0 ? (
-                <li className="topic-item">
-                  <div className="topic-info">
-                    <div className="topic-title">暂无话题</div>
-                    <div className="topic-description">请创建新话题开始对话</div>
-                  </div>
-                </li>
-              ) : (
-                topics.map(topic => (
-                  <li 
-                    key={topic.id} 
-                    className={`topic-item ${activeTopic && activeTopic.id === topic.id ? 'active' : ''}`}
-                    onClick={() => switchTopic(1, topic.id)}
-                  >
-                    <div className="topic-info">
-                      <div className="topic-title">{topic.title}</div>
-                      {topic.description && (
-                        <div className="topic-description">{topic.description}</div>
-                      )}
-                    </div>
-                    <div className="topic-actions">
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          switchTopic(1, topic.id);
-                        }}
-                        className="topic-action-btn edit"
-                        title="切换到该话题"
-                      >↻</button>
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteTopic(1, topic.id);
-                        }}
-                        className="topic-action-btn delete"
-                        title="删除话题"
-                      >🗑️</button>
-                    </div>
-                  </li>
-                ))
-              )}
-            </ul>
-            
-            <div className="topic-create-section">
-              <div className="topic-create-form">
-                <div className="topic-input-group">
-                  <label className="topic-input-label">话题标题</label>
-                  <input
-                    type="text"
-                    placeholder="请输入话题标题"
-                    value={newTopicTitle}
-                    onChange={(e) => setNewTopicTitle(e.target.value)}
-                    className="topic-input"
+        
+        <div className="sidebar-content">
+          {/* 模型选择 */}
+          <div className="sidebar-section">
+            <h3 className="section-title">模型设置</h3>
+            <div className="model-selector">
+              {!sidebarCollapsed && <label>模型:</label>}
+              <div className="model-dropdown-container">
+                {isLoadingModels ? (
+                  <div className="model-loading">加载中...</div>
+                ) : (
+                  <ModelSelectDropdown
+                    models={availableModels}
+                    selectedModel={selectedModel}
+                    onModelSelect={handleModelSelect}
+                    className="chat-model-dropdown"
+                    placeholder="请选择对话模型"
+                    disabled={connectionStatus === 'sending'}
                   />
-                </div>
-                <div className="topic-input-group">
-                  <label className="topic-input-label">话题描述（可选）</label>
-                  <input
-                    type="text"
-                    placeholder="请输入话题描述"
-                    value={newTopicDescription}
-                    onChange={(e) => setNewTopicDescription(e.target.value)}
-                    className="topic-input"
-                  />
-                </div>
-                <button 
-                  onClick={createNewTopic}
-                  className="topic-create-btn"
-                  disabled={!newTopicTitle.trim()}
-                >
-                  创建新话题
-                </button>
+                )}
               </div>
             </div>
           </div>
+          
+          {/* 响应设置 */}
+          <div className="sidebar-section">
+            <h3 className="section-title">响应设置</h3>
+            <div className="streaming-controls">
+              <label className="toggle-label">
+                <input 
+                  type="checkbox" 
+                  checked={enableStreaming} 
+                  onChange={(e) => setEnableStreaming(e.target.checked)}
+                  disabled={connectionStatus === 'sending'}
+                />
+                <span className="toggle-text">流式响应</span>
+              </label>
+              <label className="toggle-label">
+                <input 
+                  type="checkbox" 
+                  checked={enableThinkingChain} 
+                  onChange={(e) => setEnableThinkingChain(e.target.checked)}
+                  disabled={connectionStatus === 'sending' || !enableStreaming}
+                />
+                <span className="toggle-text">思维链</span>
+              </label>
+            </div>
+          </div>
+          
+          {/* 话题管理 */}
+          <div className="sidebar-section">
+            <h3 className="section-title">话题管理</h3>
+            {!sidebarCollapsed && (
+              <>
+                {/* 活跃话题显示 */}
+                {activeTopic && (
+                  <div className="active-topic-info">
+                    <div className="active-topic-label">当前话题:</div>
+                    <div className="active-topic-name">{activeTopic.title}</div>
+                  </div>
+                )}
+                
+                {/* 话题列表 */}
+                <div className="topic-list-container">
+                  <h4 className="topic-list-title">可用话题</h4>
+                  {topics.length === 0 ? (
+                    <div className="no-topics">暂无话题，请创建新话题</div>
+                  ) : (
+                    <ul className="sidebar-topic-list">
+                      {topics.map(topic => (
+                        <li 
+                          key={topic.id} 
+                          className={`sidebar-topic-item ${activeTopic && activeTopic.id === topic.id ? 'active' : ''}`}
+                          onClick={() => switchTopic(1, topic.id)}
+                        >
+                          <div className="sidebar-topic-title">{topic.title}</div>
+                          <div className="sidebar-topic-actions">
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteTopic(1, topic.id);
+                              }}
+                              className="sidebar-topic-delete"
+                              title="删除话题"
+                            >🗑️</button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                
+                {/* 创建新话题 */}
+                <div className="create-topic-section">
+                  <h4 className="create-topic-title">创建新话题</h4>
+                  <div className="create-topic-form">
+                    <div className="create-topic-input-group">
+                      <input
+                        type="text"
+                        placeholder="话题标题"
+                        value={newTopicTitle}
+                        onChange={(e) => setNewTopicTitle(e.target.value)}
+                        className="create-topic-input"
+                        disabled={connectionStatus === 'sending'}
+                      />
+                    </div>
+                    <div className="create-topic-input-group">
+                      <input
+                        type="text"
+                        placeholder="话题描述（可选）"
+                        value={newTopicDescription}
+                        onChange={(e) => setNewTopicDescription(e.target.value)}
+                        className="create-topic-input"
+                        disabled={connectionStatus === 'sending'}
+                      />
+                    </div>
+                    <button 
+                      onClick={createNewTopic}
+                      className="create-topic-btn"
+                      disabled={!newTopicTitle.trim() || connectionStatus === 'sending'}
+                    >
+                      创建话题
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+            {sidebarCollapsed && (
+              <div className="collapsed-topic-controls">
+                <button 
+                  className="topic-toggle-btn"
+                  title="显示话题管理"
+                  onClick={() => setSidebarCollapsed(false)}
+                  disabled={connectionStatus === 'sending'}
+                >
+                  <span className="topic-toggle-icon">📚</span>
+                </button>
+              </div>
+            )}
+          </div>
+          
+          {/* 操作按钮 */}
+          <div className="sidebar-section">
+            <h3 className="section-title">操作</h3>
+            <div className="action-buttons">
+              <button 
+                className="action-btn" 
+                title="清除对话"
+                onClick={clearConversation}
+                disabled={connectionStatus === 'sending'}
+              >🗑️</button>
+              <button className="action-btn" title="设置">⚙️</button>
+            </div>
+          </div>
         </div>
-      )}
+      </div>
+      
+      {/* 主聊天区域 */}
+      <div className={`chat-main ${sidebarCollapsed ? 'expanded' : ''}`}>
+        <div className="chat-header">
+          <div className="chat-title">
+            <div className="bot-avatar">🤖</div>
+            <div>
+              <h2>Py Copilot</h2>
+              <span className="chat-subtitle">智能大模型对话助手</span>
+            </div>
+          </div>
+          
+          <div className="status-indicator">
+            <div className={`status-dot ${connectionStatus}`}></div>
+            <span className="status-text">
+              {connectionStatus === 'connected' && '已连接'}
+              {connectionStatus === 'checking' && '检查中...'}
+              {connectionStatus === 'sending' && '发送中...'}
+              {connectionStatus === 'error' && '连接错误'}
+              {connectionStatus === 'offline' && '离线'}
+            </span>
+            {lastResponseTime && connectionStatus === 'connected' && (
+              <span className="response-time">{lastResponseTime}ms</span>
+            )}
+          </div>
+        </div>
       
       <div className="chat-messages">
         {messages.map(message => {
@@ -969,6 +973,7 @@ const Chat = () => {
           <span className="send-text">{getSendButtonText()}</span>
         </button>
       </form>
+      </div>
     </div>
   );
 };

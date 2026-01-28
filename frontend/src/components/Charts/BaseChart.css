@@ -1,0 +1,322 @@
+/* 基础图表样式 */
+
+.base-chart {
+  position: relative;
+  background-color: var(--ui-color-white);
+  border: 1px solid var(--ui-color-gray-200);
+  border-radius: var(--ui-radius-lg);
+  box-shadow: var(--ui-shadow-sm);
+  overflow: hidden;
+  transition: all var(--ui-transition-normal);
+}
+
+.base-chart:hover {
+  box-shadow: var(--ui-shadow-md);
+}
+
+.base-chart--hovered {
+  border-color: var(--ui-color-primary-300);
+}
+
+/* 图表头部 */
+.base-chart__header {
+  padding: 16px 20px 8px;
+  border-bottom: 1px solid var(--ui-color-gray-100);
+}
+
+.base-chart__title {
+  font-size: var(--ui-font-size-lg);
+  font-weight: var(--ui-font-weight-semibold);
+  color: var(--ui-color-gray-900);
+  margin: 0 0 4px 0;
+}
+
+.base-chart__description {
+  font-size: var(--ui-font-size-sm);
+  color: var(--ui-color-gray-600);
+  margin: 0;
+  line-height: var(--ui-line-height-normal);
+}
+
+/* 图表容器 */
+.base-chart__container {
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.base-chart__svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+/* 图表区域 */
+.base-chart__area {
+  /* SVG图形样式在组件内定义 */
+}
+
+/* 柱状图样式 */
+.base-chart__bar {
+  transition: all var(--ui-transition-fast);
+  cursor: pointer;
+}
+
+.base-chart__bar:hover {
+  filter: brightness(1.1);
+  transform: scale(1.05);
+}
+
+/* 折线图样式 */
+.base-chart__line {
+  transition: stroke-width var(--ui-transition-fast);
+}
+
+.base-chart__line:hover {
+  stroke-width: 3;
+}
+
+.base-chart__area-fill {
+  opacity: 0.3;
+  transition: opacity var(--ui-transition-fast);
+}
+
+.base-chart__area-fill:hover {
+  opacity: 0.5;
+}
+
+.base-chart__point {
+  transition: all var(--ui-transition-fast);
+  cursor: pointer;
+}
+
+.base-chart__point:hover {
+  r: 6;
+  fill: var(--ui-color-primary-600);
+}
+
+/* 坐标轴样式 */
+.base-chart__axis line {
+  stroke: var(--ui-color-gray-300);
+  stroke-width: 1;
+}
+
+.base-chart__axis path {
+  stroke: var(--ui-color-gray-400);
+  stroke-width: 1;
+}
+
+.base-chart__axis text {
+  font-size: 10px;
+  fill: var(--ui-color-gray-600);
+  font-family: inherit;
+}
+
+/* 数据标签 */
+.base-chart__label {
+  font-size: 10px;
+  fill: var(--ui-color-gray-700);
+  font-weight: var(--ui-font-weight-medium);
+  pointer-events: none;
+}
+
+/* 图例样式 */
+.base-chart__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--ui-color-gray-100);
+  background-color: var(--ui-color-gray-50);
+}
+
+.base-chart__legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--ui-font-size-xs);
+  color: var(--ui-color-gray-700);
+}
+
+.base-chart__legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.base-chart__legend-label {
+  font-weight: var(--ui-font-weight-medium);
+}
+
+.base-chart__legend-value {
+  color: var(--ui-color-gray-600);
+  font-size: 10px;
+}
+
+/* 工具栏 */
+.base-chart__toolbar {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity var(--ui-transition-fast);
+}
+
+.base-chart:hover .base-chart__toolbar {
+  opacity: 1;
+}
+
+.base-chart__toolbar-button {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--ui-radius-sm);
+  background-color: var(--ui-color-white);
+  color: var(--ui-color-gray-600);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  transition: all var(--ui-transition-fast);
+  box-shadow: var(--ui-shadow-sm);
+}
+
+.base-chart__toolbar-button:hover {
+  background-color: var(--ui-color-gray-100);
+  color: var(--ui-color-gray-900);
+  transform: translateY(-1px);
+}
+
+/* 空状态 */
+.chart-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--ui-color-gray-500);
+  font-size: var(--ui-font-size-sm);
+  font-style: italic;
+}
+
+/* 动画效果 */
+@keyframes chart-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.base-chart {
+  animation: chart-fade-in 0.3s ease-out;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .base-chart__header {
+    padding: 12px 16px 8px;
+  }
+  
+  .base-chart__title {
+    font-size: var(--ui-font-size-base);
+  }
+  
+  .base-chart__description {
+    font-size: var(--ui-font-size-xs);
+  }
+  
+  .base-chart__container {
+    padding: 12px;
+  }
+  
+  .base-chart__legend {
+    padding: 8px 16px;
+    gap: 8px;
+  }
+  
+  .base-chart__legend-item {
+    font-size: 10px;
+  }
+  
+  .base-chart__toolbar {
+    top: 8px;
+    right: 8px;
+  }
+  
+  .base-chart__toolbar-button {
+    width: 24px;
+    height: 24px;
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .base-chart__legend {
+    flex-direction: column;
+    gap: 6px;
+  }
+  
+  .base-chart__toolbar {
+    position: static;
+    opacity: 1;
+    justify-content: center;
+    margin-top: 8px;
+  }
+}
+
+/* 触摸设备优化 */
+@media (hover: none) and (pointer: coarse) {
+  .base-chart__toolbar {
+    opacity: 1;
+    position: static;
+    justify-content: center;
+    margin-top: 8px;
+  }
+  
+  .base-chart__bar,
+  .base-chart__point {
+    min-width: 20px;
+    min-height: 20px;
+  }
+}
+
+/* 高对比度模式支持 */
+@media (prefers-contrast: high) {
+  .base-chart {
+    border-width: 2px;
+  }
+  
+  .base-chart__axis line {
+    stroke-width: 2;
+  }
+  
+  .base-chart__bar {
+    stroke: var(--ui-color-gray-900);
+    stroke-width: 1;
+  }
+}
+
+/* 减少动画模式支持 */
+@media (prefers-reduced-motion: reduce) {
+  .base-chart,
+  .base-chart__bar,
+  .base-chart__line,
+  .base-chart__point,
+  .base-chart__toolbar-button {
+    transition: none;
+    animation: none;
+  }
+  
+  .base-chart__bar:hover,
+  .base-chart__point:hover {
+    transform: none;
+  }
+}

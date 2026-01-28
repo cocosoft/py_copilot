@@ -1,0 +1,27 @@
+author: Unknown
+author_email: null
+avg_rating: 0.0
+category: !!python/object/apply:app.schemas.skill_metadata.SkillCategory
+- communication
+config_schema: null
+created_at: '2026-01-27T15:11:31.499144'
+dependencies: []
+description: A set of resources to help me write all kinds of internal communications,
+  using the formats that my company likes to use. Claude should use this skill whenever
+  asked to write some sort of internal communications (status reports, leadership
+  updates, 3P updates, company newsletters, FAQs, incident reports, project updates,
+  etc.).
+entry_point: app.skills.skills.internal-comms
+license: Complete terms in LICENSE.txt
+name: internal-comms
+skill_id: internal-comms
+status: !!python/object/apply:app.schemas.skill_metadata.SkillStatus
+- active
+tags:
+- migrated
+- communication
+- standardized
+- collaboration
+updated_at: '2026-01-27T15:11:31.500681'
+usage_count: 0
+version: 1.0.0

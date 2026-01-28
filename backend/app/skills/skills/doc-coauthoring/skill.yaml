@@ -1,0 +1,28 @@
+author: Unknown
+author_email: null
+avg_rating: 0.0
+category: !!python/object/apply:app.schemas.skill_metadata.SkillCategory
+- document
+config_schema: null
+created_at: '2026-01-27T15:11:31.475535'
+dependencies: []
+description: Guide users through a structured workflow for co-authoring documentation.
+  Use when user wants to write documentation, proposals, technical specs, decision
+  docs, or similar structured content. This workflow helps users efficiently transfer
+  context, refine content through iteration, and verify the doc works for readers.
+  Trigger when user mentions writing docs, creating proposals, drafting specs, or
+  similar documentation tasks.
+entry_point: app.skills.skills.doc-coauthoring
+license: MIT
+name: doc-coauthoring
+skill_id: doc-coauthoring
+status: !!python/object/apply:app.schemas.skill_metadata.SkillStatus
+- active
+tags:
+- migrated
+- document-processing
+- document
+- standardized
+updated_at: '2026-01-27T15:11:31.475535'
+usage_count: 0
+version: 1.0.0

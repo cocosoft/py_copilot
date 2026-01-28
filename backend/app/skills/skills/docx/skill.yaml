@@ -1,0 +1,27 @@
+author: Unknown
+author_email: null
+avg_rating: 0.0
+category: !!python/object/apply:app.schemas.skill_metadata.SkillCategory
+- document
+config_schema: null
+created_at: '2026-01-27T15:11:31.482839'
+dependencies: []
+description: 'Comprehensive document creation, editing, and analysis with support
+  for tracked changes, comments, formatting preservation, and text extraction. When
+  Claude needs to work with professional documents (.docx files) for: (1) Creating
+  new documents, (2) Modifying or editing content, (3) Working with tracked changes,
+  (4) Adding comments, or any other document tasks'
+entry_point: app.skills.skills.docx.docx
+license: Proprietary. LICENSE.txt has complete terms
+name: docx
+skill_id: docx
+status: !!python/object/apply:app.schemas.skill_metadata.SkillStatus
+- active
+tags:
+- migrated
+- document-processing
+- document
+- standardized
+updated_at: '2026-01-27T15:11:31.486754'
+usage_count: 0
+version: 1.0.0

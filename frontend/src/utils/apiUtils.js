@@ -73,10 +73,22 @@ export const request = async (endpoint, options = {}) => {
   }
   
   try {
-
-    // 发送请求
-    const response = await fetch(url, mergedOptions);
+    // 设置请求超时（默认30秒）
+    const timeout = options.timeout || 30000;
+    const controller = new AbortController();
+    const { signal } = controller;
     
+    // 设置超时定时器
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+    
+    // 发送请求
+    const response = await fetch(url, {
+      ...mergedOptions,
+      signal
+    });
+    
+    // 清除超时定时器
+    clearTimeout(timeoutId);
 
     // 检查响应状态
     if (!response.ok) {
@@ -196,6 +208,14 @@ export const request = async (endpoint, options = {}) => {
     }
   } catch (error) {
     console.error('❌ API请求异常:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+    
+    // 处理超时错误
+    if (error.name === 'AbortError') {
+      const timeoutError = new Error('API请求超时，请检查网络连接或端点响应时间。');
+      timeoutError.originalError = error;
+      timeoutError.status = 408; // 408 Request Timeout
+      throw timeoutError;
+    }
     
     // 处理连接错误，提供更清晰的错误信息
     if (error.message && (error.message.includes('Failed to fetch') || error.message.includes('ERR_CONNECTION_REFUSED'))) {

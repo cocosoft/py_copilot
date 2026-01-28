@@ -1,0 +1,260 @@
+/* 画布组件样式 */
+
+.ui-canvas-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--ui-color-gray-100);
+  cursor: grab;
+  user-select: none;
+}
+
+.ui-canvas-container:active {
+  cursor: grabbing;
+}
+
+/* 画布内容 */
+.ui-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background-color: var(--ui-color-white);
+  box-shadow: var(--ui-shadow-lg);
+  transition: transform 0.1s ease-out;
+  will-change: transform;
+}
+
+/* 画布控件 */
+.ui-canvas-controls {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--ui-color-white);
+  border-radius: var(--ui-radius-lg);
+  padding: 8px;
+  box-shadow: var(--ui-shadow-md);
+  z-index: var(--ui-z-index-sticky);
+}
+
+.ui-canvas-control {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--ui-radius-md);
+  background-color: var(--ui-color-gray-100);
+  color: var(--ui-color-gray-700);
+  font-size: var(--ui-font-size-lg);
+  font-weight: var(--ui-font-weight-semibold);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--ui-transition-fast);
+}
+
+.ui-canvas-control:hover {
+  background-color: var(--ui-color-gray-200);
+  color: var(--ui-color-gray-900);
+  transform: translateY(-1px);
+}
+
+.ui-canvas-control:active {
+  transform: translateY(0);
+}
+
+.ui-canvas-scale {
+  font-size: var(--ui-font-size-sm);
+  font-weight: var(--ui-font-weight-medium);
+  color: var(--ui-color-gray-600);
+  padding: 0 8px;
+  min-width: 50px;
+  text-align: center;
+}
+
+/* 画布状态指示器 */
+.ui-canvas-status {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  display: flex;
+  gap: 16px;
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: var(--ui-radius-md);
+  padding: 8px 12px;
+  font-size: var(--ui-font-size-sm);
+  color: var(--ui-color-gray-600);
+  box-shadow: var(--ui-shadow-sm);
+  z-index: var(--ui-z-index-sticky);
+}
+
+.ui-canvas-status span {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+/* 画布元素基础样式 */
+.canvas-element {
+  position: absolute;
+  cursor: pointer;
+  transition: all var(--ui-transition-fast);
+  user-select: none;
+}
+
+.canvas-element:hover {
+  transform: scale(1.02);
+  box-shadow: var(--ui-shadow-lg);
+}
+
+.canvas-element.selected {
+  box-shadow: 0 0 0 2px var(--ui-color-primary-500);
+  z-index: var(--ui-z-index-sticky);
+}
+
+.canvas-element.dragging {
+  opacity: 0.8;
+  cursor: grabbing;
+}
+
+/* 连接线样式 */
+.canvas-connection {
+  position: absolute;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.canvas-connection path {
+  fill: none;
+  stroke: var(--ui-color-gray-400);
+  stroke-width: 2;
+  marker-end: url(#arrowhead);
+}
+
+.canvas-connection.selected path {
+  stroke: var(--ui-color-primary-500);
+  stroke-width: 3;
+}
+
+/* 箭头标记 */
+.arrow-marker {
+  fill: var(--ui-color-gray-400);
+}
+
+.arrow-marker.selected {
+  fill: var(--ui-color-primary-500);
+}
+
+/* 选择框样式 */
+.selection-box {
+  position: absolute;
+  border: 2px dashed var(--ui-color-primary-500);
+  background-color: rgba(52, 152, 219, 0.1);
+  pointer-events: none;
+  z-index: var(--ui-z-index-modal);
+}
+
+/* 画布网格 */
+.ui-canvas.grid-enabled {
+  background-size: 20px 20px;
+  background-image: 
+    linear-gradient(to right, rgba(0, 0, 0, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+}
+
+/* 画布缩放动画 */
+.ui-canvas.zooming {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 画布拖拽反馈 */
+.ui-canvas-container.dragging {
+  cursor: grabbing;
+}
+
+.ui-canvas-container.dragging .ui-canvas {
+  transition: none;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .ui-canvas-controls {
+    top: 8px;
+    right: 8px;
+    padding: 6px;
+    gap: 6px;
+  }
+  
+  .ui-canvas-control {
+    width: 28px;
+    height: 28px;
+    font-size: var(--ui-font-size-base);
+  }
+  
+  .ui-canvas-scale {
+    font-size: var(--ui-font-size-xs);
+    min-width: 40px;
+  }
+  
+  .ui-canvas-status {
+    bottom: 8px;
+    left: 8px;
+    padding: 6px 10px;
+    font-size: var(--ui-font-size-xs);
+    gap: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .ui-canvas-controls {
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .ui-canvas-status {
+    flex-direction: column;
+    gap: 4px;
+  }
+}
+
+/* 触摸设备优化 */
+@media (hover: none) and (pointer: coarse) {
+  .ui-canvas-control {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  
+  .canvas-element {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* 高对比度模式支持 */
+@media (prefers-contrast: high) {
+  .ui-canvas-control {
+    border: 1px solid var(--ui-color-gray-600);
+  }
+  
+  .canvas-element.selected {
+    box-shadow: 0 0 0 3px var(--ui-color-primary-700);
+  }
+  
+  .selection-box {
+    border: 3px dashed var(--ui-color-primary-700);
+  }
+}
+
+/* 减少动画模式支持 */
+@media (prefers-reduced-motion: reduce) {
+  .ui-canvas,
+  .canvas-element,
+  .ui-canvas-control {
+    transition: none;
+  }
+  
+  .canvas-element:hover {
+    transform: none;
+  }
+}

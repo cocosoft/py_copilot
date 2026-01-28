@@ -1,0 +1,25 @@
+author: Unknown
+author_email: null
+avg_rating: 0.0
+category: !!python/object/apply:app.schemas.skill_metadata.SkillCategory
+- development
+config_schema: null
+created_at: '2026-01-27T15:11:31.507567'
+dependencies: []
+description: Guide for creating high-quality MCP (Model Context Protocol) servers
+  that enable LLMs to interact with external services through well-designed tools.
+  Use when building MCP servers to integrate external APIs or services, whether in
+  Python (FastMCP) or Node/TypeScript (MCP SDK).
+entry_point: app.skills.skills.mcp-builder
+license: Complete terms in LICENSE.txt
+name: mcp-builder
+skill_id: mcp-builder
+status: !!python/object/apply:app.schemas.skill_metadata.SkillStatus
+- active
+tags:
+- migrated
+- development
+- standardized
+updated_at: '2026-01-27T15:11:31.509093'
+usage_count: 0
+version: 1.0.0

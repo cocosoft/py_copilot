@@ -1,0 +1,23 @@
+{
+  "skill_id": "pptx",
+  "name": "pptx",
+  "description": "Presentation creation, editing, and analysis. When Claude needs to work with presentations (.pptx files) for: (1) Creating new presentations, (2) Modifying or editing content, (3) Working with layouts, (4) Adding comments or speaker notes, or any other presentation tasks",
+  "version": "1.0.0",
+  "category": "document",
+  "tags": [
+    "migrated",
+    "document",
+    "standardized"
+  ],
+  "author": "Unknown",
+  "author_email": null,
+  "license": "Proprietary. LICENSE.txt has complete terms",
+  "status": "active",
+  "created_at": "2026-01-27T15:11:31.522311",
+  "updated_at": "2026-01-27T15:11:31.526462",
+  "entry_point": "app.skills.skills.pptx.pptx",
+  "dependencies": [],
+  "config_schema": null,
+  "usage_count": 0,
+  "avg_rating": 0.0
+}

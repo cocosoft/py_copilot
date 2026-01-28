@@ -1,0 +1,334 @@
+/* 高级图表样式 */
+
+/* 饼图样式 */
+.pie-chart__sector {
+  transition: all var(--ui-transition-fast);
+  cursor: pointer;
+}
+
+.pie-chart__sector:hover {
+  filter: brightness(1.1);
+  transform: scale(1.02);
+  transform-origin: center;
+}
+
+.pie-chart__label {
+  font-size: 10px;
+  font-weight: var(--ui-font-weight-bold);
+  fill: #fff;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+.pie-chart__center-text {
+  font-size: 12px;
+  fill: var(--ui-color-gray-700);
+  text-anchor: middle;
+  dominant-baseline: middle;
+  font-weight: var(--ui-font-weight-bold);
+}
+
+/* 散点图样式 */
+.scatter-chart__point {
+  transition: all var(--ui-transition-fast);
+  cursor: pointer;
+}
+
+.scatter-chart__point:hover {
+  r: 8;
+  stroke: #fff;
+  stroke-width: 2;
+}
+
+.scatter-chart__label {
+  font-size: 8px;
+  fill: var(--ui-color-gray-600);
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+.scatter-chart__regression-line {
+  stroke: var(--ui-color-error-500);
+  stroke-width: 2;
+  stroke-dasharray: 5, 5;
+}
+
+/* 面积图样式 */
+.area-chart__fill {
+  transition: opacity var(--ui-transition-fast);
+}
+
+.area-chart__fill:hover {
+  opacity: 0.5;
+}
+
+.area-chart__line {
+  stroke: var(--ui-color-primary-500);
+  stroke-width: 2;
+  transition: stroke-width var(--ui-transition-fast);
+}
+
+.area-chart__line:hover {
+  stroke-width: 3;
+}
+
+.area-chart__point {
+  transition: all var(--ui-transition-fast);
+  cursor: pointer;
+}
+
+.area-chart__point:hover {
+  r: 5;
+  fill: var(--ui-color-primary-600);
+}
+
+.area-chart__label {
+  font-size: 9px;
+  fill: var(--ui-color-gray-600);
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+/* 雷达图样式 */
+.radar-chart__grid-circle {
+  stroke: var(--ui-color-gray-200);
+  stroke-width: 1;
+  fill: none;
+}
+
+.radar-chart__axis {
+  stroke: var(--ui-color-gray-300);
+  stroke-width: 1;
+}
+
+.radar-chart__dimension-label {
+  font-size: 10px;
+  fill: var(--ui-color-gray-700);
+  font-weight: var(--ui-font-weight-medium);
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+.radar-chart__data-area {
+  fill-opacity: 0.3;
+  stroke-width: 2;
+  transition: all var(--ui-transition-fast);
+}
+
+.radar-chart__data-area:hover {
+  fill-opacity: 0.5;
+  stroke-width: 3;
+}
+
+.radar-chart__data-point {
+  transition: all var(--ui-transition-fast);
+  cursor: pointer;
+}
+
+.radar-chart__data-point:hover {
+  r: 6;
+  stroke: #fff;
+  stroke-width: 2;
+}
+
+/* 仪表盘样式 */
+.gauge-chart__background {
+  fill: var(--ui-color-gray-100);
+  stroke: var(--ui-color-gray-300);
+  stroke-width: 1;
+}
+
+.gauge-chart__value-arc {
+  fill: var(--ui-color-primary-500);
+  transition: all var(--ui-transition-normal);
+}
+
+.gauge-chart__tick {
+  stroke: var(--ui-color-gray-500);
+  stroke-width: 1;
+}
+
+.gauge-chart__tick-label {
+  font-size: 9px;
+  fill: var(--ui-color-gray-600);
+  text-anchor: middle;
+  dominant-baseline: middle;
+  font-weight: var(--ui-font-weight-medium);
+}
+
+.gauge-chart__needle {
+  stroke: var(--ui-color-error-500);
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: transform var(--ui-transition-normal);
+  transform-origin: 50% 50%;
+}
+
+.gauge-chart__value-text {
+  font-size: 16px;
+  fill: var(--ui-color-gray-900);
+  font-weight: var(--ui-font-weight-bold);
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+/* 图表交互效果 */
+.pie-chart__sector-group:hover .pie-chart__sector {
+  filter: brightness(1.15);
+}
+
+.scatter-chart__point-group:hover .scatter-chart__point {
+  r: 8;
+  stroke: #fff;
+  stroke-width: 2;
+}
+
+.radar-chart__data-group:hover .radar-chart__data-area {
+  fill-opacity: 0.4;
+  stroke-width: 3;
+}
+
+.radar-chart__data-group:hover .radar-chart__data-point {
+  r: 6;
+}
+
+/* 动画效果 */
+@keyframes chart-grow {
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.pie-chart__sector {
+  animation: chart-grow 0.5s ease-out;
+}
+
+.scatter-chart__point {
+  animation: chart-grow 0.3s ease-out;
+}
+
+.radar-chart__data-area {
+  animation: chart-grow 0.4s ease-out;
+}
+
+@keyframes needle-swing {
+  0% {
+    transform: rotate(-120deg);
+  }
+  100% {
+    transform: rotate(var(--current-angle, 0deg));
+  }
+}
+
+.gauge-chart__needle {
+  animation: needle-swing 1s ease-out;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .pie-chart__label {
+    font-size: 8px;
+  }
+  
+  .pie-chart__center-text {
+    font-size: 10px;
+  }
+  
+  .scatter-chart__label {
+    font-size: 7px;
+  }
+  
+  .radar-chart__dimension-label {
+    font-size: 8px;
+  }
+  
+  .gauge-chart__value-text {
+    font-size: 14px;
+  }
+  
+  .gauge-chart__tick-label {
+    font-size: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .pie-chart__label {
+    display: none;
+  }
+  
+  .scatter-chart__label {
+    display: none;
+  }
+  
+  .area-chart__label {
+    display: none;
+  }
+  
+  .radar-chart__dimension-label {
+    font-size: 7px;
+  }
+  
+  .gauge-chart__value-text {
+    font-size: 12px;
+  }
+}
+
+/* 高对比度模式支持 */
+@media (prefers-contrast: high) {
+  .pie-chart__sector {
+    stroke: var(--ui-color-gray-900);
+    stroke-width: 1;
+  }
+  
+  .scatter-chart__point {
+    stroke: var(--ui-color-gray-900);
+    stroke-width: 1;
+  }
+  
+  .radar-chart__data-area {
+    stroke: var(--ui-color-gray-900);
+    stroke-width: 2;
+  }
+  
+  .gauge-chart__tick {
+    stroke-width: 2;
+  }
+}
+
+/* 减少动画模式支持 */
+@media (prefers-reduced-motion: reduce) {
+  .pie-chart__sector,
+  .scatter-chart__point,
+  .radar-chart__data-area,
+  .gauge-chart__needle {
+    animation: none;
+    transition: none;
+  }
+  
+  .pie-chart__sector:hover,
+  .scatter-chart__point:hover,
+  .radar-chart__data-area:hover {
+    transform: none;
+  }
+}
+
+/* 触摸设备优化 */
+@media (hover: none) and (pointer: coarse) {
+  .pie-chart__sector,
+  .scatter-chart__point,
+  .radar-chart__data-point {
+    min-width: 24px;
+    min-height: 24px;
+  }
+  
+  .pie-chart__label,
+  .scatter-chart__label,
+  .area-chart__label {
+    font-size: 12px;
+  }
+}

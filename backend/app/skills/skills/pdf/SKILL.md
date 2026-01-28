@@ -1,7 +1,18 @@
 ---
-name: pdf
-description: Comprehensive PDF manipulation toolkit for extracting text and tables, creating new PDFs, merging/splitting documents, and handling forms. When Claude needs to fill in a PDF form or programmatically process, generate, or analyze PDF documents at scale.
+author: Unknown
+category: document
+description: Comprehensive PDF manipulation toolkit for extracting text and tables,
+  creating new PDFs, merging/splitting documents, and handling forms. When Claude
+  needs to fill in a PDF form or programmatically process, generate, or analyze PDF
+  documents at scale.
 license: Proprietary. LICENSE.txt has complete terms
+name: pdf
+tags:
+- migrated
+- document
+- standardized
+version: 1.0.0
+
 ---
 
 # PDF Processing Guide

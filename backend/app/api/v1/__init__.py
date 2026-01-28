@@ -1,6 +1,9 @@
 """API v1 版本路由初始化"""
 from fastapi import APIRouter
 
+# 导入配置
+from app.core.config import settings
+
 # 从模块化的API中导入路由
 from app.modules.auth.api.auth import router as auth_router
 from app.modules.conversation.api.conversations import router as conversation_router
@@ -32,6 +35,7 @@ from app.api.v1.search_management import router as search_management_router
 from app.api.v1.supplier_model import router as supplier_model_v1_router
 from app.api.v1.skills import router as skills_router
 from app.api.v1.external_skills import router as external_skills_router
+from app.api.v1.skill_management_router import router as skill_management_router
 
 api_router = APIRouter()
 
@@ -69,12 +73,33 @@ api_router.include_router(agents_router, prefix="/agents", tags=["agents"])
 api_router.include_router(agent_parameters_router, prefix="/agents", tags=["agent-parameters"])
 api_router.include_router(agent_categories_router, prefix="/agent-categories", tags=["agent-categories"])
 api_router.include_router(knowledge_router, prefix="/knowledge", tags=["knowledge"])
-api_router.include_router(knowledge_graph_router, prefix="/knowledge-graph", tags=["knowledge-graph"])
-api_router.include_router(entity_config_router, tags=["entity-config"])
+
+# 根据配置决定是否启用知识图谱功能
+if settings.enable_knowledge_graph:
+    api_router.include_router(knowledge_graph_router, prefix="/knowledge-graph", tags=["knowledge-graph"])
+    api_router.include_router(entity_config_router, tags=["entity-config"])
+else:
+    # 知识图谱功能禁用时，返回友好的错误信息
+    from fastapi import HTTPException
+    
+    @api_router.get("/knowledge-graph/{path:path}")
+    @api_router.post("/knowledge-graph/{path:path}")
+    @api_router.put("/knowledge-graph/{path:path}")
+    @api_router.delete("/knowledge-graph/{path:path}")
+    async def knowledge_graph_disabled():
+        raise HTTPException(status_code=503, detail="知识图谱功能暂时禁用，正在优化中")
+    
+    @api_router.get("/entity-config/{path:path}")
+    @api_router.post("/entity-config/{path:path}")
+    @api_router.put("/entity-config/{path:path}")
+    @api_router.delete("/entity-config/{path:path}")
+    async def entity_config_disabled():
+        raise HTTPException(status_code=503, detail="实体配置功能暂时禁用，正在优化中")
 api_router.include_router(workflow_router, tags=["workflows"])
 api_router.include_router(search_management_router)
 api_router.include_router(skills_router, prefix="/skills", tags=["skills"])
 api_router.include_router(external_skills_router, prefix="/external-skills", tags=["external-skills"])
+api_router.include_router(skill_management_router, prefix="/skill-management", tags=["skill-management"])
 api_router.include_router(memory_router, prefix="/memory", tags=["memory"])
 
 # 注册翻译历史路由

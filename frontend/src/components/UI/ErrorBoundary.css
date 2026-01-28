@@ -1,0 +1,282 @@
+/* 错误边界组件样式 */
+.ui-error-boundary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  padding: 40px 20px;
+  background-color: var(--ui-color-gray-50);
+  border: 1px solid var(--ui-color-gray-200);
+  border-radius: var(--ui-radius-lg);
+  text-align: center;
+}
+
+.ui-error-boundary__content {
+  max-width: 400px;
+  width: 100%;
+}
+
+.ui-error-boundary__icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.7;
+}
+
+.ui-error-boundary__title {
+  font-size: var(--ui-font-size-xl);
+  font-weight: var(--ui-font-weight-semibold);
+  color: var(--ui-color-gray-900);
+  margin: 0 0 8px 0;
+}
+
+.ui-error-boundary__message {
+  font-size: var(--ui-font-size-base);
+  color: var(--ui-color-gray-600);
+  line-height: var(--ui-line-height-normal);
+  margin: 0 0 24px 0;
+}
+
+/* 错误详情 */
+.ui-error-boundary__details {
+  margin: 0 0 24px 0;
+  text-align: left;
+}
+
+.ui-error-boundary__details summary {
+  cursor: pointer;
+  font-weight: var(--ui-font-weight-medium);
+  color: var(--ui-color-gray-700);
+  padding: 8px 0;
+  outline: none;
+}
+
+.ui-error-boundary__details summary:hover {
+  color: var(--ui-color-gray-900);
+}
+
+.ui-error-boundary__error-info {
+  padding: 12px;
+  background-color: var(--ui-color-gray-100);
+  border-radius: var(--ui-radius-md);
+  margin-top: 8px;
+}
+
+.ui-error-boundary__error-info p {
+  margin: 0 0 8px 0;
+  font-size: var(--ui-font-size-sm);
+}
+
+.ui-error-boundary__error-info p:last-child {
+  margin-bottom: 0;
+}
+
+.ui-error-boundary__stack {
+  background-color: var(--ui-color-gray-900);
+  color: var(--ui-color-gray-100);
+  padding: 12px;
+  border-radius: var(--ui-radius-sm);
+  font-size: var(--ui-font-size-xs);
+  line-height: var(--ui-line-height-normal);
+  overflow-x: auto;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+/* 错误边界操作按钮 */
+.ui-error-boundary__actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.ui-error-boundary__button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: var(--ui-radius-md);
+  font-size: var(--ui-font-size-sm);
+  font-weight: var(--ui-font-weight-medium);
+  cursor: pointer;
+  transition: all var(--ui-transition-fast);
+  min-width: 100px;
+}
+
+.ui-error-boundary__button--primary {
+  background-color: var(--ui-color-primary-500);
+  color: var(--ui-color-white);
+}
+
+.ui-error-boundary__button--primary:hover {
+  background-color: var(--ui-color-primary-600);
+  transform: translateY(-1px);
+}
+
+.ui-error-boundary__button--secondary {
+  background-color: var(--ui-color-gray-200);
+  color: var(--ui-color-gray-700);
+}
+
+.ui-error-boundary__button--secondary:hover {
+  background-color: var(--ui-color-gray-300);
+}
+
+/* 错误消息组件样式 */
+.ui-error-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--ui-radius-md);
+  border-left: 4px solid;
+  background-color: var(--ui-color-white);
+  box-shadow: var(--ui-shadow-sm);
+  margin-bottom: 16px;
+}
+
+/* 错误消息类型 */
+.ui-error-message--error {
+  border-left-color: var(--ui-color-danger-500);
+  background-color: var(--ui-color-danger-50);
+}
+
+.ui-error-message--warning {
+  border-left-color: var(--ui-color-warning-500);
+  background-color: var(--ui-color-warning-50);
+}
+
+.ui-error-message--info {
+  border-left-color: var(--ui-color-primary-500);
+  background-color: var(--ui-color-primary-50);
+}
+
+/* 错误消息图标 */
+.ui-error-message__icon {
+  font-size: 20px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.ui-error-message--error .ui-error-message__icon {
+  color: var(--ui-color-danger-600);
+}
+
+.ui-error-message--warning .ui-error-message__icon {
+  color: var(--ui-color-warning-600);
+}
+
+.ui-error-message--info .ui-error-message__icon {
+  color: var(--ui-color-primary-600);
+}
+
+/* 错误消息内容 */
+.ui-error-message__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.ui-error-message__title {
+  font-size: var(--ui-font-size-base);
+  font-weight: var(--ui-font-weight-semibold);
+  color: var(--ui-color-gray-900);
+  margin: 0 0 4px 0;
+}
+
+.ui-error-message__message {
+  font-size: var(--ui-font-size-sm);
+  color: var(--ui-color-gray-700);
+  line-height: var(--ui-line-height-normal);
+  margin: 0;
+}
+
+/* 关闭按钮 */
+.ui-error-message__close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: var(--ui-color-gray-500);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--ui-radius-sm);
+  transition: all var(--ui-transition-fast);
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ui-error-message__close:hover {
+  background-color: var(--ui-color-gray-200);
+  color: var(--ui-color-gray-700);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .ui-error-boundary {
+    padding: 24px 16px;
+    min-height: 150px;
+  }
+  
+  .ui-error-boundary__icon {
+    font-size: 36px;
+  }
+  
+  .ui-error-boundary__title {
+    font-size: var(--ui-font-size-lg);
+  }
+  
+  .ui-error-boundary__actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .ui-error-boundary__button {
+    width: 100%;
+    min-width: auto;
+  }
+  
+  .ui-error-message {
+    padding: 12px;
+    gap: 8px;
+  }
+  
+  .ui-error-message__icon {
+    font-size: 18px;
+  }
+  
+  .ui-error-message__title {
+    font-size: var(--ui-font-size-sm);
+  }
+  
+  .ui-error-message__message {
+    font-size: var(--ui-font-size-xs);
+  }
+}
+
+/* 动画效果 */
+.ui-error-message {
+  animation: ui-error-message-fade-in 0.3s ease-out;
+}
+
+@keyframes ui-error-message-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 可访问性增强 */
+.ui-error-boundary:focus {
+  outline: 2px solid var(--ui-color-primary-500);
+  outline-offset: 2px;
+}
+
+.ui-error-message:focus-within {
+  outline: 2px solid var(--ui-color-primary-500);
+  outline-offset: 2px;
+}

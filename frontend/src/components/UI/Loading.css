@@ -1,0 +1,250 @@
+/* 加载组件样式 */
+.ui-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ui-color-primary-500);
+}
+
+/* 加载类型 */
+.ui-loading--spinner {
+  /* 默认样式 */
+}
+
+.ui-loading--dots {
+  /* 点状加载器样式 */
+}
+
+.ui-loading--pulse {
+  /* 脉冲加载器样式 */
+}
+
+.ui-loading--skeleton {
+  /* 骨架屏样式 */
+}
+
+/* 加载大小 */
+.ui-loading--small {
+  font-size: 14px;
+}
+
+.ui-loading--medium {
+  font-size: 16px;
+}
+
+.ui-loading--large {
+  font-size: 20px;
+}
+
+/* 覆盖层样式 */
+.ui-loading--overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.8);
+  z-index: var(--ui-z-index-modal);
+}
+
+/* 全屏样式 */
+.ui-loading--fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.9);
+  z-index: var(--ui-z-index-modal);
+}
+
+/* 加载内容容器 */
+.ui-loading__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+/* 旋转加载器 */
+.ui-loading__spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ui-loading__spinner-svg {
+  width: 1em;
+  height: 1em;
+  animation: ui-loading-spin 1s linear infinite;
+}
+
+/* 点状加载器 */
+.ui-loading__dots {
+  display: flex;
+  gap: 4px;
+}
+
+.ui-loading__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+  animation: ui-loading-dot-bounce 1.4s ease-in-out infinite both;
+}
+
+.ui-loading__dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.ui-loading__dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+/* 脉冲加载器 */
+.ui-loading__pulse {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ui-loading__pulse-circle {
+  width: 1em;
+  height: 1em;
+  border-radius: 50%;
+  background-color: currentColor;
+  animation: ui-loading-pulse 2s ease-in-out infinite;
+}
+
+/* 骨架屏 */
+.ui-loading__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.ui-loading__skeleton-line {
+  height: 12px;
+  background: linear-gradient(90deg, 
+    var(--ui-color-gray-200) 25%, 
+    var(--ui-color-gray-300) 50%, 
+    var(--ui-color-gray-200) 75%);
+  background-size: 200% 100%;
+  border-radius: 4px;
+  animation: ui-loading-skeleton 2s ease-in-out infinite;
+}
+
+.ui-loading__skeleton-line--short {
+  width: 60%;
+}
+
+/* 加载文本 */
+.ui-loading__text {
+  font-size: 0.875em;
+  color: var(--ui-color-gray-600);
+  font-weight: var(--ui-font-weight-medium);
+}
+
+/* 骨架屏组件 */
+.ui-skeleton {
+  background: linear-gradient(90deg, 
+    var(--ui-color-gray-200) 25%, 
+    var(--ui-color-gray-300) 50%, 
+    var(--ui-color-gray-200) 75%);
+  background-size: 200% 100%;
+  border-radius: var(--ui-radius-sm);
+  animation: ui-loading-skeleton 2s ease-in-out infinite;
+}
+
+.ui-skeleton--text {
+  border-radius: 4px;
+}
+
+.ui-skeleton--circle {
+  border-radius: 50%;
+}
+
+.ui-skeleton--rect {
+  border-radius: var(--ui-radius-sm);
+}
+
+.ui-skeleton--pulse {
+  animation: ui-loading-pulse 2s ease-in-out infinite;
+}
+
+.ui-skeleton--wave {
+  background: linear-gradient(90deg, 
+    var(--ui-color-gray-200) 25%, 
+    var(--ui-color-gray-300) 37%, 
+    var(--ui-color-gray-200) 63%);
+  background-size: 400% 100%;
+  animation: ui-loading-wave 1.4s ease infinite;
+}
+
+/* 动画定义 */
+@keyframes ui-loading-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ui-loading-dot-bounce {
+  0%, 80%, 100% {
+    transform: scale(0);
+  }
+  40% {
+    transform: scale(1);
+  }
+}
+
+@keyframes ui-loading-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+}
+
+@keyframes ui-loading-skeleton {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes ui-loading-wave {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .ui-loading--medium {
+    font-size: 14px;
+  }
+  
+  .ui-loading--large {
+    font-size: 16px;
+  }
+  
+  .ui-loading__content {
+    gap: 8px;
+  }
+  
+  .ui-loading__text {
+    font-size: 0.75em;
+  }
+}

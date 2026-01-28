@@ -1,0 +1,25 @@
+author: Unknown
+author_email: null
+avg_rating: 0.0
+category: !!python/object/apply:app.schemas.skill_metadata.SkillCategory
+- document
+config_schema: null
+created_at: '2026-01-27T15:11:31.522311'
+dependencies: []
+description: 'Presentation creation, editing, and analysis. When Claude needs to work
+  with presentations (.pptx files) for: (1) Creating new presentations, (2) Modifying
+  or editing content, (3) Working with layouts, (4) Adding comments or speaker notes,
+  or any other presentation tasks'
+entry_point: app.skills.skills.pptx.pptx
+license: Proprietary. LICENSE.txt has complete terms
+name: pptx
+skill_id: pptx
+status: !!python/object/apply:app.schemas.skill_metadata.SkillStatus
+- active
+tags:
+- migrated
+- document
+- standardized
+updated_at: '2026-01-27T15:11:31.526462'
+usage_count: 0
+version: 1.0.0

@@ -1,0 +1,23 @@
+{
+  "skill_id": "skill-creator",
+  "name": "skill-creator",
+  "description": "Guide for creating effective skills. This skill should be used when users want to create a new skill (or update an existing skill) that extends Claude's capabilities with specialized knowledge, workflows, or tool integrations.",
+  "version": "1.0.0",
+  "category": "development",
+  "tags": [
+    "migrated",
+    "development",
+    "standardized"
+  ],
+  "author": "Unknown",
+  "author_email": null,
+  "license": "Complete terms in LICENSE.txt",
+  "status": "active",
+  "created_at": "2026-01-27T15:11:31.531757",
+  "updated_at": "2026-01-27T15:11:31.532779",
+  "entry_point": "app.skills.skills.skill-creator",
+  "dependencies": [],
+  "config_schema": null,
+  "usage_count": 0,
+  "avg_rating": 0.0
+}
