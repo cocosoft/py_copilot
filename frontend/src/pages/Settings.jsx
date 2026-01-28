@@ -8,6 +8,7 @@ import Knowledge from './Knowledge';
 import Workflow from './Workflow';
 import Tool from './Tool';
 import ModelSelectDropdown from '../components/ModelManagement/ModelSelectDropdown';
+import SkillManagement from '../components/SkillManagement/SkillManagement';
 
 
 const Settings = () => {
@@ -710,6 +711,13 @@ const Settings = () => {
           </div>
         );
       
+      case 'skill':
+        return (
+          <div className="settings-content">
+            <SkillManagement />
+          </div>
+        );
+      
       case 'search':
         return (
           <div className="settings-content">
@@ -1402,6 +1410,14 @@ const Settings = () => {
             >
               <span className="nav-icon">🔧</span>
               <span className="nav-text">工具管理</span>
+            </button>
+            
+            <button 
+              className={`nav-item ${activeSection === 'skill' ? 'active' : ''}`}
+              onClick={() => setActiveSection('skill')}
+            >
+              <span className="nav-icon">🎯</span>
+              <span className="nav-text">技能管理</span>
             </button>
             
             <button 

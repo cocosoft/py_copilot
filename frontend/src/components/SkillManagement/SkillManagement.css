@@ -797,6 +797,42 @@
   cursor: pointer;
 }
 
+/* 技能管理组件样式 */
+.skill-management {
+  padding: 20px;
+  background-color: #f8f9fa;
+  min-height: 100%;
+}
+
+.skill-management-header {
+  margin-bottom: 24px;
+  padding: 20px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.skill-management-header h2 {
+  margin: 0 0 8px 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.skill-management-header p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.skill-management-content {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
 .cancel-btn:hover {
   background-color: #5a6268;
 }

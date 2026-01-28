@@ -5,7 +5,6 @@ import ModelCategoryManagement from '../CapabilityManagement/ModelCategoryManage
 import CapabilityManagementTabs from '../CapabilityManagement/CapabilityManagementTabs';
 import ParameterManagementMain from './ParameterManagementMain';
 import DefaultModelManagement from './DefaultModelManagement';
-import { SkillList } from '../SkillManagement';
 import { useSupplier } from '../../contexts/SupplierContext';
 import api from '../../utils/api';
 import '../../styles/IntegratedModelManagement.css';
@@ -103,12 +102,6 @@ const IntegratedModelManagement = () => {
               >
                 默认模型
               </button>
-              <button 
-                className={`tab-button ${activeTab === 'skills' ? 'active' : ''}`}
-                onClick={() => setActiveTab('skills')}
-              >
-                技能管理
-              </button>
             </div>
             <div className="tab-content">
               {activeTab === 'models' && (
@@ -166,15 +159,6 @@ const IntegratedModelManagement = () => {
                 
                 <div className="parameters-content">
                   <ParameterManagementMain selectedSupplier={null} />
-                </div>
-              )}
-              {activeTab === 'skills' && (
-                <div className="skills-management">
-                  <div className="section-header">
-                    <h2>技能管理</h2>
-                    <p>管理和配置 AI 助手可用的技能</p>
-                  </div>
-                  <SkillList />
                 </div>
               )}
               {activeTab === 'defaultModel' && (
