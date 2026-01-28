@@ -2,6 +2,71 @@
   padding: 20px 0;
 }
 
+/* 技能管理标签页样式 */
+.skill-management-tabs {
+  display: flex;
+  border-bottom: 1px solid #e1e5e9;
+  margin-bottom: 24px;
+  background-color: #f8fafc;
+  border-radius: 8px 8px 0 0;
+  padding: 0 16px;
+}
+
+.skill-management-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #64748b;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.skill-management-tab:hover {
+  color: #3b82f6;
+  background-color: rgba(59, 130, 246, 0.05);
+}
+
+.skill-management-tab.active {
+  color: #3b82f6;
+  border-bottom-color: #3b82f6;
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+.skill-management-tab .tab-icon {
+  font-size: 16px;
+}
+
+.skill-management-tab .tab-text {
+  white-space: nowrap;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .skill-management-tabs {
+    flex-direction: column;
+    padding: 0;
+  }
+  
+  .skill-management-tab {
+    justify-content: center;
+    border-bottom: none;
+    border-right: 3px solid transparent;
+    border-radius: 0;
+  }
+  
+  .skill-management-tab.active {
+    border-right-color: #3b82f6;
+    border-bottom: none;
+  }
+}
+
 .skill-list-header {
   display: flex;
   align-items: center;

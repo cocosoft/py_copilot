@@ -157,17 +157,42 @@ const useSkillMarket = () => {
     setError(null);
     
     try {
-      // 模拟API调用延迟
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // 从真实API获取数据
+      const response = await fetch('/api/v1/skill-management/market');
       
-      // 实际项目中这里应该是真实的API调用
-      // const response = await fetch('/api/skills/market');
-      // const data = await response.json();
+      if (!response.ok) {
+        throw new Error(`API调用失败: ${response.status}`);
+      }
       
-      setSkills(mockSkills);
+      const data = await response.json();
+      
+      // 转换API响应格式以匹配前端期望的格式
+      const formattedSkills = data.skills.map(skill => ({
+        id: skill.id,
+        name: skill.name,
+        description: skill.description,
+        category: skill.category,
+        tags: skill.tags || [],
+        rating: skill.rating,
+        reviewCount: Math.floor(skill.downloads * 0.1), // 模拟评论数
+        downloads: skill.downloads,
+        version: skill.version,
+        size: `${Math.floor(Math.random() * 5) + 1}.${Math.floor(Math.random() * 10)} MB`, // 模拟大小
+        lastUpdated: skill.last_updated,
+        author: skill.author,
+        official: skill.official,
+        popular: skill.popular,
+        installed: skill.installed,
+        icon: skill.icon
+      }));
+      
+      setSkills(formattedSkills);
     } catch (err) {
       setError(err);
       console.error('获取技能数据失败:', err);
+      
+      // 错误时使用模拟数据作为后备
+      setSkills(mockSkills);
     } finally {
       setIsLoading(false);
     }
@@ -176,11 +201,20 @@ const useSkillMarket = () => {
   // 安装技能
   const installSkill = useCallback(async (skillId) => {
     try {
-      // 模拟API调用
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // 调用真实API
+      const response = await fetch('/api/v1/skill-management/install', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ skill_id: skillId, source: 'market' })
+      });
       
-      // 实际项目中这里应该是真实的API调用
-      // await fetch(`/api/skills/${skillId}/install`, { method: 'POST' });
+      if (!response.ok) {
+        throw new Error(`安装技能失败: ${response.status}`);
+      }
+      
+      const result = await response.json();
       
       // 更新本地状态
       setSkills(prevSkills => 
@@ -189,7 +223,8 @@ const useSkillMarket = () => {
         )
       );
       
-      console.log(`技能 ${skillId} 安装成功`);
+      console.log(`技能 ${skillId} 安装成功`, result);
+      return result;
     } catch (err) {
       console.error(`安装技能 ${skillId} 失败:`, err);
       throw err;
@@ -199,11 +234,20 @@ const useSkillMarket = () => {
   // 卸载技能
   const uninstallSkill = useCallback(async (skillId) => {
     try {
-      // 模拟API调用
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // 调用真实API
+      const response = await fetch('/api/v1/skill-management/uninstall', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ skill_id: skillId })
+      });
       
-      // 实际项目中这里应该是真实的API调用
-      // await fetch(`/api/skills/${skillId}/uninstall`, { method: 'POST' });
+      if (!response.ok) {
+        throw new Error(`卸载技能失败: ${response.status}`);
+      }
+      
+      const result = await response.json();
       
       // 更新本地状态
       setSkills(prevSkills => 
@@ -212,7 +256,8 @@ const useSkillMarket = () => {
         )
       );
       
-      console.log(`技能 ${skillId} 卸载成功`);
+      console.log(`技能 ${skillId} 卸载成功`, result);
+      return result;
     } catch (err) {
       console.error(`卸载技能 ${skillId} 失败:`, err);
       throw err;

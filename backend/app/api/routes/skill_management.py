@@ -49,41 +49,89 @@ async def get_market_skills(
 ):
     """获取技能市场中的技能列表"""
     try:
-        # 这里应该从技能市场API获取数据
-        # 暂时返回模拟数据
-        mock_skills = [
-            {
-                "id": "data-analysis",
-                "name": "数据分析助手",
-                "description": "强大的数据分析工具，支持多种数据格式和可视化",
-                "category": "数据分析",
-                "rating": 4.8,
-                "downloads": 2560,
-                "version": "1.2.3",
-                "author": "Py Copilot团队",
-                "official": True,
-                "popular": True,
-                "installed": False,
-                "last_updated": "2024-01-15T00:00:00"
-            },
-            {
-                "id": "web-scraping",
-                "name": "网页爬虫",
-                "description": "自动化网页数据采集工具，支持多种网站和反爬机制",
-                "category": "数据采集",
-                "rating": 4.5,
-                "downloads": 1870,
-                "version": "2.1.0",
-                "author": "WebTools Inc.",
+        from app.core.database import get_db
+        from app.models.skill import Skill, RemoteSkill
+        from sqlalchemy.orm import Session
+        
+        db: Session = next(get_db())
+        
+        # 获取本地技能
+        local_skills = db.query(Skill).all()
+        
+        # 获取远程技能
+        remote_skills = db.query(RemoteSkill).all()
+        
+        # 构建技能市场数据
+        market_skills = []
+        
+        # 添加本地技能
+        for skill in local_skills:
+            # 从tags中提取分类
+            skill_category = None
+            if skill.tags:
+                # 尝试从tags中获取分类
+                for tag in skill.tags:
+                    if isinstance(tag, dict) and tag.get('type') == 'category':
+                        skill_category = tag.get('value')
+                        break
+                    elif isinstance(tag, str):
+                        # 简单处理：使用第一个标签作为分类
+                        skill_category = tag
+                        break
+            
+            # 计算评分（基于使用次数和执行成功次数）
+            usage_count = skill.usage_count or 0
+            rating = min(5.0, 3.0 + (usage_count / 100))  # 基础3分，每100次使用加1分，最高5分
+            
+            market_skills.append({
+                "id": skill.name,
+                "name": skill.display_name or skill.name,
+                "description": skill.description or "",
+                "category": skill_category or "其他",
+                "rating": round(rating, 1),
+                "downloads": usage_count,
+                "version": skill.version,
+                "author": skill.author or "未知",
+                "official": skill.is_system,
+                "popular": usage_count > 10,  # 使用次数超过10次视为热门
+                "installed": True,  # 本地技能已安装
+                "last_updated": skill.updated_at.isoformat() if skill.updated_at else skill.created_at.isoformat(),
+                "icon": skill.icon
+            })
+        
+        # 添加远程技能
+        for remote_skill in remote_skills:
+            # 从tags中提取分类
+            skill_category = None
+            if remote_skill.tags:
+                # 尝试从tags中获取分类
+                for tag in remote_skill.tags:
+                    if isinstance(tag, dict) and tag.get('type') == 'category':
+                        skill_category = tag.get('value')
+                        break
+                    elif isinstance(tag, str):
+                        # 简单处理：使用第一个标签作为分类
+                        skill_category = tag
+                        break
+            
+            market_skills.append({
+                "id": remote_skill.remote_id or remote_skill.name,
+                "name": remote_skill.display_name or remote_skill.name,
+                "description": remote_skill.description or "",
+                "category": skill_category or "其他",
+                "rating": 4.0,  # 默认评分
+                "downloads": 0,  # 远程技能下载次数未知
+                "version": remote_skill.version or "1.0.0",
+                "author": remote_skill.author or "未知",
                 "official": False,
-                "popular": True,
-                "installed": False,
-                "last_updated": "2024-01-10T00:00:00"
-            }
-        ]
+                "popular": False,
+                "installed": remote_skill.is_installed,
+                "last_updated": remote_skill.updated_at.isoformat() if remote_skill.updated_at else remote_skill.created_at.isoformat(),
+                "icon": remote_skill.icon_url
+            })
         
         # 应用筛选条件
-        filtered_skills = mock_skills
+        filtered_skills = market_skills
         
         if category:
             filtered_skills = [s for s in filtered_skills if s['category'] == category]
@@ -99,10 +147,13 @@ async def get_market_skills(
         end_idx = start_idx + page_size
         paginated_skills = filtered_skills[start_idx:end_idx]
         
+        # 计算已安装技能数量
+        installed_count = sum(1 for skill in filtered_skills if skill['installed'])
+        
         return SkillListResponse(
             skills=paginated_skills,
             total_count=len(filtered_skills),
-            installed_count=0
+            installed_count=installed_count
         )
         
     except Exception as e:
