@@ -1,0 +1,119 @@
+.global-error-boundary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: #f5f5f5;
+  padding: 20px;
+}
+
+.global-error-boundary__content {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 30px;
+  max-width: 600px;
+  width: 100%;
+  text-align: center;
+}
+
+.global-error-boundary__icon {
+  font-size: 48px;
+  margin-bottom: 20px;
+}
+
+.global-error-boundary__title {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #333;
+}
+
+.global-error-boundary__message {
+  font-size: 16px;
+  color: #666;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.global-error-boundary__details {
+  text-align: left;
+  margin: 20px 0;
+  padding: 16px;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 14px;
+  overflow: auto;
+  max-height: 200px;
+}
+
+.global-error-boundary__error-info {
+  margin-top: 10px;
+}
+
+.global-error-boundary__stack {
+  margin-top: 10px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  color: #d9534f;
+}
+
+.global-error-boundary__actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 24px;
+  flex-wrap: wrap;
+}
+
+.global-error-boundary__button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.global-error-boundary__button--primary {
+  background-color: #007bff;
+  color: white;
+}
+
+.global-error-boundary__button--primary:hover {
+  background-color: #0069d9;
+}
+
+.global-error-boundary__button--secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.global-error-boundary__button--secondary:hover {
+  background-color: #5a6268;
+}
+
+@media (max-width: 480px) {
+  .global-error-boundary__content {
+    padding: 20px;
+  }
+  
+  .global-error-boundary__title {
+    font-size: 20px;
+  }
+  
+  .global-error-boundary__message {
+    font-size: 14px;
+  }
+  
+  .global-error-boundary__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .global-error-boundary__button {
+    width: 100%;
+  }
+}

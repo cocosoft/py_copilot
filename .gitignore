@@ -764,3 +764,5 @@ backend/tests/test_performance_monitoring.py
 backend/tests/test_performance_stress.py
 backend/tests/test_websocket_connections.py
 backend/app/agents/test_knowledge_integration.py
+统一错误处理优化方案.md
+优化建议文档.md

@@ -8,6 +8,7 @@ import LoginForm from './components/LoginForm';
 import { isAuthenticated } from './utils/authUtils';
 import { StoreProvider, StoreMonitor, useStateManager } from './utils/storeManager';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import GlobalErrorBoundary from './components/UI/GlobalErrorBoundary';
 
 // 创建React Query客户端实例
 const queryClient = new QueryClient({
@@ -24,29 +25,31 @@ const queryClient = new QueryClient({
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <StoreProvider>
-        <Router
-          future={{
-            v7_startTransition: true,
-            v7_relativeSplatPath: true,
-          }}
-        >
-          <SupplierProvider>
-            <Routes>
-              {/* 登录页面路由 */}
-              <Route path="/login" element={<LoginForm />} />
-              
-              {/* 主应用路由 - 暂时取消认证要求 */}
-              <Route path="/*" element={<MainApp />} />
-            </Routes>
-          </SupplierProvider>
-        </Router>
-        
-        {/* 开发环境下的状态监控 */}
-        {process.env.NODE_ENV === 'development' && <StoreMonitor enabled={false} />}
-      </StoreProvider>
-    </QueryClientProvider>
+    <GlobalErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <StoreProvider>
+          <Router
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true,
+            }}
+          >
+            <SupplierProvider>
+              <Routes>
+                {/* 登录页面路由 */}
+                <Route path="/login" element={<LoginForm />} />
+                
+                {/* 主应用路由 - 暂时取消认证要求 */}
+                <Route path="/*" element={<MainApp />} />
+              </Routes>
+            </SupplierProvider>
+          </Router>
+          
+          {/* 开发环境下的状态监控 */}
+          {process.env.NODE_ENV === 'development' && <StoreMonitor enabled={false} />}
+        </StoreProvider>
+      </QueryClientProvider>
+    </GlobalErrorBoundary>
   );
 }
 

@@ -18,6 +18,20 @@ from urllib.parse import urlparse
 # 导入日志记录器
 from app.core.logging_config import logger
 
+# 导入错误处理相关模块
+from app.core.exception_handlers import (
+    app_exception_handler,
+    http_exception_handler,
+    validation_exception_handler,
+    general_exception_handler,
+    not_found_handler,
+    unicode_decode_error_handler
+)
+from app.core.error_middleware import error_context_middleware
+from app.core.exceptions import AppException
+from fastapi import HTTPException
+from fastapi.exceptions import RequestValidationError
+
 def signal_handler(signum, frame):
     """处理系统信号，实现优雅关闭"""
     logger.info(f"接收到信号 {signum}，正在优雅关闭服务器...")
@@ -135,17 +149,19 @@ app.add_middleware(
     allow_headers=CORS_HEADERS,
 )
 
-# 自定义异常处理器 - 处理UnicodeDecodeError
-@app.exception_handler(UnicodeDecodeError)
-async def unicode_decode_error_handler(request: Request, exc: UnicodeDecodeError):
-    """
-    处理UnicodeDecodeError异常，特别是在解析multipart/form-data请求时
-    """
-    logger.error(f"UnicodeDecodeError: {exc}")
-    return JSONResponse(
-        status_code=400,
-        content={"detail": "Bad request. There was an error processing your request."},
-    )
+# 添加错误上下文中间件 - 使用正确的middleware装饰器方式
+@app.middleware("http")
+async def error_context_middleware_wrapper(request: Request, call_next):
+    """错误上下文中间件包装器"""
+    return await error_context_middleware(request, call_next)
+
+# 注册异常处理器
+app.exception_handler(AppException)(app_exception_handler)
+app.exception_handler(HTTPException)(http_exception_handler)
+app.exception_handler(RequestValidationError)(validation_exception_handler)
+app.exception_handler(Exception)(general_exception_handler)
+app.exception_handler(404)(not_found_handler)
+app.exception_handler(UnicodeDecodeError)(unicode_decode_error_handler)
 
 # 自定义请求验证异常处理器 - 覆盖默认处理器
 # @app.exception_handler(RequestValidationError)
@@ -264,21 +280,7 @@ async def detailed_health_check():
         "timestamp": time.time()
     }
 
-# 404异常处理
-@app.exception_handler(404)
-async def not_found_handler(request: Request, exc):
-    return JSONResponse(
-        status_code=404,
-        content={"detail": "Not Found"},
-    )
 
-# 500异常处理
-@app.exception_handler(500)
-async def internal_server_error_handler(request: Request, exc):
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "Internal Server Error"},
-    )
 
 # 图片代理端点，用于处理外部URL的logo请求，避免ORB安全限制
 @app.get("/proxy-image")

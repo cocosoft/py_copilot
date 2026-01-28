@@ -1,6 +1,7 @@
 import axios from 'axios';
-import { showToast, showSuccess, showError, showWarning } from '../components/UI';
 import useAuthStore from '../stores/authStore';
+import useErrorStore from '../stores/errorStore';
+import errorService from './errorService';
 
 // Create axios instance
 const apiClient = axios.create({
@@ -20,10 +21,13 @@ apiClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // Add request timestamp for debugging
-    if (import.meta.env.DEV) {
-      config.metadata = { startTime: new Date() };
-    }
+    // Add request timestamp and ID for debugging
+    const requestId = errorService.generateRequestId();
+    config.headers['X-Request-ID'] = requestId;
+    config.metadata = {
+      startTime: new Date(),
+      requestId
+    };
 
     return config;
   },
@@ -44,61 +48,18 @@ apiClient.interceptors.response.use(
     return response;
   },
   (error) => {
-    const { response, config } = error;
-
-    // Handle different error scenarios
-    if (response) {
-      const { status, data } = response;
-
-      switch (status) {
-        case 401:
-          // Unauthorized - clear auth and redirect to login
-          useAuthStore.getState().logout();
-          showError('登录已过期，请重新登录');
-          if (window.location.pathname !== '/login') {
-            window.location.href = '/login';
-          }
-          break;
-
-        case 403:
-          showError('权限不足，无法访问该资源');
-          break;
-
-        case 404:
-          showError('请求的资源不存在');
-          break;
-
-        case 422:
-          // Validation errors
-          if (data?.detail) {
-            if (Array.isArray(data.detail)) {
-              data.detail.forEach(err => showError(err.msg || '验证错误'));
-            } else {
-              showError(data.detail);
-            }
-          }
-          break;
-
-        case 429:
-          showWarning('请求过于频繁，请稍后再试');
-          break;
-
-        case 500:
-          showError('服务器内部错误，请稍后重试');
-          break;
-
-        default:
-          showError(data?.message || '请求失败，请稍后重试');
+    // 使用错误处理服务处理错误
+    const normalizedError = useErrorStore.getState().handleApiError(error);
+    
+    // 特殊处理认证错误
+    if (normalizedError.code === 'AUTH_001' || normalizedError.code === 'AUTH_002') {
+      useAuthStore.getState().logout();
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
       }
-    } else if (error.request) {
-      // Network error
-      showError('网络连接失败，请检查网络设置');
-    } else {
-      // Other errors
-      showError('请求配置错误');
     }
 
-    return Promise.reject(error);
+    return Promise.reject(normalizedError);
   }
 );
 
