@@ -1,0 +1,40 @@
+id: document-translator
+name: Document Translator
+description: 多语言文档翻译工具
+version: 1.0.0
+author: Py Copilot Team
+category: document
+tags:
+  - translation
+  - document
+  - multilingual
+  - pdf
+  - word
+license: MIT
+compatibility: Py Copilot 1.0+
+dependencies:
+  googletrans: ">=4.0.0"
+  python-docx: ">=0.8.11"
+  PyPDF2: ">=3.0.0"
+skill_dependencies:
+  - pdf
+  - docx
+config:
+  default_source_lang: auto
+  default_target_lang: zh
+parameters:
+  - name: file_path
+    type: string
+    description: 要翻译的文档路径
+    required: true
+  - name: source_lang
+    type: string
+    description: 源语言代码
+    default: auto
+  - name: target_lang
+    type: string
+    description: 目标语言代码
+    default: zh
+output:
+  type: file
+  format: 与输入文档相同

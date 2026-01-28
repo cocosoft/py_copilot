@@ -309,3 +309,18 @@ class SkillRegistry:
 
 # 创建全局技能注册表实例
 skill_registry = SkillRegistry()
+
+# 全局函数定义
+def get_skill_registry() -> SkillRegistry:
+    """获取全局技能注册表实例"""
+    return skill_registry
+
+def initialize_skill_registry() -> None:
+    """初始化技能注册表"""
+    # 这里可以添加初始化逻辑
+    pass
+
+def refresh_skill_registry() -> None:
+    """刷新技能注册表"""
+    # 这里可以添加刷新逻辑
+    pass

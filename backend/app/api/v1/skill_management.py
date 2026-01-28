@@ -18,7 +18,27 @@ if str(parent_dir) not in sys.path:
     sys.path.insert(0, str(parent_dir))
 
 from app.skills.skill_registry import get_skill_registry, refresh_skill_registry
-from app.schemas.skill_metadata import SkillMetadata, SkillCategory, SkillStatus, SkillSearchFilter
+from app.schemas.skill_metadata import SkillMetadata, SkillSearchRequest
+
+# 定义技能分类枚举（临时修复）
+from enum import Enum
+
+class SkillCategory(str, Enum):
+    """技能分类枚举"""
+    DESIGN = "design"
+    DOCUMENT = "document"
+    DATA = "data"
+    COMMUNICATION = "communication"
+    DEVELOPMENT = "development"
+    UTILITY = "utility"
+
+# 定义技能状态枚举（临时修复）
+class SkillStatus(str, Enum):
+    """技能状态枚举"""
+    ACTIVE = "active"
+    DISABLED = "disabled"
+    DEPRECATED = "deprecated"
+    EXPERIMENTAL = "experimental"
 
 router = APIRouter()
 

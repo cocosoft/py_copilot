@@ -22,7 +22,17 @@ if str(parent_dir) not in sys.path:
     sys.path.insert(0, str(parent_dir))
 
 # 从app.schemas导入
-from app.schemas.skill_metadata import SkillMetadata, SkillCategory, SkillStatus, SkillDependency
+from app.schemas.skill_metadata import SkillMetadata, SkillDependency
+
+# 定义技能分类枚举（临时修复）
+class SkillCategory:
+    """技能分类枚举"""
+    DESIGN = "design"
+    DOCUMENT = "document"
+    DATA = "data"
+    COMMUNICATION = "communication"
+    DEVELOPMENT = "development"
+    UTILITY = "utility"
 
 logger = logging.getLogger(__name__)
 

@@ -1,0 +1,48 @@
+{
+    "id": "slack-gif-creator",
+    "name": "Slack GIF Creator",
+    "description": "创建和优化用于Slack的GIF动画",
+    "long_description": "专门为Slack平台设计的高质量GIF动画创建工具，支持帧率优化、尺寸调整和文件压缩",
+    "version": "1.0.0",
+    "category": "communication",
+    "tags": ["slack", "gif", "animation", "communication"],
+    "author": "Py Copilot Team",
+    "author_email": "team@pycopilot.com",
+    "official": true,
+    "popular": false,
+    "installed": false,
+    "rating": 4.2,
+    "review_count": 0,
+    "downloads": 0,
+    "size": "1.2MB",
+    "last_updated": "2024-01-28T00:00:00",
+    "compatibility": "Py Copilot 1.0+",
+    "license": "MIT",
+    "dependencies": {
+        "Pillow": ">=9.0.0",
+        "numpy": ">=1.21.0"
+    },
+    "skill_dependencies": [],
+    "examples": [
+        {
+            "title": "创建欢迎GIF",
+            "description": "为团队创建欢迎新成员的GIF动画",
+            "code": "from slack_gif_creator import create_welcome_gif\nresult = create_welcome_gif({'text': 'Welcome!', 'theme': 'corporate'})"
+        }
+    ],
+    "config_schema": {
+        "type": "object",
+        "properties": {
+            "frame_duration": {
+                "type": "integer",
+                "default": 100,
+                "description": "每帧持续时间（毫秒）"
+            },
+            "max_file_size": {
+                "type": "integer", 
+                "default": 5000000,
+                "description": "最大文件大小（字节）"
+            }
+        }
+    }
+}

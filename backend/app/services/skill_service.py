@@ -42,18 +42,21 @@ class SkillService:
             query = query.filter(Skill.status == status)
         
         if tags:
-            for tag in tags:
-                # 对于SQLite，使用字符串匹配方式检查JSON数组是否包含特定元素
-                # SQLite将JSON数组存储为字符串，例如 ["tag1", "tag2"]
-                # 我们需要精确匹配标签，考虑三种情况：开头、中间、结尾
-                query = query.filter(
-                    or_(
-                        Skill.tags.like(f"%[\"{tag}\"]%"),    # 匹配只有一个标签的情况
-                        Skill.tags.like(f"%[\"{tag}\",%"),   # 匹配开头的标签
-                        Skill.tags.like(f"%,\"{tag}\"]%"),   # 匹配结尾的标签
-                        Skill.tags.like(f"%,\"{tag}\",%")    # 匹配中间的标签
+            # 过滤掉空标签
+            valid_tags = [tag for tag in tags if tag and tag.strip()]
+            if valid_tags:
+                for tag in valid_tags:
+                    # 对于SQLite，使用字符串匹配方式检查JSON数组是否包含特定元素
+                    # SQLite将JSON数组存储为字符串，例如 ["tag1", "tag2"]
+                    # 我们需要精确匹配标签，考虑三种情况：开头、中间、结尾
+                    query = query.filter(
+                        or_(
+                            Skill.tags.like(f"%[\"{tag}\"]%"),    # 匹配只有一个标签的情况
+                            Skill.tags.like(f"%[\"{tag}\",%"),   # 匹配开头的标签
+                            Skill.tags.like(f"%,\"{tag}\"]%"),   # 匹配结尾的标签
+                            Skill.tags.like(f"%,\"{tag}\",%")    # 匹配中间的标签
+                        )
                     )
-                )
         
         if search:
             search_term = f"%{search}%"

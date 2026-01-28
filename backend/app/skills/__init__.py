@@ -6,13 +6,12 @@
 
 from .skill_discovery import SkillDiscovery, discover_all_skills
 from .skill_parser import SkillParser, parse_skill_metadata
-from .skill_registry import SkillRegistry, SkillRegistryManager, get_skill_registry, initialize_skill_registry, refresh_skill_registry
+from .skill_registry import SkillRegistry, get_skill_registry, initialize_skill_registry, refresh_skill_registry
 
 __all__ = [
     'SkillDiscovery',
     'SkillParser', 
     'SkillRegistry',
-    'SkillRegistryManager',
     'discover_all_skills',
     'parse_skill_metadata',
     'get_skill_registry',

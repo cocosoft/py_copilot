@@ -1,0 +1,49 @@
+{
+    "id": "document-translator",
+    "name": "Document Translator",
+    "description": "多语言文档翻译工具",
+    "long_description": "支持多种格式文档的多语言翻译，包括PDF、Word、Excel等格式，提供高质量的翻译服务",
+    "version": "1.0.0",
+    "category": "document",
+    "tags": ["translation", "document", "multilingual", "pdf", "word"],
+    "author": "Py Copilot Team",
+    "author_email": "team@pycopilot.com",
+    "official": true,
+    "popular": true,
+    "installed": false,
+    "rating": 4.5,
+    "review_count": 0,
+    "downloads": 0,
+    "size": "2.1MB",
+    "last_updated": "2024-01-28T00:00:00",
+    "compatibility": "Py Copilot 1.0+",
+    "license": "MIT",
+    "dependencies": {
+        "googletrans": ">=4.0.0",
+        "python-docx": ">=0.8.11",
+        "PyPDF2": ">=3.0.0"
+    },
+    "skill_dependencies": ["pdf", "docx"],
+    "examples": [
+        {
+            "title": "PDF文档翻译",
+            "description": "将PDF文档从英文翻译为中文",
+            "code": "from document_translator import translate_pdf\nresult = translate_pdf({'file_path': 'document.pdf', 'source_lang': 'en', 'target_lang': 'zh'})"
+        }
+    ],
+    "config_schema": {
+        "type": "object",
+        "properties": {
+            "default_source_lang": {
+                "type": "string",
+                "default": "auto",
+                "description": "默认源语言"
+            },
+            "default_target_lang": {
+                "type": "string",
+                "default": "zh",
+                "description": "默认目标语言"
+            }
+        }
+    }
+}

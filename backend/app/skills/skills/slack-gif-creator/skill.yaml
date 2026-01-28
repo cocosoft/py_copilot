@@ -1,0 +1,35 @@
+id: slack-gif-creator
+name: Slack GIF Creator
+description: 创建和优化用于Slack的GIF动画
+version: 1.0.0
+author: Py Copilot Team
+category: communication
+tags:
+  - slack
+  - gif
+  - animation
+  - communication
+license: MIT
+compatibility: Py Copilot 1.0+
+dependencies:
+  Pillow: ">=9.0.0"
+  numpy: ">=1.21.0"
+config:
+  frame_duration: 100
+  max_file_size: 5000000
+parameters:
+  - name: text
+    type: string
+    description: GIF中显示的文本
+    required: true
+  - name: theme
+    type: string
+    description: 动画主题风格
+    enum:
+      - corporate
+      - casual
+      - festive
+    default: corporate
+output:
+  type: file
+  format: gif

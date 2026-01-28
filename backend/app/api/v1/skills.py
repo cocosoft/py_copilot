@@ -266,7 +266,19 @@ def list_skills(
     skill_service: SkillService = Depends(get_skill_service)
 ):
     """获取技能列表"""
-    tags_list = tags.split(',') if tags else None
+    # 安全处理tags参数
+    tags_list = None
+    if tags:
+        try:
+            # 去除空格并分割
+            tags_list = [tag.strip() for tag in tags.split(',') if tag.strip()]
+            # 如果分割后为空列表，则设置为None
+            if not tags_list:
+                tags_list = None
+        except Exception:
+            # 如果处理失败，设置为None
+            tags_list = None
+    
     skills, total = skill_service.get_skills(skip=skip, limit=limit, status=status, tags=tags_list, search=search)
     return {
         "skills": skills,
