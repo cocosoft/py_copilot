@@ -659,6 +659,81 @@
   line-height: 1.5;
 }
 
+/* 功能模块管理样式 */
+.feature-modules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+  margin-top: 24px;
+}
+
+.feature-module-card {
+  background-color: #ffffff;
+  border: 1px solid #e1e8ed;
+  border-radius: 8px;
+  padding: 24px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.feature-module-card:hover {
+  background-color: #f8f9fa;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+  border-color: #3498db;
+}
+
+.module-icon {
+  font-size: 32px;
+  margin-bottom: 16px;
+  display: block;
+}
+
+.feature-module-card h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0 0 12px 0;
+}
+
+.feature-module-card p {
+  font-size: 14px;
+  color: #7f8c8d;
+  margin: 0 0 20px 0;
+  line-height: 1.5;
+}
+
+.module-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.status-indicator.active {
+  background-color: #27ae60;
+  box-shadow: 0 0 0 2px rgba(39, 174, 96, 0.2);
+}
+
+.status-indicator.inactive {
+  background-color: #95a5a6;
+  box-shadow: 0 0 0 2px rgba(149, 165, 166, 0.2);
+}
+
+.module-status span:last-child {
+  font-size: 12px;
+  font-weight: 500;
+  color: #7f8c8d;
+}
+
 /* 响应式适配 */
 @media (max-width: 768px) {
   .system-management-container {
@@ -681,6 +756,28 @@
   
   .coming-soon-placeholder p {
     font-size: 14px;
+  }
+  
+  .feature-modules-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .feature-module-card {
+    padding: 20px;
+  }
+  
+  .module-icon {
+    font-size: 28px;
+    margin-bottom: 12px;
+  }
+  
+  .feature-module-card h4 {
+    font-size: 15px;
+  }
+  
+  .feature-module-card p {
+    font-size: 13px;
   }
 }
 

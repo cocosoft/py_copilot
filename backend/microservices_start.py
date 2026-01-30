@@ -22,12 +22,6 @@ class MicroserviceManager:
                 "port": 8000,
                 "workers": 1
             },
-            "chat": {
-                "app": "app.api.microservices.chat_service:chat_app",
-                "host": "localhost",
-                "port": 8001,
-                "workers": 2
-            },
             "search": {
                 "app": "app.api.microservices.search_service:search_app",
                 "host": "localhost",

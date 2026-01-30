@@ -1119,10 +1119,123 @@ const Settings = () => {
             </div>
             
             <div className="system-management-container">
-              <div className="coming-soon-placeholder">
-                <div className="placeholder-icon">🚧</div>
-                <h3>功能开发中</h3>
-                <p>系统功能管理模块正在设计中，敬请期待...</p>
+              <div className="setting-card">
+                <div className="setting-header">
+                  <h3>功能模块管理</h3>
+                  <p>查看和管理系统中的功能模块</p>
+                </div>
+                
+                <div className="feature-modules-grid">
+                  {/* 聊天核心功能 */}
+                  <div className="feature-module-card">
+                    <div className="module-icon">💬</div>
+                    <h4>聊天核心功能</h4>
+                    <p>基础的聊天对话功能，包括流式响应和思维链</p>
+                    <div className="module-status">
+                      <span className="status-indicator active"></span>
+                      <span>已启用</span>
+                    </div>
+                  </div>
+                  
+                  {/* 记忆增强功能 */}
+                  <div className="feature-module-card">
+                    <div className="module-icon">🧠</div>
+                    <h4>记忆增强功能</h4>
+                    <p>全局记忆和上下文管理，支持记忆检索和更新</p>
+                    <div className="module-status">
+                      <span className="status-indicator active"></span>
+                      <span>已启用</span>
+                    </div>
+                  </div>
+                  
+                  {/* 知识库功能 */}
+                  <div className="feature-module-card">
+                    <div className="module-icon">📚</div>
+                    <h4>知识库功能</h4>
+                    <p>知识库管理和语义搜索，支持文档上传和分析</p>
+                    <div className="module-status">
+                      <span className="status-indicator active"></span>
+                      <span>已启用</span>
+                    </div>
+                  </div>
+                  
+                  {/* Web搜索功能 */}
+                  <div className="feature-module-card">
+                    <div className="module-icon">🌐</div>
+                    <h4>Web搜索功能</h4>
+                    <p>集成Google、Bing、百度等搜索引擎，支持结果优化</p>
+                    <div className="module-status">
+                      <span className="status-indicator active"></span>
+                      <span>已启用</span>
+                    </div>
+                  </div>
+                  
+                  {/* 文件服务 */}
+                  <div className="feature-module-card">
+                    <div className="module-icon">📁</div>
+                    <h4>文件服务</h4>
+                    <p>文件上传、处理和管理，支持多种文件类型</p>
+                    <div className="module-status">
+                      <span className="status-indicator active"></span>
+                      <span>已启用</span>
+                    </div>
+                  </div>
+                  
+                  {/* 语音服务 */}
+                  <div className="feature-module-card">
+                    <div className="module-icon">🎤</div>
+                    <h4>语音服务</h4>
+                    <p>语音识别和语音合成，支持多种语言</p>
+                    <div className="module-status">
+                      <span className="status-indicator active"></span>
+                      <span>已启用</span>
+                    </div>
+                  </div>
+                  
+                  {/* 图像服务 */}
+                  <div className="feature-module-card">
+                    <div className="module-icon">🖼️</div>
+                    <h4>图像服务</h4>
+                    <p>图像识别和OCR功能，支持图片内容分析</p>
+                    <div className="module-status">
+                      <span className="status-indicator inactive"></span>
+                      <span>开发中</span>
+                    </div>
+                  </div>
+                  
+                  {/* 视频聊天 */}
+                  <div className="feature-module-card">
+                    <div className="module-icon">📹</div>
+                    <h4>视频聊天</h4>
+                    <p>实时视频通话和视频分析功能</p>
+                    <div className="module-status">
+                      <span className="status-indicator inactive"></span>
+                      <span>规划中</span>
+                    </div>
+                  </div>
+                  
+                  {/* 语音唤醒 */}
+                  <div className="feature-module-card">
+                    <div className="module-icon">🔊</div>
+                    <h4>语音唤醒</h4>
+                    <p>通过语音指令唤醒和控制系统</p>
+                    <div className="module-status">
+                      <span className="status-indicator inactive"></span>
+                      <span>规划中</span>
+                    </div>
+                  </div>
+                  
+                  {/* Emoji图标 */}
+                  <div className="feature-module-card">
+                    <div className="module-icon">😊</div>
+                    <h4>Emoji图标</h4>
+                    <p>支持Emoji表情和符号输入</p>
+                    <div className="module-status">
+                      <span className="status-indicator inactive"></span>
+                      <span>开发中</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

@@ -773,3 +773,6 @@ backend/app/tests/modules/memory/test_memory_api.py
 backend/app/tests/modules/memory/test_memory_service_integration.py
 backend/app/tests/modules/memory/test_memory_service_performance.py
 backend/app/tests/modules/memory/test_memory_service.py
+本地部署小规模LLM方案.md
+chat_function_analysis.md
+chat_function_upgrade_plan.md
