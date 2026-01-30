@@ -134,13 +134,22 @@ class StructuredLogger:
             level: 日志级别
         """
         self.logger = logging.getLogger(name)
-        self.logger.setLevel(level.value)
+        # 将LogLevel枚举值转换为对应的整数日志级别
+        level_map = {
+            LogLevel.DEBUG: logging.DEBUG,
+            LogLevel.INFO: logging.INFO,
+            LogLevel.WARNING: logging.WARNING,
+            LogLevel.ERROR: logging.ERROR,
+            LogLevel.CRITICAL: logging.CRITICAL
+        }
+        numeric_level = level_map.get(level, logging.INFO)
+        self.logger.setLevel(numeric_level)
         
         # 避免重复添加处理器
         if not self.logger.handlers:
             # 控制台处理器
             console_handler = logging.StreamHandler(sys.stdout)
-            console_handler.setLevel(level.value)
+            console_handler.setLevel(numeric_level)
             console_formatter = JSONFormatter()
             console_handler.setFormatter(console_formatter)
             self.logger.addHandler(console_handler)
@@ -158,10 +167,20 @@ class StructuredLogger:
             extra_fields: 额外字段
             exc_info: 异常信息
         """
+        # 将LogLevel枚举值转换为对应的整数日志级别
+        level_map = {
+            LogLevel.DEBUG: logging.DEBUG,
+            LogLevel.INFO: logging.INFO,
+            LogLevel.WARNING: logging.WARNING,
+            LogLevel.ERROR: logging.ERROR,
+            LogLevel.CRITICAL: logging.CRITICAL
+        }
+        numeric_level = level_map.get(level, logging.INFO)
+        
         # 创建日志记录
         log_record = self.logger.makeRecord(
             self.logger.name,
-            level.value,
+            numeric_level,
             "", 0,  # 跳过路径名和行号
             message,
             (),
@@ -234,9 +253,18 @@ class StructuredLogger:
         Args:
             level: 日志级别
         """
-        self.logger.setLevel(level.value)
+        # 将LogLevel枚举值转换为对应的整数日志级别
+        level_map = {
+            LogLevel.DEBUG: logging.DEBUG,
+            LogLevel.INFO: logging.INFO,
+            LogLevel.WARNING: logging.WARNING,
+            LogLevel.ERROR: logging.ERROR,
+            LogLevel.CRITICAL: logging.CRITICAL
+        }
+        numeric_level = level_map.get(level, logging.INFO)
+        self.logger.setLevel(numeric_level)
         for handler in self.logger.handlers:
-            handler.setLevel(level.value)
+            handler.setLevel(numeric_level)
 
 
 class LogManager:
@@ -305,7 +333,16 @@ class LogManager:
             backupCount=backup_count,
             encoding='utf-8'
         )
-        file_handler.setLevel(level.value)
+        # 将LogLevel枚举值转换为对应的整数日志级别
+        level_map = {
+            LogLevel.DEBUG: logging.DEBUG,
+            LogLevel.INFO: logging.INFO,
+            LogLevel.WARNING: logging.WARNING,
+            LogLevel.ERROR: logging.ERROR,
+            LogLevel.CRITICAL: logging.CRITICAL
+        }
+        numeric_level = level_map.get(level, logging.INFO)
+        file_handler.setLevel(numeric_level)
         
         # 设置JSON格式化器
         formatter = JSONFormatter()
@@ -328,7 +365,16 @@ class LogManager:
         
         # 创建控制台处理器
         console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setLevel(level.value)
+        # 将LogLevel枚举值转换为对应的整数日志级别
+        level_map = {
+            LogLevel.DEBUG: logging.DEBUG,
+            LogLevel.INFO: logging.INFO,
+            LogLevel.WARNING: logging.WARNING,
+            LogLevel.ERROR: logging.ERROR,
+            LogLevel.CRITICAL: logging.CRITICAL
+        }
+        numeric_level = level_map.get(level, logging.INFO)
+        console_handler.setLevel(numeric_level)
         
         # 设置JSON格式化器
         formatter = JSONFormatter()
@@ -440,6 +486,7 @@ api_logger = log_manager.get_logger("api", LogLevel.INFO)
 db_logger = log_manager.get_logger("database", LogLevel.INFO)
 websocket_logger = log_manager.get_logger("websocket", LogLevel.INFO)
 monitoring_logger = log_manager.get_logger("monitoring", LogLevel.INFO)
+memory_logger = log_manager.get_logger("memory", LogLevel.INFO)
 
 
 # 添加文件处理器
@@ -448,3 +495,4 @@ log_manager.add_file_handler("api", "api.log", LogLevel.INFO)
 log_manager.add_file_handler("database", "database.log", LogLevel.INFO)
 log_manager.add_file_handler("websocket", "websocket.log", LogLevel.INFO)
 log_manager.add_file_handler("monitoring", "monitoring.log", LogLevel.INFO)
+log_manager.add_file_handler("memory", "memory.log", LogLevel.INFO)

@@ -75,21 +75,39 @@ async def delete_memory(
     return {"message": "记忆已成功删除"}
 
 
-@router.get("/", response_model=List[MemoryResponse])
+@router.get("/")
 async def get_user_memories(
     memory_types: Optional[List[str]] = Query(None, description="记忆类型过滤"),
     memory_categories: Optional[List[str]] = Query(None, description="记忆类别过滤"),
+    page: int = Query(1, ge=1, description="页码"),
     limit: int = Query(20, ge=1, le=100, description="结果数量限制"),
-    offset: int = Query(0, ge=0, description="分页偏移量"),
+    offset: int = Query(None, ge=0, description="分页偏移量（可选，如果提供则忽略page参数）"),
     session_id: Optional[str] = Query(None, description="会话ID过滤"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """获取用户的所有记忆条目"""
-    memories = MemoryService.get_user_memories(
+    # 计算偏移量
+    if offset is None:
+        offset = (page - 1) * limit
+    
+    # 获取记忆列表
+    memories = await MemoryService.get_user_memories(
         db, current_user.id, memory_types, memory_categories, limit, offset, session_id
     )
-    return memories
+    
+    # 获取总记忆数
+    from app.models.memory import GlobalMemory
+    total = db.query(GlobalMemory).filter(
+        GlobalMemory.user_id == current_user.id,
+        GlobalMemory.is_active == True
+    ).count()
+    
+    # 返回与前端期望一致的数据结构
+    return {
+        "memories": memories,
+        "total": total
+    }
 
 
 @router.post("/search", response_model=List[MemoryResponse])

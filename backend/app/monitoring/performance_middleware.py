@@ -12,7 +12,7 @@ from collections import defaultdict, deque
 from enum import Enum
 
 from fastapi import Request, Response
-from fastapi.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
 logger = logging.getLogger(__name__)
 

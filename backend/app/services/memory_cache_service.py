@@ -174,5 +174,135 @@ class MemoryCacheService:
         return hashlib.md5(param_str.encode()).hexdigest()
 
 
+    def get_user_memories_sync(self, db: Session, user_id: int, memory_types: Optional[List[str]] = None,
+                        memory_categories: Optional[List[str]] = None, limit: int = 20,
+                        offset: int = 0, session_id: Optional[str] = None) -> List[GlobalMemory]:
+        """获取用户记忆，同步版本"""
+        import asyncio
+        
+        async def _get():
+            return await self.get_user_memories(db, user_id, memory_types, memory_categories, limit, offset, session_id)
+        
+        try:
+            return asyncio.run(_get())
+        except RuntimeError as e:
+            if "asyncio.run() cannot be called from a running event loop" in str(e):
+                logger.warning("在已有事件循环中运行，尝试使用当前事件循环")
+                import sys
+                if sys.version_info >= (3, 7):
+                    loop = asyncio.get_running_loop()
+                    return loop.run_until_complete(_get())
+            raise
+
+    def get_conversation_memories_sync(self, db: Session, conversation_id: int, user_id: int, 
+                                limit: int = 20, offset: int = 0) -> List[GlobalMemory]:
+        """获取对话记忆，同步版本"""
+        import asyncio
+        
+        async def _get():
+            return await self.get_conversation_memories(db, conversation_id, user_id, limit, offset)
+        
+        try:
+            return asyncio.run(_get())
+        except RuntimeError as e:
+            if "asyncio.run() cannot be called from a running event loop" in str(e):
+                logger.warning("在已有事件循环中运行，尝试使用当前事件循环")
+                import sys
+                if sys.version_info >= (3, 7):
+                    loop = asyncio.get_running_loop()
+                    return loop.run_until_complete(_get())
+            raise
+
+    def cache_semantic_search_sync(self, query: str, user_id: int, results: List[GlobalMemory]):
+        """缓存语义搜索结果，同步版本"""
+        import asyncio
+        
+        async def _cache():
+            await self.cache_semantic_search(query, user_id, results)
+        
+        try:
+            asyncio.run(_cache())
+        except RuntimeError as e:
+            if "asyncio.run() cannot be called from a running event loop" in str(e):
+                logger.warning("在已有事件循环中运行，尝试使用当前事件循环")
+                import sys
+                if sys.version_info >= (3, 7):
+                    loop = asyncio.get_running_loop()
+                    loop.run_until_complete(_cache())
+            raise
+
+    def get_cached_semantic_search_sync(self, query: str, user_id: int) -> Optional[List[GlobalMemory]]:
+        """获取缓存的语义搜索结果，同步版本"""
+        import asyncio
+        
+        async def _get():
+            return await self.get_cached_semantic_search(query, user_id)
+        
+        try:
+            return asyncio.run(_get())
+        except RuntimeError as e:
+            if "asyncio.run() cannot be called from a running event loop" in str(e):
+                logger.warning("在已有事件循环中运行，尝试使用当前事件循环")
+                import sys
+                if sys.version_info >= (3, 7):
+                    loop = asyncio.get_running_loop()
+                    return loop.run_until_complete(_get())
+            raise
+
+    def clear_user_cache_sync(self, user_id: int):
+        """清除特定用户的缓存，同步版本"""
+        import asyncio
+        
+        async def _clear():
+            await self.clear_user_cache(user_id)
+        
+        try:
+            asyncio.run(_clear())
+        except RuntimeError as e:
+            if "asyncio.run() cannot be called from a running event loop" in str(e):
+                logger.warning("在已有事件循环中运行，尝试使用当前事件循环")
+                import sys
+                if sys.version_info >= (3, 7):
+                    loop = asyncio.get_running_loop()
+                    return loop.run_until_complete(_clear())
+            raise
+
+    def clear_conversation_cache_sync(self, conversation_id: int):
+        """清除特定对话的缓存，同步版本"""
+        import asyncio
+        
+        async def _clear():
+            await self.clear_conversation_cache(conversation_id)
+        
+        try:
+            asyncio.run(_clear())
+        except RuntimeError as e:
+            if "asyncio.run() cannot be called from a running event loop" in str(e):
+                logger.warning("在已有事件循环中运行，尝试使用当前事件循环")
+                import sys
+                if sys.version_info >= (3, 7):
+                    loop = asyncio.get_running_loop()
+                    return loop.run_until_complete(_clear())
+            raise
+
+    def clear_all_cache_sync(self):
+        """清除所有缓存，同步版本"""
+        import asyncio
+        
+        async def _clear():
+            await self.clear_all_cache()
+        
+        try:
+            asyncio.run(_clear())
+        except RuntimeError as e:
+            if "asyncio.run() cannot be called from a running event loop" in str(e):
+                logger.warning("在已有事件循环中运行，尝试使用当前事件循环")
+                import sys
+                if sys.version_info >= (3, 7):
+                    loop = asyncio.get_running_loop()
+                    return loop.run_until_complete(_clear())
+            raise
+
+
 # 创建全局缓存服务实例
 memory_cache_service = MemoryCacheService()

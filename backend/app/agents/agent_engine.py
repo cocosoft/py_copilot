@@ -13,7 +13,8 @@ from sqlalchemy.orm import Session
 
 from .agent_models import Agent, AgentConfig, AgentCapability, AgentStatus, agent_manager
 from app.skills.skill_engine import skill_engine
-from app.logging.structured_logger import app_logger
+import app.log_system.structured_logger
+app_logger = app.log_system.structured_logger.app_logger
 from .knowledge_integration import AgentKnowledgeIntegration, KnowledgeAwareAgentEngine
 
 

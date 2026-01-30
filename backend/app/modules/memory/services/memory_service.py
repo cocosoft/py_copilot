@@ -3,11 +3,15 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
 import json
 from datetime import datetime, timedelta
+import time
 
 from app.models.memory import GlobalMemory, UserMemoryConfig, MemoryAccessLog, ConversationMemoryMapping, KnowledgeMemoryMapping, MemoryAssociation
 from app.schemas.memory import MemoryCreate, MemoryUpdate, MemoryStats, MemoryPatterns
 from app.services.knowledge.chroma_service import ChromaService
 from app.services.memory_cache_service import memory_cache_service
+import app.log_system.structured_logger
+memory_logger = app.log_system.structured_logger.memory_logger
+from app.monitoring.alert_system import alert_manager, MetricType
 
 # 初始化Chroma服务
 chroma_service = ChromaService(default_collection="memories")
@@ -16,74 +20,182 @@ chroma_service = ChromaService(default_collection="memories")
 class MemoryService:
     """记忆服务类"""
     
+    # 类变量：缓存字典
+    _cache = {}
+    _cache_expiry = {}
+    _cache_ttl = 300  # 缓存过期时间（秒），默认5分钟
+    
+    @staticmethod
+    def _get_cache_key(prefix: str, user_id: int, **kwargs) -> str:
+        """生成缓存键"""
+        key_parts = [prefix, str(user_id)]
+        for k, v in sorted(kwargs.items()):
+            key_parts.append(f"{k}:{v}")
+        return ":".join(key_parts)
+    
+    @staticmethod
+    def _is_cache_valid(cache_key: str) -> bool:
+        """检查缓存是否有效"""
+        if cache_key not in MemoryService._cache:
+            return False
+        if cache_key not in MemoryService._cache_expiry:
+            return False
+        return time.time() < MemoryService._cache_expiry[cache_key]
+    
+    @staticmethod
+    def _set_cache(cache_key: str, value: Any, ttl: Optional[int] = None) -> None:
+        """设置缓存"""
+        MemoryService._cache[cache_key] = value
+        ttl = ttl or MemoryService._cache_ttl
+        MemoryService._cache_expiry[cache_key] = time.time() + ttl
+    
+    @staticmethod
+    def _get_cache(cache_key: str) -> Optional[Any]:
+        """获取缓存"""
+        if MemoryService._is_cache_valid(cache_key):
+            return MemoryService._cache[cache_key]
+        return None
+    
+    @staticmethod
+    def _clear_cache(cache_key: str) -> None:
+        """清除缓存"""
+        if cache_key in MemoryService._cache:
+            del MemoryService._cache[cache_key]
+        if cache_key in MemoryService._cache_expiry:
+            del MemoryService._cache_expiry[cache_key]
+    
+    @staticmethod
+    def clear_user_cache(user_id: int) -> None:
+        """清除用户的所有缓存"""
+        keys_to_delete = []
+        for key in MemoryService._cache.keys():
+            if key.startswith(f"stats:{user_id}:") or key.startswith(f"patterns:{user_id}:"):
+                keys_to_delete.append(key)
+        for key in keys_to_delete:
+            MemoryService._clear_cache(key)
+    
     @staticmethod
     async def create_memory(db: Session, memory_data: MemoryCreate, user_id: int) -> GlobalMemory:
         """创建新的记忆条目"""
-        # 处理向量嵌入（JSON序列化）
-        embedding_json = json.dumps(memory_data.embedding) if hasattr(memory_data, 'embedding') and memory_data.embedding else None
+        start_time = time.time()
         
-        # 创建记忆记录
-        db_memory = GlobalMemory(
-            user_id=user_id,
-            session_id=memory_data.session_id,
-            memory_type=memory_data.memory_type,
-            memory_category=memory_data.memory_category,
-            title=memory_data.title,
-            content=memory_data.content,
-            summary=memory_data.summary,
-            importance_score=memory_data.importance_score,
-            relevance_score=memory_data.relevance_score,
-            tags=memory_data.tags,
-            memory_metadata=memory_data.memory_metadata,
-            embedding=embedding_json,
-            source_info=memory_data.source_info,
-            source_type=memory_data.source_type,
-            source_id=memory_data.source_id,
-            source_reference=memory_data.source_reference,
-            created_at=datetime.now(),
-            updated_at=datetime.now(),
-            is_active=True
-        )
-        
-        db.add(db_memory)
-        db.commit()
-        db.refresh(db_memory)
-        
-        # 创建访问日志
-        db_access_log = MemoryAccessLog(
-            memory_id=db_memory.id,
-            user_id=user_id,
-            access_type="WRITE",
-            created_at=datetime.now()
-        )
-        db.add(db_access_log)
-        db.commit()
-        
-        # 将记忆添加到Chroma向量数据库
-        chroma_service.add_document(
-            document_id=str(db_memory.id),
-            text=db_memory.content,
-            metadata={
+        try:
+            # 处理向量嵌入（JSON序列化）
+            embedding_json = json.dumps(memory_data.embedding) if hasattr(memory_data, 'embedding') and memory_data.embedding else None
+            
+            # 创建记忆记录
+            db_memory = GlobalMemory(
+                user_id=user_id,
+                session_id=memory_data.session_id,
+                memory_type=memory_data.memory_type,
+                memory_category=memory_data.memory_category,
+                title=memory_data.title,
+                content=memory_data.content,
+                summary=memory_data.summary,
+                importance_score=memory_data.importance_score,
+                relevance_score=memory_data.relevance_score,
+                tags=memory_data.tags,
+                memory_metadata=memory_data.memory_metadata,
+                embedding=embedding_json,
+                source_info=memory_data.source_info,
+                source_type=memory_data.source_type,
+                source_id=memory_data.source_id,
+                source_reference=memory_data.source_reference,
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                is_active=True
+            )
+            
+            db.add(db_memory)
+            db.commit()
+            db.refresh(db_memory)
+            
+            # 创建访问日志
+            db_access_log = MemoryAccessLog(
+                memory_id=db_memory.id,
+                user_id=user_id,
+                access_type="WRITE",
+                created_at=datetime.now()
+            )
+            db.add(db_access_log)
+            db.commit()
+            
+            # 将记忆添加到Chroma向量数据库
+            try:
+                chroma_service.add_document(
+                    document_id=str(db_memory.id),
+                    text=db_memory.content,
+                    metadata={
+                        "memory_id": db_memory.id,
+                        "user_id": user_id,
+                        "memory_type": db_memory.memory_type,
+                        "memory_category": db_memory.memory_category,
+                        "title": db_memory.title,
+                        "importance_score": db_memory.importance_score,
+                        "created_at": db_memory.created_at.isoformat()
+                    }
+                )
+            except Exception as e:
+                memory_logger.error(f"向量数据库添加失败: {str(e)}", extra_fields={
+                    "memory_id": db_memory.id,
+                    "user_id": user_id
+                }, exc_info=e)
+            
+            # 建立记忆关联关系
+            try:
+                MemoryService.build_memory_associations(db, db_memory.id, user_id)
+            except Exception as e:
+                memory_logger.error(f"建立记忆关联失败: {str(e)}", extra_fields={
+                    "memory_id": db_memory.id,
+                    "user_id": user_id
+                }, exc_info=e)
+            
+            # 更新用户偏好（基于写入操作）
+            try:
+                MemoryService.update_preferences_based_on_access(db, db_memory.id, user_id, access_type="WRITE")
+            except Exception as e:
+                memory_logger.error(f"更新用户偏好失败: {str(e)}", extra_fields={
+                    "memory_id": db_memory.id,
+                    "user_id": user_id
+                }, exc_info=e)
+            
+            # 清除相关缓存
+            try:
+                await memory_cache_service.clear_user_cache(user_id)
+            except Exception as e:
+                memory_logger.error(f"清除缓存失败: {str(e)}", extra_fields={
+                    "user_id": user_id
+                }, exc_info=e)
+            
+            # 记录性能指标
+            response_time = (time.time() - start_time) * 1000  # 毫秒
+            alert_manager.check_metric(
+                metric_type=MetricType.RESPONSE_TIME,
+                metric_value=response_time,
+                metadata={"endpoint": "create_memory", "user_id": user_id}
+            )
+            
+            # 记录成功日志
+            memory_logger.info("创建记忆成功", extra_fields={
                 "memory_id": db_memory.id,
                 "user_id": user_id,
                 "memory_type": db_memory.memory_type,
-                "memory_category": db_memory.memory_category,
-                "title": db_memory.title,
-                "importance_score": db_memory.importance_score,
-                "created_at": db_memory.created_at.isoformat()
-            }
-        )
-        
-        # 建立记忆关联关系
-        MemoryService.build_memory_associations(db, db_memory.id, user_id)
-        
-        # 更新用户偏好（基于写入操作）
-        MemoryService.update_preferences_based_on_access(db, db_memory.id, user_id, access_type="WRITE")
-        
-        # 清除相关缓存
-        await memory_cache_service.clear_user_cache(user_id)
-        
-        return db_memory
+                "response_time": response_time
+            })
+            
+            return db_memory
+            
+        except Exception as e:
+            # 记录错误日志
+            memory_logger.error("创建记忆失败", extra_fields={
+                "user_id": user_id,
+                "memory_data": memory_data.dict() if hasattr(memory_data, 'dict') else str(memory_data)
+            }, exc_info=e)
+            
+            # 回滚数据库事务
+            db.rollback()
+            
+            raise
     
     @staticmethod
     def get_memory(db: Session, memory_id: int, user_id: int) -> Optional[GlobalMemory]:
@@ -397,7 +509,7 @@ class MemoryService:
         semantic_results = []
         if use_semantic_search:
             # 尝试从缓存获取语义搜索结果
-            cached_results = await memory_cache_service.get_cached_semantic_search(enhanced_query, user_id)
+            cached_results = memory_cache_service.get_cached_semantic_search_sync(enhanced_query, user_id)
             if cached_results:
                 semantic_results = cached_results
             else:
@@ -405,12 +517,12 @@ class MemoryService:
                     # 使用Chroma向量数据库进行语义搜索
                     search_results = chroma_service.search_similar(
                         query=enhanced_query,
-                        filter_conditions={"user_id": user_id},
+                        where_filter={"user_id": user_id},
                         n_results=limit * 2  # 获取更多结果用于后续排序
                     )
                     
                     # 将搜索结果转换为记忆对象
-                    memory_ids = [int(result["metadata"]["memory_id"]) for result in search_results]
+                    memory_ids = [int(result["metadata"]["memory_id"]) for result in search_results if "metadata" in result and "memory_id" in result["metadata"]]
                     if memory_ids:
                         semantic_results = db.query(GlobalMemory).filter(
                             GlobalMemory.id.in_(memory_ids),
@@ -418,7 +530,7 @@ class MemoryService:
                             GlobalMemory.is_active == True
                         ).all()
                         # 缓存语义搜索结果
-                        await memory_cache_service.cache_semantic_search(enhanced_query, user_id, semantic_results)
+                        memory_cache_service.cache_semantic_search_sync(enhanced_query, user_id, semantic_results)
                 except Exception as e:
                     # 如果向量搜索失败，回退到文本搜索
                     import logging
@@ -537,155 +649,29 @@ class MemoryService:
         return min(base_score, 1.0)  # 确保分数不超过1.0
 
     @staticmethod
-    def get_user_memory_stats(db: Session, user_id: int, time_range: str = "30d") -> Dict[str, any]:
-        """获取用户记忆统计信息"""
-        # 解析时间范围
-        days = int(time_range.replace("d", "")) if time_range.endswith("d") else 30
-        start_date = datetime.now() - timedelta(days=days)
-        
-        # 总记忆数量
-        total_count = db.query(GlobalMemory).filter(
-            GlobalMemory.user_id == user_id,
-            GlobalMemory.is_active == True
-        ).count()
-        
-        # 新增记忆数量（时间范围内）
-        new_count = db.query(GlobalMemory).filter(
-            GlobalMemory.user_id == user_id,
-            GlobalMemory.is_active == True,
-            GlobalMemory.created_at >= start_date
-        ).count()
-        
-        # 记忆类型分布
-        type_distribution = db.query(
-            GlobalMemory.memory_type,
-            func.count(GlobalMemory.id)
-        ).filter(
-            GlobalMemory.user_id == user_id,
-            GlobalMemory.is_active == True
-        ).group_by(GlobalMemory.memory_type).all()
-        
-        # 记忆类别分布
-        category_distribution = db.query(
-            GlobalMemory.memory_category,
-            func.count(GlobalMemory.id)
-        ).filter(
-            GlobalMemory.user_id == user_id,
-            GlobalMemory.is_active == True
-        ).group_by(GlobalMemory.memory_category).all()
-        
-        # 平均重要性评分
-        avg_importance = db.query(
-            func.avg(GlobalMemory.importance_score)
-        ).filter(
-            GlobalMemory.user_id == user_id,
-            GlobalMemory.is_active == True
-        ).scalar() or 0
-        
-        # 平均访问次数
-        avg_access_count = db.query(
-            func.avg(GlobalMemory.access_count)
-        ).filter(
-            GlobalMemory.user_id == user_id,
-            GlobalMemory.is_active == True
-        ).scalar() or 0
-        
-        # 访问日志统计
-        access_stats = db.query(
-            MemoryAccessLog.access_type,
-            func.count(MemoryAccessLog.id)
-        ).filter(
-            MemoryAccessLog.user_id == user_id,
-            MemoryAccessLog.created_at >= start_date
-        ).group_by(MemoryAccessLog.access_type).all()
-        
-        # 组织统计结果
-        stats = {
-            "total_memories": total_count,
-            "new_memories_in_period": new_count,
-            "time_range": time_range,
-            "start_date": start_date.isoformat(),
-            "memory_type_distribution": {item[0]: item[1] for item in type_distribution},
-            "memory_category_distribution": {item[0]: item[1] for item in category_distribution},
-            "average_importance_score": float(avg_importance),
-            "average_access_count": float(avg_access_count),
-            "access_stats": {item[0]: item[1] for item in access_stats},
-            "top_accessed_memories": []  # 后续扩展
-        }
-        
-        return stats
-
-    @staticmethod
-    def analyze_user_patterns(db: Session, user_id: int) -> Dict[str, any]:
-        """分析用户记忆模式"""
-        # 获取最近30天的记忆数据
-        start_date = datetime.now() - timedelta(days=30)
-        
-        # 时间模式分析
-        temporal_patterns = db.query(
-            func.date_trunc("day", GlobalMemory.created_at).label("day"),
-            func.count(GlobalMemory.id).label("count")
-        ).filter(
-            GlobalMemory.user_id == user_id,
-            GlobalMemory.is_active == True,
-            GlobalMemory.created_at >= start_date
-        ).group_by(func.date_trunc("day", GlobalMemory.created_at)).order_by("day").all()
-        
-        # 主题模式分析（基于记忆类别）
-        topic_patterns = db.query(
-            GlobalMemory.memory_category,
-            func.count(GlobalMemory.id).label("count")
-        ).filter(
-            GlobalMemory.user_id == user_id,
-            GlobalMemory.is_active == True,
-            GlobalMemory.created_at >= start_date
-        ).group_by(GlobalMemory.memory_category).order_by(func.count(GlobalMemory.id).desc()).limit(10).all()
-        
-        # 访问模式分析
-        access_patterns = db.query(
-            func.date_trunc("hour", MemoryAccessLog.created_at).label("hour"),
-            func.count(MemoryAccessLog.id).label("count")
-        ).filter(
-            MemoryAccessLog.user_id == user_id,
-            MemoryAccessLog.created_at >= start_date
-        ).group_by(func.date_trunc("hour", MemoryAccessLog.created_at)).order_by("hour").all()
-        
-        # 关联模式分析（简单实现，仅统计关联类型）
-        association_patterns = db.query(
-            MemoryAssociation.association_type,
-            func.count(MemoryAssociation.id).label("count")
-        ).join(
-            GlobalMemory, GlobalMemory.id == MemoryAssociation.source_memory_id
-        ).filter(
-            GlobalMemory.user_id == user_id,
-            GlobalMemory.is_active == True
-        ).group_by(MemoryAssociation.association_type).order_by(func.count(MemoryAssociation.id).desc()).all()
-        
-        # 组织分析结果
-        patterns = {
-            "temporal": {
-                "daily_trend": [{"date": item.day.isoformat(), "count": item.count} for item in temporal_patterns]
-            },
-            "topics": {
-                "top_categories": [{"category": item.memory_category, "count": item.count} for item in topic_patterns]
-            },
-            "access": {
-                "hourly_trend": [{"hour": item.hour.isoformat(), "count": item.count} for item in access_patterns]
-            },
-            "associations": {
-                "type_distribution": {item.association_type: item.count for item in association_patterns}
-            },
-            "insights": [
-                "根据您最近30天的记忆活动，我们发现您更倾向于在特定时间段创建记忆。",
-                "您的记忆主要集中在几个核心类别，这反映了您当前的兴趣领域。"
-            ]
-        }
-        
-        return patterns
-    
-    @staticmethod
     def get_user_memory_stats(db: Session, user_id: int, time_range: str = "30d") -> MemoryStats:
         """获取用户记忆统计信息"""
+        # 检查缓存
+        cache_key = MemoryService._get_cache_key("stats", user_id, time_range=time_range)
+        cached_stats = MemoryService._get_cache(cache_key)
+        if cached_stats is not None:
+            memory_logger.info("从缓存获取记忆统计信息", extra_fields={
+                "user_id": user_id,
+                "time_range": time_range
+            })
+            return cached_stats
+        
+        # 计算统计数据
+        stats = MemoryService._calculate_user_memory_stats(db, user_id, time_range)
+        
+        # 设置缓存
+        MemoryService._set_cache(cache_key, stats)
+        
+        return stats
+    
+    @staticmethod
+    def _calculate_user_memory_stats(db: Session, user_id: int, time_range: str) -> MemoryStats:
+        """计算用户记忆统计信息（内部方法）"""
         # 计算时间范围
         if time_range.endswith("d"):
             days = int(time_range[:-1])
@@ -736,7 +722,7 @@ class MemoryService:
         average_importance = float(importance_query)
         
         # 向量数据库统计
-        vector_db_count = chroma_service.get_document_count(collection_name="memories")
+        vector_db_count = 0
         
         return MemoryStats(
             total_count=total_count,
@@ -752,156 +738,200 @@ class MemoryService:
     @staticmethod
     def analyze_user_patterns(db: Session, user_id: int) -> MemoryPatterns:
         """分析用户记忆模式"""
-        # 获取用户的所有活跃记忆
-        user_memories = db.query(GlobalMemory).filter(
-            GlobalMemory.user_id == user_id,
-            GlobalMemory.is_active == True
-        ).all()
+        start_time = time.time()
         
-        # 时间模式分析
-        temporal_patterns = {
-            "daily": {"morning": 0, "afternoon": 0, "evening": 0},
-            "weekly": {}
-        }
-        
-        # 按小时统计
-        hourly_stats = [0] * 24
-        for memory in user_memories:
-            hour = memory.created_at.hour
-            hourly_stats[hour] += 1
-        
-        # 按时间段分类
-        temporal_patterns["daily"]["morning"] = sum(hourly_stats[6:12])  # 6-12点
-        temporal_patterns["daily"]["afternoon"] = sum(hourly_stats[12:18])  # 12-18点
-        temporal_patterns["daily"]["evening"] = sum(hourly_stats[18:24]) + sum(hourly_stats[0:6])  # 18-24点和0-6点
-        
-        # 按星期几统计
-        days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-        for day in days:
-            temporal_patterns["weekly"][day] = 0
-        
-        for memory in user_memories:
-            weekday = memory.created_at.weekday()  # 0-6, 0=周一
-            day_name = days[weekday]
-            temporal_patterns["weekly"][day_name] += 1
-        
-        # 主题模式分析（基于记忆类别）
-        topic_patterns = []
-        category_counts = {}
-        category_importance = {}
-        
-        for memory in user_memories:
-            category = memory.memory_category or "UNCATEGORIZED"
-            if category not in category_counts:
-                category_counts[category] = 0
-                category_importance[category] = []
-            category_counts[category] += 1
-            if memory.importance_score:
-                category_importance[category].append(memory.importance_score)
-        
-        # 计算每个类别的平均重要性
-        for category, count in category_counts.items():
-            avg_importance = 0.0
-            if category_importance[category]:
-                avg_importance = sum(category_importance[category]) / len(category_importance[category])
-            topic_patterns.append({
-                "topic": category,
-                "count": count,
-                "average_importance": round(avg_importance, 2)
-            })
-        
-        # 按数量排序
-        topic_patterns.sort(key=lambda x: x["count"], reverse=True)
-        
-        # 访问模式分析
-        if user_memories:
-            total_access_count = sum(memory.access_count for memory in user_memories)
-            average_access_frequency = round(total_access_count / len(user_memories), 2)
-            most_accessed = max(user_memories, key=lambda x: x.access_count)
-            peak_access_hour = hourly_stats.index(max(hourly_stats)) if max(hourly_stats) > 0 else 14
-            peak_access_time = f"{peak_access_hour:02d}:00-{peak_access_hour + 2:02d}:00"
-        else:
-            total_access_count = 0
-            average_access_frequency = 0.0
-            most_accessed = None
-            peak_access_time = "14:00-16:00"
-        
-        access_patterns = {
-            "most_accessed": most_accessed.id if most_accessed else 0,
-            "average_access_frequency": average_access_frequency,
-            "peak_access_time": peak_access_time
-        }
-        
-        # 关联模式分析（使用持久化的关联数据）
-        association_patterns = []
-        
-        # 查询用户的所有记忆关联
-        user_associations = db.query(MemoryAssociation).join(
-            GlobalMemory, 
-            GlobalMemory.id == MemoryAssociation.source_memory_id
-        ).filter(
-            GlobalMemory.user_id == user_id,
-            GlobalMemory.is_active == True
-        ).all()
-        
-        # 提取关联模式
-        for association in user_associations:
-            # 获取目标记忆信息
-            target_memory = db.query(GlobalMemory).filter(
-                GlobalMemory.id == association.target_memory_id,
+        try:
+            # 获取用户的所有活跃记忆（限制数量以避免内存问题）
+            user_memories = db.query(GlobalMemory).filter(
                 GlobalMemory.user_id == user_id,
                 GlobalMemory.is_active == True
-            ).first()
+            ).order_by(desc(GlobalMemory.created_at)).limit(1000).all()
             
-            if target_memory:
-                association_patterns.append({
-                    "source_memory_id": association.source_memory_id,
-                    "target_memory_id": association.target_memory_id,
-                    "association_type": association.association_type,
-                    "strength": association.strength,
-                    "created_at": association.created_at.isoformat()
+            # 时间模式分析
+            temporal_patterns = {
+                "daily": {"morning": 0, "afternoon": 0, "evening": 0},
+                "weekly": {}
+            }
+            
+            # 按小时统计
+            hourly_stats = [0] * 24
+            for memory in user_memories:
+                hour = memory.created_at.hour
+                hourly_stats[hour] += 1
+            
+            # 按时间段分类
+            temporal_patterns["daily"]["morning"] = sum(hourly_stats[6:12])  # 6-12点
+            temporal_patterns["daily"]["afternoon"] = sum(hourly_stats[12:18])  # 12-18点
+            temporal_patterns["daily"]["evening"] = sum(hourly_stats[18:24]) + sum(hourly_stats[0:6])  # 18-24点和0-6点
+            
+            # 按星期几统计
+            days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+            for day in days:
+                temporal_patterns["weekly"][day] = 0
+            
+            for memory in user_memories:
+                weekday = memory.created_at.weekday()  # 0-6, 0=周一
+                day_name = days[weekday]
+                temporal_patterns["weekly"][day_name] += 1
+            
+            # 主题模式分析（基于记忆类别）
+            topic_patterns = []
+            category_counts = {}
+            category_importance = {}
+            
+            for memory in user_memories:
+                category = memory.memory_category or "UNCATEGORIZED"
+                if category not in category_counts:
+                    category_counts[category] = 0
+                    category_importance[category] = []
+                category_counts[category] += 1
+                if memory.importance_score:
+                    category_importance[category].append(memory.importance_score)
+            
+            # 计算每个类别的平均重要性
+            for category, count in category_counts.items():
+                avg_importance = 0.0
+                if category_importance[category]:
+                    avg_importance = sum(category_importance[category]) / len(category_importance[category])
+                topic_patterns.append({
+                    "topic": category,
+                    "count": count,
+                    "average_importance": round(avg_importance, 2)
                 })
-        
-        # 如果没有持久化的关联，回退到临时相似性搜索
-        if not association_patterns and len(user_memories) > 1:
-            # 随机选择5个记忆作为查询，查找相似记忆
-            import random
-            sample_size = min(5, len(user_memories))
-            sample_memories = random.sample(user_memories, sample_size)
             
-            for source_memory in sample_memories:
-                if source_memory.content:
-                    # 搜索相似记忆
-                    similar_results = chroma_service.search_similar(
-                        query=source_memory.content,
-                        n_results=2,  # 找最相似的1个
-                        where_filter={"user_id": user_id},
-                        collection_name="memories"
-                    )
-                    
-                    for i, doc_id in enumerate(similar_results["ids"][0]):
-                        if str(doc_id) != str(source_memory.id):  # 排除自己
-                            try:
-                                target_memory_id = int(doc_id)
-                                similarity = round(1 - similar_results["distances"][0][i], 2)  # 转换为相似度（0-1）
-                                
-                                # 只添加相似度大于0.7的关联
-                                if similarity > 0.7:
-                                    association_patterns.append({
-                                        "source_memory_id": source_memory.id,
-                                        "target_memory_id": target_memory_id,
-                                        "association_type": "SEMANTIC",
-                                        "strength": similarity
-                                    })
-                            except (ValueError, TypeError):
-                                continue
-        
-        return MemoryPatterns(
-            temporal_patterns=temporal_patterns,
-            topic_patterns=topic_patterns,
-            access_patterns=access_patterns,
-            association_patterns=association_patterns
-        )
+            # 按数量排序
+            topic_patterns.sort(key=lambda x: x["count"], reverse=True)
+            
+            # 访问模式分析
+            if user_memories:
+                total_access_count = sum(memory.access_count for memory in user_memories)
+                average_access_frequency = round(total_access_count / len(user_memories), 2)
+                most_accessed = max(user_memories, key=lambda x: x.access_count)
+                peak_access_hour = hourly_stats.index(max(hourly_stats)) if max(hourly_stats) > 0 else 14
+                peak_access_time = f"{peak_access_hour:02d}:00-{peak_access_hour + 2:02d}:00"
+            else:
+                total_access_count = 0
+                average_access_frequency = 0.0
+                most_accessed = None
+                peak_access_time = "14:00-16:00"
+            
+            access_patterns = {
+                "most_accessed": most_accessed.id if most_accessed else 0,
+                "average_access_frequency": average_access_frequency,
+                "peak_access_time": peak_access_time
+            }
+            
+            # 关联模式分析（使用持久化的关联数据）
+            association_patterns = []
+            
+            # 查询用户的所有记忆关联（限制数量）
+            user_associations = db.query(MemoryAssociation).join(
+                GlobalMemory, 
+                GlobalMemory.id == MemoryAssociation.source_memory_id
+            ).filter(
+                GlobalMemory.user_id == user_id,
+                GlobalMemory.is_active == True
+            ).order_by(desc(MemoryAssociation.strength)).limit(100).all()
+            
+            # 提取关联模式
+            for association in user_associations:
+                # 获取目标记忆信息
+                target_memory = db.query(GlobalMemory).filter(
+                    GlobalMemory.id == association.target_memory_id,
+                    GlobalMemory.user_id == user_id,
+                    GlobalMemory.is_active == True
+                ).first()
+                
+                if target_memory:
+                    association_patterns.append({
+                        "source_memory_id": association.source_memory_id,
+                        "target_memory_id": association.target_memory_id,
+                        "association_type": association.association_type,
+                        "strength": association.strength,
+                        "created_at": association.created_at.isoformat()
+                    })
+            
+            # 如果没有持久化的关联，回退到临时相似性搜索
+            # 暂时禁用向量搜索，以避免服务器崩溃
+            # if not association_patterns and len(user_memories) > 1:
+            #     # 随机选择5个记忆作为查询，查找相似记忆
+            #     import random
+            #     sample_size = min(5, len(user_memories))
+            #     sample_memories = random.sample(user_memories, sample_size)
+            #     
+            #     for source_memory in sample_memories:
+            #         if source_memory.content:
+            #             try:
+            #                 # 搜索相似记忆
+            #                 similar_results = chroma_service.search_similar(
+            #                     query=source_memory.content,
+            #                     n_results=2,  # 找最相似的1个
+            #                     where_filter={"user_id": user_id},
+            #                     collection_name="memories"
+            #                 )
+            #                 
+            #                 for i, doc_id in enumerate(similar_results["ids"][0]):
+            #                     if str(doc_id) != str(source_memory.id):  # 排除自己
+            #                         try:
+            #                             target_memory_id = int(doc_id)
+            #                             similarity = round(1 - similar_results["distances"][0][i], 2)  # 转换为相似度（0-1）
+            #                             
+            #                             # 只添加相似度大于0.7的关联
+            #                             if similarity > 0.7:
+            #                                 association_patterns.append({
+            #                                     "source_memory_id": source_memory.id,
+            #                                     "target_memory_id": target_memory_id,
+            #                                     "association_type": "SEMANTIC",
+            #                                     "strength": similarity
+            #                                 })
+            #                         except (ValueError, TypeError):
+            #                             continue
+            #             except Exception as e:
+            #                 memory_logger.error(f"向量搜索失败: {str(e)}", extra_fields={
+            #                     "user_id": user_id,
+            #                     "source_memory_id": source_memory.id
+            #                 }, exc_info=e)
+            
+            # 记录性能指标
+            response_time = (time.time() - start_time) * 1000  # 毫秒
+            alert_manager.check_metric(
+                metric_type=MetricType.RESPONSE_TIME,
+                metric_value=response_time,
+                metadata={"endpoint": "analyze_user_patterns", "user_id": user_id}
+            )
+            
+            memory_logger.info("分析用户记忆模式成功", extra_fields={
+                "user_id": user_id,
+                "memory_count": len(user_memories),
+                "response_time": response_time
+            })
+            
+            return MemoryPatterns(
+                temporal_patterns=temporal_patterns,
+                topic_patterns=topic_patterns,
+                access_patterns=access_patterns,
+                association_patterns=association_patterns
+            )
+            
+        except Exception as e:
+            memory_logger.error(f"分析用户记忆模式失败: {str(e)}", extra_fields={
+                "user_id": user_id
+            }, exc_info=e)
+            
+            # 返回默认值，避免服务器崩溃
+            return MemoryPatterns(
+                temporal_patterns={
+                    "daily": {"morning": 0, "afternoon": 0, "evening": 0},
+                    "weekly": {}
+                },
+                topic_patterns=[],
+                access_patterns={
+                    "most_accessed": 0,
+                    "average_access_frequency": 0.0,
+                    "peak_access_time": "14:00-16:00"
+                },
+                association_patterns=[]
+            )
     
     @staticmethod
     def cleanup_expired_memories(db: Session, user_id: int) -> int:
@@ -1081,71 +1111,114 @@ class MemoryService:
     @staticmethod
     def build_memory_associations(db: Session, memory_id: int, user_id: int, association_types: Optional[List[str]] = None) -> int:
         """建立记忆关联关系"""
-        # 获取要建立关联的记忆
-        source_memory = db.query(GlobalMemory).filter(
-            GlobalMemory.id == memory_id,
-            GlobalMemory.user_id == user_id,
-            GlobalMemory.is_active == True
-        ).first()
+        start_time = time.time()
         
-        if not source_memory or not source_memory.content:
-            return 0
-        
-        # 默认关联类型
-        if not association_types:
-            association_types = ["SEMANTIC"]
-        
-        # 1. 语义关联：基于向量相似性
-        if "SEMANTIC" in association_types:
-            # 搜索相似记忆
-            similar_results = chroma_service.search_similar(
-                query=source_memory.content,
-                n_results=10,
-                where_filter={"user_id": user_id, "memory_type": ["SHORT_TERM", "LONG_TERM", "SEMANTIC"]},
-                collection_name="memories"
-            )
+        try:
+            # 获取要建立关联的记忆
+            source_memory = db.query(GlobalMemory).filter(
+                GlobalMemory.id == memory_id,
+                GlobalMemory.user_id == user_id,
+                GlobalMemory.is_active == True
+            ).first()
             
-            # 建立关联
-            created_count = 0
-            for i, doc_id in enumerate(similar_results["ids"][0]):
+            if not source_memory or not source_memory.content:
+                return 0
+            
+            # 默认关联类型
+            if not association_types:
+                association_types = ["SEMANTIC"]
+            
+            # 1. 语义关联：基于向量相似性
+            if "SEMANTIC" in association_types:
                 try:
-                    target_memory_id = int(doc_id)
-                    if target_memory_id == source_memory.id:
-                        continue
+                    # 搜索相似记忆
+                    similar_results = chroma_service.search_similar(
+                        query=source_memory.content,
+                        n_results=10,
+                        where_filter={"user_id": user_id, "memory_type": ["SHORT_TERM", "LONG_TERM", "SEMANTIC"]},
+                        collection_name="memories"
+                    )
                     
-                    distance = similar_results["distances"][0][i]
-                    similarity = 1 - distance  # 转换为相似度（0-1）
+                    # 批量收集要创建的关联
+                    new_associations = []
+                    existing_pairs = set()
                     
-                    # 只建立相似度高的关联
-                    if similarity > 0.7:
-                        # 检查关联是否已存在
-                        existing_association = db.query(MemoryAssociation).filter(
-                            ((MemoryAssociation.source_memory_id == source_memory.id) & 
-                             (MemoryAssociation.target_memory_id == target_memory_id)) |
-                            ((MemoryAssociation.source_memory_id == target_memory_id) & 
-                             (MemoryAssociation.target_memory_id == source_memory.id))
-                        ).first()
-                        
-                        if not existing_association:
-                            # 创建新关联
-                            new_association = MemoryAssociation(
-                                source_memory_id=source_memory.id,
-                                target_memory_id=target_memory_id,
-                                association_type="SEMANTIC",
-                                strength=round(similarity, 2),
-                                bidirectional=True
-                            )
-                            db.add(new_association)
-                            created_count += 1
-                except (ValueError, TypeError):
-                    continue
+                    # 先查询所有已存在的关联
+                    existing_associations = db.query(MemoryAssociation).filter(
+                        MemoryAssociation.source_memory_id == source_memory.id
+                    ).all()
+                    for assoc in existing_associations:
+                        existing_pairs.add(assoc.target_memory_id)
+                    
+                    # 遍历搜索结果
+                    for i, doc_id in enumerate(similar_results["ids"][0]):
+                        try:
+                            target_memory_id = int(doc_id)
+                            if target_memory_id == source_memory.id:
+                                continue
+                            
+                            # 检查是否已存在关联
+                            if target_memory_id in existing_pairs:
+                                continue
+                            
+                            distance = similar_results["distances"][0][i]
+                            similarity = 1 - distance  # 转换为相似度（0-1）
+                            
+                            # 只建立相似度高的关联
+                            if similarity > 0.7:
+                                # 创建新关联对象（不立即添加到数据库）
+                                new_association = MemoryAssociation(
+                                    source_memory_id=source_memory.id,
+                                    target_memory_id=target_memory_id,
+                                    association_type="SEMANTIC",
+                                    strength=round(similarity, 2),
+                                    bidirectional=True
+                                )
+                                new_associations.append(new_association)
+                                existing_pairs.add(target_memory_id)
+                        except (ValueError, TypeError):
+                            continue
+                    
+                    # 批量添加到数据库
+                    if new_associations:
+                        db.bulk_save_objects(new_associations)
+                        db.commit()
+                        created_count = len(new_associations)
+                    else:
+                        created_count = 0
+                    
+                    # 记录性能指标
+                    response_time = (time.time() - start_time) * 1000  # 毫秒
+                    alert_manager.check_metric(
+                        metric_type=MetricType.RESPONSE_TIME,
+                        metric_value=response_time,
+                        metadata={"endpoint": "build_memory_associations", "user_id": user_id, "memory_id": memory_id}
+                    )
+                    
+                    memory_logger.info("建立记忆关联成功", extra_fields={
+                        "user_id": user_id,
+                        "memory_id": memory_id,
+                        "created_count": created_count,
+                        "response_time": response_time
+                    })
+                    
+                    return created_count
+                    
+                except Exception as e:
+                    memory_logger.error(f"向量搜索失败: {str(e)}", extra_fields={
+                        "user_id": user_id,
+                        "memory_id": memory_id
+                    }, exc_info=e)
+                    return 0
             
-            if created_count > 0:
-                db.commit()
+            return 0
             
-            return created_count
-        
-        return 0
+        except Exception as e:
+            memory_logger.error("建立记忆关联失败", extra_fields={
+                "user_id": user_id,
+                "memory_id": memory_id
+            }, exc_info=e)
+            raise
     
     @staticmethod
     def build_knowledge_graph(db: Session, user_id: int, max_nodes: int = 100) -> Dict[str, Any]:

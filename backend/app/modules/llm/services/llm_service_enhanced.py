@@ -182,8 +182,10 @@ class EnhancedLLMService:
                                     "error": error_info,
                                     "config_type": "database"
                                 })
+                                # 数据库配置失败后，直接尝试下一个模型，不再尝试环境变量配置
+                                break
                     
-                    # 使用环境变量配置
+                    # 只有当数据库配置不存在时，才使用环境变量配置
                     response = self._call_api_with_env_config(
                         openai, messages, current_model, max_tokens, temperature, 
                         top_p, n, stop, frequency_penalty, presence_penalty, start_time
@@ -211,7 +213,7 @@ class EnhancedLLMService:
                             "error": error_info,
                             "config_type": "environment"
                         })
-                        
+                    
                 except Exception as e:
                     error_msg = str(e)
                     logger.error(f"模型 {current_model} 调用异常 (尝试 {attempt + 1}): {error_msg}")

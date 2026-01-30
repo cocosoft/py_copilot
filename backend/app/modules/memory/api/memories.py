@@ -2,6 +2,10 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from functools import wraps
+from collections import defaultdict
+import time
+import asyncio
 
 from app.core.database import get_db
 from app.api.deps import get_current_user
@@ -17,6 +21,67 @@ from app.schemas.memory import (
 router = APIRouter()
 
 
+# 请求节流机制（使用内置模块）
+class RateLimiter:
+    """请求节流器"""
+    
+    def __init__(self):
+        self.request_times = defaultdict(list)
+    
+    def is_allowed(self, user_id: int, max_requests: int, time_window: int) -> bool:
+        """检查是否允许请求"""
+        current_time = time.time()
+        
+        # 获取该用户的请求时间记录
+        user_requests = self.request_times[user_id]
+        
+        # 移除超出时间窗口的记录
+        user_requests[:] = [req_time for req_time in user_requests if current_time - req_time < time_window]
+        
+        # 检查是否超过限制
+        if len(user_requests) >= max_requests:
+            return False
+        
+        # 记录当前请求
+        user_requests.append(current_time)
+        return True
+    
+    def clear_user(self, user_id: int):
+        """清除用户的请求记录"""
+        if user_id in self.request_times:
+            del self.request_times[user_id]
+
+
+# 创建全局节流器实例
+rate_limiter = RateLimiter()
+
+
+def rate_limit(max_requests: int, time_window: int):
+    """请求节流装饰器"""
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            # 从 kwargs 中获取 current_user
+            current_user = kwargs.get('current_user')
+            if not current_user:
+                # 如果不在 kwargs 中，尝试从 args 中获取
+                for arg in args:
+                    if isinstance(arg, User):
+                        current_user = arg
+                        break
+            
+            if current_user:
+                if not rate_limiter.is_allowed(current_user.id, max_requests, time_window):
+                    raise HTTPException(
+                        status_code=429,
+                        detail=f"请求过于频繁，请在 {time_window} 秒后重试"
+                    )
+            
+            return await func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
 @router.post("/memories", response_model=MemoryResponse)
 async def create_memory(
     memory_data: MemoryCreate,
@@ -28,21 +93,39 @@ async def create_memory(
     return memory
 
 
-@router.get("/memories", response_model=List[MemoryResponse])
+@router.get("/memories")
 async def get_user_memories(
     memory_types: Optional[List[str]] = Query(None, description="记忆类型过滤"),
     memory_categories: Optional[List[str]] = Query(None, description="记忆类别过滤"),
     session_id: Optional[str] = Query(None, description="会话ID过滤"),
+    page: int = Query(1, ge=1, description="页码"),
     limit: int = Query(20, ge=1, le=100, description="结果数量限制"),
-    offset: int = Query(0, ge=0, description="分页偏移量"),
+    offset: int = Query(None, ge=0, description="分页偏移量（可选，如果提供则忽略page参数）"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """获取用户的所有记忆条目"""
+    # 计算偏移量
+    if offset is None:
+        offset = (page - 1) * limit
+    
+    # 获取记忆列表
     memories = await MemoryService.get_user_memories(
         db, current_user.id, memory_types, memory_categories, limit, offset, session_id
     )
-    return memories
+    
+    # 获取总记忆数
+    from app.models.memory import GlobalMemory
+    total = db.query(GlobalMemory).filter(
+        GlobalMemory.user_id == current_user.id,
+        GlobalMemory.is_active == True
+    ).count()
+    
+    # 返回与前端期望一致的数据结构
+    return {
+        "memories": memories,
+        "total": total
+    }
 
 
 @router.delete("/memories")
@@ -74,6 +157,7 @@ async def search_memories(
 
 
 @router.get("/memories/knowledge-graph")
+@rate_limit(max_requests=10, time_window=60)  # 10次/分钟
 async def build_user_knowledge_graph(
     max_nodes: int = Query(100, ge=10, le=500, description="知识图谱最大节点数"),
     current_user: User = Depends(get_current_user),
@@ -91,6 +175,7 @@ async def build_user_knowledge_graph(
 
 
 @router.get("/memories/{memory_id}/knowledge-graph")
+@rate_limit(max_requests=3, time_window=60)  # 3次/分钟
 async def traverse_memory_knowledge_graph(
     memory_id: int,
     max_depth: int = Query(3, ge=1, le=10, description="知识图谱遍历深度限制"),
@@ -151,6 +236,7 @@ async def delete_memory(
 
 
 @router.get("/memories/analytics/stats", response_model=MemoryStatsResponse)
+@rate_limit(max_requests=10, time_window=60)  # 10次/分钟
 async def get_memory_stats(
     time_range: str = Query("30d", description="时间范围"),
     current_user: User = Depends(get_current_user),
@@ -162,16 +248,19 @@ async def get_memory_stats(
 
 
 @router.get("/memories/analytics/patterns", response_model=MemoryPatternsResponse)
+@rate_limit(max_requests=5, time_window=60)  # 5次/分钟
 async def get_memory_patterns(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """获取用户记忆模式分析"""
-    patterns = MemoryService.analyze_user_patterns(db, current_user.id)
+    # 在后台线程中运行同步方法，避免阻塞事件循环
+    patterns = await asyncio.to_thread(MemoryService.analyze_user_patterns, db, current_user.id)
     return patterns
 
 
 @router.get("/memories/analytics/preferences")
+@rate_limit(max_requests=10, time_window=60)  # 10次/分钟
 async def get_user_memory_preferences(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
