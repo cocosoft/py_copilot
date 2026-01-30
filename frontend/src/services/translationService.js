@@ -19,7 +19,7 @@ const TRANSLATION_ENDPOINTS = {
   SEARCH_TERMINOLOGY: '/v1/terminology/search',
   GET_KNOWLEDGE_BASES: '/v1/knowledge/knowledge-bases',
   SEARCH_KNOWLEDGE_BASE: '/v1/knowledge/knowledge-bases/search',
-  GET_MEMORY_CONTEXT: '/v1/memory/memory-context',
+  GET_MEMORY_CONTEXT: '/memory/context/memories',
   GET_TRANSLATION_MODELS: '/v1/translation-models',
   GET_TRANSLATION_AGENTS: '/v1/agents/translation-agents',
   GET_DEFAULT_TRANSLATION_MODEL: '/v1/default-translation-model',

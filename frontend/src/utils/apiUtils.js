@@ -1,5 +1,5 @@
-// API基础配置 - 直接使用后端完整URL，绕过代理问题
-export const API_BASE_URL = 'http://127.0.0.1:8000/api';
+// API基础配置 - 使用相对路径，通过Vite代理访问后端
+export const API_BASE_URL = '/api';
 
 // 本地存储前缀
 export const STORAGE_PREFIX = 'llm_admin_';
@@ -251,6 +251,45 @@ export const retry = async (fn, maxRetries = 3, delayMs = 1000) => {
     } catch (error) {
       if (i === maxRetries - 1) throw error;
       await delay(delayMs * Math.pow(2, i)); // 指数退避
+    }
+  }
+};
+
+// 请求重试函数（带错误判断）
+export const requestWithRetry = async (endpoint, options = {}, maxRetries = 3) => {
+  const { 
+    retryableStatusCodes = [408, 429, 500, 502, 503, 504],
+    initialDelay = 1000,
+    ...requestOptions 
+  } = options;
+  
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await request(endpoint, requestOptions);
+    } catch (error) {
+      const isLastAttempt = i === maxRetries - 1;
+      
+      // 检查是否应该重试
+      const shouldRetry = !isLastAttempt && (
+        // 网络错误（无状态码）
+        !error.status ||
+        // 可重试的HTTP状态码
+        retryableStatusCodes.includes(error.status) ||
+        // 超时错误
+        error.name === 'AbortError' ||
+        // 连接错误
+        error.message?.includes('Failed to fetch') ||
+        error.message?.includes('ERR_CONNECTION_REFUSED')
+      );
+      
+      if (!shouldRetry) {
+        throw error;
+      }
+      
+      // 计算延迟时间（指数退避）
+      const delayTime = initialDelay * Math.pow(2, i);
+      console.warn(`请求失败，${delayTime}ms后进行第${i + 2}次重试...`, error.message);
+      await delay(delayTime);
     }
   }
 };

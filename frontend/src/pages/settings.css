@@ -1078,22 +1078,19 @@
 /* 分页控件 */
 .pagination {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 12px;
   padding: 16px 0;
-}
-
-.pagination-info {
-  font-size: 14px;
-  color: #7f8c8d;
 }
 
 .pagination-controls {
   display: flex;
-  gap: 8px;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
 }
 
-.pagination-btn {
+.page-btn {
   padding: 8px 16px;
   border: 1px solid #e1e8ed;
   border-radius: 4px;
@@ -1104,21 +1101,105 @@
   transition: all 0.3s ease;
 }
 
-.pagination-btn:hover {
+.page-btn:hover {
   background-color: #f8f9fa;
   border-color: #bdc3c7;
 }
 
-.pagination-btn:disabled {
+.page-btn:disabled {
   background-color: #ecf0f1;
   color: #bdc3c7;
   cursor: not-allowed;
 }
 
-.pagination-btn.active {
-  background-color: #3498db;
-  color: white;
+.page-info {
+  font-size: 14px;
+  color: #7f8c8d;
+  margin: 0 16px;
+}
+
+.pagination-options {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.page-size-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.page-size-selector label {
+  font-size: 14px;
+  color: #34495e;
+}
+
+.page-size-selector select {
+  padding: 6px 12px;
+  border: 1px solid #e1e8ed;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: #ffffff;
+  color: #34495e;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.page-size-selector select:focus {
   border-color: #3498db;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.page-jump {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.page-jump label {
+  font-size: 14px;
+  color: #34495e;
+}
+
+.page-jump input {
+  padding: 6px 12px;
+  border: 1px solid #e1e8ed;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: #ffffff;
+  color: #34495e;
+  width: 80px;
+  transition: all 0.3s ease;
+}
+
+.page-jump input:focus {
+  border-color: #3498db;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.jump-btn {
+  padding: 6px 16px;
+  border: 1px solid #e1e8ed;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: #ffffff;
+  color: #34495e;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.jump-btn:hover {
+  background-color: #f8f9fa;
+  border-color: #bdc3c7;
+}
+
+.jump-btn:disabled {
+  background-color: #ecf0f1;
+  color: #bdc3c7;
+  cursor: not-allowed;
 }
 
 /* 加载状态 */

@@ -27,14 +27,8 @@ const AppRoutes = () => {
       <Route path="workflow" element={<Workflow />} />
       <Route path="tool" element={<Tool />} />
       <Route path="settings" element={<Settings />} />
-      <Route path="personal/*">
-        <Route index element={<PersonalCenter />} />
-        <Route path="*" element={<PersonalCenter />} />
-      </Route>
-      <Route path="help/*">
-        <Route index element={<HelpCenter />} />
-        <Route path="*" element={<HelpCenter />} />
-      </Route>
+      <Route path="personal/*" element={<PersonalCenter />} />
+      <Route path="help/*" element={<HelpCenter />} />
     </Routes>
   );
 };

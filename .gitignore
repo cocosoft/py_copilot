@@ -766,3 +766,10 @@ backend/tests/test_websocket_connections.py
 backend/app/agents/test_knowledge_integration.py
 统一错误处理优化方案.md
 优化建议文档.md
+技术架构调查报告.md
+全局记忆管理界面问题分析与优化建议.md
+全局记忆管理界面优化实施方案.md
+backend/app/tests/modules/memory/test_memory_api.py
+backend/app/tests/modules/memory/test_memory_service_integration.py
+backend/app/tests/modules/memory/test_memory_service_performance.py
+backend/app/tests/modules/memory/test_memory_service.py

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { request } from '../utils/apiUtils';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { request, requestWithRetry } from '../utils/apiUtils';
 import * as d3 from 'd3';
 import './settings.css';
 import IntegratedModelManagement from '../components/ModelManagement/IntegratedModelManagement';
@@ -9,6 +9,19 @@ import Workflow from './Workflow';
 import Tool from './Tool';
 import ModelSelectDropdown from '../components/ModelManagement/ModelSelectDropdown';
 import SkillManagement from '../components/SkillManagement/SkillManagement';
+
+// 防抖函数
+const debounce = (func, wait) => {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+};
 
 
 const Settings = () => {
@@ -102,23 +115,103 @@ const Settings = () => {
   });
   const [isLoadingMemoryConfig, setIsLoadingMemoryConfig] = useState(false);
   const [isSavingMemoryConfig, setIsSavingMemoryConfig] = useState(false);
+  
+  // 记忆数据缓存
+  const memoryDataCache = useRef({
+    config: null,
+    stats: null,
+    patterns: null,
+    graph: null,
+    lastLoadTime: {
+      config: 0,
+      stats: 0,
+      patterns: 0,
+      graph: 0
+    }
+  });
+  
+  // 缓存过期时间（毫秒）- 5分钟
+  const CACHE_EXPIRY_TIME = 5 * 60 * 1000;
+  
+  // 清除记忆数据缓存
+  const clearMemoryDataCache = () => {
+    memoryDataCache.current = {
+      config: null,
+      stats: null,
+      patterns: null,
+      graph: null,
+      lastLoadTime: {
+        config: 0,
+        stats: 0,
+        patterns: 0,
+        graph: 0
+      }
+    };
+  };
+  
+  // 检查缓存是否有效
+  const isCacheValid = (cacheType) => {
+    const currentTime = Date.now();
+    const lastLoadTime = memoryDataCache.current.lastLoadTime[cacheType];
+    return lastLoadTime > 0 && (currentTime - lastLoadTime) < CACHE_EXPIRY_TIME;
+  };
+
+  // 串行化加载记忆数据
+  const loadMemoryDataSequentially = async () => {
+    try {
+      // 1. 加载配置
+      await loadMemoryConfig();
+      
+      // 2. 加载记忆列表
+      await loadMemories();
+      
+      // 3. 加载统计信息
+      await loadMemoryStats();
+      
+      // 4. 加载模式分析
+      await loadMemoryPatterns();
+      
+      // 5. 加载知识图谱
+      await loadKnowledgeGraph();
+    } catch (error) {
+      console.error('加载记忆数据失败:', error);
+    }
+  };
 
   // 加载记忆配置
   const loadMemoryConfig = async () => {
+    // 检查缓存
+    if (isCacheValid('config') && memoryDataCache.current.config) {
+      setMemoryConfig(memoryDataCache.current.config);
+      return;
+    }
+    
     setIsLoadingMemoryConfig(true);
     try {
-      const data = await request('/v1/memory/memory-config', { method: 'GET' });
+      const data = await requestWithRetry('/v1/memory/memory-config', { method: 'GET' }, 3);
       setMemoryConfig(data);
+      
+      // 更新缓存
+      memoryDataCache.current.config = data;
+      memoryDataCache.current.lastLoadTime.config = Date.now();
     } catch (error) {
       console.error('加载记忆配置失败:', error);
       // 加载失败时使用默认值
-      setMemoryConfig({
+      const defaultConfig = {
         short_term_retention_days: 7,
         privacy_level: 'MEDIUM',
         auto_purge: true,
         retrieval_threshold: 0.7,
         max_retrieval_results: 20
-      });
+      };
+      setMemoryConfig(defaultConfig);
+      
+      // 缓存默认值
+      memoryDataCache.current.config = defaultConfig;
+      memoryDataCache.current.lastLoadTime.config = Date.now();
+      
+      // 显示错误提示
+      alert(`加载记忆配置失败: ${error.message}`);
     } finally {
       setIsLoadingMemoryConfig(false);
     }
@@ -133,6 +226,9 @@ const Settings = () => {
         data: memoryConfig
       });
       alert('记忆配置已保存');
+      
+      // 清除缓存
+      clearMemoryDataCache();
     } catch (error) {
       console.error('保存记忆配置失败:', error);
       alert('保存失败，请重试');
@@ -141,14 +237,10 @@ const Settings = () => {
     }
   };
 
-  // 页面加载时获取记忆配置
+  // 页面加载时获取记忆配置（使用串行化加载）
   useEffect(() => {
     if (activeSection === 'globalMemory') {
-      loadMemoryConfig();
-      loadMemories();
-      loadMemoryStats();
-      loadMemoryPatterns();
-      loadKnowledgeGraph();
+      loadMemoryDataSequentially();
     }
   }, [activeSection]);
 
@@ -157,9 +249,10 @@ const Settings = () => {
   const [isLoadingMemories, setIsLoadingMemories] = useState(false);
   const [memorySearchQuery, setMemorySearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [memoriesPerPage] = useState(10);
+  const [memoriesPerPage, setMemoriesPerPage] = useState(10);
   const [totalMemories, setTotalMemories] = useState(0);
   const [isDeletingMemory, setIsDeletingMemory] = useState(false);
+  const [pageInput, setPageInput] = useState('1');
   
   // 记忆统计和分析相关状态
   const [memoryStats, setMemoryStats] = useState(null);
@@ -179,8 +272,8 @@ const Settings = () => {
   const importanceChartRef = useRef(null);
   const knowledgeGraphRef = useRef(null);
   
-  // 渲染记忆类型分布饼图
-  const renderMemoryTypeChart = () => {
+  // 渲染记忆类型分布饼图（使用useCallback优化）
+  const renderMemoryTypeChart = useCallback(() => {
     if (!memoryStats || !memoryTypeChartRef.current) return;
     
     const data = [
@@ -232,10 +325,10 @@ const Settings = () => {
       .style('text-anchor', 'middle')
       .style('font-size', '14px')
       .text(d => `${d.data.name}: ${d.data.value}`);
-  };
+  }, [memoryStats]);
   
-  // 渲染记忆重要性分布柱状图
-  const renderImportanceChart = () => {
+  // 渲染记忆重要性分布柱状图（使用useCallback优化）
+  const renderImportanceChart = useCallback(() => {
     if (!memoryStats || !importanceChartRef.current) return;
     
     // 模拟重要性分布数据（实际应该从memoryStats或memoryPatterns获取）
@@ -280,7 +373,7 @@ const Settings = () => {
     g.append('g')
       .call(d3.axisLeft(y));
     
-    // 添加柱子
+    // 添加柱状图
     g.selectAll('.bar')
       .data(data)
       .enter().append('rect')
@@ -301,7 +394,7 @@ const Settings = () => {
       .attr('text-anchor', 'middle')
       .style('font-size', '12px')
       .text(d => d.count);
-  };
+  }, [memoryStats]);
   
   // 当记忆统计数据更新时渲染图表
   useEffect(() => {
@@ -311,8 +404,8 @@ const Settings = () => {
     }
   }, [memoryStats]);
   
-  // 渲染知识图谱
-  const renderKnowledgeGraph = () => {
+  // 渲染知识图谱（使用useCallback优化）
+  const renderKnowledgeGraph = useCallback(() => {
     if (!knowledgeGraph || !knowledgeGraphRef.current) return;
     
     const { nodes = [], edges = [] } = knowledgeGraph;
@@ -407,19 +500,19 @@ const Settings = () => {
       
       node.attr('transform', d => `translate(${d.x},${d.y})`);
     });
-  };
+  }, [knowledgeGraph]);
   
-  // 窗口大小变化时重新渲染图表
+  // 窗口大小变化时重新渲染图表（使用防抖优化）
   useEffect(() => {
-    const handleResize = () => {
+    const handleResize = debounce(() => {
       renderMemoryTypeChart();
       renderImportanceChart();
       renderKnowledgeGraph();
-    };
+    }, 300); // 300ms防抖
     
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [memoryStats, knowledgeGraph]);
+  }, [memoryStats, knowledgeGraph, renderMemoryTypeChart, renderImportanceChart, renderKnowledgeGraph]);
   
   // 知识图谱数据更新时重新渲染
   useEffect(() => {
@@ -447,6 +540,8 @@ const Settings = () => {
       
       setMemories(data.memories || []);
       setTotalMemories(data.total || 0);
+      // 更新页面输入框
+      setPageInput(currentPage.toString());
     } catch (error) {
       console.error('加载记忆列表失败:', error);
       alert('加载记忆列表失败，请重试');
@@ -499,15 +594,44 @@ const Settings = () => {
     }
   };
 
+  // 处理每页显示条数变化
+  const handleMemoriesPerPageChange = (e) => {
+    const newLimit = parseInt(e.target.value);
+    setMemoriesPerPage(newLimit);
+    setCurrentPage(1); // 重置到第一页
+    loadMemories(); // 重新加载记忆列表
+  };
+
+  // 处理跳转到指定页面
+  const handlePageJump = () => {
+    const page = parseInt(pageInput);
+    if (!isNaN(page) && page > 0) {
+      const maxPage = Math.ceil(totalMemories / memoriesPerPage);
+      const targetPage = Math.min(page, maxPage);
+      setCurrentPage(targetPage);
+      loadMemories(); // 重新加载记忆列表
+    }
+  };
+
   // 加载记忆统计信息
   const loadMemoryStats = async () => {
+    // 检查缓存
+    if (isCacheValid('stats') && memoryDataCache.current.stats) {
+      setMemoryStats(memoryDataCache.current.stats);
+      return;
+    }
+    
     setIsLoadingStats(true);
     try {
-      const data = await request('/v1/memory/memories/analytics/stats', { method: 'GET' });
+      const data = await requestWithRetry('/v1/memory/memories/analytics/stats', { method: 'GET' }, 3);
       setMemoryStats(data);
+      
+      // 更新缓存
+      memoryDataCache.current.stats = data;
+      memoryDataCache.current.lastLoadTime.stats = Date.now();
     } catch (error) {
       console.error('加载记忆统计失败:', error);
-      alert('加载记忆统计失败，请重试');
+      alert(`加载记忆统计失败: ${error.message}`);
     } finally {
       setIsLoadingStats(false);
     }
@@ -515,15 +639,30 @@ const Settings = () => {
 
   // 加载记忆模式分析
   const loadMemoryPatterns = async () => {
+    // 检查缓存
+    if (isCacheValid('patterns') && memoryDataCache.current.patterns) {
+      setMemoryPatterns(memoryDataCache.current.patterns);
+      return;
+    }
+    
     setIsLoadingPatterns(true);
     try {
-      const data = await request('/v1/memory/memories/analytics/patterns', { method: 'GET' });
+      const data = await requestWithRetry('/v1/memory/memories/analytics/patterns', { method: 'GET' }, 3);
       setMemoryPatterns(data);
+      
+      // 更新缓存
+      memoryDataCache.current.patterns = data;
+      memoryDataCache.current.lastLoadTime.patterns = Date.now();
     } catch (error) {
       console.error('加载记忆模式分析失败:', error);
       // 设置默认值，避免渲染错误
-      setMemoryPatterns({ top_topics: [], association_patterns: [] });
-      alert('加载记忆模式分析失败，请重试');
+      const defaultPatterns = { top_topics: [], association_patterns: [] };
+      setMemoryPatterns(defaultPatterns);
+      
+      // 缓存默认值
+      memoryDataCache.current.patterns = defaultPatterns;
+      memoryDataCache.current.lastLoadTime.patterns = Date.now();
+      alert(`加载记忆模式分析失败: ${error.message}`);
     } finally {
       setIsLoadingPatterns(false);
     }
@@ -531,15 +670,30 @@ const Settings = () => {
   
   // 加载知识图谱
   const loadKnowledgeGraph = async () => {
+    // 检查缓存
+    if (isCacheValid('graph') && memoryDataCache.current.graph) {
+      setKnowledgeGraph(memoryDataCache.current.graph);
+      return;
+    }
+    
     setIsLoadingGraph(true);
     try {
-      const data = await request(`/v1/memory/memories/knowledge-graph?max_nodes=${maxNodes}`, { method: 'GET' });
+      const data = await requestWithRetry(`/v1/memory/memories/knowledge-graph?max_nodes=${maxNodes}`, { method: 'GET' }, 2);
       setKnowledgeGraph(data.graph_data);
+      
+      // 更新缓存
+      memoryDataCache.current.graph = data.graph_data;
+      memoryDataCache.current.lastLoadTime.graph = Date.now();
     } catch (error) {
       console.error('加载知识图谱失败:', error);
       // 设置默认值，避免渲染错误
-      setKnowledgeGraph({ nodes: [], edges: [] });
-      alert('加载知识图谱失败，请重试');
+      const defaultGraph = { nodes: [], edges: [] };
+      setKnowledgeGraph(defaultGraph);
+      
+      // 缓存默认值
+      memoryDataCache.current.graph = defaultGraph;
+      memoryDataCache.current.lastLoadTime.graph = Date.now();
+      alert(`加载知识图谱失败: ${error.message}`);
     } finally {
       setIsLoadingGraph(false);
     }
@@ -555,6 +709,10 @@ const Settings = () => {
     try {
       const data = await request('/v1/memory/memories/cleanup', { method: 'POST' });
       alert(`成功清理${data.deleted_count}条过期记忆`);
+      
+      // 清除缓存
+      clearMemoryDataCache();
+      
       // 重新加载记忆列表和统计信息
       loadMemories();
       loadMemoryStats();
@@ -577,6 +735,10 @@ const Settings = () => {
       const data = await request('/v1/memory/memories/compress', { method: 'POST' });
       const result = data.result;
       alert(`压缩完成：处理了${result.processed}条记忆，压缩了${result.compressed}条，创建了${result.created}条新的长期记忆`);
+      
+      // 清除缓存
+      clearMemoryDataCache();
+      
       // 重新加载记忆列表和统计信息
       loadMemories();
       loadMemoryStats();
@@ -588,13 +750,10 @@ const Settings = () => {
     }
   };
 
-  // 分页变化时重新加载数据
+  // 分页变化时重新加载数据（只重新加载记忆列表，不重新加载统计数据）
   useEffect(() => {
     if (activeSection === 'globalMemory') {
       loadMemories();
-      loadMemoryStats();
-      loadMemoryPatterns();
-      loadKnowledgeGraph();
     }
   }, [currentPage, activeSection]);
 
@@ -622,9 +781,9 @@ const Settings = () => {
   const loadSearchSettings = async () => {
     setIsLoadingSearch(true);
     try {
-      // 这里只需要使用/v1/search/settings路径，因为request函数会自动添加API_BASE_URL（即/api）
-      // 所以实际请求的URL是/api/v1/search/settings，与后端的路由匹配
-      const data = await request('/v1/search/settings', { method: 'GET' });
+      // 这里只需要使用/search/settings路径，因为request函数会自动添加API_BASE_URL（即/api）
+      // 所以实际请求的URL是/api/search/settings，与后端的路由匹配
+      const data = await request('/search/settings', { method: 'GET' });
       setDefaultSearchEngine(data.default_search_engine);
       setSafeSearch(data.safe_search);
     } catch (error) {
@@ -1316,23 +1475,60 @@ const Settings = () => {
                       {/* 分页 */}
                       {totalMemories > memoriesPerPage && (
                         <div className="pagination">
-                          <button 
-                            className="page-btn" 
-                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                            disabled={currentPage === 1}
-                          >
-                            上一页
-                          </button>
-                          <span className="page-info">
-                            第 {currentPage} 页，共 {Math.ceil(totalMemories / memoriesPerPage)} 页
-                          </span>
-                          <button 
-                            className="page-btn" 
-                            onClick={() => setCurrentPage(prev => Math.min(Math.ceil(totalMemories / memoriesPerPage), prev + 1))}
-                            disabled={currentPage === Math.ceil(totalMemories / memoriesPerPage)}
-                          >
-                            下一页
-                          </button>
+                          <div className="pagination-controls">
+                            <button 
+                              className="page-btn" 
+                              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                              disabled={currentPage === 1}
+                            >
+                              上一页
+                            </button>
+                            <span className="page-info">
+                              第 {currentPage} 页，共 {Math.ceil(totalMemories / memoriesPerPage)} 页
+                            </span>
+                            <button 
+                              className="page-btn" 
+                              onClick={() => setCurrentPage(prev => Math.min(Math.ceil(totalMemories / memoriesPerPage), prev + 1))}
+                              disabled={currentPage === Math.ceil(totalMemories / memoriesPerPage)}
+                            >
+                              下一页
+                            </button>
+                          </div>
+                          <div className="pagination-options">
+                            <div className="page-size-selector">
+                              <label htmlFor="memoriesPerPage">每页显示：</label>
+                              <select 
+                                id="memoriesPerPage" 
+                                value={memoriesPerPage} 
+                                onChange={handleMemoriesPerPageChange}
+                                disabled={isLoadingMemories}
+                              >
+                                <option value={5}>5条</option>
+                                <option value={10}>10条</option>
+                                <option value={20}>20条</option>
+                                <option value={50}>50条</option>
+                              </select>
+                            </div>
+                            <div className="page-jump">
+                              <label htmlFor="pageInput">跳转到：</label>
+                              <input 
+                                type="number" 
+                                id="pageInput" 
+                                min="1" 
+                                value={pageInput} 
+                                onChange={(e) => setPageInput(e.target.value)}
+                                onKeyPress={(e) => e.key === 'Enter' && handlePageJump()}
+                                disabled={isLoadingMemories}
+                              />
+                              <button 
+                                className="jump-btn" 
+                                onClick={handlePageJump}
+                                disabled={isLoadingMemories}
+                              >
+                                跳转
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>
