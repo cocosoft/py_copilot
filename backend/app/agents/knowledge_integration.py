@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session
 from app.modules.knowledge.services.knowledge_service import KnowledgeService
 from app.services.knowledge.retrieval_service import RetrievalService, AdvancedRetrievalService
 from app.agents.agent_models import Agent, AgentConfig
-from app.memory.memory_models import Memory, MemoryType, MemoryPriority
 
 logger = logging.getLogger(__name__)
 

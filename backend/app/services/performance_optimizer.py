@@ -1,445 +1,686 @@
 """
-性能优化器
-实施性能优化方案，提供自动优化功能
-"""
+性能优化服务
 
+实现文件I/O和向量计算的优化，提升系统性能与可扩展性
+"""
 import asyncio
+import aiofiles
+import functools
 import time
-import logging
 import threading
-from typing import Dict, List, Optional, Any, Callable
-from dataclasses import dataclass
-from functools import lru_cache, wraps
-import concurrent.futures
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+from typing import Dict, Any, Optional, List
+from pathlib import Path
+import logging
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class OptimizationResult:
-    """优化结果"""
-    skill_id: str
-    optimization_type: str
-    success: bool
-    improvement: float  # 性能提升百分比
-    execution_time_before: float
-    execution_time_after: float
-    memory_usage_before: float
-    memory_usage_after: float
-    details: Dict[str, Any]
+class AsyncFileManager:
+    """异步文件管理器"""
+    
+    def __init__(self, buffer_size: int = 8192):
+        """初始化异步文件管理器
+        
+        Args:
+            buffer_size: 缓冲区大小
+        """
+        self.buffer_size = buffer_size
+        self.lock = asyncio.Lock()
+        logger.info("异步文件管理器已初始化")
+    
+    async def read_file(self, file_path: str) -> Optional[str]:
+        """异步读取文件
+        
+        Args:
+            file_path: 文件路径
+            
+        Returns:
+            文件内容
+        """
+        try:
+            async with self.lock:
+                async with aiofiles.open(file_path, 'r', encoding='utf-8') as f:
+                    content = await f.read()
+                logger.debug(f"异步读取文件完成: {file_path}")
+                return content
+        except Exception as e:
+            logger.error(f"异步读取文件失败: {file_path}, 错误: {str(e)}")
+            return None
+    
+    async def write_file(self, file_path: str, content: str) -> bool:
+        """异步写入文件
+        
+        Args:
+            file_path: 文件路径
+            content: 文件内容
+            
+        Returns:
+            是否成功
+        """
+        try:
+            # 确保目录存在
+            file_dir = Path(file_path).parent
+            file_dir.mkdir(parents=True, exist_ok=True)
+            
+            async with self.lock:
+                async with aiofiles.open(file_path, 'w', encoding='utf-8') as f:
+                    await f.write(content)
+                logger.debug(f"异步写入文件完成: {file_path}")
+                return True
+        except Exception as e:
+            logger.error(f"异步写入文件失败: {file_path}, 错误: {str(e)}")
+            return False
+    
+    async def append_file(self, file_path: str, content: str) -> bool:
+        """异步追加文件
+        
+        Args:
+            file_path: 文件路径
+            content: 文件内容
+            
+        Returns:
+            是否成功
+        """
+        try:
+            # 确保目录存在
+            file_dir = Path(file_path).parent
+            file_dir.mkdir(parents=True, exist_ok=True)
+            
+            async with self.lock:
+                async with aiofiles.open(file_path, 'a', encoding='utf-8') as f:
+                    await f.write(content)
+                logger.debug(f"异步追加文件完成: {file_path}")
+                return True
+        except Exception as e:
+            logger.error(f"异步追加文件失败: {file_path}, 错误: {str(e)}")
+            return False
+    
+    async def batch_read_files(self, file_paths: List[str]) -> Dict[str, Optional[str]]:
+        """批量异步读取文件
+        
+        Args:
+            file_paths: 文件路径列表
+            
+        Returns:
+            文件内容字典
+        """
+        tasks = [self.read_file(file_path) for file_path in file_paths]
+        results = await asyncio.gather(*tasks)
+        
+        return dict(zip(file_paths, results))
+    
+    async def batch_write_files(self, file_contents: Dict[str, str]) -> Dict[str, bool]:
+        """批量异步写入文件
+        
+        Args:
+            file_contents: 文件路径到内容的映射
+            
+        Returns:
+            文件写入状态字典
+        """
+        tasks = [self.write_file(file_path, content) for file_path, content in file_contents.items()]
+        results = await asyncio.gather(*tasks)
+        
+        return dict(zip(file_contents.keys(), results))
+
+
+class MemoryCache:
+    """内存缓存"""
+    
+    def __init__(self, max_size: int = 1000, expiration_seconds: int = 3600):
+        """初始化内存缓存
+        
+        Args:
+            max_size: 最大缓存项数
+            expiration_seconds: 缓存过期时间（秒）
+        """
+        self.max_size = max_size
+        self.expiration_seconds = expiration_seconds
+        self.cache = {}
+        self.lock = threading.RLock()
+        logger.info(f"内存缓存已初始化，最大大小: {max_size}, 过期时间: {expiration_seconds}秒")
+    
+    def get(self, key: str) -> Optional[Any]:
+        """获取缓存
+        
+        Args:
+            key: 缓存键
+            
+        Returns:
+            缓存值
+        """
+        with self.lock:
+            if key not in self.cache:
+                return None
+            
+            value, timestamp = self.cache[key]
+            
+            # 检查是否过期
+            if time.time() - timestamp > self.expiration_seconds:
+                del self.cache[key]
+                return None
+            
+            return value
+    
+    def set(self, key: str, value: Any) -> bool:
+        """设置缓存
+        
+        Args:
+            key: 缓存键
+            value: 缓存值
+            
+        Returns:
+            是否成功
+        """
+        with self.lock:
+            # 检查缓存大小
+            if len(self.cache) >= self.max_size:
+                # 删除最早的缓存项
+                oldest_key = next(iter(self.cache))
+                del self.cache[oldest_key]
+                logger.debug(f"缓存已满，删除最早的缓存项: {oldest_key}")
+            
+            # 设置缓存
+            self.cache[key] = (value, time.time())
+            logger.debug(f"缓存已设置: {key}")
+            return True
+    
+    def delete(self, key: str) -> bool:
+        """删除缓存
+        
+        Args:
+            key: 缓存键
+            
+        Returns:
+            是否成功
+        """
+        with self.lock:
+            if key in self.cache:
+                del self.cache[key]
+                logger.debug(f"缓存已删除: {key}")
+                return True
+            return False
+    
+    def clear(self):
+        """清空缓存"""
+        with self.lock:
+            self.cache.clear()
+            logger.info("缓存已清空")
+    
+    def get_size(self) -> int:
+        """获取缓存大小
+        
+        Returns:
+            缓存项数
+        """
+        with self.lock:
+            return len(self.cache)
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """获取缓存统计信息
+        
+        Returns:
+            缓存统计信息
+        """
+        with self.lock:
+            return {
+                "size": len(self.cache),
+                "max_size": self.max_size,
+                "expiration_seconds": self.expiration_seconds
+            }
+
+
+class VectorComputationOptimizer:
+    """向量计算优化器"""
+    
+    def __init__(self, batch_size: int = 32, use_caching: bool = True):
+        """初始化向量计算优化器
+        
+        Args:
+            batch_size: 批处理大小
+            use_caching: 是否使用缓存
+        """
+        self.batch_size = batch_size
+        self.use_caching = use_caching
+        self.vector_cache = MemoryCache(max_size=10000, expiration_seconds=7200)
+        logger.info(f"向量计算优化器已初始化，批处理大小: {batch_size}, 使用缓存: {use_caching}")
+    
+    def batch_generate_vectors(self, texts: List[str]) -> List[np.ndarray]:
+        """批量生成向量
+        
+        Args:
+            texts: 文本列表
+            
+        Returns:
+            向量列表
+        """
+        vectors = []
+        
+        # 分批处理
+        for i in range(0, len(texts), self.batch_size):
+            batch_texts = texts[i:i+self.batch_size]
+            batch_vectors = self._process_batch(batch_texts)
+            vectors.extend(batch_vectors)
+        
+        return vectors
+    
+    def _process_batch(self, texts: List[str]) -> List[np.ndarray]:
+        """处理批次
+        
+        Args:
+            texts: 文本列表
+            
+        Returns:
+            向量列表
+        """
+        vectors = []
+        
+        for text in texts:
+            # 检查缓存
+            if self.use_caching:
+                cache_key = f"vector:{hash(text)}"
+                cached_vector = self.vector_cache.get(cache_key)
+                if cached_vector is not None:
+                    vectors.append(cached_vector)
+                    continue
+            
+            # 生成向量
+            vector = self._generate_vector(text)
+            vectors.append(vector)
+            
+            # 缓存向量
+            if self.use_caching:
+                cache_key = f"vector:{hash(text)}"
+                self.vector_cache.set(cache_key, vector)
+        
+        return vectors
+    
+    def _generate_vector(self, text: str) -> np.ndarray:
+        """生成文本向量
+        
+        Args:
+            text: 文本内容
+            
+        Returns:
+            向量数组
+        """
+        # 简单的词频向量实现
+        # 实际应用中应使用更高级的嵌入模型
+        import re
+        words = re.findall(r'\w+', text.lower())
+        word_freq = {}
+        
+        for word in words:
+            word_freq[word] = word_freq.get(word, 0) + 1
+        
+        # 创建固定长度的向量
+        vector_size = 512
+        vector = np.zeros(vector_size)
+        
+        for i, (word, freq) in enumerate(word_freq.items()):
+            if i < vector_size:
+                # 使用哈希值确定词的位置
+                word_hash = hash(word) % vector_size
+                vector[word_hash] += freq
+        
+        # 归一化向量
+        norm = np.linalg.norm(vector)
+        if norm > 0:
+            vector = vector / norm
+        
+        return vector
+    
+    def batch_cosine_similarity(self, vectors1: List[np.ndarray], vectors2: List[np.ndarray]) -> List[float]:
+        """批量计算余弦相似度
+        
+        Args:
+            vectors1: 向量列表1
+            vectors2: 向量列表2
+            
+        Returns:
+            相似度列表
+        """
+        similarities = []
+        
+        # 分批处理
+        for i in range(0, len(vectors1), self.batch_size):
+            batch_vectors1 = vectors1[i:i+self.batch_size]
+            batch_vectors2 = vectors2[i:i+self.batch_size]
+            batch_similarities = self._compute_batch_similarity(batch_vectors1, batch_vectors2)
+            similarities.extend(batch_similarities)
+        
+        return similarities
+    
+    def _compute_batch_similarity(self, vectors1: List[np.ndarray], vectors2: List[np.ndarray]) -> List[float]:
+        """计算批次相似度
+        
+        Args:
+            vectors1: 向量列表1
+            vectors2: 向量列表2
+            
+        Returns:
+            相似度列表
+        """
+        similarities = []
+        
+        for v1, v2 in zip(vectors1, vectors2):
+            # 确保向量长度相同
+            min_len = min(len(v1), len(v2))
+            v1 = v1[:min_len]
+            v2 = v2[:min_len]
+            
+            # 计算余弦相似度
+            dot_product = np.dot(v1, v2)
+            norm1 = np.linalg.norm(v1)
+            norm2 = np.linalg.norm(v2)
+            
+            if norm1 > 0 and norm2 > 0:
+                similarity = dot_product / (norm1 * norm2)
+            else:
+                similarity = 0.0
+            
+            similarities.append(similarity)
+        
+        return similarities
+    
+    def get_cache_stats(self) -> Dict[str, Any]:
+        """获取缓存统计信息
+        
+        Returns:
+            缓存统计信息
+        """
+        return self.vector_cache.get_stats()
 
 
 class PerformanceOptimizer:
     """性能优化器"""
     
-    def __init__(self, max_threads: int = 10, max_processes: int = 4):
-        """初始化性能优化器
-        
-        Args:
-            max_threads: 最大线程数
-            max_processes: 最大进程数
-        """
-        self.max_threads = max_threads
-        self.max_processes = max_processes
-        
-        # 线程池和进程池
-        self.thread_pool = ThreadPoolExecutor(max_workers=max_threads)
-        self.process_pool = ProcessPoolExecutor(max_workers=max_processes)
-        
-        # 优化结果记录
-        self.optimization_results: Dict[str, List[OptimizationResult]] = {}
-        
-        # 缓存配置
-        self.cache_config = {
-            "maxsize": 1000,
-            "ttl": 300  # 5分钟
+    def __init__(self):
+        """初始化性能优化器"""
+        self.async_file_manager = AsyncFileManager()
+        self.memory_cache = MemoryCache()
+        self.vector_optimizer = VectorComputationOptimizer()
+        self.performance_metrics = {
+            "file_operations": 0,
+            "cache_hits": 0,
+            "cache_misses": 0,
+            "vector_computations": 0,
+            "batch_operations": 0
         }
+        logger.info("性能优化器已初始化")
+    
+    def async_file_read(self, file_path: str) -> Optional[str]:
+        """异步读取文件（同步接口）
         
-        # 批量处理配置
-        self.batch_config = {
-            "batch_size": 100,
-            "max_concurrent_batches": 5
+        Args:
+            file_path: 文件路径
+            
+        Returns:
+            文件内容
+        """
+        loop = asyncio.get_event_loop()
+        content = loop.run_until_complete(self.async_file_manager.read_file(file_path))
+        self.performance_metrics["file_operations"] += 1
+        return content
+    
+    def async_file_write(self, file_path: str, content: str) -> bool:
+        """异步写入文件（同步接口）
+        
+        Args:
+            file_path: 文件路径
+            content: 文件内容
+            
+        Returns:
+            是否成功
+        """
+        loop = asyncio.get_event_loop()
+        success = loop.run_until_complete(self.async_file_manager.write_file(file_path, content))
+        self.performance_metrics["file_operations"] += 1
+        return success
+    
+    def async_file_append(self, file_path: str, content: str) -> bool:
+        """异步追加文件（同步接口）
+        
+        Args:
+            file_path: 文件路径
+            content: 文件内容
+            
+        Returns:
+            是否成功
+        """
+        loop = asyncio.get_event_loop()
+        success = loop.run_until_complete(self.async_file_manager.append_file(file_path, content))
+        self.performance_metrics["file_operations"] += 1
+        return success
+    
+    def batch_file_read(self, file_paths: List[str]) -> Dict[str, Optional[str]]:
+        """批量读取文件
+        
+        Args:
+            file_paths: 文件路径列表
+            
+        Returns:
+            文件内容字典
+        """
+        loop = asyncio.get_event_loop()
+        results = loop.run_until_complete(self.async_file_manager.batch_read_files(file_paths))
+        self.performance_metrics["file_operations"] += len(file_paths)
+        self.performance_metrics["batch_operations"] += 1
+        return results
+    
+    def batch_file_write(self, file_contents: Dict[str, str]) -> Dict[str, bool]:
+        """批量写入文件
+        
+        Args:
+            file_contents: 文件路径到内容的映射
+            
+        Returns:
+            文件写入状态字典
+        """
+        loop = asyncio.get_event_loop()
+        results = loop.run_until_complete(self.async_file_manager.batch_write_files(file_contents))
+        self.performance_metrics["file_operations"] += len(file_contents)
+        self.performance_metrics["batch_operations"] += 1
+        return results
+    
+    def get_cache(self, key: str) -> Optional[Any]:
+        """获取缓存
+        
+        Args:
+            key: 缓存键
+            
+        Returns:
+            缓存值
+        """
+        value = self.memory_cache.get(key)
+        if value is not None:
+            self.performance_metrics["cache_hits"] += 1
+        else:
+            self.performance_metrics["cache_misses"] += 1
+        return value
+    
+    def set_cache(self, key: str, value: Any) -> bool:
+        """设置缓存
+        
+        Args:
+            key: 缓存键
+            value: 缓存值
+            
+        Returns:
+            是否成功
+        """
+        return self.memory_cache.set(key, value)
+    
+    def delete_cache(self, key: str) -> bool:
+        """删除缓存
+        
+        Args:
+            key: 缓存键
+            
+        Returns:
+            是否成功
+        """
+        return self.memory_cache.delete(key)
+    
+    def generate_vector(self, text: str) -> np.ndarray:
+        """生成向量
+        
+        Args:
+            text: 文本内容
+            
+        Returns:
+            向量
+        """
+        vector = self.vector_optimizer._generate_vector(text)
+        self.performance_metrics["vector_computations"] += 1
+        return vector
+    
+    def batch_generate_vectors(self, texts: List[str]) -> List[np.ndarray]:
+        """批量生成向量
+        
+        Args:
+            texts: 文本列表
+            
+        Returns:
+            向量列表
+        """
+        vectors = self.vector_optimizer.batch_generate_vectors(texts)
+        self.performance_metrics["vector_computations"] += len(texts)
+        self.performance_metrics["batch_operations"] += 1
+        return vectors
+    
+    def compute_similarity(self, vector1: np.ndarray, vector2: np.ndarray) -> float:
+        """计算相似度
+        
+        Args:
+            vector1: 向量1
+            vector2: 向量2
+            
+        Returns:
+            相似度
+        """
+        # 确保向量长度相同
+        min_len = min(len(vector1), len(vector2))
+        vector1 = vector1[:min_len]
+        vector2 = vector2[:min_len]
+        
+        # 计算余弦相似度
+        dot_product = np.dot(vector1, vector2)
+        norm1 = np.linalg.norm(vector1)
+        norm2 = np.linalg.norm(vector2)
+        
+        if norm1 > 0 and norm2 > 0:
+            similarity = dot_product / (norm1 * norm2)
+        else:
+            similarity = 0.0
+        
+        return similarity
+    
+    def batch_compute_similarity(self, vectors1: List[np.ndarray], vectors2: List[np.ndarray]) -> List[float]:
+        """批量计算相似度
+        
+        Args:
+            vectors1: 向量列表1
+            vectors2: 向量列表2
+            
+        Returns:
+            相似度列表
+        """
+        similarities = self.vector_optimizer.batch_cosine_similarity(vectors1, vectors2)
+        self.performance_metrics["batch_operations"] += 1
+        return similarities
+    
+    def get_performance_metrics(self) -> Dict[str, Any]:
+        """获取性能指标
+        
+        Returns:
+            性能指标
+        """
+        return self.performance_metrics.copy()
+    
+    def reset_performance_metrics(self):
+        """重置性能指标"""
+        self.performance_metrics = {
+            "file_operations": 0,
+            "cache_hits": 0,
+            "cache_misses": 0,
+            "vector_computations": 0,
+            "batch_operations": 0
         }
-        
-        # 线程锁
-        self._lock = threading.RLock()
-        
-        # 性能基准数据
-        self.benchmark_data: Dict[str, Dict[str, float]] = {}
+        logger.info("性能指标已重置")
     
-    def apply_caching_optimization(self, skill_id: str, func: Callable) -> Callable:
-        """应用缓存优化
+    def get_stats(self) -> Dict[str, Any]:
+        """获取统计信息
         
-        Args:
-            skill_id: 技能ID
-            func: 需要优化的函数
-            
         Returns:
-            优化后的函数
+            统计信息
         """
-        @lru_cache(maxsize=self.cache_config["maxsize"])
-        @wraps(func)
-        def cached_function(*args, **kwargs):
-            return func(*args, **kwargs)
-        
-        # 记录优化应用
-        self._record_optimization(skill_id, "caching", "应用函数缓存优化")
-        
-        return cached_function
-    
-    def apply_async_optimization(self, skill_id: str, func: Callable) -> Callable:
-        """应用异步优化
-        
-        Args:
-            skill_id: 技能ID
-            func: 需要优化的函数
-            
-        Returns:
-            优化后的异步函数
-        """
-        @wraps(func)
-        async def async_function(*args, **kwargs):
-            # 在线程池中执行同步函数
-            loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(self.thread_pool, func, *args, **kwargs)
-        
-        # 记录优化应用
-        self._record_optimization(skill_id, "async", "应用异步执行优化")
-        
-        return async_function
-    
-    def apply_batch_optimization(self, skill_id: str, process_single: Callable) -> Callable:
-        """应用批量处理优化
-        
-        Args:
-            skill_id: 技能ID
-            process_single: 单条数据处理函数
-            
-        Returns:
-            批量处理函数
-        """
-        @wraps(process_single)
-        def batch_process(items: List[Any]) -> List[Any]:
-            """批量处理函数"""
-            batch_size = self.batch_config["batch_size"]
-            results = []
-            
-            # 分批处理
-            for i in range(0, len(items), batch_size):
-                batch = items[i:i + batch_size]
-                
-                # 并行处理批次
-                with ThreadPoolExecutor(max_workers=self.batch_config["max_concurrent_batches"]) as executor:
-                    batch_results = list(executor.map(process_single, batch))
-                    results.extend(batch_results)
-            
-            return results
-        
-        # 记录优化应用
-        self._record_optimization(skill_id, "batch", "应用批量处理优化")
-        
-        return batch_process
-    
-    def apply_memory_optimization(self, skill_id: str, data_processor: Callable) -> Callable:
-        """应用内存优化
-        
-        Args:
-            skill_id: 技能ID
-            data_processor: 数据处理函数
-            
-        Returns:
-            内存优化后的函数
-        """
-        @wraps(data_processor)
-        def memory_optimized_processor(data):
-            """内存优化版本"""
-            # 使用生成器避免一次性加载所有数据
-            if isinstance(data, (list, tuple)) and len(data) > 1000:
-                # 流式处理大数据集
-                for chunk in self._chunk_data(data, 100):
-                    yield from data_processor(chunk)
-            else:
-                yield from data_processor(data)
-        
-        # 记录优化应用
-        self._record_optimization(skill_id, "memory", "应用内存优化")
-        
-        return memory_optimized_processor
-    
-    def apply_algorithm_optimization(self, skill_id: str, original_algorithm: Callable, 
-                                   optimized_algorithm: Callable) -> Callable:
-        """应用算法优化
-        
-        Args:
-            skill_id: 技能ID
-            original_algorithm: 原始算法
-            optimized_algorithm: 优化后的算法
-            
-        Returns:
-            优化后的算法函数
-        """
-        @wraps(original_algorithm)
-        def optimized_function(*args, **kwargs):
-            # 验证优化算法的正确性
-            try:
-                result = optimized_algorithm(*args, **kwargs)
-                
-                # 验证结果一致性（可选）
-                if self._validate_algorithm_optimization(original_algorithm, optimized_algorithm, *args, **kwargs):
-                    return result
-                else:
-                    logger.warning(f"算法优化验证失败，使用原始算法: {skill_id}")
-                    return original_algorithm(*args, **kwargs)
-                    
-            except Exception as e:
-                logger.error(f"优化算法执行失败: {e}")
-                return original_algorithm(*args, **kwargs)
-        
-        # 记录优化应用
-        self._record_optimization(skill_id, "algorithm", "应用算法优化")
-        
-        return optimized_function
-    
-    def _validate_algorithm_optimization(self, original: Callable, optimized: Callable, 
-                                       *args, **kwargs) -> bool:
-        """验证算法优化结果一致性"""
-        try:
-            # 对小规模数据进行验证
-            original_result = original(*args, **kwargs)
-            optimized_result = optimized(*args, **kwargs)
-            
-            # 简单的结果比较（可根据具体需求调整）
-            return original_result == optimized_result
-            
-        except Exception as e:
-            logger.warning(f"算法验证失败: {e}")
-            return False
-    
-    def _chunk_data(self, data: List[Any], chunk_size: int):
-        """数据分块"""
-        for i in range(0, len(data), chunk_size):
-            yield data[i:i + chunk_size]
-    
-    def _record_optimization(self, skill_id: str, optimization_type: str, description: str):
-        """记录优化应用"""
-        logger.info(f"应用优化: {skill_id} - {optimization_type} - {description}")
-    
-    async def benchmark_optimization(self, skill_id: str, original_func: Callable, 
-                                   optimized_func: Callable, test_data: Any, 
-                                   iterations: int = 10) -> OptimizationResult:
-        """基准测试优化效果
-        
-        Args:
-            skill_id: 技能ID
-            original_func: 原始函数
-            optimized_func: 优化后的函数
-            test_data: 测试数据
-            iterations: 测试迭代次数
-            
-        Returns:
-            优化结果
-        """
-        # 测试原始函数性能
-        original_times = []
-        original_memory = []
-        
-        for _ in range(iterations):
-            start_time = time.time()
-            start_memory = self._get_memory_usage()
-            
-            if asyncio.iscoroutinefunction(original_func):
-                await original_func(test_data)
-            else:
-                original_func(test_data)
-            
-            end_time = time.time()
-            end_memory = self._get_memory_usage()
-            
-            original_times.append(end_time - start_time)
-            original_memory.append(end_memory - start_memory)
-        
-        # 测试优化后函数性能
-        optimized_times = []
-        optimized_memory = []
-        
-        for _ in range(iterations):
-            start_time = time.time()
-            start_memory = self._get_memory_usage()
-            
-            if asyncio.iscoroutinefunction(optimized_func):
-                await optimized_func(test_data)
-            else:
-                optimized_func(test_data)
-            
-            end_time = time.time()
-            end_memory = self._get_memory_usage()
-            
-            optimized_times.append(end_time - start_time)
-            optimized_memory.append(end_memory - start_memory)
-        
-        # 计算性能提升
-        avg_original_time = sum(original_times) / len(original_times)
-        avg_optimized_time = sum(optimized_times) / len(optimized_times)
-        
-        avg_original_memory = sum(original_memory) / len(original_memory)
-        avg_optimized_memory = sum(optimized_memory) / len(optimized_memory)
-        
-        time_improvement = ((avg_original_time - avg_optimized_time) / avg_original_time) * 100
-        memory_improvement = ((avg_original_memory - avg_optimized_memory) / avg_original_memory) * 100
-        
-        # 创建优化结果
-        result = OptimizationResult(
-            skill_id=skill_id,
-            optimization_type="benchmark",
-            success=time_improvement > 0 or memory_improvement > 0,
-            improvement=max(time_improvement, memory_improvement),
-            execution_time_before=avg_original_time,
-            execution_time_after=avg_optimized_time,
-            memory_usage_before=avg_original_memory,
-            memory_usage_after=avg_optimized_memory,
-            details={
-                "iterations": iterations,
-                "time_improvement": time_improvement,
-                "memory_improvement": memory_improvement,
-                "original_times": original_times,
-                "optimized_times": optimized_times
-            }
-        )
-        
-        # 保存基准数据
-        self._save_benchmark_data(skill_id, "original", avg_original_time, avg_original_memory)
-        self._save_benchmark_data(skill_id, "optimized", avg_optimized_time, avg_optimized_memory)
-        
-        # 记录优化结果
-        self._save_optimization_result(skill_id, result)
-        
-        logger.info(f"基准测试完成: {skill_id}, 时间提升: {time_improvement:.1f}%, "
-                   f"内存提升: {memory_improvement:.1f}%")
-        
-        return result
-    
-    def _get_memory_usage(self) -> float:
-        """获取内存使用量（MB）"""
-        import psutil
-        process = psutil.Process()
-        return process.memory_info().rss / 1024 / 1024
-    
-    def _save_benchmark_data(self, skill_id: str, version: str, execution_time: float, memory_usage: float):
-        """保存基准数据"""
-        with self._lock:
-            if skill_id not in self.benchmark_data:
-                self.benchmark_data[skill_id] = {}
-            
-            self.benchmark_data[skill_id][f"{version}_time"] = execution_time
-            self.benchmark_data[skill_id][f"{version}_memory"] = memory_usage
-    
-    def _save_optimization_result(self, skill_id: str, result: OptimizationResult):
-        """保存优化结果"""
-        with self._lock:
-            if skill_id not in self.optimization_results:
-                self.optimization_results[skill_id] = []
-            
-            self.optimization_results[skill_id].append(result)
-    
-    def get_optimization_history(self, skill_id: str) -> List[OptimizationResult]:
-        """获取优化历史"""
-        return self.optimization_results.get(skill_id, [])
-    
-    def get_benchmark_data(self, skill_id: str) -> Dict[str, float]:
-        """获取基准数据"""
-        return self.benchmark_data.get(skill_id, {})
-    
-    def create_optimization_report(self, skill_id: str) -> Dict[str, Any]:
-        """创建优化报告"""
-        optimization_history = self.get_optimization_history(skill_id)
-        benchmark_data = self.get_benchmark_data(skill_id)
-        
-        if not optimization_history:
-            return {"error": "无优化历史数据"}
-        
-        # 计算总体优化效果
-        total_improvement = sum(result.improvement for result in optimization_history) / len(optimization_history)
-        
-        # 分析优化类型分布
-        optimization_types = {}
-        for result in optimization_history:
-            opt_type = result.optimization_type
-            optimization_types[opt_type] = optimization_types.get(opt_type, 0) + 1
-        
-        # 生成优化建议
-        recommendations = self._generate_recommendations(optimization_history, benchmark_data)
-        
         return {
-            "skill_id": skill_id,
-            "total_improvement": total_improvement,
-            "optimization_count": len(optimization_history),
-            "optimization_types": optimization_types,
-            "benchmark_data": benchmark_data,
-            "recommendations": recommendations,
-            "successful_optimizations": [r for r in optimization_history if r.success],
-            "failed_optimizations": [r for r in optimization_history if not r.success]
+            "performance_metrics": self.performance_metrics,
+            "cache_stats": self.memory_cache.get_stats(),
+            "vector_cache_stats": self.vector_optimizer.get_cache_stats()
         }
-    
-    def _generate_recommendations(self, optimization_history: List[OptimizationResult], 
-                                benchmark_data: Dict[str, float]) -> List[Dict[str, Any]]:
-        """生成优化建议"""
-        recommendations = []
-        
-        # 分析优化效果
-        successful_optimizations = [r for r in optimization_history if r.success]
-        
-        if not successful_optimizations:
-            recommendations.append({
-                "type": "general",
-                "priority": "high",
-                "message": "尚未实施有效的性能优化",
-                "suggestion": "建议先进行性能分析，识别主要瓶颈"
-            })
-            return recommendations
-        
-        # 分析优化类型效果
-        type_effectiveness = {}
-        for result in successful_optimizations:
-            opt_type = result.optimization_type
-            if opt_type not in type_effectiveness:
-                type_effectiveness[opt_type] = []
-            type_effectiveness[opt_type].append(result.improvement)
-        
-        # 生成基于效果的推荐
-        for opt_type, improvements in type_effectiveness.items():
-            avg_improvement = sum(improvements) / len(improvements)
-            
-            if avg_improvement > 50:
-                recommendations.append({
-                    "type": opt_type,
-                    "priority": "high",
-                    "message": f"{opt_type}优化效果显著（平均提升{avg_improvement:.1f}%）",
-                    "suggestion": "建议在其他类似场景中推广应用"
-                })
-            elif avg_improvement > 20:
-                recommendations.append({
-                    "type": opt_type,
-                    "priority": "medium",
-                    "message": f"{opt_type}优化效果良好（平均提升{avg_improvement:.1f}%）",
-                    "suggestion": "可以考虑进一步优化"
-                })
-            else:
-                recommendations.append({
-                    "type": opt_type,
-                    "priority": "low",
-                    "message": f"{opt_type}优化效果有限（平均提升{avg_improvement:.1f}%）",
-                    "suggestion": "可能需要尝试其他优化策略"
-                })
-        
-        return recommendations
-    
-    def cleanup(self):
-        """清理资源"""
-        self.thread_pool.shutdown(wait=True)
-        self.process_pool.shutdown(wait=True)
-        logger.info("性能优化器资源已清理")
 
 
-# 创建全局性能优化器实例
+# 全局性能优化器实例
 performance_optimizer = PerformanceOptimizer()
+
+
+# 装饰器：缓存函数结果
+def cache_result(cache_key_func=None, expiration_seconds: int = 3600):
+    """缓存函数结果的装饰器
+    
+    Args:
+        cache_key_func: 缓存键生成函数
+        expiration_seconds: 缓存过期时间
+        
+    Returns:
+        装饰器函数
+    """
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            # 生成缓存键
+            if cache_key_func:
+                cache_key = cache_key_func(*args, **kwargs)
+            else:
+                # 使用函数名和参数生成缓存键
+                args_repr = [repr(arg) for arg in args]
+                kwargs_repr = [f"{k}={repr(v)}" for k, v in kwargs.items()]
+                cache_key = f"{func.__name__}:{':'.join(args_repr + kwargs_repr)}"
+            
+            # 检查缓存
+            cached_result = performance_optimizer.get_cache(cache_key)
+            if cached_result is not None:
+                return cached_result
+            
+            # 执行函数
+            result = func(*args, **kwargs)
+            
+            # 缓存结果
+            performance_optimizer.set_cache(cache_key, result)
+            
+            return result
+        
+        return wrapper
+    
+    return decorator
+
+
+# 装饰器：异步执行
+def async_executor(func):
+    """异步执行函数的装饰器
+    
+    Args:
+        func: 要异步执行的函数
+        
+    Returns:
+        装饰器函数
+    """
+    @functools.wraps(func)
+    async def wrapper(*args, **kwargs):
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, func, *args, **kwargs)
+    
+    return wrapper
