@@ -1438,7 +1438,7 @@ class MemoryService:
                 "preference_score": round((count / len(user_memories)) * 0.6 + avg_importance * 0.4, 2)
             }
         
-        # 2. 记忆类型偏好分析
+        # 2. 类型偏好分析
         type_counts = {}
         type_importance = {}
         for memory in user_memories:
@@ -1450,7 +1450,6 @@ class MemoryService:
             if memory.importance_score:
                 type_importance[memory_type].append(memory.importance_score)
         
-        # 计算每个类型的平均重要性
         preferred_types = {}
         for memory_type, count in type_counts.items():
             avg_importance = 0.0
@@ -1463,40 +1462,27 @@ class MemoryService:
             }
         
         # 3. 时间偏好分析
-        hourly_preferences = [0] * 24
+        hourly_counts = [0] * 24
         for memory in user_memories:
-            hour = memory.created_at.hour
-            hourly_preferences[hour] += 1
-        
-        # 找到用户最活跃的时间
-        peak_hours = [i for i, count in enumerate(hourly_preferences) if count == max(hourly_preferences)]
+            if memory.created_at:
+                hour = memory.created_at.hour
+                hourly_counts[hour] += 1
         
         time_based_preferences = {
-            "hourly_distribution": hourly_preferences,
-            "peak_hours": peak_hours
+            "hourly_distribution": hourly_counts,
+            "peak_hour": hourly_counts.index(max(hourly_counts)) if max(hourly_counts) > 0 else 14
         }
         
         # 4. 访问模式分析
-        if user_memories:
-            total_access_count = sum(memory.access_count for memory in user_memories)
-            average_access_frequency = round(total_access_count / len(user_memories), 2)
-            
-            # 找到最常访问的记忆类别
-            category_access = {}
-            for memory in user_memories:
-                category = memory.memory_category or "UNCATEGORIZED"
-                if category not in category_access:
-                    category_access[category] = 0
-                category_access[category] += memory.access_count
-            
-            most_accessed_categories = sorted(category_access.items(), key=lambda x: x[1], reverse=True)[:3]
-        else:
-            average_access_frequency = 0.0
-            most_accessed_categories = []
+        total_access_count = sum(memory.access_count for memory in user_memories if memory.access_count)
+        average_access_frequency = total_access_count / len(user_memories) if user_memories else 0
+        
+        most_accessed = max(user_memories, key=lambda x: x.access_count) if user_memories else None
         
         access_patterns = {
-            "average_access_frequency": average_access_frequency,
-            "most_accessed_categories": most_accessed_categories
+            "average_access_frequency": round(average_access_frequency, 2),
+            "most_accessed_memory_id": most_accessed.id if most_accessed else None,
+            "most_accessed_memory_title": most_accessed.title if most_accessed else None
         }
         
         return {
@@ -1505,6 +1491,274 @@ class MemoryService:
             "time_based_preferences": time_based_preferences,
             "access_patterns": access_patterns
         }
+    
+    @staticmethod
+    def analyze_memory_sentiment(db: Session, memory_id: int, user_id: int) -> Dict[str, Any]:
+        """分析记忆的情感倾向"""
+        # 获取记忆
+        memory = db.query(GlobalMemory).filter(
+            GlobalMemory.id == memory_id,
+            GlobalMemory.user_id == user_id,
+            GlobalMemory.is_active == True
+        ).first()
+        
+        if not memory:
+            raise ValueError("记忆不存在或无访问权限")
+        
+        # 简单的情感分析实现
+        # 实际应用中可以使用更复杂的NLP模型
+        positive_words = ["好", "棒", "优秀", "喜欢", "高兴", "开心", "满意", "成功", "完美", "赞"]
+        negative_words = ["差", "糟糕", "讨厌", "难过", "生气", "失望", "失败", "错误", "麻烦", "问题"]
+        
+        content = (memory.content or "") + " " + (memory.summary or "")
+        content_lower = content.lower()
+        
+        positive_score = sum(1 for word in positive_words if word in content_lower)
+        negative_score = sum(1 for word in negative_words if word in content_lower)
+        
+        total_score = positive_score + negative_score
+        sentiment_score = (positive_score - negative_score) / (total_score if total_score > 0 else 1)
+        
+        sentiment_label = "中性"
+        if sentiment_score > 0.3:
+            sentiment_label = "积极"
+        elif sentiment_score < -0.3:
+            sentiment_label = "消极"
+        
+        return {
+            "memory_id": memory_id,
+            "sentiment_score": round(sentiment_score, 2),
+            "sentiment_label": sentiment_label,
+            "positive_score": positive_score,
+            "negative_score": negative_score
+        }
+    
+    @staticmethod
+    def auto_adjust_memory_priority(db: Session, user_id: int) -> Dict[str, int]:
+        """自动调整记忆优先级"""
+        # 获取用户的所有活跃记忆
+        user_memories = db.query(GlobalMemory).filter(
+            GlobalMemory.user_id == user_id,
+            GlobalMemory.is_active == True
+        ).all()
+        
+        if not user_memories:
+            return {"updated_count": 0}
+        
+        updated_count = 0
+        
+        for memory in user_memories:
+            # 计算新的优先级分数
+            # 基于访问频率、时间衰减和情感倾向
+            base_score = memory.importance_score or 0.5
+            
+            # 访问频率因子（访问次数越多，分数越高）
+            access_factor = min(memory.access_count / 10, 1.0) if memory.access_count else 0
+            
+            # 时间衰减因子（越新的记忆，分数越高）
+            days_since_created = (datetime.now() - memory.created_at).days
+            time_factor = max(0, 1 - (days_since_created / 30))  # 30天内线性衰减
+            
+            # 情感因子（积极情感的记忆，分数略高）
+            try:
+                sentiment_result = MemoryService.analyze_memory_sentiment(db, memory.id, user_id)
+                sentiment_factor = 1 + (sentiment_result["sentiment_score"] * 0.1)
+            except:
+                sentiment_factor = 1.0
+            
+            # 计算新的重要性分数
+            new_importance_score = base_score * 0.5 + access_factor * 0.2 + time_factor * 0.2 + sentiment_factor * 0.1
+            new_importance_score = min(max(new_importance_score, 0.1), 1.0)  # 限制在0.1-1.0之间
+            
+            # 更新分数
+            if abs(new_importance_score - (memory.importance_score or 0.5)) > 0.1:
+                memory.importance_score = round(new_importance_score, 2)
+                memory.updated_at = datetime.now()
+                updated_count += 1
+        
+        db.commit()
+        return {"updated_count": updated_count}
+    
+    @staticmethod
+    def auto_generate_memory_tags(db: Session, memory_id: int, user_id: int) -> List[str]:
+        """自动生成记忆标签"""
+        # 获取记忆
+        memory = db.query(GlobalMemory).filter(
+            GlobalMemory.id == memory_id,
+            GlobalMemory.user_id == user_id,
+            GlobalMemory.is_active == True
+        ).first()
+        
+        if not memory:
+            raise ValueError("记忆不存在或无访问权限")
+        
+        # 从内容中提取关键词作为标签
+        content = (memory.content or "") + " " + (memory.summary or "") + " " + (memory.title or "")
+        
+        # 简单的关键词提取实现
+        # 实际应用中可以使用更复杂的NLP模型
+        stop_words = set(["的", "了", "是", "在", "我", "有", "和", "就", "不", "人", "都", "一", "一个", "上", "也", "很", "到", "说", "要", "去", "你", "会", "着", "没有", "看", "好", "自己", "这"])
+        
+        # 分词（简单空格分词）
+        words = content.split()
+        
+        # 过滤停用词和短词
+        filtered_words = [word for word in words if word not in stop_words and len(word) > 1]
+        
+        # 计算词频
+        word_freq = {}
+        for word in filtered_words:
+            word_freq[word] = word_freq.get(word, 0) + 1
+        
+        # 提取频率最高的前5个词作为标签
+        sorted_words = sorted(word_freq.items(), key=lambda x: x[1], reverse=True)[:5]
+        tags = [word for word, freq in sorted_words]
+        
+        # 更新记忆标签
+        if tags:
+            memory.tags = tags
+            memory.updated_at = datetime.now()
+            db.commit()
+        
+        return tags
+    
+    @staticmethod
+    def build_cross_session_associations(db: Session, user_id: int) -> Dict[str, int]:
+        """建立跨会话记忆关联"""
+        # 获取用户的所有活跃记忆
+        user_memories = db.query(GlobalMemory).filter(
+            GlobalMemory.user_id == user_id,
+            GlobalMemory.is_active == True
+        ).all()
+        
+        if len(user_memories) < 2:
+            return {"created_associations": 0}
+        
+        # 按会话分组
+        session_memories = {}
+        for memory in user_memories:
+            session_id = memory.session_id or "default"
+            if session_id not in session_memories:
+                session_memories[session_id] = []
+            session_memories[session_id].append(memory)
+        
+        # 如果只有一个会话，不需要建立跨会话关联
+        if len(session_memories) < 2:
+            return {"created_associations": 0}
+        
+        created_associations = 0
+        
+        # 遍历所有会话对
+        session_ids = list(session_memories.keys())
+        for i in range(len(session_ids)):
+            for j in range(i + 1, len(session_ids)):
+                session1 = session_ids[i]
+                session2 = session_ids[j]
+                
+                # 从每个会话中获取最近的记忆
+                recent_memories1 = sorted(session_memories[session1], key=lambda x: x.created_at, reverse=True)[:3]
+                recent_memories2 = sorted(session_memories[session2], key=lambda x: x.created_at, reverse=True)[:3]
+                
+                # 计算跨会话记忆的相似度并建立关联
+                for mem1 in recent_memories1:
+                    if not mem1.content:
+                        continue
+                    
+                    for mem2 in recent_memories2:
+                        if not mem2.content:
+                            continue
+                        
+                        # 检查是否已存在关联
+                        existing_association = db.query(MemoryAssociation).filter(
+                            ((MemoryAssociation.source_memory_id == mem1.id) &
+                             (MemoryAssociation.target_memory_id == mem2.id)) |
+                            ((MemoryAssociation.source_memory_id == mem2.id) &
+                             (MemoryAssociation.target_memory_id == mem1.id))
+                        ).first()
+                        
+                        if existing_association:
+                            continue
+                        
+                        # 计算相似度
+                        try:
+                            # 使用Chroma计算相似度
+                            results = chroma_service.search_similar(
+                                query=mem1.content,
+                                n_results=1,
+                                where_filter={"user_id": user_id, "memory_id": mem2.id},
+                                collection_name="memories"
+                            )
+                            
+                            if results["ids"] and str(mem2.id) in results["ids"][0]:
+                                index = results["ids"][0].index(str(mem2.id))
+                                distance = results["distances"][0][index]
+                                similarity = 1 - distance
+                                
+                                # 只建立相似度高的关联
+                                if similarity > 0.7:
+                                    new_association = MemoryAssociation(
+                                        source_memory_id=mem1.id,
+                                        target_memory_id=mem2.id,
+                                        association_type="CROSS_SESSION",
+                                        strength=round(similarity, 2),
+                                        bidirectional=True
+                                    )
+                                    db.add(new_association)
+                                    created_associations += 1
+                        except:
+                            pass
+        
+        db.commit()
+        return {"created_associations": created_associations}
+    
+    @staticmethod
+    def get_memory_review_suggestions(db: Session, user_id: int, limit: int = 10) -> List[Dict[str, Any]]:
+        """获取记忆复习建议"""
+        # 获取用户的所有活跃记忆
+        user_memories = db.query(GlobalMemory).filter(
+            GlobalMemory.user_id == user_id,
+            GlobalMemory.is_active == True
+        ).all()
+        
+        if not user_memories:
+            return []
+        
+        # 计算每个记忆的复习分数
+        review_candidates = []
+        for memory in user_memories:
+            # 基于重要性、时间衰减和访问频率计算复习分数
+            importance_score = memory.importance_score or 0.5
+            
+            # 时间衰减因子（越久未复习，分数越高）
+            days_since_created = (datetime.now() - memory.created_at).days
+            time_factor = min(days_since_created / 7, 5)  # 7天内线性增加，最大5
+            
+            # 访问频率因子（访问次数越少，分数越高）
+            access_factor = max(0, 1 - (memory.access_count / 5))  # 访问5次以上的记忆分数降低
+            
+            # 计算复习分数
+            review_score = importance_score * 0.5 + time_factor * 0.3 + access_factor * 0.2
+            
+            review_candidates.append((memory, review_score))
+        
+        # 按复习分数排序
+        review_candidates.sort(key=lambda x: x[1], reverse=True)
+        
+        # 返回前limit个建议
+        suggestions = []
+        for memory, score in review_candidates[:limit]:
+            suggestions.append({
+                "memory_id": memory.id,
+                "title": memory.title or "无标题",
+                "content_preview": memory.content[:100] + "..." if len(memory.content) > 100 else memory.content,
+                "importance_score": memory.importance_score,
+                "review_score": round(score, 2),
+                "created_at": memory.created_at.isoformat(),
+                "last_accessed": memory.last_accessed.isoformat() if memory.last_accessed else None,
+                "access_count": memory.access_count
+            })
+        
+        return suggestions
     
     @staticmethod
     def update_preferences_based_on_access(db: Session, memory_id: int, user_id: int, access_type: str = "READ"):

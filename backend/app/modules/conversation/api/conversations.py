@@ -4,17 +4,33 @@ import json
 from datetime import datetime
 from typing import Any, List, Dict, Optional
 
-from fastapi import APIRouter, HTTPException, Query, status, Body, Depends
+from fastapi import APIRouter, HTTPException, Query, status, Body, Depends, UploadFile, File
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 
 from app.core.database import get_db
+from app.core.security_utils import (
+    validate_message_content,
+    validate_file,
+    sanitize_input
+)
 from app.modules.conversation.schemas.conversation import SendMessageRequest
+from app.schemas.conversation import (
+    TopicCreate,
+    TopicUpdate,
+    TopicResponse,
+    TopicListResponse,
+    SwitchTopicRequest,
+    SwitchTopicResponse
+)
+from app.modules.conversation.services.topic_service import TopicService
+from app.modules.conversation.services.topic_title_generator import TopicTitleGenerator
 from app.modules.llm.services.llm_service_enhanced import enhanced_llm_service
 from app.modules.llm.services.llm_tasks import llm_tasks
 from app.models.supplier_db import SupplierDB, ModelDB
 from app.models.model_capability import ModelCapability, ModelCapabilityAssociation
+from app.models.conversation import Conversation, Message, Topic
 
 # 导入思维链生成函数
 def generate_thinking_chain_steps(content: str) -> List[str]:
@@ -62,8 +78,6 @@ class MockStorage:
         self.messages = []
         self.conversation_id_counter = 1
         self.message_id_counter = 1
-        self.topics = []  # 话题列表
-        self.topic_id_counter = 1
     
     def create_conversation(self, title: str = "新对话", description: str = "") -> Dict[str, Any]:
         conversation = {
@@ -131,69 +145,6 @@ class MockStorage:
             reverse=True
         )
         return conversations[skip:skip+limit]
-    
-    # 话题管理方法
-    def create_topic(self, title: str, description: str = "", conversation_id: Optional[int] = None) -> Dict[str, Any]:
-        """创建话题"""
-        topic = {
-            "id": self.topic_id_counter,
-            "title": title,
-            "description": description,
-            "conversation_id": conversation_id,
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow(),
-            "is_active": True
-        }
-        self.topics.append(topic)
-        self.topic_id_counter += 1
-        return topic
-    
-    def get_topic(self, topic_id: int) -> Optional[Dict[str, Any]]:
-        """获取话题"""
-        for topic in self.topics:
-            if topic["id"] == topic_id:
-                return topic
-        return None
-    
-    def get_topics_by_conversation(self, conversation_id: int) -> List[Dict[str, Any]]:
-        """获取对话的所有话题"""
-        return [topic for topic in self.topics if topic["conversation_id"] == conversation_id]
-    
-    def update_topic(self, topic_id: int, update_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """更新话题"""
-        topic = self.get_topic(topic_id)
-        if topic:
-            for field, value in update_data.items():
-                if field in topic:
-                    topic[field] = value
-            topic["updated_at"] = datetime.utcnow()
-        return topic
-    
-    def delete_topic(self, topic_id: int) -> None:
-        """删除话题"""
-        self.topics = [topic for topic in self.topics if topic["id"] != topic_id]
-    
-    def switch_topic(self, conversation_id: int, topic_id: int) -> bool:
-        """切换到指定话题"""
-        # 将所有话题设置为非活跃状态
-        for topic in self.topics:
-            if topic["conversation_id"] == conversation_id:
-                topic["is_active"] = False
-        
-        # 激活指定话题
-        target_topic = self.get_topic(topic_id)
-        if target_topic and target_topic["conversation_id"] == conversation_id:
-            target_topic["is_active"] = True
-            target_topic["updated_at"] = datetime.utcnow()
-            return True
-        return False
-    
-    def get_active_topic(self, conversation_id: int) -> Optional[Dict[str, Any]]:
-        """获取当前活跃话题"""
-        for topic in self.topics:
-            if topic["conversation_id"] == conversation_id and topic["is_active"]:
-                return topic
-        return None
 
 # 创建模拟存储实例
 mock_storage = MockStorage()
@@ -313,34 +264,85 @@ async def send_message(
     在对话中发送消息
     """
     # 查询对话
-    conversation = mock_storage.get_conversation(conversation_id)
+    conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+    
+    # 如果对话不存在，自动创建一个新对话
     if not conversation:
-        # 如果对话不存在，自动创建一个新对话
-        conversation = mock_storage.create_conversation(title=f"对话 {conversation_id}")
+        conversation = Conversation(
+            id=conversation_id,
+            user_id=1,  # 默认用户ID，实际应该从认证中获取
+            title=f"对话 {conversation_id}",
+            description=""
+        )
+        db.add(conversation)
+        db.commit()
+        db.refresh(conversation)
         print(f"已自动创建对话: {conversation}")
     
-    if not conversation.get("is_active", True):
+    # 验证消息内容
+    validation_result = validate_message_content(request.content)
+    if not validation_result['is_valid']:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="对话已被关闭"
+            detail=validation_result['message']
         )
     
+    # 使用清理后的内容
+    sanitized_content = validation_result['sanitized_content']
+    
+    # 获取或创建活跃话题
+    active_topic = TopicService.get_active_topic(db, conversation_id)
+    
+    # 如果请求中指定了话题ID，使用指定的话题
+    if request.topic_id:
+        topic = TopicService.get_topic_by_id(db, request.topic_id)
+        if topic:
+            active_topic = topic
+            # 设置为活跃话题
+            TopicService.set_active_topic(db, conversation_id, topic.id)
+    
+    # 如果没有活跃话题，创建一个新话题
+    if not active_topic:
+        # 使用默认标题创建话题
+        topic_name = "新话题"
+        active_topic = TopicService.create_topic(db, conversation_id, topic_name)
+    
     # 创建用户消息
-    user_message = mock_storage.create_message(conversation_id, request.content, "user")
+    user_message = Message(
+        conversation_id=conversation_id,
+        role="user",
+        content=sanitized_content,
+        topic_id=active_topic.id,
+        created_at=datetime.utcnow()
+    )
+    db.add(user_message)
+    db.commit()
+    db.refresh(user_message)
+    
+    # 如果话题标题是默认的"新话题"，立即生成更好的标题
+    if active_topic.topic_name == "新话题":
+        topic_title = TopicTitleGenerator.generate_title_from_messages(db, conversation_id)
+        if topic_title != "新话题":
+            TopicService.update_topic(db, active_topic.id, topic_name=topic_title)
+            active_topic.topic_name = topic_title
     
     # 如果需要使用LLM生成回复
     assistant_message = None
+    
     if request.use_llm:
         try:
-            # 获取对话历史
-            conversation_history = mock_storage.get_conversation_messages(conversation_id)
+            # 只获取当前活跃话题的消息作为上下文，而不是整个对话的消息
+            conversation_history = db.query(Message).filter(
+                Message.conversation_id == conversation_id,
+                Message.topic_id == active_topic.id
+            ).order_by(Message.created_at.asc()).all()
             
             # 构建聊天消息列表
             chat_messages = [
-                {"role": msg["role"], "content": msg["content"]}
+                {"role": msg.role, "content": msg.content}
                 for msg in conversation_history
             ]
-            chat_messages.append({"role": "user", "content": request.content})
+            chat_messages.append({"role": "user", "content": sanitized_content})
             
             # 使用LLM生成回复
             try:
@@ -348,12 +350,12 @@ async def send_message(
                 model_name = request.model_name or "gpt-3.5-turbo"
                 print(f"调用enhanced_llm_service.chat_completion，模型: {model_name}")
                 print(f"聊天消息: {chat_messages}")
-                print(f"传递的agent_id参数: {conversation.get('agent_id')}")
+                print(f"传递的agent_id参数: {conversation.agent_id}")
                 llm_response = enhanced_llm_service.chat_completion(
                     messages=chat_messages,
                     model_name=model_name,
                     db=db,
-                    agent_id=conversation.get("agent_id")
+                    agent_id=conversation.agent_id
                 )
                 print(f"LLM响应: {llm_response}")
                 
@@ -379,25 +381,85 @@ async def send_message(
             
             # 创建助手回复消息
             print(f"创建助手消息，内容: {ai_content}")
-            assistant_message = mock_storage.create_message(conversation_id, ai_content, "assistant")
+            assistant_message = Message(
+                conversation_id=conversation_id,
+                role="assistant",
+                content=ai_content,
+                topic_id=active_topic.id,
+                created_at=datetime.utcnow()
+            )
+            db.add(assistant_message)
+            db.commit()
+            db.refresh(assistant_message)
             print(f"助手消息创建结果: {assistant_message}")
+            
+            # 保存思维链信息（如果有）
+            reasoning_content = llm_response.get("reasoning_content", "") if isinstance(llm_response, dict) else ""
+            if reasoning_content:
+                from app.models.chat_enhancements import ChainOfThought
+                
+                # 分割思维链内容为步骤
+                reasoning_steps = reasoning_content.split('\n')
+                reasoning_steps = [step.strip() for step in reasoning_steps if step.strip()]
+                
+                # 创建思维链记录
+                chain_of_thought = ChainOfThought(
+                    message_id=assistant_message.id,
+                    chain_type="step_by_step",
+                    reasoning_steps=reasoning_steps,
+                    final_answer=ai_content,
+                    is_visible=True
+                )
+                db.add(chain_of_thought)
+                db.commit()
+                print(f"已保存思维链信息，共 {len(reasoning_steps)} 个步骤")
+            
+            # 更新话题的消息计数和结束消息ID
+            TopicService.increment_message_count(db, active_topic.id, count=2)
+            TopicService.update_end_message(db, active_topic.id, assistant_message.id)
+            
+            # 如果话题标题是默认的"新话题"，尝试生成更好的标题
+            if active_topic.topic_name == "新话题":
+                topic_title = TopicTitleGenerator.generate_title_from_messages(db, conversation_id)
+                if topic_title != "新话题":
+                    TopicService.update_topic(db, active_topic.id, topic_name=topic_title)
+                    active_topic.topic_name = topic_title
             
         except Exception as e:
             print(f"LLM生成回复失败: {str(e)}")
             # 即使发生异常，也要创建一个模拟回复
             ai_content = f"这是一条模拟回复，基于您的消息：{request.content[:50]}..."
-            assistant_message = mock_storage.create_message(conversation_id, ai_content, "assistant")
+            assistant_message = Message(
+                conversation_id=conversation_id,
+                role="assistant",
+                content=ai_content,
+                created_at=datetime.utcnow()
+            )
+            db.add(assistant_message)
+            db.commit()
+            db.refresh(assistant_message)
     
     # 构建响应
     response = {
         "conversation_id": conversation_id,
-        "user_message": user_message,
-        "generated_at": datetime.utcnow()
+        "user_message": {
+            "id": user_message.id,
+            "content": user_message.content,
+            "role": user_message.role,
+            "created_at": user_message.created_at.isoformat() if user_message.created_at else None
+        },
+        "generated_at": datetime.utcnow().isoformat(),
+        "status": "success"
     }
     
     print(f"构建响应，assistant_message存在: {assistant_message is not None}")
     if assistant_message:
-        response["assistant_message"] = assistant_message
+        response["assistant_message"] = {
+            "id": assistant_message.id,
+            "content": assistant_message.content,
+            "role": assistant_message.role,
+            "created_at": assistant_message.created_at.isoformat() if assistant_message.created_at else None
+        }
         print(f"响应中包含助手消息: {response['assistant_message']}")
     
     print(f"最终响应: {response}")
@@ -408,28 +470,44 @@ async def send_message(
 async def get_conversation_messages(
     conversation_id: int,
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200)
+    page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """
     获取对话的消息历史（分页）
     """
     # 验证对话存在
-    conversation = mock_storage.get_conversation(conversation_id)
+    conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
     if not conversation:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="对话不存在"
         )
     
-    # 计算偏移量
+    # 构建查询
+    query = db.query(Message).filter(Message.conversation_id == conversation_id)
+    
+    # 计算偏移量和总数
     offset = (page - 1) * page_size
+    total = query.count()
     
     # 获取消息列表
-    messages = mock_storage.get_conversation_messages(conversation_id, skip=offset, limit=page_size)
-    total = sum(1 for msg in mock_storage.messages if msg["conversation_id"] == conversation_id and msg["is_visible"])
+    messages = query.order_by(Message.created_at.asc()).offset(offset).limit(page_size).all()
+    
+    # 构建返回数据
+    messages_data = []
+    for msg in messages:
+        messages_data.append({
+            "id": msg.id,
+            "conversation_id": msg.conversation_id,
+            "role": msg.role,
+            "content": msg.content,
+            "created_at": msg.created_at.isoformat() if msg.created_at else None
+        })
     
     return {
-        "messages": messages,
+        "status": "success",
+        "messages": messages_data,
         "total": total,
         "page": page,
         "page_size": page_size
@@ -439,49 +517,146 @@ async def get_conversation_messages(
 @router.post("/{conversation_id}/messages/stream")
 async def send_message_stream(
     conversation_id: int,
-    body: dict = Body(...),
+    request: SendMessageRequest = Body(...),
     db: Session = Depends(get_db)
 ) -> StreamingResponse:
     """
     在对话中发送消息（流式响应版本）
     """
-    # 验证对话存在
-    conversation = mock_storage.get_conversation(conversation_id)
+    from app.core.streaming_optimizer import (
+        StreamingOptimizer,
+        StreamingStrategy,
+        StreamingConfig
+    )
+    
+    # 查询对话
+    conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+    
+    # 如果对话不存在，自动创建一个新对话
     if not conversation:
-        # 如果对话不存在，自动创建一个新对话
-        conversation = mock_storage.create_conversation(title=f"对话 {conversation_id}")
+        conversation = Conversation(
+            id=conversation_id,
+            user_id=1,
+            title=f"对话 {conversation_id}",
+            description=""
+        )
+        db.add(conversation)
+        db.commit()
+        db.refresh(conversation)
         print(f"已自动创建对话: {conversation}")
     
-    if not conversation.get("is_active", True):
+    # 提取参数
+    content = request.content
+    use_llm = request.use_llm
+    model_name = request.model_name
+    enable_thinking_chain = request.enable_thinking_chain
+    streaming_strategy = "balanced"
+    topic_id = request.topic_id
+    
+    # 验证消息内容
+    validation_result = validate_message_content(content)
+    if not validation_result['is_valid']:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="对话已被关闭"
+            detail=validation_result['message']
         )
     
-    # 提取参数
-    content = body.get("content", "")
-    use_llm = body.get("use_llm", True)
-    model_name = body.get("model_name")
-    enable_thinking_chain = body.get("enable_thinking_chain", False)
+    # 使用清理后的内容
+    sanitized_content = validation_result['sanitized_content']
+    
+    # 获取或创建活跃话题
+    active_topic = TopicService.get_active_topic(db, conversation_id)
+    
+    # 如果请求中指定了话题ID，使用指定的话题
+    if topic_id:
+        topic = TopicService.get_topic_by_id(db, topic_id)
+        if topic:
+            active_topic = topic
+            # 设置为活跃话题
+            TopicService.set_active_topic(db, conversation_id, topic.id)
+    
+    # 如果没有活跃话题，创建一个新话题
+    if not active_topic:
+        # 使用默认标题创建话题
+        topic_name = "新话题"
+        active_topic = TopicService.create_topic(db, conversation_id, topic_name)
+    
+    # 创建流式响应优化器
+    strategy_mapping = {
+        "fast": StreamingStrategy.FAST,
+        "balanced": StreamingStrategy.BALANCED,
+        "smooth": StreamingStrategy.SMOOTH,
+        "adaptive": StreamingStrategy.ADAPTIVE
+    }
+    strategy = strategy_mapping.get(streaming_strategy, StreamingStrategy.BALANCED)
+    config = StreamingConfig(strategy=strategy)
+    optimizer = StreamingOptimizer(config)
     
     # 创建用户消息
-    user_message = mock_storage.create_message(conversation_id, content, "user")
+    user_message = Message(
+        conversation_id=conversation_id,
+        role="user",
+        content=sanitized_content,
+        topic_id=active_topic.id,
+        created_at=datetime.utcnow()
+    )
+    db.add(user_message)
+    db.commit()
+    db.refresh(user_message)
+    
+    # 如果话题标题是默认的"新话题"，立即生成更好的标题
+    if active_topic.topic_name == "新话题":
+        topic_title = TopicTitleGenerator.generate_title_from_messages(db, conversation_id)
+        if topic_title != "新话题":
+            TopicService.update_topic(db, active_topic.id, topic_name=topic_title)
+            active_topic.topic_name = topic_title
     
     async def stream_generator():
+        import json
+        
+        # 使用同一个数据库会话，避免事务隔离的问题
+        stream_db = db
         try:
+            # 重新查询对话对象，确保获取最新的对话信息
+            conversation = stream_db.query(Conversation).filter(Conversation.id == conversation_id).first()
+            
+            # 重新查询活跃话题，确保获取最新的话题信息
+            active_topic = TopicService.get_active_topic(stream_db, conversation_id)
+            
+            # 发送话题信息
+            topic_data = {
+                "type": "topic",
+                "topic": {
+                    "id": active_topic.id,
+                    "title": active_topic.topic_name,
+                    "conversation_id": active_topic.conversation_id,
+                    "message_count": active_topic.message_count,
+                    "created_at": active_topic.created_at.isoformat() if active_topic.created_at else None
+                }
+            }
+            yield f"data: {json.dumps(topic_data, ensure_ascii=False)}\n\n"
+            
             # 发送用户消息确认
-            yield "data: {\"type\": \"user_message\", \"content\": \"消息已收到\", \"message_id\": 1}\n\n"
+            user_msg_data = {
+                "type": "user_message",
+                "content": "消息已收到",
+                "message_id": 1
+            }
+            yield f"data: {json.dumps(user_msg_data, ensure_ascii=False)}\n\n"
             
             if use_llm:
-                # 首先获取对话历史
-                conversation_history = mock_storage.get_conversation_messages(conversation_id)
+                # 只获取当前活跃话题的消息作为上下文，而不是整个对话的消息
+                conversation_history = stream_db.query(Message).filter(
+                    Message.conversation_id == conversation_id,
+                    Message.topic_id == active_topic.id
+                ).order_by(Message.created_at.asc()).all()
                 
                 # 构建聊天消息列表
                 chat_messages = [
-                    {"role": msg["role"], "content": msg["content"]}
+                    {"role": msg.role, "content": msg.content}
                     for msg in conversation_history
                 ]
-                chat_messages.append({"role": "user", "content": content})
+                chat_messages.append({"role": "user", "content": sanitized_content})
                 
                 # 使用LLM生成回复
                 ai_content = ""
@@ -495,8 +670,8 @@ async def send_message_stream(
                     llm_response = enhanced_llm_service.chat_completion(
                         messages=chat_messages,
                         model_name=llm_model_name,
-                        db=db,
-                        agent_id=conversation.get("agent_id")
+                        db=stream_db,
+                        agent_id=conversation.agent_id
                     )
                     
                     print(f"LLM响应类型: {type(llm_response)}")
@@ -507,23 +682,20 @@ async def send_message_stream(
                         full_ai_content = ""
                         full_reasoning_content = ""
                         
-                        # 实时转发流式响应块，避免等待时间加倍
+                        # 直接转发流式响应块，不使用优化器重新生成
                         for chunk in llm_response:
                             print(f"实时转发流式块: {chunk}")
+                            yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
                             
                             if chunk["type"] == "thinking":
-                                # 累积思维链信息并实时转发
+                                # 累积思维链信息
                                 full_reasoning_content += chunk['content']
-                                # 实时发送累积的思维链信息
-                                yield f"data: {json.dumps({'type': 'thinking', 'content': full_reasoning_content})}\n\n"
                             elif chunk["type"] == "content":
-                                # 累积内容信息并实时转发
+                                # 累积内容信息
                                 full_ai_content += chunk['content']
-                                # 实时发送累积的内容信息
-                                yield f"data: {json.dumps({'type': 'content', 'content': full_ai_content})}\n\n"
                             
-                            # 控制发送速度
-                            await asyncio.sleep(0.05)
+                            # 使用优化器的延迟控制
+                            await asyncio.sleep(optimizer.current_delay)
                         
                         ai_content = full_ai_content
                     else:
@@ -548,41 +720,99 @@ async def send_message_stream(
                         
                         # 检查是否启用了思维链，如果启用则发送思维链信息
                         if enable_thinking_chain and reasoning_content:
-                            # 如果有思维链信息，发送给前端
-                            yield f"data: {json.dumps({'type': 'thinking', 'content': reasoning_content})}\n\n"
-                            await asyncio.sleep(0.5)  # 缩短等待时间，提高响应速度
+                            # 使用优化器生成流式响应
+                            async for chunk in optimizer.generate_streaming_chunks(
+                                reasoning_content,
+                                chunk_type="thinking",
+                                metadata={"strategy": strategy.value}
+                            ):
+                                yield f"data: {json.dumps(chunk)}\n\n"
                         
-                        # 如果获取到了回复，逐字符流式发送
+                        # 如果获取到了回复，使用优化器生成流式响应
                         if ai_content:
-                            # 等待一小段时间后再开始发送内容
-                            await asyncio.sleep(0.5)
-                            
-                            # 逐字符发送回复内容
-                            if len(ai_content) < 10:
-                                # 非常短的回复
-                                yield f"data: {json.dumps({'type': 'content', 'content': ai_content})}\n\n"
-                                await asyncio.sleep(0.2)
-                            else:
-                                # 按字符逐个发送，确保分块正确
-                                for i in range(1, len(ai_content) + 1):
-                                    current_text = ai_content[:i]
-                                    yield f"data: {json.dumps({'type': 'content', 'content': current_text})}\n\n"
-                                    # 控制发送速度
-                                    await asyncio.sleep(0.05)
+                            # 使用优化器生成逐字符流式响应
+                            async for chunk in optimizer.generate_character_streaming(
+                                ai_content,
+                                chunk_type="content",
+                                metadata={"strategy": strategy.value}
+                            ):
+                                yield f"data: {json.dumps(chunk)}\n\n"
                 except (AttributeError, TypeError) as e:
                     print(f"chat_completion调用失败: {str(e)}")
                     # 使用错误信息作为回复
                     ai_content = f"抱歉，LLM服务调用失败: {str(e)}"
-                    yield f"data: {json.dumps({'type': 'content', 'content': ai_content})}\n\n"
+                    # 直接发送完整的错误消息，不使用optimizer分割
+                    error_data = {"type": "content", "content": ai_content}
+                    yield f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"
                 except Exception as e:
                     print(f"chat_completion调用发生其他错误: {str(e)}")
                     # 使用错误信息作为回复
                     ai_content = f"抱歉，处理您的请求时发生异常: {str(e)}"
-                    yield f"data: {json.dumps({'type': 'content', 'content': ai_content})}\n\n"
+                    # 直接发送完整的错误消息，不使用optimizer分割
+                    error_data = {"type": "content", "content": ai_content}
+                    yield f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"
                 
                 # 创建最终的助手消息
                 if ai_content:
-                    mock_storage.create_message(conversation_id, ai_content, "assistant")
+                    # 重新查询活跃话题，确保获取最新的话题信息
+                    active_topic = TopicService.get_active_topic(stream_db, conversation_id)
+                    
+                    assistant_message = Message(
+                        conversation_id=conversation_id,
+                        role="assistant",
+                        content=ai_content,
+                        topic_id=active_topic.id if active_topic else None,
+                        created_at=datetime.utcnow()
+                    )
+                    stream_db.add(assistant_message)
+                    stream_db.commit()
+                    stream_db.refresh(assistant_message)
+                    
+                    # 保存思维链信息（如果有）
+                    reasoning_content_to_save = full_reasoning_content if 'full_reasoning_content' in locals() else reasoning_content if 'reasoning_content' in locals() else ''
+                    if reasoning_content_to_save:
+                        from app.models.chat_enhancements import ChainOfThought
+                        
+                        # 分割思维链内容为步骤
+                        reasoning_steps = reasoning_content_to_save.split('\n')
+                        reasoning_steps = [step.strip() for step in reasoning_steps if step.strip()]
+                        
+                        # 创建思维链记录
+                        chain_of_thought = ChainOfThought(
+                            message_id=assistant_message.id,
+                            chain_type="step_by_step",
+                            reasoning_steps=reasoning_steps,
+                            final_answer=ai_content,
+                            is_visible=True
+                        )
+                        stream_db.add(chain_of_thought)
+                        stream_db.commit()
+                        print(f"已保存思维链信息，共 {len(reasoning_steps)} 个步骤")
+                    
+                    # 更新话题的消息计数和结束消息ID
+                    if active_topic:
+                        TopicService.increment_message_count(stream_db, active_topic.id, count=2)
+                        TopicService.update_end_message(stream_db, active_topic.id, assistant_message.id)
+                        
+                        # 如果话题标题是默认的"新话题"，尝试生成更好的标题
+                        if active_topic.topic_name == "新话题":
+                            topic_title = TopicTitleGenerator.generate_title_from_messages(stream_db, conversation_id)
+                            if topic_title != "新话题":
+                                TopicService.update_topic(stream_db, active_topic.id, topic_name=topic_title)
+                                active_topic.topic_name = topic_title
+                                
+                                # 发送话题更新信息
+                                topic_data = {
+                                    "type": "topic",
+                                    "topic": {
+                                        "id": active_topic.id,
+                                        "title": active_topic.topic_name,
+                                        "conversation_id": active_topic.conversation_id,
+                                        "message_count": active_topic.message_count,
+                                        "created_at": active_topic.created_at.isoformat() if active_topic.created_at else None
+                                    }
+                                }
+                                yield f"data: {json.dumps(topic_data, ensure_ascii=False)}\n\n"
                 
                 # 发送完成信号
                 yield "data: {\"type\": \"complete\", \"content\": \"\"}\n\n"
@@ -590,6 +820,9 @@ async def send_message_stream(
             # 发送错误信息
             error_msg = f"流式响应生成失败: {str(e)}"
             yield f"data: {json.dumps({'type': 'error', 'content': error_msg})}\n\n"
+        finally:
+            # 不要关闭数据库会话，因为我们使用的是外部传入的 db 会话
+            pass
     
     return StreamingResponse(
         stream_generator(),
@@ -726,24 +959,28 @@ async def get_conversation_models(db: Session = Depends(get_db)) -> Dict[str, An
         }
         
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"获取对话模型列表失败: {str(e)}"
-        )
+        # 捕获所有异常，返回友好的错误信息
+        return {
+            "status": "error",
+            "message": f"获取对话模型列表失败: {str(e)}",
+            "models": [],
+            "total": 0
+        }
 
 
-# 话题管理API
+# ============ 话题管理 API ============
+
 @router.post("/{conversation_id}/topics")
 async def create_topic(
     conversation_id: int,
-    title: str = Body(..., description="话题标题"),
-    description: str = Body("", description="话题描述")
-) -> Dict[str, Any]:
+    topic_name: str = Body(..., embed=True),
+    db: Session = Depends(get_db)
+) -> TopicResponse:
     """
-    为对话创建新话题
+    创建新话题
     """
     # 验证对话存在
-    conversation = mock_storage.get_conversation(conversation_id)
+    conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
     if not conversation:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -751,141 +988,362 @@ async def create_topic(
         )
     
     # 创建话题
-    topic = mock_storage.create_topic(title, description, conversation_id)
-    return {
-        "status": "success",
-        "topic": topic
-    }
+    topic = TopicService.create_topic(db, conversation_id, topic_name)
+    
+    return TopicResponse(
+        id=topic.id,
+        conversation_id=topic.conversation_id,
+        topic_name=topic.topic_name,
+        topic_summary=topic.topic_summary,
+        is_active=topic.is_active,
+        message_count=topic.message_count,
+        created_at=topic.created_at,
+        updated_at=topic.updated_at
+    )
 
 
 @router.get("/{conversation_id}/topics")
-async def list_topics(conversation_id: int) -> Dict[str, Any]:
+async def list_topics(
+    conversation_id: int,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    active_only: bool = Query(False),
+    db: Session = Depends(get_db)
+) -> TopicListResponse:
     """
-    获取对话的所有话题
+    获取对话的话题列表
     """
-    # 即使对话不存在，也返回空话题列表而不是404
+    # 查询对话
+    conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+    
+    # 如果对话不存在，自动创建一个新对话
+    if not conversation:
+        conversation = Conversation(
+            id=conversation_id,
+            user_id=1,  # 默认用户ID，实际应该从认证中获取
+            title=f"对话 {conversation_id}",
+            description=""
+        )
+        db.add(conversation)
+        db.commit()
+        db.refresh(conversation)
+        print(f"已自动创建对话: {conversation}")
+    
     # 获取话题列表
-    topics = mock_storage.get_topics_by_conversation(conversation_id)
-    return {
-        "status": "success",
-        "topics": topics
-    }
+    offset = (page - 1) * page_size
+    topics = TopicService.get_conversation_topics(
+        db, conversation_id, skip=offset, limit=page_size, active_only=active_only
+    )
+    
+    # 获取总数
+    total = db.query(Topic).filter(Topic.conversation_id == conversation_id).count()
+    
+    return TopicListResponse(
+        topics=[
+            TopicResponse(
+                id=topic.id,
+                conversation_id=topic.conversation_id,
+                topic_name=topic.topic_name,
+                topic_summary=topic.topic_summary,
+                is_active=topic.is_active,
+                message_count=topic.message_count,
+                created_at=topic.created_at,
+                updated_at=topic.updated_at
+            )
+            for topic in topics
+        ],
+        total=total,
+        page=page,
+        page_size=page_size
+    )
+
+
+@router.get("/{conversation_id}/topics/{topic_id}")
+async def get_topic(
+    conversation_id: int,
+    topic_id: int,
+    db: Session = Depends(get_db)
+) -> TopicResponse:
+    """
+    获取话题详情
+    """
+    # 验证对话存在
+    conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+    if not conversation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="对话不存在"
+        )
+    
+    # 获取话题
+    topic = TopicService.get_topic_by_id(db, topic_id)
+    if not topic:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="话题不存在"
+        )
+    
+    return TopicResponse(
+        id=topic.id,
+        conversation_id=topic.conversation_id,
+        topic_name=topic.topic_name,
+        topic_summary=topic.topic_summary,
+        is_active=topic.is_active,
+        message_count=topic.message_count,
+        created_at=topic.created_at,
+        updated_at=topic.updated_at
+    )
 
 
 @router.put("/{conversation_id}/topics/{topic_id}")
 async def update_topic(
     conversation_id: int,
     topic_id: int,
-    title: Optional[str] = Body(None, description="新标题"),
-    description: Optional[str] = Body(None, description="新描述")
-) -> Dict[str, Any]:
+    topic_name: Optional[str] = Body(None, embed=True),
+    topic_summary: Optional[str] = Body(None, embed=True),
+    is_active: Optional[bool] = Body(None, embed=True),
+    db: Session = Depends(get_db)
+) -> TopicResponse:
     """
     更新话题信息
     """
     # 验证对话存在
-    conversation = mock_storage.get_conversation(conversation_id)
+    conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
     if not conversation:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="对话不存在"
-        )
-    
-    # 验证话题存在且属于该对话
-    topic = mock_storage.get_topic(topic_id)
-    if not topic or topic["conversation_id"] != conversation_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="话题不存在"
         )
     
     # 更新话题
-    update_data = {}
-    if title is not None:
-        update_data["title"] = title
-    if description is not None:
-        update_data["description"] = description
+    topic = TopicService.update_topic(
+        db, topic_id, topic_name=topic_name, topic_summary=topic_summary, is_active=is_active
+    )
     
-    updated_topic = mock_storage.update_topic(topic_id, update_data)
-    return {
-        "status": "success",
-        "topic": updated_topic
-    }
+    if not topic:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="话题不存在"
+        )
+    
+    return TopicResponse(
+        id=topic.id,
+        conversation_id=topic.conversation_id,
+        topic_name=topic.topic_name,
+        topic_summary=topic.topic_summary,
+        is_active=topic.is_active,
+        message_count=topic.message_count,
+        created_at=topic.created_at,
+        updated_at=topic.updated_at
+    )
 
 
-@router.delete("/{conversation_id}/topics/{topic_id}")
-async def delete_topic(conversation_id: int, topic_id: int) -> Dict[str, Any]:
+@router.delete("/{conversation_id}/topics/{topic_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_topic(
+    conversation_id: int,
+    topic_id: int,
+    cascade_delete: bool = Query(True, description="是否级联删除消息"),
+    db: Session = Depends(get_db)
+) -> None:
     """
-    删除话题
+    删除话题（支持级联删除消息）
     """
     # 验证对话存在
-    conversation = mock_storage.get_conversation(conversation_id)
+    conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
     if not conversation:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="对话不存在"
         )
     
-    # 验证话题存在且属于该对话
-    topic = mock_storage.get_topic(topic_id)
-    if not topic or topic["conversation_id"] != conversation_id:
+    # 删除话题
+    success = TopicService.delete_topic(db, topic_id, cascade_delete=cascade_delete)
+    
+    if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="话题不存在"
         )
-    
-    # 删除话题
-    mock_storage.delete_topic(topic_id)
-    return {
-        "status": "success",
-        "message": "话题删除成功"
-    }
 
 
 @router.post("/{conversation_id}/topics/{topic_id}/switch")
-async def switch_topic(conversation_id: int, topic_id: int) -> Dict[str, Any]:
+async def switch_topic(
+    conversation_id: int,
+    topic_id: int,
+    db: Session = Depends(get_db)
+) -> SwitchTopicResponse:
     """
     切换到指定话题
     """
     # 验证对话存在
-    conversation = mock_storage.get_conversation(conversation_id)
+    conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
     if not conversation:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="对话不存在"
         )
     
-    # 验证话题存在且属于该对话
-    topic = mock_storage.get_topic(topic_id)
-    if not topic or topic["conversation_id"] != conversation_id:
+    # 设置活跃话题
+    success = TopicService.set_active_topic(db, conversation_id, topic_id)
+    
+    if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="话题不存在"
         )
     
-    # 切换话题
-    success = mock_storage.switch_topic(conversation_id, topic_id)
-    if success:
-        return {
-            "status": "success",
-            "message": "话题切换成功",
-            "active_topic": mock_storage.get_active_topic(conversation_id)
-        }
-    else:
+    # 获取话题和消息
+    topic = TopicService.get_topic_by_id(db, topic_id)
+    messages = TopicService.get_topic_messages(db, topic_id, limit=100)
+    
+    # 获取所有消息ID
+    message_ids = [msg.id for msg in messages]
+    
+    # 批量查询思维链信息
+    chain_of_thoughts = {}
+    if message_ids:
+        from app.models.chat_enhancements import ChainOfThought
+        cot_records = db.query(ChainOfThought).filter(
+            ChainOfThought.message_id.in_(message_ids)
+        ).all()
+        
+        # 将思维链信息按消息ID组织
+        for cot in cot_records:
+            reasoning_steps = []
+            try:
+                if cot.reasoning_steps:
+                    # 尝试解析 JSON 字符串
+                    if isinstance(cot.reasoning_steps, str):
+                        reasoning_steps = json.loads(cot.reasoning_steps)
+                    else:
+                        # 如果已经是对象，直接使用
+                        reasoning_steps = cot.reasoning_steps
+            except (json.JSONDecodeError, TypeError):
+                # 如果解析失败，使用空列表
+                reasoning_steps = []
+            
+            chain_of_thoughts[cot.message_id] = {
+                "chain_type": cot.chain_type,
+                "reasoning_steps": reasoning_steps,
+                "final_answer": cot.final_answer,
+                "is_visible": cot.is_visible
+            }
+    
+    return SwitchTopicResponse(
+        active_topic=TopicResponse(
+            id=topic.id,
+            conversation_id=topic.conversation_id,
+            topic_name=topic.topic_name,
+            topic_summary=topic.topic_summary,
+            is_active=topic.is_active,
+            message_count=topic.message_count,
+            created_at=topic.created_at,
+            updated_at=topic.updated_at
+        ),
+        messages=[
+            {
+                "id": msg.id,
+                "conversation_id": msg.conversation_id,
+                "role": msg.role,
+                "content": msg.content,
+                "created_at": msg.created_at.isoformat() if msg.created_at else None,
+                "thinking": chain_of_thoughts.get(msg.id, None)
+            }
+            for msg in messages
+        ]
+    )
+
+
+@router.get("/{conversation_id}/topics/{topic_id}/messages")
+async def get_topic_messages(
+    conversation_id: int,
+    topic_id: int,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    获取话题的消息列表
+    """
+    # 验证对话存在
+    conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+    if not conversation:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="话题切换失败"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="对话不存在"
         )
-
-
-@router.get("/{conversation_id}/active_topic")
-async def get_active_topic(conversation_id: int) -> Dict[str, Any]:
-    """
-    获取当前活跃话题
-    """
-    # 即使对话不存在，也返回None而不是404
-    # 获取活跃话题
-    active_topic = mock_storage.get_active_topic(conversation_id)
+    
+    # 获取话题
+    topic = TopicService.get_topic_by_id(db, topic_id)
+    if not topic:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="话题不存在"
+        )
+    
+    # 获取消息列表
+    offset = (page - 1) * page_size
+    messages = TopicService.get_topic_messages(db, topic_id, skip=offset, limit=page_size)
+    
+    # 获取总数
+    total = db.query(Message).filter(Message.topic_id == topic_id).count()
+    
     return {
         "status": "success",
-        "active_topic": active_topic
+        "messages": [
+            {
+                "id": msg.id,
+                "conversation_id": msg.conversation_id,
+                "role": msg.role,
+                "content": msg.content,
+                "created_at": msg.created_at.isoformat() if msg.created_at else None
+            }
+            for msg in messages
+        ],
+        "total": total,
+        "page": page,
+        "page_size": page_size
     }
+
+
+@router.get("/{conversation_id}/topics/search")
+async def search_topics(
+    conversation_id: int,
+    keyword: str = Query(..., min_length=1),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db)
+) -> TopicListResponse:
+    """
+    搜索话题
+    """
+    # 验证对话存在
+    conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+    if not conversation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="对话不存在"
+        )
+    
+    # 搜索话题
+    offset = (page - 1) * page_size
+    topics = TopicService.search_topics(db, conversation_id, keyword, skip=offset, limit=page_size)
+    
+    return TopicListResponse(
+        topics=[
+            TopicResponse(
+                id=topic.id,
+                conversation_id=topic.conversation_id,
+                topic_name=topic.topic_name,
+                topic_summary=topic.topic_summary,
+                is_active=topic.is_active,
+                message_count=topic.message_count,
+                created_at=topic.created_at,
+                updated_at=topic.updated_at
+            )
+            for topic in topics
+        ],
+        total=len(topics),
+        page=page,
+        page_size=page_size
+    )

@@ -150,7 +150,11 @@ class ModelQueryService:
         if not model:
             return None
         
-        supplier_info = ModelQueryService.get_supplier_with_decrypted_api_key(model.supplier)
+        try:
+            supplier_info = ModelQueryService.get_supplier_with_decrypted_api_key(model.supplier)
+        except Exception as e:
+            print(f"获取供应商信息失败: {e}")
+            supplier_info = None
         
         return {
             "model": model,

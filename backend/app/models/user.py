@@ -4,7 +4,7 @@ from sqlalchemy.orm import relationship
 
 from app.core.database import Base
 # 导入相关模型
-from app.models.chat_enhancements import UploadedFile, VoiceInput, SearchQuery
+from app.models.chat_enhancements import UploadedFile, VoiceInput, SearchQuery, AnalyzedImage
 
 
 class User(Base):
@@ -38,6 +38,7 @@ class User(Base):
     uploaded_files = relationship("UploadedFile", back_populates="user", cascade="all, delete-orphan")
     voice_inputs = relationship("VoiceInput", back_populates="user", cascade="all, delete-orphan")
     search_queries = relationship("SearchQuery", back_populates="user", cascade="all, delete-orphan")
+    analyzed_images = relationship("AnalyzedImage", back_populates="user", cascade="all, delete-orphan")
     translation_history = relationship("TranslationHistory", back_populates="user", cascade="all, delete-orphan")
     
     def __repr__(self):

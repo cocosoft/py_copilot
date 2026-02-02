@@ -7,6 +7,13 @@ import logging
 
 from app.models.memory import GlobalMemory
 from app.core.cache import cache_service
+from app.core.memory_retrieval_cache import (
+    get_memory_retrieval_cache,
+    cache_semantic_search,
+    get_cached_semantic_search,
+    cache_user_memories,
+    get_cached_user_memories
+)
 
 logger = logging.getLogger(__name__)
 
@@ -22,11 +29,22 @@ class MemoryCacheService:
             cache_timeout: 缓存超时时间（秒）
         """
         self.cache_timeout = timedelta(seconds=cache_timeout)
+        # 使用增强的记忆检索缓存
+        self.retrieval_cache = get_memory_retrieval_cache(
+            max_size=cache_size,
+            default_ttl=self.cache_timeout
+        )
     
     async def get_user_memories(self, db: Session, user_id: int, memory_types: Optional[List[str]] = None,
                         memory_categories: Optional[List[str]] = None, limit: int = 20,
                         offset: int = 0, session_id: Optional[str] = None) -> List[GlobalMemory]:
         """获取用户记忆，使用缓存优化"""
+        # 首先尝试从增强缓存获取
+        cached_data = await get_cached_user_memories(user_id, memory_types)
+        if cached_data is not None:
+            logger.debug(f"使用增强缓存的用户记忆: {user_id}")
+            return cached_data
+        
         # 构建缓存键
         cache_key = self._build_cache_key({
             "type": "user_memories",
@@ -67,6 +85,9 @@ class MemoryCacheService:
         
         # 使用异步缓存服务
         cached_data = await cache_service.get_or_set(cache_key, fetch_data, self.cache_timeout)
+        
+        # 同时缓存到增强缓存
+        await cache_user_memories(user_id, memory_types, cached_data["data"], self.cache_timeout)
         
         logger.debug(f"使用缓存的用户记忆: {user_id}")
         return cached_data["data"]
@@ -113,6 +134,10 @@ class MemoryCacheService:
     
     async def cache_semantic_search(self, query: str, user_id: int, results: List[GlobalMemory]):
         """缓存语义搜索结果"""
+        # 使用增强缓存
+        await cache_semantic_search(query, user_id, results, self.cache_timeout)
+        
+        # 同时使用旧缓存（向后兼容）
         cache_key = self._build_cache_key({
             "type": "semantic_search",
             "query": query,
@@ -131,6 +156,13 @@ class MemoryCacheService:
         
     async def get_cached_semantic_search(self, query: str, user_id: int) -> Optional[List[GlobalMemory]]:
         """获取缓存的语义搜索结果"""
+        # 首先尝试从增强缓存获取
+        cached_data = await get_cached_semantic_search(query, user_id)
+        if cached_data is not None:
+            logger.debug(f"使用增强缓存的语义搜索结果: {query[:50]}...")
+            return cached_data
+        
+        # 使用旧缓存（向后兼容）
         cache_key = self._build_cache_key({
             "type": "semantic_search",
             "query": query,
@@ -148,6 +180,9 @@ class MemoryCacheService:
     
     async def clear_user_cache(self, user_id: int):
         """清除特定用户的缓存"""
+        # 使用增强缓存清除
+        await self.retrieval_cache.invalidate_by_user(user_id)
+        
         # 由于使用了统一的缓存键格式，这里需要异步清除相关缓存
         # 注意：实际应用中可能需要更精细的缓存键管理
         logger.info(f"清除用户缓存: {user_id}")
@@ -155,13 +190,23 @@ class MemoryCacheService:
     
     async def clear_conversation_cache(self, conversation_id: int):
         """清除特定对话的缓存"""
+        # 使用增强缓存清除
+        await self.retrieval_cache.invalidate_by_conversation(conversation_id)
+        
         logger.info(f"清除对话缓存: {conversation_id}")
         # 这里只是记录日志，实际清除需要根据缓存后端的特性实现
     
     async def clear_all_cache(self):
         """清除所有缓存"""
         logger.info("清除所有缓存")
+        # 清除增强缓存
+        self.retrieval_cache.clear()
+        # 清除旧缓存
         await cache_service.clear()
+    
+    async def get_cache_stats(self) -> Dict[str, Any]:
+        """获取缓存统计信息"""
+        return self.retrieval_cache.get_stats()
     
     def _build_cache_key(self, params: Dict[str, Any]) -> str:
         """构建缓存键"""
@@ -264,7 +309,7 @@ class MemoryCacheService:
                 import sys
                 if sys.version_info >= (3, 7):
                     loop = asyncio.get_running_loop()
-                    return loop.run_until_complete(_clear())
+                    loop.run_until_complete(_clear())
             raise
 
     def clear_conversation_cache_sync(self, conversation_id: int):
@@ -282,7 +327,7 @@ class MemoryCacheService:
                 import sys
                 if sys.version_info >= (3, 7):
                     loop = asyncio.get_running_loop()
-                    return loop.run_until_complete(_clear())
+                    loop.run_until_complete(_clear())
             raise
 
     def clear_all_cache_sync(self):
@@ -300,7 +345,7 @@ class MemoryCacheService:
                 import sys
                 if sys.version_info >= (3, 7):
                     loop = asyncio.get_running_loop()
-                    return loop.run_until_complete(_clear())
+                    loop.run_until_complete(_clear())
             raise
 
 

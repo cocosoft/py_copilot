@@ -40,7 +40,7 @@ from app.models.user import User
 from app.models.agent import Agent
 
 # 对话模型
-from app.models.conversation import Conversation, Message
+from app.models.conversation import Conversation, Message, Topic
 
 # 记忆模型
 from app.models.memory import (

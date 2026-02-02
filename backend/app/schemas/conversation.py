@@ -21,7 +21,6 @@ class MessageResponse(MessageBase):
     """消息响应模型"""
     id: int
     created_at: datetime
-    updated_at: datetime
     conversation_id: int
     
     class Config:
@@ -86,6 +85,8 @@ class SendMessageRequest(BaseModel):
     content: str
     use_llm: bool = True
     model_name: Optional[str] = None
+    enable_thinking_chain: bool = False
+    topic_id: Optional[int] = None
 
 
 class SendMessageResponse(BaseModel):
@@ -94,3 +95,53 @@ class SendMessageResponse(BaseModel):
     user_message: MessageResponse
     assistant_message: Optional[MessageResponse] = None
     generated_at: datetime
+
+
+class TopicBase(BaseModel):
+    """话题基础模型"""
+    topic_name: str = Field(..., max_length=200)
+    topic_summary: Optional[str] = None
+    is_active: bool = True
+
+
+class TopicCreate(TopicBase):
+    """创建话题请求模型"""
+    conversation_id: int
+
+
+class TopicUpdate(BaseModel):
+    """更新话题请求模型"""
+    topic_name: Optional[str] = Field(None, max_length=200)
+    topic_summary: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class TopicResponse(TopicBase):
+    """话题响应模型"""
+    id: int
+    conversation_id: int
+    message_count: int = 0
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
+
+class TopicListResponse(BaseModel):
+    """话题列表响应模型"""
+    topics: List[TopicResponse]
+    total: int
+    page: int
+    page_size: int
+
+
+class SwitchTopicRequest(BaseModel):
+    """切换话题请求模型"""
+    topic_id: int
+
+
+class SwitchTopicResponse(BaseModel):
+    """切换话题响应模型"""
+    active_topic: TopicResponse
+    messages: List[MessageResponse] = []

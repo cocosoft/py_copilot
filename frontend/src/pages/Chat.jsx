@@ -1,60 +1,479 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import { conversationApi } from '../utils/api';
 import { API_BASE_URL } from '../utils/apiUtils';
-import ModelSelectDropdown from '../components/ModelManagement/ModelSelectDropdown';
 import EnhancedMarkdownRenderer from '../components/EnhancedMarkdownRenderer/EnhancedMarkdownRenderer';
+import ModelBar from '../components/ModelBar';
+import ChatMain from '../components/ChatMain';
+import TopicSidebar from '../components/TopicSidebar';
 import './chat.css';
 
+// 简单的tokens计算函数
+const calculateTokens = (text) => {
+  if (!text) return 0;
+  
+  // 移除多余的空白字符
+  const cleanedText = text.trim();
+  
+  // 计算英文单词数（按空格分割）
+  const englishWords = cleanedText.match(/\b[a-zA-Z]+\b/g) || [];
+  
+  // 计算中文汉字数
+  const chineseChars = cleanedText.match(/[\u4e00-\u9fa5]/g) || [];
+  
+  // 计算其他字符数（数字、标点符号等）
+  const otherChars = cleanedText.replace(/[a-zA-Z\u4e00-\u9fa5\s]/g, '').length;
+  
+  // 估算tokens数量：英文单词 * 1.3 + 中文汉字 * 1 + 其他字符
+  const estimatedTokens = Math.round(englishWords.length * 1.3 + chineseChars.length + otherChars);
+  
+  return estimatedTokens;
+};
+
+// 使用React.memo优化EnhancedMarkdownRenderer组件
+const MemoizedMarkdownRenderer = memo(EnhancedMarkdownRenderer);
+
+// 使用React.memo优化消息项组件
+const MessageItem = memo(({ message, formatTime, formatDuration, editingMessageId, editingMessageText, setEditingMessageText, saveEditingMessage, cancelEditingMessage, quoteMessage, toggleMessageMark, markedMessages, expandedThinkingChains, toggleThinkingChain, startEditingMessage, totalTokens, copyMessage, regenerateMessage, translateMessage, deleteMessage, saveMessage }) => {
+  return (
+    <div 
+      key={message.id} 
+      className={`message ${message.sender === 'user' ? 'user-message' : 'bot-message'} ${message.status || 'success'}`}
+    >
+    {message.sender === 'bot' && <div className="message-avatar">🤖</div>}
+    <div className="message-content">
+      <div className={`message-bubble ${message.isStreaming ? 'streaming-text' : ''}`}>
+        <div className="message-header">
+          <div className="message-status">
+            {message.sender === 'bot' && message.model && (
+              <span className="model-badge">{message.model}</span>
+            )}
+            {message.status === 'error' && (
+              <span className="status-badge error">❌ 错误</span>
+            )}
+            {message.status === 'success' && (
+              <span className="status-badge success">✅ 成功</span>
+            )}
+            {message.status === 'streaming' && (
+              <span className="status-badge processing">⏳ 流式响应中</span>
+            )}
+            {message.status === 'processing' && (
+              <span className="status-badge processing">⏳ 处理中</span>
+            )}
+            {message.edited && (
+              <span className="status-badge edited">✏️ 已编辑</span>
+            )}
+          </div>
+          <span className="message-timestamp">{formatTime(message.timestamp)}</span>
+        </div>
+        
+        {/* 思维链显示 */}
+        {message.thinking && (
+          <div className="thinking-chain-container">
+            {message.isStreaming ? (
+              <div className="thinking-chain">
+                {message.thinking}
+              </div>
+            ) : (
+              <>
+                <div className="thinking-chain-toggle" onClick={() => toggleThinkingChain(message.id)}>
+                  <span className="toggle-icon">
+                    {expandedThinkingChains[message.id] ? '▼' : '▶'}
+                  </span>
+                  <span className="toggle-text">思维链</span>
+                </div>
+                {expandedThinkingChains[message.id] && (
+                  <div className="thinking-chain">
+                    {message.thinking}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+        
+        {/* 编辑模式 */}
+        {editingMessageId === message.id ? (
+          <div className="message-edit-container">
+            <textarea
+              value={editingMessageText}
+              onChange={(e) => setEditingMessageText(e.target.value)}
+              className="message-edit-input"
+              placeholder="编辑消息..."
+              rows="3"
+            />
+            <div className="message-edit-actions">
+              <button 
+                className="message-edit-btn save"
+                onClick={() => saveEditingMessage(message.id)}
+              >
+                保存
+              </button>
+              <button 
+                className="message-edit-btn cancel"
+                onClick={cancelEditingMessage}
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* 普通显示模式 */
+          <>                <div className={`message-text ${message.isStreaming ? 'streaming-text' : ''}`}>
+              <MemoizedMarkdownRenderer 
+                content={message.text} 
+                className={message.isStreaming ? 'streaming' : ''}
+              />
+            </div>
+            {message.fallbackInfo && (
+              <div className="fallback-info">
+                🔄 {message.fallbackInfo}
+              </div>
+            )}
+            {message.recoverySuggestion && (
+              <div className="recovery-suggestion">
+                💡 <strong>恢复建议:</strong> {message.recoverySuggestion}
+              </div>
+            )}
+            {message.metrics && (
+              <div className="message-metrics">
+                {message.metrics.execution_time && (
+                  <span className="metric-item">
+                    ⏱️ <span className="metric-value">{formatDuration(message.metrics.execution_time)}</span>
+                  </span>
+                )}
+                {message.metrics.success !== undefined && (
+                  <span className="metric-item">
+                    {message.metrics.success ? '✅' : '❌'} 
+                    <span className="metric-value">{message.metrics.success ? '成功' : '失败'}</span>
+                  </span>
+                )}
+              </div>
+            )}
+          </>
+        )}
+        
+        {/* 消息操作按钮和Tokens消耗 */}
+        {!message.isStreaming && message.sender === 'user' && (
+          <div className="message-actions">
+            <button 
+              className="message-action-btn"
+              onClick={() => startEditingMessage(message.id, message.text)}
+              title="编辑消息"
+            >
+              ✏️
+            </button>
+            <button 
+              className="message-action-btn"
+              onClick={() => quoteMessage(message)}
+              title="引用回复"
+            >
+              📝
+            </button>
+            <button 
+              className={`message-action-btn ${markedMessages.has(message.id) ? 'active' : ''}`}
+              onClick={() => toggleMessageMark(message.id)}
+              title={markedMessages.has(message.id) ? '取消标记' : '标记消息'}
+            >
+              {markedMessages.has(message.id) ? '⭐' : '☆'}
+            </button>
+            {message.metrics && message.metrics.tokens_used && (
+              <span className="tokens-used">
+                📊 {message.metrics.tokens_used}/{totalTokens} tokens
+              </span>
+            )}
+          </div>
+        )}
+        {!message.isStreaming && message.sender === 'bot' && (
+          <div className="message-actions">
+            <button 
+              className="message-action-btn"
+              onClick={() => copyMessage(message)}
+              title="复制"
+            >
+              📋
+            </button>
+            <button 
+              className="message-action-btn"
+              onClick={() => regenerateMessage(message)}
+              title="重新生成"
+            >
+              🔄
+            </button>
+            <button 
+              className="message-action-btn"
+              onClick={() => translateMessage(message)}
+              title="翻译"
+            >
+              🌐
+            </button>
+            <button 
+              className="message-action-btn"
+              onClick={() => deleteMessage(message)}
+              title="删除"
+            >
+              🗑️
+            </button>
+            <button 
+              className="message-action-btn"
+              onClick={() => saveMessage(message)}
+              title="保存"
+            >
+              💾
+            </button>
+            <button 
+              className="message-action-btn"
+              onClick={() => quoteMessage(message)}
+              title="引用回复"
+            >
+              📝
+            </button>
+            <button 
+              className={`message-action-btn ${markedMessages.has(message.id) ? 'active' : ''}`}
+              onClick={() => toggleMessageMark(message.id)}
+              title={markedMessages.has(message.id) ? '取消标记' : '标记消息'}
+            >
+              {markedMessages.has(message.id) ? '⭐' : '☆'}
+            </button>
+            {message.metrics && message.metrics.tokens_used && (
+              <span className="tokens-used">
+                📊 {message.metrics.tokens_used}/{totalTokens} tokens
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+    {message.sender === 'user' && <div className="message-avatar">👤</div>}
+  </div>
+  );
+});
+
+// 使用React.memo优化消息骨架屏组件
+const MessageSkeleton = memo(({ index }) => {
+  return (
+    <div key={`skeleton-${index}`} className="message bot-message skeleton">
+      <div className="message-avatar">🤖</div>
+      <div className="message-content">
+        <div className="message-bubble">
+          <div className="message-header">
+            <div className="message-status">
+              <span className="skeleton-badge"></span>
+            </div>
+            <span className="skeleton-timestamp"></span>
+          </div>
+          <div className="message-text">
+            <div className="skeleton-text">
+              <div className="skeleton-line"></div>
+              <div className="skeleton-line"></div>
+              <div className="skeleton-line"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+// 使用React.memo优化打字指示器组件
+const TypingIndicator = memo(() => {
+  return (
+    <div className="message bot-message">
+      <div className="message-avatar">🤖</div>
+      <div className="typing-indicator">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+  );
+});
+
 const Chat = () => {
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      sender: 'bot',
-      text: '你好！我是 Py Copilot 智能助手，现在支持调用真实的大语言模型进行对话！\n\n新功能：\n- ✅ 支持多种大模型（Ollama、DeepSeek等）\n- ✅ 智能回退机制（模型失败时自动切换）\n- ✅ 实时状态显示\n- ✅ 更好的错误处理\n\n请选择模型并开始对话吧！',
-      timestamp: new Date(Date.now() - 3600000),
-      status: 'success'
-    }
-  ]);
   
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [selectedModel, setSelectedModel] = useState(null);
-  const [availableModels, setAvailableModels] = useState([]);
+  const [availableModels, setAvailableModels] = useState([
+    {
+      id: 50,
+      model_id: 'moonshotai/Kimi-K2-Thinking',
+      model_name: 'Kimi-K2-Thinking',
+      description: 'Kimi K2 Thinking 是最新、最强大的开源思考模型。它通过大幅扩展多步推理深度，并在 200–300 次连续工具调用中保持稳定的工具使用，在 Humanity\'s Last Exam (HLE)、BrowseComp 及其他基准测试中树立了新的标杆。同时，K2 Thinking 是一款原生支持 INT4 量化的模型，拥有 256K 上下文窗口，实现了推理延迟和 GPU 显存占用的无损降低',
+      logo: '/logos/models/20251227_102702_831766.png',
+      supplier_id: 45,
+      supplier_name: '硅基流动',
+      supplier_display_name: '硅基流动',
+      supplier_logo: '/logos/providers/siliconflow.png',
+      is_default: true,
+      capabilities: [
+        {
+          id: 1,
+          name: 'text_generation',
+          display_name: '文本生成'
+        },
+        {
+          id: 2,
+          name: 'text_summarization',
+          display_name: '文本摘要'
+        },
+        {
+          id: 3,
+          name: 'text_classification',
+          display_name: '文本分类'
+        },
+        {
+          id: 4,
+          name: 'sentiment_analysis',
+          display_name: '情感分析'
+        },
+        {
+          id: 5,
+          name: 'translation',
+          display_name: '翻译'
+        },
+        {
+          id: 6,
+          name: 'question_answering',
+          display_name: '问答'
+        },
+        {
+          id: 69,
+          name: 'chat',
+          display_name: '对话'
+        }
+      ]
+    }
+  ]);
   const [connectionStatus, setConnectionStatus] = useState('connected');
   const [lastResponseTime, setLastResponseTime] = useState(null);
-  const [isLoadingModels, setIsLoadingModels] = useState(true);
+  const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [enableStreaming, setEnableStreaming] = useState(true);
   const [enableThinkingChain, setEnableThinkingChain] = useState(false);
-  const [topics, setTopics] = useState([]);
-  const [activeTopic, setActiveTopic] = useState(null);
-  const [newTopicTitle, setNewTopicTitle] = useState('');
-  const [newTopicDescription, setNewTopicDescription] = useState('');
   const [expandedThinkingChains, setExpandedThinkingChains] = useState({}); // 管理各个消息的思维链展开/收缩状态
   const [currentStreamingMessage, setCurrentStreamingMessage] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // 左侧控制面板伸缩状态
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false); // 消息加载状态
+  const [messageSkeletons, setMessageSkeletons] = useState([]); // 消息骨架屏数量
+  const [preloadedMessages, setPreloadedMessages] = useState({}); // 预加载的消息
+  const [offlineMessages, setOfflineMessages] = useState([]); // 离线消息队列
+  const [isReconnecting, setIsReconnecting] = useState(false); // 重连状态
+  const [reconnectAttempts, setReconnectAttempts] = useState(0); // 重连尝试次数
+  const [editingMessageId, setEditingMessageId] = useState(null); // 正在编辑的消息ID
+  const [editingMessageText, setEditingMessageText] = useState(''); // 正在编辑的消息文本
+  const [quotedMessage, setQuotedMessage] = useState(null); // 引用的消息
+  const [theme, setTheme] = useState('light'); // 当前主题：light或dark
+  const [searchQuery, setSearchQuery] = useState(''); // 搜索关键词
+  const [searchResults, setSearchResults] = useState([]); // 搜索结果
+  const [isSearching, setIsSearching] = useState(false); // 搜索状态
+  const [markedMessages, setMarkedMessages] = useState(new Set()); // 标记的消息ID集合
+  const [isShared, setIsShared] = useState(false); // 对话是否已共享
+  const [shareLink, setShareLink] = useState(''); // 共享链接
+  const [collaborators, setCollaborators] = useState([]); // 协作者列表
+  const [isCollaborating, setIsCollaborating] = useState(false); // 是否处于协作模式
+  const [totalTokens, setTotalTokens] = useState(0); // 整个对话的总tokens数量
+  const [messages, setMessages] = useState([]); // 消息列表
+  const [conversationId, setConversationId] = useState(1); // 对话ID
+  const [activeTopic, setActiveTopic] = useState(null); // 当前活跃的话题
+  const [showTopicSidebar, setShowTopicSidebar] = useState(true); // 是否显示话题侧边栏
+  const [refreshTopicsFlag, setRefreshTopicsFlag] = useState(false); // 控制话题列表刷新的标志
   const messagesEndRef = useRef(null);
+  const reconnectTimerRef = useRef(null); // 重连定时器引用
+  const modelsLoadedRef = useRef(false); // 防止重复加载模型列表
   
   // 滚动到底部
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  }, []);
+  
+
+  
+  // 显示消息骨架屏
+  const showMessageSkeletons = useCallback((count = 3) => {
+    setMessageSkeletons(Array.from({ length: count }, (_, index) => index));
+    setIsLoadingMessages(true);
+  }, []);
+  
+  // 隐藏消息骨架屏
+  const hideMessageSkeletons = useCallback(() => {
+    setMessageSkeletons([]);
+    setIsLoadingMessages(false);
+  }, []);
+  
+  // 预加载消息
+  const preloadMessages = useCallback(async (conversationId, topicId) => {
+    const cacheKey = `${conversationId}:${topicId}`;
+    
+    // 检查是否已经预加载过
+    if (preloadedMessages[cacheKey]) {
+      return preloadedMessages[cacheKey];
+    }
+    
+    try {
+      // 显示骨架屏
+      showMessageSkeletons();
+      
+      // 模拟预加载延迟
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // 实际获取消息（这里可以根据实际情况调用API）
+      // 由于当前没有实际的消息API，这里返回模拟数据
+      const preloadedData = {
+        messages: [
+          {
+            id: 1,
+            sender: 'bot',
+            text: '欢迎回来！我是Py Copilot，您的智能助手。',
+            timestamp: new Date(),
+            status: 'success'
+          }
+        ],
+        timestamp: Date.now()
+      };
+      
+      // 缓存预加载的消息
+      setPreloadedMessages(prev => ({
+        ...prev,
+        [cacheKey]: preloadedData
+      }));
+      
+      return preloadedData;
+    } catch (error) {
+      console.error('预加载消息失败:', error);
+      return null;
+    } finally {
+      // 隐藏骨架屏
+      hideMessageSkeletons();
+    }
+  }, [preloadedMessages, showMessageSkeletons, hideMessageSkeletons]);
   
   // 从API获取对话模型列表
-  const fetchConversationModels = async () => {
+  const fetchConversationModels = useCallback(async () => {
+    // 防止重复加载
+    if (modelsLoadedRef.current) {
+      console.log('模型列表已加载，跳过重复请求');
+      return;
+    }
+    
     try {
       setIsLoadingModels(true);
       const response = await conversationApi.getConversationModels();
+      console.log('获取到的模型列表响应:', response);
       // 检查后端返回的数据格式
       let modelsData = [];
       if (response.models) {
         // 后端直接返回models和total格式
         modelsData = response.models;
+        console.log('从response.models获取到的模型数据:', modelsData);
       } else if (response.status === 'success' && response.models) {
         // 兼容旧的status格式
         modelsData = response.models;
+        console.log('从response.status获取到的模型数据:', modelsData);
+      } else {
+        console.error('未找到模型数据:', response);
       }
       
       if (modelsData.length > 0) {
+        console.log('设置模型数据:', modelsData);
         setAvailableModels(modelsData);
         // 如果有默认模型，自动选择
         const defaultModel = modelsData.find(model => model.is_default);
@@ -63,6 +482,29 @@ const Chat = () => {
         } else {
           setSelectedModel(modelsData[0]);
         }
+        // 标记模型已加载
+        modelsLoadedRef.current = true;
+      } else {
+        console.error('模型数据为空:', modelsData);
+        // 设置默认模型作为备用
+        setAvailableModels([
+          {
+            id: 50,
+            model_id: 'moonshotai/Kimi-K2-Thinking',
+            model_name: 'Kimi-K2-Thinking',
+            supplier_name: '硅基流动',
+            supplier_display_name: '硅基流动',
+            is_default: true
+          }
+        ]);
+        setSelectedModel({
+          id: 50,
+          model_id: 'moonshotai/Kimi-K2-Thinking',
+          model_name: 'Kimi-K2-Thinking',
+          supplier_name: '硅基流动',
+          supplier_display_name: '硅基流动',
+          is_default: true
+        });
       }
     } catch (error) {
       console.error('获取对话模型列表失败:', error);
@@ -88,187 +530,366 @@ const Chat = () => {
     } finally {
       setIsLoadingModels(false);
     }
-  };
+  }, []);
   
   // 话题管理函数
-  const fetchTopics = async (conversationId = 1) => {
-    try {
-      const response = await conversationApi.getConversationTopics(conversationId);
-      if (response.status === 'success') {
-        setTopics(response.topics);
-        
-        // 获取活跃话题
-        const activeResponse = await conversationApi.getActiveTopic(conversationId);
-        if (activeResponse.status === 'success') {
-          setActiveTopic(activeResponse.active_topic);
-        }
-      }
-    } catch (error) {
-      console.error('获取话题列表失败:', error);
-    }
-  };
+  const refreshTopics = useCallback(() => {
+    // 设置刷新标志，触发话题列表刷新
+    setRefreshTopicsFlag(prev => !prev);
+  }, []);
+
   
-  const createNewTopic = async (conversationId = 1) => {
-    if (!newTopicTitle.trim()) {
-      alert('请输入话题标题');
+  // 切换主题
+  const toggleTheme = useCallback(() => {
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
+    localStorage.setItem('theme', newTheme);
+    // 应用主题到文档根元素
+    document.documentElement.setAttribute('data-theme', newTheme);
+  }, [theme]);
+  
+  // 执行消息搜索
+  const performSearch = useCallback(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setIsSearching(false);
       return;
     }
     
+    setIsSearching(true);
+    
+    // 简单的客户端搜索实现
+    const query = searchQuery.toLowerCase().trim();
+    const results = messages.filter(message => {
+      const messageText = message.text.toLowerCase();
+      return messageText.includes(query);
+    });
+    
+    // 模拟搜索延迟
+    setTimeout(() => {
+      setSearchResults(results);
+      setIsSearching(false);
+    }, 300);
+  }, [searchQuery, messages]);
+  
+  // 清除搜索结果
+  const clearSearch = useCallback(() => {
+    setSearchQuery('');
+    setSearchResults([]);
+    setIsSearching(false);
+  }, []);
+  
+  // 标记/取消标记消息
+  const toggleMessageMark = useCallback((messageId) => {
+    setMarkedMessages(prev => {
+      const newMarked = new Set(prev);
+      if (newMarked.has(messageId)) {
+        newMarked.delete(messageId);
+      } else {
+        newMarked.add(messageId);
+      }
+      return newMarked;
+    });
+  }, []);
+  
+  // 复制消息内容
+  const copyMessage = useCallback((message) => {
+    if (!message || !message.text) return;
+    
+    navigator.clipboard.writeText(message.text).then(() => {
+      alert('消息内容已复制到剪贴板！');
+    }).catch(err => {
+      console.error('复制失败:', err);
+      alert('复制失败，请重试');
+    });
+  }, []);
+  
+  // 翻译消息
+  const translateMessage = useCallback((message) => {
+    if (!message || !message.text) return;
+    
+    alert('翻译功能正在开发中，敬请期待！');
+  }, []);
+  
+  // 删除消息
+  const deleteMessage = useCallback((message) => {
+    if (!message) return;
+    
+    if (window.confirm('确定要删除这条消息吗？删除后将无法恢复。')) {
+      setMessages(prev => prev.filter(msg => msg.id !== message.id));
+      alert('消息已删除');
+    }
+  }, []);
+  
+  // 保存消息
+  const saveMessage = useCallback((message) => {
+    if (!message || !message.text) return;
+    
+    // 准备保存的数据
+    const saveData = {
+      id: message.id,
+      text: message.text,
+      timestamp: message.timestamp,
+      model: message.model,
+      tokensUsed: message.metrics?.tokens_used || 0,
+      saveTime: new Date().toISOString()
+    };
+    
+    // 保存到localStorage
     try {
-      const response = await conversationApi.createTopic(
-        conversationId, 
-        newTopicTitle.trim(), 
-        newTopicDescription.trim()
-      );
+      const savedMessages = JSON.parse(localStorage.getItem('savedMessages') || '[]');
+      savedMessages.push(saveData);
+      localStorage.setItem('savedMessages', JSON.stringify(savedMessages));
+      alert('消息已保存到本地存储！');
+    } catch (error) {
+      console.error('保存失败:', error);
+      alert('保存失败，请重试');
+    }
+  }, []);
+  
+  // 导出消息
+  const exportMessages = useCallback((format = 'json') => {
+    // 准备导出数据
+    const exportData = {
+      conversationId: 1,
+      exportTime: new Date().toISOString(),
+      messageCount: messages.length,
+      messages: messages.map(msg => ({
+        id: msg.id,
+        sender: msg.sender,
+        text: msg.text,
+        timestamp: msg.timestamp,
+        status: msg.status,
+        ...(msg.model && { model: msg.model }),
+        ...(msg.tokensUsed && { tokensUsed: msg.tokensUsed }),
+        ...(msg.executionTime && { executionTime: msg.executionTime })
+      }))
+    };
+    
+    let content, mimeType, filename;
+    
+    if (format === 'json') {
+      content = JSON.stringify(exportData, null, 2);
+      mimeType = 'application/json';
+      filename = `conversation_${Date.now()}.json`;
+    } else if (format === 'txt') {
+      // 生成纯文本格式
+      let textContent = `对话导出\n`;
+      textContent += `导出时间: ${new Date().toLocaleString()}\n`;
+      textContent += `消息数量: ${messages.length}\n\n`;
       
-      if (response.status === 'success') {
-        setNewTopicTitle('');
-        setNewTopicDescription('');
-        await fetchTopics(conversationId);
-        
-        // 自动切换到新创建的话题
-        await switchTopic(conversationId, response.topic.id);
-      }
-    } catch (error) {
-      console.error('创建话题失败:', error);
-      alert('创建话题失败，请重试');
-    }
-  };
-  
-  const switchTopic = async (conversationId, topicId) => {
-    try {
-      const response = await conversationApi.switchTopic(conversationId, topicId);
-      if (response.status === 'success') {
-        setActiveTopic(response.active_topic);
-        
-        // 清空当前消息，切换到新话题
-        setMessages([
-          {
-            id: 1,
-            sender: 'bot',
-            text: `已切换到话题：${response.active_topic.title}\n\n${response.active_topic.description || '请开始新的对话吧！'}`,
-            timestamp: new Date(),
-            status: 'success'
-          }
-        ]);
-      }
-    } catch (error) {
-      console.error('切换话题失败:', error);
-      alert('切换话题失败，请重试');
-    }
-  };
-  
-  const deleteTopic = async (conversationId, topicId) => {
-    if (!confirm('确定要删除这个话题吗？删除后将无法恢复。')) {
-      return;
+      messages.forEach(msg => {
+        const senderLabel = msg.sender === 'user' ? '你' : 'AI';
+        const timestamp = new Date(msg.timestamp).toLocaleString();
+        textContent += `[${timestamp}] ${senderLabel}:\n`;
+        textContent += `${msg.text}\n\n`;
+      });
+      
+      content = textContent;
+      mimeType = 'text/plain';
+      filename = `conversation_${Date.now()}.txt`;
     }
     
-    try {
-      const response = await conversationApi.deleteTopic(conversationId, topicId);
-      if (response.status === 'success') {
-        await fetchTopics(conversationId);
-        
-        // 如果删除的是当前活跃话题，重置活跃话题
-        if (activeTopic && activeTopic.id === topicId) {
-          setActiveTopic(null);
-        }
-      }
-    } catch (error) {
-      console.error('删除话题失败:', error);
-      alert('删除话题失败，请重试');
-    }
-  };
-  
-  useEffect(() => {
-    scrollToBottom();
+    // 创建下载链接
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }, [messages]);
   
-  useEffect(() => {
-    // 组件挂载时获取模型列表和话题列表
-    fetchConversationModels();
-    fetchTopics();
+  // 生成共享链接
+  const generateShareLink = useCallback(() => {
+    // 模拟生成共享链接
+    const shareId = Math.random().toString(36).substring(2, 10);
+    const link = `${window.location.origin}/shared/${shareId}`;
+    setShareLink(link);
+    setIsShared(true);
     
-    // 监听网络状态变化
-    const handleOnline = () => {
-      setConnectionStatus('connected');
-      console.log('网络连接已恢复');
+    // 模拟添加当前用户为协作者
+    setCollaborators([{
+      id: 1,
+      name: '当前用户',
+      avatar: '👤',
+      isOwner: true
+    }]);
+    
+    setIsCollaborating(true);
+    
+    // 复制到剪贴板
+    navigator.clipboard.writeText(link).then(() => {
+      alert('共享链接已复制到剪贴板！');
+    }).catch(err => {
+      console.error('复制失败:', err);
+    });
+  }, []);
+  
+  // 复制共享链接
+  const copyShareLink = useCallback(() => {
+    if (!shareLink) return;
+    
+    navigator.clipboard.writeText(shareLink).then(() => {
+      alert('共享链接已复制到剪贴板！');
+    }).catch(err => {
+      console.error('复制失败:', err);
+    });
+  }, [shareLink]);
+  
+  // 停止共享
+  const stopSharing = useCallback(() => {
+    if (window.confirm('确定要停止共享对话吗？停止后协作者将无法访问此对话。')) {
+      setIsShared(false);
+      setShareLink('');
+      setCollaborators([]);
+      setIsCollaborating(false);
+      alert('对话共享已停止！');
+    }
+  }, []);
+  
+  // 邀请协作者
+  const inviteCollaborator = useCallback(() => {
+    const email = prompt('请输入要邀请的协作者邮箱：');
+    if (!email) return;
+    
+    // 模拟邀请协作者
+    const newCollaborator = {
+      id: Date.now(),
+      name: email.split('@')[0],
+      avatar: '👥',
+      isOwner: false
     };
     
-    const handleOffline = () => {
-      setConnectionStatus('offline');
-      console.log('网络连接已断开');
-    };
+    setCollaborators(prev => [...prev, newCollaborator]);
+    alert(`已邀请 ${email} 作为协作者！`);
+  }, []);
+  
+  // 移除协作者
+  const removeCollaborator = useCallback((collaboratorId) => {
+    setCollaborators(prev => prev.filter(c => c.id !== collaboratorId));
+  }, []);
+  
+  // 错误分类和恢复建议
+  const getErrorDetails = useCallback((error) => {
+    // 网络错误
+    if (!navigator.onLine) {
+      return {
+        type: 'network',
+        message: '网络连接已断开，请检查您的网络连接后重试。',
+        recovery: '请检查您的网络连接，确保您已连接到互联网，然后重新发送消息。',
+        severity: 'high'
+      };
+    }
     
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+    // 超时错误
+    if (error.message.includes('timeout') || error.message.includes('超时')) {
+      return {
+        type: 'timeout',
+        message: '请求超时，服务器响应时间过长。',
+        recovery: '请检查网络连接，或尝试使用更短的问题，稍后再重试。',
+        severity: 'medium'
+      };
+    }
     
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+    // 404错误
+    if (error.response?.status === 404) {
+      return {
+        type: 'not_found',
+        message: '服务暂时不可用，请稍后再试。',
+        recovery: '服务器可能正在维护，请稍后再尝试发送消息。',
+        severity: 'medium'
+      };
+    }
+    
+    // 500+错误
+    if (error.response?.status >= 500) {
+      return {
+        type: 'server_error',
+        message: '服务器内部错误，请联系管理员。',
+        recovery: '服务器遇到问题，请稍后再试，或联系系统管理员。',
+        severity: 'high'
+      };
+    }
+    
+    // 401/403错误
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      return {
+        type: 'unauthorized',
+        message: '权限不足，请检查您的登录状态。',
+        recovery: '请重新登录系统，然后再尝试发送消息。',
+        severity: 'high'
+      };
+    }
+    
+    // 模型错误
+    if (error.message.includes('model') || error.message.includes('模型')) {
+      return {
+        type: 'model_error',
+        message: '模型调用失败，请尝试选择其他模型。',
+        recovery: '请尝试选择其他可用的模型，或稍后再试。',
+        severity: 'medium'
+      };
+    }
+    
+    // API详细错误
+    if (error.response?.data?.detail) {
+      return {
+        type: 'api_error',
+        message: error.response.data.detail,
+        recovery: '请检查您的请求内容，确保符合要求，然后重试。',
+        severity: 'medium'
+      };
+    }
+    
+    // 默认错误
+    return {
+      type: 'unknown',
+      message: '抱歉，我暂时无法处理你的请求。请稍后再试。',
+      recovery: '请稍后再尝试发送消息，或检查系统状态。',
+      severity: 'low'
     };
   }, []);
   
-  // 清除对话
-  const clearConversation = () => {
-    setMessages([
-      {
-        id: 1,
-        sender: 'bot',
-        text: '对话已清除！请选择模型并开始新的对话。',
-        timestamp: new Date(),
-        status: 'success'
-      }
-    ]);
-  };
-  
-  // 检查模型状态
-  const checkModelStatus = async (model) => {
-    try {
-      setConnectionStatus('checking');
-      // 这里可以添加模型状态检查的API调用
-      // 暂时模拟检查
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setConnectionStatus('connected');
-      return true;
-    } catch (error) {
-      setConnectionStatus('error');
-      return false;
-    }
-  };
-  
-  // 模型选择变化处理
-  const handleModelSelect = async (model) => {
-    setSelectedModel(model);
-    await checkModelStatus(model);
-  };
-  
+
+
   // 流式响应处理
-  const handleStreamingResponse = async (text, conversationId = 1) => {
+  const handleStreamingResponse = useCallback(async (text, conversationId = 1, topicId = null) => {
     try {
       const messageData = {
         content: text,
         use_llm: true,
         model_name: selectedModel ? selectedModel.model_id : 'moonshotai/Kimi-K2-Thinking',
-        enable_thinking_chain: enableThinkingChain
+        enable_thinking_chain: enableThinkingChain,
+        topic_id: topicId || activeTopic?.id || null
       };
 
       // 创建流式消息对象，使用时间戳+随机数确保唯一ID
-        const streamingMessage = {
-            id: Date.now() + Math.floor(Math.random() * 1000),
-            sender: 'bot',
-            text: '',
-            timestamp: new Date(),
-            status: 'streaming',
-            model: selectedModel ? selectedModel.model_name : '未知模型',
-            isStreaming: true,
-            thinking: null // 初始不显示思维链信息，等待后端发送实际的思维链步骤
-        };
+      const streamingMessage = {
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        sender: 'bot',
+        text: '',
+        timestamp: new Date(),
+        status: 'streaming',
+        conversationId: conversationId,
+        topicId: topicId || activeTopic?.id || null,
+        model: selectedModel ? selectedModel.model_name : '未知模型',
+        isStreaming: true,
+        thinking: null // 初始不显示思维链信息，等待后端发送实际的思维链步骤
+      };
 
       setCurrentStreamingMessage(streamingMessage);
       setMessages(prevMessages => [...prevMessages, streamingMessage]);
 
+      // 用于累积完整的回复内容
+      let fullResponse = '';
+      // 用于累积完整的思维链内容
+      let fullThinkingChain = '';
+
       // 使用fetch API的流式响应功能
-      const response = await fetch(`/api/v1/conversations/${conversationId}/messages/stream`, {
+      const response = await fetch(`${API_BASE_URL}/v1/conversations/${conversationId}/messages/stream`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -356,37 +977,54 @@ const Chat = () => {
             
             switch (data.type) {
               case 'thinking':
-                // 更新思维链显示
+                // 累积完整的思维链内容
+                fullThinkingChain += data.content;
+                
+                // 更新思维链显示，使用累积的完整内容
                 setCurrentStreamingMessage(prev => ({
                   ...prev,
-                  thinking: data.content
+                  thinking: fullThinkingChain
                 }));
                 
-                // 更新消息列表中的思维链
+                // 更新消息列表中的思维链，使用累积的完整内容
                 setMessages(prevMessages => 
                   prevMessages.map(msg => 
                     msg.id === streamingMessage.id 
-                      ? { ...msg, thinking: data.content }
+                      ? { ...msg, thinking: fullThinkingChain }
                       : msg
                   )
                 );
                 break;
                 
               case 'content':
-                // 更新消息内容
+                // 累积完整的回复内容
+                fullResponse += data.content;
+                
+                // 更新消息内容，使用累积的完整内容
                 setCurrentStreamingMessage(prev => ({
                   ...prev,
-                  text: data.content
+                  text: fullResponse
                 }));
                 
-                // 更新消息列表中的消息，使用防抖机制避免频繁重渲染
+                // 更新消息列表中的消息，使用累积的完整内容
                 setMessages(prevMessages => 
                   prevMessages.map(msg => 
                     msg.id === streamingMessage.id 
-                      ? { ...msg, text: data.content }
+                      ? { ...msg, text: fullResponse }
                       : msg
                   )
                 );
+                break;
+                
+              case 'topic':
+                // 更新话题信息
+                if (data.topic) {
+                  console.log(`收到话题信息: ${data.topic.title}`);
+                  setActiveTopic(data.topic);
+                  streamingMessage.topic = data.topic;
+                  // 不要立即刷新话题列表，避免覆盖更新后的话题信息
+                  // 而是在complete事件中，当所有的响应都完成后，再刷新话题列表
+                }
                 break;
                 
               case 'complete':
@@ -394,16 +1032,31 @@ const Chat = () => {
                 streamCompleted = true;
                 setCurrentStreamingMessage(null);
                 
+                // 计算AI回复的tokens数量
+                const aiTokens = calculateTokens(fullResponse);
+                
                 setMessages(prevMessages => 
                   prevMessages.map(msg => 
                     msg.id === streamingMessage.id 
-                      ? { ...msg, status: 'success', isStreaming: false } 
+                      ? { 
+                          ...msg, 
+                          status: 'success', 
+                          isStreaming: false,
+                          metrics: {
+                            ...(data.metrics || {}),
+                            tokens_used: data.metrics?.tokens_used || aiTokens
+                          }
+                        } 
                       : msg
                   )
                 );
                 // 设置思维链默认收缩状态
                 setExpandedThinkingChains(prev => ({ ...prev, [streamingMessage.id]: false }));
                 setConnectionStatus('connected');
+                
+                // 刷新话题列表，更新消息数量
+                refreshTopics();
+
                 break;
                 
               case 'error':
@@ -451,6 +1104,14 @@ const Chat = () => {
         // 设置思维链默认收缩状态
         setExpandedThinkingChains(prev => ({ ...prev, [streamingMessage.id]: false }));
         setConnectionStatus('connected');
+        
+        // 如果有话题信息，更新活跃话题
+        if (streamingMessage.topic) {
+          console.log(`流结束时使用streamingMessage中的话题信息: ${streamingMessage.topic.title}`);
+          setActiveTopic(streamingMessage.topic);
+          // 不再刷新话题列表，避免无限递归
+          // 话题列表的刷新已经在complete事件中处理
+        }
       }
 
       // 处理流错误
@@ -478,504 +1139,538 @@ const Chat = () => {
       console.error('流式响应处理失败:', error);
       setCurrentStreamingMessage(null);
       
+      // 获取错误详情和恢复建议
+      const errorDetails = getErrorDetails(error);
+      
+      // 创建错误消息
       const errorMessage = {
         id: Date.now() + Math.floor(Math.random() * 1000),
         sender: 'bot',
-        text: '流式响应功能暂时不可用，请使用普通模式。',
+        text: errorDetails.message,
         timestamp: new Date(),
-        status: 'error'
+        status: 'error',
+        errorType: errorDetails.type,
+        recoverySuggestion: errorDetails.recovery,
+        severity: errorDetails.severity
       };
+      
       setMessages(prevMessages => [...prevMessages, errorMessage]);
       setConnectionStatus('error');
     }
-  };
+  }, [selectedModel, enableThinkingChain, getErrorDetails, activeTopic]);
 
   // 处理发送消息
-  const handleSendMessage = async (e) => {
+  // 重连函数
+  // 发送消息的核心逻辑，不依赖于inputText
+  const sendMessageCore = useCallback(async (text) => {
+    if (!text.trim()) return;
+    
+    try {
+      // 只记录关键步骤的日志
+      console.log(`开始发送消息: ${text.substring(0, 50)}${text.length > 50 ? '...' : ''}`);
+      
+      // 计算用户消息的tokens数量
+      const userTokens = calculateTokens(text.trim());
+      
+      // 创建临时消息
+      const tempMessage = {
+        id: Date.now(),
+        sender: 'user',
+        text: text.trim(),
+        timestamp: new Date(),
+        status: 'sending',
+        conversationId: conversationId,
+        topicId: activeTopic?.id || null,
+        metrics: {
+          tokens_used: userTokens
+        }
+      };
+      
+      // 添加到消息列表
+      setMessages(prev => [...prev, tempMessage]);
+      scrollToBottom();
+      
+      // 检查网络连接
+      if (!navigator.onLine) {
+        console.warn('网络离线，将消息加入离线队列');
+        // 离线状态，加入离线消息队列
+        setOfflineMessages(prev => [...prev, { text: text.trim() }]);
+        // 更新消息状态为离线
+        setMessages(prev => prev.map(msg => 
+          msg.id === tempMessage.id 
+            ? { ...msg, status: 'offline' }
+            : msg
+        ));
+        return;
+      }
+      
+      // 在线状态，发送消息
+      if (enableStreaming) {
+        // 流式响应已在handleStreamingResponse中记录日志
+        await handleStreamingResponse(text.trim());
+      } else {
+        // 普通响应
+        const response = await conversationApi.sendMessage(conversationId, {
+          content: text.trim(),
+          use_llm: true,
+          model_name: selectedModel ? selectedModel.model_id : 'moonshotai/Kimi-K2-Thinking',
+          enable_thinking_chain: enableThinkingChain,
+          topic_id: activeTopic?.id || null
+        });
+        
+        // 更新消息状态
+        setMessages(prev => prev.map(msg => 
+          msg.id === tempMessage.id 
+            ? { ...msg, status: 'success' }
+            : msg
+        ));
+        
+        // 计算AI回复的tokens数量
+        const aiTokens = calculateTokens(response.assistant_message?.content || '');
+        
+        // 添加AI回复
+        if (response.assistant_message) {
+          setMessages(prev => [...prev, {
+            id: response.assistant_message.id || Date.now() + 1,
+            sender: 'bot',
+            text: response.assistant_message.content,
+            timestamp: new Date(response.assistant_message.created_at),
+            status: 'success',
+            conversationId: conversationId,
+            topicId: response.assistant_message.topic_id || activeTopic?.id || null,
+            metrics: {
+              tokens_used: aiTokens
+            }
+          }]);
+        }
+        
+        // 如果有新话题创建，更新活跃话题
+        if (response.new_topic) {
+          setActiveTopic(response.new_topic);
+          console.log(`新话题创建: ${response.new_topic.topic_name}`);
+        }
+        
+        // 刷新话题列表，更新消息数量
+        refreshTopics();
+        
+      }
+      
+    } catch (error) {
+      console.error(`发送消息失败: ${error.message}`);
+      // 更新消息状态为失败
+      setMessages(prev => prev.map(msg => 
+        msg.id === tempMessage.id 
+          ? { ...msg, status: 'error' }
+          : msg
+      ));
+      
+      // 显示错误提示
+      const errorDetails = getErrorDetails(error);
+      setMessages(prev => [...prev, {
+        id: Date.now() + 1,
+        sender: 'bot',
+        text: errorDetails.message,
+        timestamp: new Date(),
+        status: 'error',
+        conversationId: conversationId,
+        topicId: activeTopic?.id || null
+      }]);
+    }
+  }, [enableStreaming, selectedModel, handleStreamingResponse, getErrorDetails, conversationId, activeTopic, refreshTopics]);
+  
+  // 重新生成消息
+  const regenerateMessage = useCallback(async (message) => {
+    if (!message || message.sender !== 'bot') return;
+    
+    // 找到该消息之前的用户消息
+    const messageIndex = messages.findIndex(msg => msg.id === message.id);
+    if (messageIndex === -1) return;
+    
+    // 找到最近的用户消息
+    let userMessage = null;
+    for (let i = messageIndex - 1; i >= 0; i--) {
+      if (messages[i].sender === 'user') {
+        userMessage = messages[i];
+        break;
+      }
+    }
+    
+    if (!userMessage) {
+      alert('无法找到对应的用户消息');
+      return;
+    }
+    
+    // 重新发送用户消息，不删除原有AI回复
+    await sendMessageCore(userMessage.text);
+  }, [messages, sendMessageCore]);
+  
+  // 处理发送消息
+  const handleSendMessage = useCallback(async (e) => {
     e.preventDefault();
     const text = inputText.trim();
     if (!text) return;
     
-    // 检查网络连接
-    if (!navigator.onLine) {
-      const offlineMessage = {
-        id: Date.now() + Math.floor(Math.random() * 1000),
-        sender: 'bot',
-        text: '网络连接已断开，请检查您的网络连接后重试。',
-        timestamp: new Date(),
-        status: 'error'
-      };
-      setMessages(prevMessages => [...prevMessages, offlineMessage]);
+    // 清空输入框
+    setInputText('');
+    
+    // 调用核心发送逻辑
+    await sendMessageCore(text);
+  }, [inputText, sendMessageCore]);
+
+  const reconnect = useCallback(() => {
+    if (isReconnecting) return;
+    
+    console.log('开始重连尝试');
+    setIsReconnecting(true);
+    setReconnectAttempts(0);
+    
+    const attemptReconnect = async (attempt) => {
+      try {
+        console.log(`重连尝试 ${attempt + 1}`);
+        // 模拟重连尝试
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // 检查连接状态
+        if (navigator.onLine) {
+          console.log('网络连接已恢复');
+          setConnectionStatus('connected');
+          setIsReconnecting(false);
+          setReconnectAttempts(0);
+          
+          // 尝试发送离线消息
+          if (offlineMessages.length > 0) {
+            console.log(`发现 ${offlineMessages.length} 条离线消息，准备发送`);
+            const pendingMessages = [...offlineMessages];
+            setOfflineMessages([]);
+            
+            for (const msg of pendingMessages) {
+              console.log(`发送离线消息: ${msg.text.substring(0, 50)}${msg.text.length > 50 ? '...' : ''}`);
+              await sendMessageCore(msg.text);
+            }
+            console.log('所有离线消息发送完成');
+          }
+          
+          return;
+        }
+        
+        // 指数退避重连
+        const delay = Math.min(30000, 1000 * Math.pow(2, attempt));
+        console.log(`网络仍未恢复，${delay}ms 后重试`);
+        setTimeout(() => attemptReconnect(attempt + 1), delay);
+        
+      } catch (error) {
+        console.error(`重连失败: ${error.message}`);
+        setConnectionStatus('error');
+        setIsReconnecting(false);
+      }
+    };
+    
+    attemptReconnect(0);
+  }, [isReconnecting, offlineMessages, sendMessageCore]);
+  
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
+  
+  // 当messages数组变化时，重新计算总tokens数量
+  useEffect(() => {
+    const total = messages.reduce((sum, message) => {
+      if (message.metrics && message.metrics.tokens_used) {
+        return sum + message.metrics.tokens_used;
+      }
+      return sum;
+    }, 0);
+    setTotalTokens(total);
+  }, [messages]);
+  
+
+  
+  // 只在挂载时运行的初始化逻辑
+  useEffect(() => {
+    console.log('组件开始初始化');
+    // 加载保存的主题设置
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    setTheme(savedTheme);
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    console.log(`主题设置加载完成: ${savedTheme}`);
+    
+    // 监听网络状态变化
+    const handleOnline = () => {
+      setConnectionStatus('connected');
+      console.log('网络连接已恢复');
+      // 网络恢复时尝试重连
+      reconnect();
+    };
+    
+    const handleOffline = () => {
       setConnectionStatus('offline');
+      console.log('网络连接已断开');
+    };
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    console.log('网络状态监听器已添加');
+    
+    return () => {
+      // 清理网络状态监听器
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      console.log('网络状态监听器已移除');
+      
+      // 清除重连定时器
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+        console.log('重连定时器已清除');
+      }
+
+    };
+  }, []); // 空依赖项，只运行一次
+  
+  // 获取模型列表
+  useEffect(() => {
+    console.log('开始获取对话模型列表');
+    fetchConversationModels();
+  }, []); // 空依赖项，只运行一次
+  
+
+  
+  // 清除对话
+  const clearConversation = useCallback(() => {
+    setMessages([
+      {
+        id: 1,
+        sender: 'bot',
+        text: '对话已清除！请选择模型并开始新的对话。',
+        timestamp: new Date(),
+        status: 'success'
+      }
+    ]);
+  }, []);
+  
+  // 处理话题选择
+  const handleTopicSelect = useCallback(async (topic) => {
+    if (!topic) {
+      setActiveTopic(null);
       return;
     }
     
-    setIsTyping(true);
-    setConnectionStatus('sending');
-    const startTime = Date.now();
-    
-    // 添加用户消息到列表，使用时间戳+随机数确保唯一ID
-    const newUserMessage = {
-      id: Date.now() + Math.floor(Math.random() * 1000),
-      sender: 'user',
-      text: text,
-      timestamp: new Date()
-    };
-    
-    setMessages(prevMessages => [...prevMessages, newUserMessage]);
-    setInputText('');
-    
     try {
-      // 根据设置选择响应模式
-      if (enableStreaming) {
-        // 使用流式响应
-        await handleStreamingResponse(text, 1);
-        setIsTyping(false);
-        return;
+      setIsLoadingMessages(true);
+      setMessageSkeletons([1, 2]);
+      
+      // 调用后端API切换话题
+      const response = await conversationApi.switchTopic(conversationId, topic.id);
+      
+      if (response && response.active_topic && response.messages) {
+        // 设置活跃话题
+        setActiveTopic(response.active_topic);
+        
+        // 转换消息格式
+        const formattedMessages = response.messages.map(msg => {
+          // 处理思维链信息
+          let thinking = null;
+          if (msg.thinking && msg.thinking.reasoning_steps) {
+            // 将推理步骤转换为字符串
+            thinking = msg.thinking.reasoning_steps.join('\n');
+          }
+          
+          return {
+            id: msg.id,
+            sender: msg.role === 'user' ? 'user' : 'bot',
+            text: msg.content,
+            timestamp: new Date(msg.created_at),
+            status: 'success',
+            topicId: topic.id,
+            thinking: thinking
+          };
+        });
+        
+        setMessages(formattedMessages);
       }
       
-      // 使用普通模式
-      const messageData = {
-        content: text,
-        use_llm: true,
-        model_name: selectedModel ? selectedModel.model_id : 'moonshotai/Kimi-K2-Thinking'
-      };
-
-      // 设置请求超时（30秒）
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('请求超时，请检查网络连接或稍后重试。')), 30000);
-      });
-      
-      const responsePromise = conversationApi.sendMessage(1, messageData);
-      const response = await Promise.race([responsePromise, timeoutPromise]);
-      
-      // 计算响应时间
-      const responseTime = Date.now() - startTime;
-      setLastResponseTime(responseTime);
-      
-      // 从响应中提取助手回复和状态信息
-      const botReply = response.assistant_message?.content || '抱歉，我无法生成回复。';
-      const fallbackInfo = response.fallback_info;
-      const tokensUsed = response.tokens_used;
-      const executionTime = response.execution_time_ms;
-      
-      const newBotMessage = {
-        id: Date.now() + Math.floor(Math.random() * 1000),
-        sender: 'bot',
-        text: botReply,
-        timestamp: new Date(),
-        status: 'success',
-        model: response.model || (selectedModel ? selectedModel.model_name : '未知模型'),
-        fallbackInfo: fallbackInfo,
-        tokensUsed: tokensUsed,
-        executionTime: executionTime,
-        responseTime: responseTime
-      };
-      
-      setMessages(prevMessages => [...prevMessages, newBotMessage]);
-      setConnectionStatus('connected');
+      setMessageSkeletons([]);
     } catch (error) {
-      // 添加更详细的错误日志
-      console.error('发送消息时出错:', JSON.stringify({ message: error.message, stack: error.stack, name: error.name }, null, 2));
-      
-      // 根据错误类型提供更友好的错误消息
-      let errorMessageText;
-      if (error.message.includes('timeout') || error.message.includes('超时')) {
-        errorMessageText = '请求超时，请检查网络连接或稍后重试。';
-      } else if (error.response?.status === 404) {
-        errorMessageText = '服务暂时不可用，请稍后再试。';
-      } else if (error.response?.status >= 500) {
-        errorMessageText = '服务器内部错误，请联系管理员。';
-      } else if (error.response?.data?.detail) {
-        errorMessageText = error.response.data.detail;
-      } else {
-        errorMessageText = '抱歉，我暂时无法处理你的请求。请稍后再试。';
-      }
-      
-      const errorMessage = {
-        id: Date.now() + Math.floor(Math.random() * 1000),
-        sender: 'bot',
-        text: errorMessageText,
-        timestamp: new Date(),
-        status: 'error'
-      };
-      setMessages(prevMessages => [...prevMessages, errorMessage]);
-      setConnectionStatus('error');
+      console.error('加载话题消息失败:', error);
+      alert('加载话题消息失败，请重试');
     } finally {
-      setIsTyping(false);
+      setIsLoadingMessages(false);
     }
-  };
+  }, [conversationId]);
   
-  // 格式化时间
-  const formatTime = (date) => {
-    return new Date(date).toLocaleTimeString('zh-CN', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-  };
+  // 检查模型状态
+  const checkModelStatus = useCallback(async (model) => {
+    try {
+      setConnectionStatus('checking');
+      // 这里可以添加模型状态检查的API调用
+      // 暂时模拟检查
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setConnectionStatus('connected');
+      return true;
+    } catch (error) {
+      setConnectionStatus('error');
+      return false;
+    }
+  }, []);
+  
+  // 模型选择变化处理
+  const handleModelSelect = useCallback(async (model) => {
+    setSelectedModel(model);
+    await checkModelStatus(model);
+  }, [checkModelStatus]);
 
-  // 格式化持续时间
-  const formatDuration = (ms) => {
-    if (ms < 1000) return `${ms}ms`;
-    return `${(ms / 1000).toFixed(1)}s`;
-  };
+  // 新建话题
 
-  // 获取发送按钮状态
-  const getSendButtonStatus = () => {
-    if (connectionStatus === 'sending') return 'sending';
-    if (!inputText.trim() || connectionStatus === 'error') return 'disabled';
-    return 'ready';
-  };
 
-  // 获取发送按钮文本
-  const getSendButtonText = () => {
-    if (connectionStatus === 'sending') return '发送中';
-    return '发送';
-  };
-
-  // 切换思维链的展开/收缩状态
-  const toggleThinkingChain = (messageId) => {
+  // 处理编辑消息
+  const startEditingMessage = useCallback((messageId, currentText) => {
+    setEditingMessageId(messageId);
+    setEditingMessageText(currentText);
+  }, []);
+  
+  // 保存编辑后的消息
+  const saveEditingMessage = useCallback((messageId) => {
+    setMessages(prev => prev.map(msg => 
+      msg.id === messageId 
+        ? { ...msg, text: editingMessageText, edited: true } 
+        : msg
+    ));
+    setEditingMessageId(null);
+    setEditingMessageText('');
+  }, [editingMessageText]);
+  
+  // 取消编辑消息
+  const cancelEditingMessage = useCallback(() => {
+    setEditingMessageId(null);
+    setEditingMessageText('');
+  }, []);
+  
+  // 引用消息
+  const quoteMessage = useCallback((message) => {
+    setQuotedMessage(message);
+  }, []);
+  
+  // 取消引用
+  const cancelQuote = useCallback(() => {
+    setQuotedMessage(null);
+  }, []);
+  
+  // 切换思维链显示状态
+  const toggleThinkingChain = useCallback((messageId) => {
     setExpandedThinkingChains(prev => ({
       ...prev,
       [messageId]: !prev[messageId]
     }));
-  };
-
+  }, []);
+  
+  // 格式化时间
+  const formatTime = useCallback((timestamp) => {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }, []);
+  
+  // 格式化持续时间
+  const formatDuration = useCallback((ms) => {
+    if (ms < 1000) {
+      return `${ms}ms`;
+    } else if (ms < 60000) {
+      return `${(ms / 1000).toFixed(1)}s`;
+    } else {
+      const minutes = Math.floor(ms / 60000);
+      const seconds = ((ms % 60000) / 1000).toFixed(0);
+      return `${minutes}m ${seconds}s`;
+    }
+  }, []);
+  
+  // 发送按钮状态
+  const sendButtonStatus = useMemo(() => {
+    if (connectionStatus === 'sending' || isTyping) {
+      return 'sending';
+    } else if (!inputText.trim()) {
+      return 'disabled';
+    } else {
+      return 'enabled';
+    }
+  }, [connectionStatus, isTyping, inputText]);
+  
+  // 发送按钮文本
+  const sendButtonText = useMemo(() => {
+    if (connectionStatus === 'sending' || isTyping) {
+      return '发送中...';
+    } else if (connectionStatus === 'offline') {
+      return '离线';
+    } else if (connectionStatus === 'error') {
+      return '发送失败';
+    } else {
+      return '发送';
+    }
+  }, [connectionStatus, isTyping]);
+  
   return (
-    <div className="chat-container">
-      {/* 左侧控制面板 */}
-      <div className={`chat-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
-        <div className="sidebar-header">
-          <div className="sidebar-title">控制面板</div>
-          <button 
-            className="sidebar-toggle"
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            title={sidebarCollapsed ? '展开面板' : '收起面板'}
-          >
-            {sidebarCollapsed ? '▶' : '◀'}
-          </button>
-        </div>
-        
-        <div className="sidebar-content">
-          {/* 模型选择 */}
-          <div className="sidebar-section">
-            <h3 className="section-title">模型设置</h3>
-            <div className="model-selector">
-              {!sidebarCollapsed && <label>模型:</label>}
-              <div className="model-dropdown-container">
-                {isLoadingModels ? (
-                  <div className="model-loading">加载中...</div>
-                ) : (
-                  <ModelSelectDropdown
-                    models={availableModels}
-                    selectedModel={selectedModel}
-                    onModelSelect={handleModelSelect}
-                    className="chat-model-dropdown"
-                    placeholder="请选择对话模型"
-                    disabled={connectionStatus === 'sending'}
-                  />
-                )}
-              </div>
-            </div>
-          </div>
-          
-          {/* 响应设置 */}
-          <div className="sidebar-section">
-            <h3 className="section-title">响应设置</h3>
-            <div className="streaming-controls">
-              <label className="toggle-label">
-                <input 
-                  type="checkbox" 
-                  checked={enableStreaming} 
-                  onChange={(e) => setEnableStreaming(e.target.checked)}
-                  disabled={connectionStatus === 'sending'}
-                />
-                <span className="toggle-text">流式响应</span>
-              </label>
-              <label className="toggle-label">
-                <input 
-                  type="checkbox" 
-                  checked={enableThinkingChain} 
-                  onChange={(e) => setEnableThinkingChain(e.target.checked)}
-                  disabled={connectionStatus === 'sending' || !enableStreaming}
-                />
-                <span className="toggle-text">思维链</span>
-              </label>
-            </div>
-          </div>
-          
-          {/* 话题管理 */}
-          <div className="sidebar-section">
-            <h3 className="section-title">话题管理</h3>
-            {!sidebarCollapsed && (
-              <>
-                {/* 活跃话题显示 */}
-                {activeTopic && (
-                  <div className="active-topic-info">
-                    <div className="active-topic-label">当前话题:</div>
-                    <div className="active-topic-name">{activeTopic.title}</div>
-                  </div>
-                )}
-                
-                {/* 话题列表 */}
-                <div className="topic-list-container">
-                  <h4 className="topic-list-title">可用话题</h4>
-                  {topics.length === 0 ? (
-                    <div className="no-topics">暂无话题，请创建新话题</div>
-                  ) : (
-                    <ul className="sidebar-topic-list">
-                      {topics.map(topic => (
-                        <li 
-                          key={topic.id} 
-                          className={`sidebar-topic-item ${activeTopic && activeTopic.id === topic.id ? 'active' : ''}`}
-                          onClick={() => switchTopic(1, topic.id)}
-                        >
-                          <div className="sidebar-topic-title">{topic.title}</div>
-                          <div className="sidebar-topic-actions">
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deleteTopic(1, topic.id);
-                              }}
-                              className="sidebar-topic-delete"
-                              title="删除话题"
-                            >🗑️</button>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-                
-                {/* 创建新话题 */}
-                <div className="create-topic-section">
-                  <h4 className="create-topic-title">创建新话题</h4>
-                  <div className="create-topic-form">
-                    <div className="create-topic-input-group">
-                      <input
-                        type="text"
-                        placeholder="话题标题"
-                        value={newTopicTitle}
-                        onChange={(e) => setNewTopicTitle(e.target.value)}
-                        className="create-topic-input"
-                        disabled={connectionStatus === 'sending'}
-                      />
-                    </div>
-                    <div className="create-topic-input-group">
-                      <input
-                        type="text"
-                        placeholder="话题描述（可选）"
-                        value={newTopicDescription}
-                        onChange={(e) => setNewTopicDescription(e.target.value)}
-                        className="create-topic-input"
-                        disabled={connectionStatus === 'sending'}
-                      />
-                    </div>
-                    <button 
-                      onClick={createNewTopic}
-                      className="create-topic-btn"
-                      disabled={!newTopicTitle.trim() || connectionStatus === 'sending'}
-                    >
-                      创建话题
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-            {sidebarCollapsed && (
-              <div className="collapsed-topic-controls">
-                <button 
-                  className="topic-toggle-btn"
-                  title="显示话题管理"
-                  onClick={() => setSidebarCollapsed(false)}
-                  disabled={connectionStatus === 'sending'}
-                >
-                  <span className="topic-toggle-icon">📚</span>
-                </button>
-              </div>
-            )}
-          </div>
-          
-          {/* 操作按钮 */}
-          <div className="sidebar-section">
-            <h3 className="section-title">操作</h3>
-            <div className="action-buttons">
-              <button 
-                className="action-btn" 
-                title="清除对话"
-                onClick={clearConversation}
-                disabled={connectionStatus === 'sending'}
-              >🗑️</button>
-              <button className="action-btn" title="设置">⚙️</button>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div className={`chat-container ${theme}`}>
+      {/* 顶部模型栏 */}
+      <ModelBar
+        models={availableModels}
+        selectedModel={selectedModel}
+        onModelChange={setSelectedModel}
+      />
       
-      {/* 主聊天区域 */}
-      <div className={`chat-main ${sidebarCollapsed ? 'expanded' : ''}`}>
-        <div className="chat-header">
-          <div className="chat-title">
-            <div className="bot-avatar">🤖</div>
-            <div>
-              <h2>Py Copilot</h2>
-              <span className="chat-subtitle">智能大模型对话助手</span>
-            </div>
-          </div>
-          
-          <div className="status-indicator">
-            <div className={`status-dot ${connectionStatus}`}></div>
-            <span className="status-text">
-              {connectionStatus === 'connected' && '已连接'}
-              {connectionStatus === 'checking' && '检查中...'}
-              {connectionStatus === 'sending' && '发送中...'}
-              {connectionStatus === 'error' && '连接错误'}
-              {connectionStatus === 'offline' && '离线'}
-            </span>
-            {lastResponseTime && connectionStatus === 'connected' && (
-              <span className="response-time">{lastResponseTime}ms</span>
-            )}
-          </div>
-        </div>
-      
-      <div className="chat-messages">
-        {messages.map(message => {
-          // 普通消息渲染
-          return (
-            <div 
-              key={message.id} 
-              className={`message ${message.sender === 'user' ? 'user-message' : 'bot-message'} ${message.status || 'success'}`}
-            >
-            {message.sender === 'bot' && <div className="message-avatar">🤖</div>}
-            <div className="message-content">
-              <div className={`message-bubble ${message.isStreaming ? 'streaming-text' : ''}`}>
-                <div className="message-header">
-                  <div className="message-status">
-                    {message.sender === 'bot' && message.model && (
-                      <span className="model-badge">{message.model}</span>
-                    )}
-                    {message.status === 'error' && (
-                      <span className="status-badge error">❌ 错误</span>
-                    )}
-                    {message.status === 'success' && (
-                      <span className="status-badge success">✅ 成功</span>
-                    )}
-                    {message.status === 'streaming' && (
-                      <span className="status-badge processing">⏳ 流式响应中</span>
-                    )}
-                    {message.status === 'processing' && (
-                      <span className="status-badge processing">⏳ 处理中</span>
-                    )}
-                  </div>
-                  <span className="message-timestamp">{formatTime(message.timestamp)}</span>
-                </div>
-                
-                {/* 思维链显示 */}
-                {message.thinking && (
-                  <div className="thinking-chain-container">
-                    {message.isStreaming ? (
-                      <div className="thinking-chain">
-                        {message.thinking}
-                      </div>
-                    ) : (
-                      <>
-                        <div className="thinking-chain-toggle" onClick={() => toggleThinkingChain(message.id)}>
-                          <span className="toggle-icon">
-                            {expandedThinkingChains[message.id] ? '▼' : '▶'}
-                          </span>
-                          <span className="toggle-text">思维链</span>
-                        </div>
-                        {expandedThinkingChains[message.id] && (
-                          <div className="thinking-chain">
-                            {message.thinking}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
-                
-                <div className={`message-text ${message.isStreaming ? 'streaming-text' : ''}`}>
-                  <EnhancedMarkdownRenderer 
-                    content={message.text} 
-                    className={message.isStreaming ? 'streaming' : ''}
-                  />
-                </div>
-                {message.fallbackInfo && (
-                  <div className="fallback-info">
-                    🔄 {message.fallbackInfo}
-                  </div>
-                )}
-                {message.metrics && (
-                  <div className="message-metrics">
-                    {message.metrics.execution_time && (
-                      <span className="metric-item">
-                        ⏱️ <span className="metric-value">{formatDuration(message.metrics.execution_time)}</span>
-                      </span>
-                    )}
-                    {message.metrics.tokens_used && (
-                      <span className="metric-item">
-                        📊 <span className="metric-value">{message.metrics.tokens_used} tokens</span>
-                      </span>
-                    )}
-                    {message.metrics.success !== undefined && (
-                      <span className="metric-item">
-                        {message.metrics.success ? '✅' : '❌'} 
-                        <span className="metric-value">{message.metrics.success ? '成功' : '失败'}</span>
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-            {message.sender === 'user' && <div className="message-avatar">👤</div>}
-          </div>
-        );})}
-        
-        {isTyping && (
-          <div className="message bot-message">
-            <div className="message-avatar">🤖</div>
-            <div className="typing-indicator">
-              <span></span>
-              <span></span>
-              <span></span>
-            </div>
-          </div>
-        )}
-        
-        <div ref={messagesEndRef} />
-      </div>
-      
-      <form className="chat-input" onSubmit={handleSendMessage}>
-        <div className="input-actions">
-          <button type="button" className="input-btn">🎤</button>
-          <button type="button" className="input-btn">📷</button>
-          <button type="button" className="input-btn">📁</button>
-          <button type="button" className="input-btn">✨</button>
-        </div>
-        <textarea
-          placeholder="输入消息... 使用 Shift+Enter 换行"
-          value={inputText}
-          onChange={(e) => setInputText(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage(e)}
-          className="message-input"
-          rows="1"
-          style={{ resize: 'none', overflowY: 'auto' }}
+      {/* 主内容区域：话题侧边栏 + 聊天主区域 */}
+      <div className="chat-content-wrapper">
+        {/* 左侧话题侧边栏 */}
+        <TopicSidebar
+          conversationId={conversationId}
+          activeTopic={activeTopic}
+          onTopicSelect={handleTopicSelect}
+          showTopicSidebar={showTopicSidebar}
+          setShowTopicSidebar={setShowTopicSidebar}
+          refreshFlag={refreshTopicsFlag}
         />
-        <button 
-          type="submit" 
-          className={`send-btn ${getSendButtonStatus()}`}
-          disabled={getSendButtonStatus() === 'disabled'}
-        >
-          <span className="send-icon">
-            {getSendButtonStatus() === 'sending' ? '⏳' : '➤'}
-          </span>
-          <span className="send-text">{getSendButtonText()}</span>
-        </button>
-      </form>
+        
+        {/* 右侧聊天主区域 */}
+        <ChatMain
+          messages={messages}
+          inputText={inputText}
+          setInputText={setInputText}
+          onSendMessage={handleSendMessage}
+          onClearConversation={clearConversation}
+          messageSkeletons={messageSkeletons}
+          isTyping={isTyping}
+          editingMessageId={editingMessageId}
+          editingMessageText={editingMessageText}
+          setEditingMessageText={setEditingMessageText}
+          saveEditingMessage={saveEditingMessage}
+          cancelEditingMessage={cancelEditingMessage}
+          quoteMessage={quoteMessage}
+          toggleMessageMark={toggleMessageMark}
+          markedMessages={markedMessages}
+          expandedThinkingChains={expandedThinkingChains}
+          toggleThinkingChain={toggleThinkingChain}
+          startEditingMessage={startEditingMessage}
+          totalTokens={totalTokens}
+          copyMessage={copyMessage}
+          regenerateMessage={regenerateMessage}
+          translateMessage={translateMessage}
+          deleteMessage={deleteMessage}
+          saveMessage={saveMessage}
+          quotedMessage={quotedMessage}
+          cancelQuote={cancelQuote}
+          formatTime={formatTime}
+          formatDuration={formatDuration}
+          MessageItem={MessageItem}
+          MessageSkeleton={MessageSkeleton}
+          TypingIndicator={TypingIndicator}
+          activeTopic={activeTopic}
+        />
       </div>
+      
+
     </div>
   );
 };
 
-export default Chat;
+// 使用React.memo包装组件，避免不必要的重渲染
+export default React.memo(Chat);

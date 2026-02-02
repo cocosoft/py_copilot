@@ -776,3 +776,8 @@ backend/app/tests/modules/memory/test_memory_service.py
 本地部署小规模LLM方案.md
 chat_function_analysis.md
 chat_function_upgrade_plan.md
+聊天模块话题管理功能规划方案.md
+聊天模块话题管理功能实施方案.md
+学习.md
+学习后优化建议.md
+OPTIMIZATION_PROPOSAL.md

@@ -180,64 +180,83 @@ export const conversationApi = {
       throw error;
     }
   },
-  
-  // 话题管理API
-  // 创建话题
-  createTopic: async (conversationId, title, description = '') => {
+
+  // ============ 话题管理 API ============
+
+  // 获取对话的话题列表
+  getTopics: async (conversationId, params = {}) => {
+    try {
+      const queryParams = new URLSearchParams(params).toString();
+      const url = queryParams 
+        ? `/v1/conversations/${conversationId}/topics?${queryParams}` 
+        : `/v1/conversations/${conversationId}/topics`;
+      
+      return await request(url, {
+        method: 'GET'
+      });
+    } catch (error) {
+      console.error(`获取对话 ${conversationId} 的话题列表失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+      throw error;
+    }
+  },
+
+  // 创建新话题
+  createTopic: async (conversationId, topicName) => {
     try {
       return await request(`/v1/conversations/${conversationId}/topics`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ title, description })
+        body: JSON.stringify({ topic_name: topicName })
       });
     } catch (error) {
       console.error(`创建话题失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
-  
-  // 获取对话的所有话题
-  getConversationTopics: async (conversationId) => {
+
+  // 获取话题详情
+  getTopic: async (conversationId, topicId) => {
     try {
-      return await request(`/v1/conversations/${conversationId}/topics`, {
+      return await request(`/v1/conversations/${conversationId}/topics/${topicId}`, {
         method: 'GET'
       });
     } catch (error) {
-      console.error(`获取话题列表失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+      console.error(`获取话题 ${topicId} 失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
-  
-  // 更新话题
-  updateTopic: async (conversationId, topicId, title, description) => {
+
+  // 更新话题信息
+  updateTopic: async (conversationId, topicId, updateData) => {
     try {
       return await request(`/v1/conversations/${conversationId}/topics/${topicId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ title, description })
+        body: JSON.stringify(updateData)
       });
     } catch (error) {
-      console.error(`更新话题失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+      console.error(`更新话题 ${topicId} 失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
-  
+
   // 删除话题
-  deleteTopic: async (conversationId, topicId) => {
+  deleteTopic: async (conversationId, topicId, cascadeDelete = true) => {
     try {
-      return await request(`/v1/conversations/${conversationId}/topics/${topicId}`, {
+      const queryParams = new URLSearchParams({ cascade_delete: cascadeDelete }).toString();
+      return await request(`/v1/conversations/${conversationId}/topics/${topicId}?${queryParams}`, {
         method: 'DELETE'
       });
     } catch (error) {
-      console.error(`删除话题失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+      console.error(`删除话题 ${topicId} 失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
-  
+
   // 切换话题
   switchTopic: async (conversationId, topicId) => {
     try {
@@ -248,19 +267,37 @@ export const conversationApi = {
         }
       });
     } catch (error) {
-      console.error(`切换话题失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+      console.error(`切换话题 ${topicId} 失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   },
-  
-  // 获取当前活跃话题
-  getActiveTopic: async (conversationId) => {
+
+  // 获取话题的消息列表
+  getTopicMessages: async (conversationId, topicId, params = {}) => {
     try {
-      return await request(`/v1/conversations/${conversationId}/active_topic`, {
+      const queryParams = new URLSearchParams(params).toString();
+      const url = queryParams 
+        ? `/v1/conversations/${conversationId}/topics/${topicId}/messages?${queryParams}` 
+        : `/v1/conversations/${conversationId}/topics/${topicId}/messages`;
+      
+      return await request(url, {
         method: 'GET'
       });
     } catch (error) {
-      console.error(`获取活跃话题失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+      console.error(`获取话题 ${topicId} 的消息列表失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+      throw error;
+    }
+  },
+
+  // 搜索话题
+  searchTopics: async (conversationId, keyword, params = {}) => {
+    try {
+      const queryParams = new URLSearchParams({ keyword, ...params }).toString();
+      return await request(`/v1/conversations/${conversationId}/topics/search?${queryParams}`, {
+        method: 'GET'
+      });
+    } catch (error) {
+      console.error(`搜索话题失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   }

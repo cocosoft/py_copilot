@@ -198,6 +198,7 @@ async def proxy_v1_request(path: str, request: Request):
         "search": "search",
         "files": "file",
         "voice": "voice",
+        "image": "image",
         "monitoring": "monitoring",
         "enhanced-chat": "enhanced_chat"
     }

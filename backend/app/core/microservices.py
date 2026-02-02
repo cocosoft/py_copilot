@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 import redis
 from app.core.config import settings
 from app.core.redis import get_redis
+from app.core.logging_config import logger
 
 
 class MicroserviceConfig(BaseModel):
@@ -42,10 +43,67 @@ class ServiceRegistry:
         self.registry_key = "microservices:registry"
         self.memory_registry: Dict[str, Dict[str, Any]] = {}  # 内存注册表作为备用
         self.health_check_interval = 60  # 健康检查间隔（秒）
+        self.max_retry_attempts = 5  # 最大重试次数
+        self.initial_retry_delay = 1.0  # 初始重试延迟（秒）
+        self.max_retry_delay = 60.0  # 最大重试延迟（秒）
+        self.service_connections: Dict[str, int] = {}  # 记录每个服务实例的连接数
+        self.service_stats: Dict[str, Dict[str, Any]] = {}  # 服务统计信息
+        self.last_load_update: float = 0  # 上次负载更新时间
+        self.load_update_interval = 5  # 负载更新间隔（秒）
+    
+    async def _retry_with_backoff(self, operation: callable, operation_name: str, 
+                                   max_attempts: Optional[int] = None) -> bool:
+        """
+        使用指数退避重试机制执行操作
+        
+        Args:
+            operation: 要执行的操作函数
+            operation_name: 操作名称（用于日志）
+            max_attempts: 最大重试次数，默认使用类配置值
+            
+        Returns:
+            操作是否成功
+        """
+        if max_attempts is None:
+            max_attempts = self.max_retry_attempts
+        
+        attempt = 0
+        last_error = None
+        
+        while attempt < max_attempts:
+            attempt += 1
+            try:
+                result = await operation()
+                if result:
+                    logger.info(f"{operation_name} 成功 (尝试 {attempt}/{max_attempts})")
+                    return True
+            except Exception as e:
+                last_error = e
+                logger.warning(f"{operation_name} 失败 (尝试 {attempt}/{max_attempts}): {str(e)}")
+            
+            if attempt < max_attempts:
+                delay = min(
+                    self.initial_retry_delay * (2 ** (attempt - 1)),
+                    self.max_retry_delay
+                )
+                logger.info(f"{operation_name} 将在 {delay:.2f} 秒后重试...")
+                await asyncio.sleep(delay)
+        
+        logger.error(f"{operation_name} 在 {max_attempts} 次尝试后仍然失败: {str(last_error)}")
+        return False
     
     async def register_service(self, config: MicroserviceConfig) -> bool:
-        """注册微服务"""
-        try:
+        """
+        注册微服务（带指数退避重试机制）
+        
+        Args:
+            config: 微服务配置
+            
+        Returns:
+            注册是否成功
+        """
+        async def _register_operation():
+            """执行注册操作"""
             service_data = config.dict()
             service_data["last_heartbeat"] = asyncio.get_event_loop().time()
             service_data["health_status"] = "healthy"
@@ -62,14 +120,13 @@ class ServiceRegistry:
                 
                 # 启动健康检查任务
                 asyncio.create_task(self._health_check_service(config))
+                return True
             else:
                 # Redis不可用时使用内存存储
                 self.memory_registry[config.name] = service_data
-            
-            return True
-        except Exception as e:
-            print(f"注册服务失败: {e}")
-            return False
+                return True
+        
+        return await self._retry_with_backoff(_register_operation, f"注册服务 {config.name}")
     
     async def discover_service(self, service_name: str, strategy: str = "round_robin") -> Optional[MicroserviceConfig]:
         """发现微服务（支持多种负载均衡策略）"""
@@ -90,7 +147,9 @@ class ServiceRegistry:
                 # 简单轮询负载均衡策略
                 current_time = asyncio.get_event_loop().time()
                 index = int(current_time) % len(service_instances)
-                return service_instances[index]
+                selected_service = service_instances[index]
+                self._update_service_connection(selected_service.name, 1)
+                return selected_service
             elif strategy == "weighted_round_robin":
                 # 加权轮询负载均衡策略（基于服务配置的权重）
                 # 为每个服务实例分配权重（默认为1）
@@ -102,17 +161,60 @@ class ServiceRegistry:
                 for config in service_instances:
                     current_weight += getattr(config, "weight", 1)
                     if weight_index < current_weight:
+                        self._update_service_connection(config.name, 1)
                         return config
-                return service_instances[0]  # 默认返回第一个
+                selected_service = service_instances[0]  # 默认返回第一个
+                self._update_service_connection(selected_service.name, 1)
+                return selected_service
             elif strategy == "least_connections":
-                # 最少连接数策略（需要记录每个服务实例的连接数）
-                # 这里简化处理，返回第一个服务实例
-                return service_instances[0]
+                # 最少连接数策略
+                min_connections = float('inf')
+                selected_service = None
+                
+                for config in service_instances:
+                    connections = self.service_connections.get(config.name, 0)
+                    if connections < min_connections:
+                        min_connections = connections
+                        selected_service = config
+                
+                if selected_service:
+                    self._update_service_connection(selected_service.name, 1)
+                    return selected_service
+                else:
+                    selected_service = service_instances[0]
+                    self._update_service_connection(selected_service.name, 1)
+                    return selected_service
+            elif strategy == "least_load":
+                # 最小负载策略（基于服务的当前负载和容量）
+                min_load_ratio = float('inf')
+                selected_service = None
+                
+                for config in service_instances:
+                    load_ratio = getattr(config, "current_load", 0) / getattr(config, "capacity", 100)
+                    if load_ratio < min_load_ratio:
+                        min_load_ratio = load_ratio
+                        selected_service = config
+                
+                if selected_service:
+                    self._update_service_connection(selected_service.name, 1)
+                    return selected_service
+                else:
+                    selected_service = service_instances[0]
+                    self._update_service_connection(selected_service.name, 1)
+                    return selected_service
+            elif strategy == "random":
+                # 随机策略
+                import random
+                selected_service = random.choice(service_instances)
+                self._update_service_connection(selected_service.name, 1)
+                return selected_service
             else:
                 # 默认使用轮询策略
                 current_time = asyncio.get_event_loop().time()
                 index = int(current_time) % len(service_instances)
-                return service_instances[index]
+                selected_service = service_instances[index]
+                self._update_service_connection(selected_service.name, 1)
+                return selected_service
                 
         except Exception as e:
             print(f"发现服务失败: {e}")
@@ -143,6 +245,66 @@ class ServiceRegistry:
                 services[name] = MicroserviceConfig(**data)
             return services
     
+    def _update_service_connection(self, service_name: str, delta: int):
+        """更新服务实例的连接数"""
+        current_connections = self.service_connections.get(service_name, 0)
+        new_connections = max(0, current_connections + delta)
+        self.service_connections[service_name] = new_connections
+        
+        # 更新服务统计信息
+        if service_name not in self.service_stats:
+            self.service_stats[service_name] = {
+                "total_connections": 0,
+                "current_connections": 0,
+                "peak_connections": 0,
+                "total_requests": 0,
+                "failed_requests": 0,
+                "last_request_time": None
+            }
+        
+        self.service_stats[service_name]["current_connections"] = new_connections
+        self.service_stats[service_name]["total_connections"] += abs(delta)
+        self.service_stats[service_name]["peak_connections"] = max(
+            self.service_stats[service_name]["peak_connections"],
+            new_connections
+        )
+        if delta > 0:
+            self.service_stats[service_name]["total_requests"] += 1
+            self.service_stats[service_name]["last_request_time"] = asyncio.get_event_loop().time()
+    
+    async def update_service_load(self, service_name: str, load: int):
+        """更新服务实例的负载"""
+        try:
+            # 更新Redis中的服务负载
+            if self.redis:
+                service_data = await self.redis.hget(self.registry_key, service_name)
+                if service_data:
+                    data = json.loads(service_data)
+                    data["current_load"] = load
+                    await self.redis.hset(self.registry_key, service_name, json.dumps(data))
+            
+            # 更新内存中的服务负载
+            if service_name in self.memory_registry:
+                self.memory_registry[service_name]["current_load"] = load
+        except Exception as e:
+            print(f"更新服务负载失败: {e}")
+    
+    def get_service_stats(self, service_name: str) -> Dict[str, Any]:
+        """获取服务实例的统计信息"""
+        return self.service_stats.get(service_name, {
+            "total_connections": 0,
+            "current_connections": 0,
+            "peak_connections": 0,
+            "total_requests": 0,
+            "failed_requests": 0,
+            "last_request_time": None
+        })
+    
+    def record_service_failure(self, service_name: str):
+        """记录服务实例的失败请求"""
+        if service_name in self.service_stats:
+            self.service_stats[service_name]["failed_requests"] += 1
+    
     async def deregister_service(self, service_name: str) -> bool:
         """注销服务"""
         try:
@@ -151,6 +313,12 @@ class ServiceRegistry:
             
             if service_name in self.memory_registry:
                 del self.memory_registry[service_name]
+            
+            # 清理服务连接数和统计信息
+            if service_name in self.service_connections:
+                del self.service_connections[service_name]
+            if service_name in self.service_stats:
+                del self.service_stats[service_name]
             
             print(f"服务注销成功: {service_name}")
             return True
@@ -438,8 +606,13 @@ class MicroserviceClient:
         # 使用断路器执行请求
         try:
             result = await circuit_breaker.execute(make_request)
+            # 请求成功，减少连接数
+            self.service_registry._update_service_connection(service_name, -1)
             return result
         except Exception as e:
+            # 请求失败，减少连接数并记录失败
+            self.service_registry._update_service_connection(service_name, -1)
+            self.service_registry.record_service_failure(service_name)
             raise e
     
     async def get(self, service_name: str, path: str, 

@@ -80,7 +80,7 @@ const ModelSelectDropdown = ({
       >
         <div className="custom-select__selected">
           {selectedModel ? (
-            <div className="model-info">
+            <div className="model-info horizontal">
               <img 
                 src={logoUrlFunction(selectedModel)} 
                 alt={selectedModel.model_name || '模型LOGO'} 

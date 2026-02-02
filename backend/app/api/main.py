@@ -177,10 +177,67 @@ app.exception_handler(UnicodeDecodeError)(unicode_decode_error_handler)
 
 # 导入监控系统
 from app.core.performance_middleware import PerformanceMiddleware
-from app.services.monitoring.monitoring_service import MonitoringService
+from app.services.monitoring.monitoring_service import MonitoringService, SystemMetricsCollector
+
+# 导入任务队列
+from app.core.task_queue import start_task_queue, stop_task_queue
 
 # 创建简化的监控服务实例（避免数据库依赖）
 _monitoring_service = None
+_system_metrics_collector = None
+
+# 应用启动事件
+@app.on_event("startup")
+async def startup_event():
+    """应用启动事件"""
+    logger.info("应用正在启动...")
+    
+    # 启动任务队列
+    try:
+        await start_task_queue()
+        logger.info("任务队列已启动")
+    except Exception as e:
+        logger.error(f"启动任务队列失败: {e}")
+    
+    # 初始化模型监控服务
+    try:
+        from app.services.enhanced_model_service import initialize_model_monitoring
+        await initialize_model_monitoring()
+        logger.info("模型监控服务已初始化")
+    except Exception as e:
+        logger.error(f"初始化模型监控服务失败: {e}")
+    
+    # 启动系统指标收集器
+    try:
+        global _system_metrics_collector
+        monitoring_service = get_monitoring_service()
+        _system_metrics_collector = SystemMetricsCollector(monitoring_service)
+        # 启动后台任务收集系统指标
+        asyncio.create_task(_system_metrics_collector.collect_system_metrics())
+        logger.info("系统指标收集器已启动")
+    except Exception as e:
+        logger.error(f"启动系统指标收集器失败: {e}")
+
+# 应用关闭事件
+@app.on_event("shutdown")
+async def shutdown_event():
+    """应用关闭事件"""
+    logger.info("应用正在关闭...")
+    
+    # 停止任务队列
+    try:
+        await stop_task_queue()
+        logger.info("任务队列已停止")
+    except Exception as e:
+        logger.error(f"停止任务队列失败: {e}")
+    
+    # 关闭模型监控服务
+    try:
+        from app.services.enhanced_model_service import shutdown_model_monitoring
+        await shutdown_model_monitoring()
+        logger.info("模型监控服务已关闭")
+    except Exception as e:
+        logger.error(f"关闭模型监控服务失败: {e}")
 
 def get_monitoring_service():
     """获取监控服务实例（简化版，避免数据库依赖）"""
@@ -306,6 +363,81 @@ async def proxy_image(url: str = Query(..., description="要代理的外部图�
         )
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=502, detail=f"获取图片失败: {str(e)}")
+
+# 监控服务API端点
+@app.get("/api/monitoring/metrics/summary")
+async def get_metrics_summary(metric_name: str = Query(..., description="指标名称"), duration: int = Query(3600, description="时间范围（秒）")):
+    """获取指标摘要"""
+    monitoring_service = get_monitoring_service()
+    summary = monitoring_service.get_metrics_summary(metric_name, duration)
+    return {
+        "status": "success",
+        "metric": metric_name,
+        "duration": duration,
+        "summary": summary
+    }
+
+@app.get("/api/monitoring/alerts")
+async def get_active_alerts():
+    """获取活跃告警"""
+    monitoring_service = get_monitoring_service()
+    alerts = monitoring_service.get_active_alerts()
+    
+    # 转换告警对象为字典
+    alerts_dict = []
+    for alert in alerts:
+        alerts_dict.append({
+            "id": alert.id,
+            "rule_name": alert.rule_name,
+            "level": alert.level.value,
+            "type": alert.type.value,
+            "message": alert.message,
+            "metric_value": alert.metric_value,
+            "threshold": alert.threshold,
+            "timestamp": alert.timestamp.isoformat(),
+            "resolved": alert.resolved,
+            "resolved_at": alert.resolved_at.isoformat() if alert.resolved_at else None
+        })
+    
+    return {
+        "status": "success",
+        "alerts": alerts_dict,
+        "count": len(alerts_dict)
+    }
+
+@app.get("/api/monitoring/system/info")
+async def get_system_info():
+    """获取系统信息"""
+    process = psutil.Process()
+    memory_info = process.memory_info()
+    cpu_usage = process.cpu_percent()
+    disk_usage = psutil.disk_usage('/')
+    
+    return {
+        "status": "success",
+        "system_info": {
+            "memory_usage_mb": round(memory_info.rss / 1024 / 1024, 2),
+            "cpu_percent": round(cpu_usage, 2),
+            "thread_count": process.num_threads(),
+            "disk_usage_percent": round(disk_usage.percent, 2),
+            "disk_total_gb": round(disk_usage.total / 1024 / 1024 / 1024, 2),
+            "disk_used_gb": round(disk_usage.used / 1024 / 1024 / 1024, 2),
+            "disk_free_gb": round(disk_usage.free / 1024 / 1024 / 1024, 2),
+            "create_time": process.create_time(),
+            "uptime_seconds": time.time() - process.create_time()
+        }
+    }
+
+@app.get("/api/monitoring/alerts/stats")
+async def get_alert_statistics(duration: int = Query(3600, description="时间范围（秒）")):
+    """获取告警统计"""
+    monitoring_service = get_monitoring_service()
+    stats = monitoring_service.get_alert_statistics(duration)
+    return {
+        "status": "success",
+        "duration": duration,
+        "statistics": stats
+    }
 
 # 导入路由 - 使用动态导入避免循环导入
 from app.api import api_router

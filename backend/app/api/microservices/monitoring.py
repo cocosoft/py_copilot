@@ -214,3 +214,19 @@ async def get_services_status():
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取服务状态失败: {str(e)}")
+
+
+@router.get("/database/pool")
+async def get_database_pool_status():
+    """获取数据库连接池状态"""
+    try:
+        from app.core.database import get_pool_status
+        
+        pool_status = get_pool_status()
+        
+        return {
+            "pool_status": pool_status,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取数据库连接池状态失败: {str(e)}")

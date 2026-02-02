@@ -781,9 +781,8 @@ const Settings = () => {
   const loadSearchSettings = async () => {
     setIsLoadingSearch(true);
     try {
-      // 这里只需要使用/search/settings路径，因为request函数会自动添加API_BASE_URL（即/api）
-      // 所以实际请求的URL是/api/search/settings，与后端的路由匹配
-      const data = await request('/search/settings', { method: 'GET' });
+      // 使用/v1/search/settings路径，与后端的路由匹配
+      const data = await request('/v1/search/settings', { method: 'GET' });
       setDefaultSearchEngine(data.default_search_engine);
       setSafeSearch(data.safe_search);
     } catch (error) {

@@ -24,29 +24,6 @@ class StreamingResponse(Base):
         return f"<StreamingResponse(id={self.id}, message_id={self.message_id}, chunk={self.chunk_index})>"
 
 
-class Topic(Base):
-    """话题管理表"""
-    __tablename__ = "topics"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    conversation_id = Column(Integer, ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False)
-    topic_name = Column(String(200), nullable=False)
-    topic_summary = Column(Text, nullable=True)
-    start_message_id = Column(Integer, ForeignKey("messages.id"), nullable=True)
-    end_message_id = Column(Integer, ForeignKey("messages.id"), nullable=True)
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
-    # 关系定义
-    conversation = relationship("Conversation", back_populates="topics", foreign_keys=[conversation_id])
-    start_message = relationship("Message", foreign_keys=[start_message_id])
-    end_message = relationship("Message", foreign_keys=[end_message_id])
-    
-    def __repr__(self):
-        return f"<Topic(id={self.id}, name='{self.topic_name}', conversation_id={self.conversation_id})>"
-
-
 class UploadedFile(Base):
     """文件上传记录表"""
     __tablename__ = "uploaded_files"
@@ -136,3 +113,29 @@ class SearchQuery(Base):
     
     def __repr__(self):
         return f"<SearchQuery(id={self.id}, type='{self.search_type}', user_id={self.user_id})>"
+
+
+class AnalyzedImage(Base):
+    """图像分析记录表"""
+    __tablename__ = "analyzed_images"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    image_id = Column(String(100), unique=True, nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
+    conversation_id = Column(Integer, ForeignKey("conversations.id", ondelete="SET NULL"), nullable=True)
+    filename = Column(String(500), nullable=False)
+    file_path = Column(String(1000), nullable=False)
+    analysis_type = Column(String(50), nullable=False)  # general, text, face
+    analysis_results = Column(Text, nullable=False)  # JSON字符串
+    processing_status = Column(String(50), default='pending')  # pending, processing, completed, failed
+    confidence_score = Column(Float, nullable=True)
+    analysis_metadata = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # 关系定义
+    user = relationship("User", back_populates="analyzed_images")
+    conversation = relationship("Conversation", back_populates="analyzed_images")
+    
+    def __repr__(self):
+        return f"<AnalyzedImage(id={self.id}, image_id='{self.image_id}', type='{self.analysis_type}')>"

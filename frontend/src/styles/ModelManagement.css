@@ -729,6 +729,11 @@
   gap: 10px;
 }
 
+.model-info.horizontal {
+  flex-direction: row;
+  align-items: center;
+}
+
 .model-logo {
   width: 24px;
   height: 24px;

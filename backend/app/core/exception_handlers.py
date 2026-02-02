@@ -17,6 +17,12 @@ from app.core.error import (
 )
 from app.core.logging_config import logger
 from app.core.exceptions import AppException
+from app.core.enhanced_error_handler import (
+    get_error_handler,
+    ErrorCategory,
+    ErrorSeverity,
+    EnhancedError
+)
 
 
 def create_error_context(request: Request, **kwargs) -> ErrorContext:
@@ -54,26 +60,33 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
     if not exc.context:
         exc.context = create_error_context(request)
     
-    # 记录错误日志
-    logger.error(
-        f"AppException: {exc.code} - {exc.message}",
-        extra={
-            "error_code": exc.code,
-            "error_message": exc.message,
-            "error_details": exc.details,
-            "error_field": exc.field,
-            "context": exc.context.to_dict() if exc.context else {},
-            "traceback": traceback.format_exc()
-        }
+    # 使用增强错误处理器
+    error_handler = get_error_handler(logger)
+    
+    # 创建增强错误
+    enhanced_error = EnhancedError(
+        code=exc.code,
+        message=exc.message,
+        category=ErrorCategory.SERVICE,
+        severity=ErrorSeverity.MEDIUM,
+        details=exc.details,
+        field=exc.field,
+        context=exc.context.to_dict() if exc.context else {}
+    )
+    
+    # 处理错误
+    error_response = error_handler.handle_error(
+        enhanced_error,
+        request_id=request.headers.get("X-Request-ID"),
+        user_id=exc.context.user_id if exc.context else None,
+        path=request.url.path,
+        method=request.method
     )
     
     # 返回标准错误响应
     return JSONResponse(
         status_code=exc.status_code,
-        content={
-            "success": False,
-            "error": exc.error_response.to_dict()
-        }
+        content=error_response
     )
 
 
@@ -88,10 +101,13 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     Returns:
         JSON响应
     """
+    # 使用增强错误处理器
+    error_handler = get_error_handler(logger)
+    
     # 从状态码获取错误码
     error_code = get_error_code_from_status(exc.status_code)
     
-    # 构建错误响应
+    # 构建错误上下文
     error_context = create_error_context(request)
     
     # 处理异常详情
@@ -106,34 +122,61 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     elif isinstance(details, str):
         error_message = details
     
-    error_response = ErrorResponse(
+    # 根据状态码确定错误分类和严重程度
+    category_mapping = {
+        400: ErrorCategory.VALIDATION,
+        401: ErrorCategory.AUTHENTICATION,
+        403: ErrorCategory.AUTHORIZATION,
+        404: ErrorCategory.RESOURCE,
+        409: ErrorCategory.RESOURCE,
+        422: ErrorCategory.VALIDATION,
+        429: ErrorCategory.NETWORK,
+        500: ErrorCategory.SERVICE,
+        502: ErrorCategory.EXTERNAL,
+        503: ErrorCategory.SERVICE,
+        504: ErrorCategory.NETWORK
+    }
+    
+    severity_mapping = {
+        400: ErrorSeverity.LOW,
+        401: ErrorSeverity.MEDIUM,
+        403: ErrorSeverity.MEDIUM,
+        404: ErrorSeverity.LOW,
+        409: ErrorSeverity.MEDIUM,
+        422: ErrorSeverity.LOW,
+        429: ErrorSeverity.MEDIUM,
+        500: ErrorSeverity.HIGH,
+        502: ErrorSeverity.HIGH,
+        503: ErrorSeverity.HIGH,
+        504: ErrorSeverity.HIGH
+    }
+    
+    category = category_mapping.get(exc.status_code, ErrorCategory.SERVICE)
+    severity = severity_mapping.get(exc.status_code, ErrorSeverity.MEDIUM)
+    
+    # 创建增强错误
+    enhanced_error = EnhancedError(
         code=error_code,
         message=error_message,
+        category=category,
+        severity=severity,
         details=error_details,
         field=error_field,
-        context=error_context
+        context=error_context.to_dict() if error_context else {}
     )
     
-    # 记录错误日志
-    logger.error(
-        f"HTTPException: {error_code} - {error_message}",
-        extra={
-            "error_code": error_code,
-            "error_message": error_message,
-            "error_details": error_details,
-            "context": error_context.to_dict(),
-            "status_code": exc.status_code,
-            "traceback": traceback.format_exc()
-        }
+    # 处理错误
+    error_response = error_handler.handle_error(
+        enhanced_error,
+        request_id=request.headers.get("X-Request-ID"),
+        path=request.url.path,
+        method=request.method
     )
     
     # 返回标准错误响应
     return JSONResponse(
         status_code=exc.status_code,
-        content={
-            "success": False,
-            "error": error_response.to_dict()
-        }
+        content=error_response
     )
 
 
@@ -148,6 +191,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     Returns:
         JSON响应
     """
+    # 使用增强错误处理器
+    error_handler = get_error_handler(logger)
+    
     # 构建错误详情
     error_details = []
     for error in exc.errors():
@@ -157,33 +203,31 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             "type": error["type"]
         })
     
-    # 构建错误响应
+    # 构建错误上下文
     error_context = create_error_context(request)
-    error_response = ErrorResponse(
+    
+    # 创建增强错误
+    enhanced_error = EnhancedError(
         code="VALIDATION_001",
         message="数据验证失败",
+        category=ErrorCategory.VALIDATION,
+        severity=ErrorSeverity.LOW,
         details=str(error_details),
-        context=error_context
+        context=error_context.to_dict() if error_context else {}
     )
     
-    # 记录错误日志
-    logger.error(
-        "RequestValidationError: 数据验证失败",
-        extra={
-            "error_code": "VALIDATION_001",
-            "error_details": error_details,
-            "context": error_context.to_dict(),
-            "traceback": traceback.format_exc()
-        }
+    # 处理错误
+    error_response = error_handler.handle_error(
+        enhanced_error,
+        request_id=request.headers.get("X-Request-ID"),
+        path=request.url.path,
+        method=request.method
     )
     
     # 返回标准错误响应
     return JSONResponse(
         status_code=422,
-        content={
-            "success": False,
-            "error": error_response.to_dict()
-        }
+        content=error_response
     )
 
 
@@ -198,34 +242,24 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
     Returns:
         JSON响应
     """
-    # 构建错误响应
-    error_context = create_error_context(request)
-    error_response = ErrorResponse(
-        code="SYSTEM_001",
-        message="系统错误，请联系管理员",
-        details=str(exc),
-        context=error_context
-    )
+    # 使用增强错误处理器
+    error_handler = get_error_handler(logger)
     
-    # 记录错误日志
-    logger.error(
-        f"GeneralException: {str(exc)}",
-        extra={
-            "error_code": "SYSTEM_001",
-            "error_message": "系统错误",
-            "error_details": str(exc),
-            "context": error_context.to_dict(),
-            "traceback": traceback.format_exc()
-        }
+    # 构建错误上下文
+    error_context = create_error_context(request)
+    
+    # 使用增强错误处理器自动转换错误
+    error_response = error_handler.handle_error(
+        exc,
+        request_id=request.headers.get("X-Request-ID"),
+        path=request.url.path,
+        method=request.method
     )
     
     # 返回标准错误响应
     return JSONResponse(
         status_code=500,
-        content={
-            "success": False,
-            "error": error_response.to_dict()
-        }
+        content=error_response
     )
 
 
@@ -240,30 +274,33 @@ async def not_found_handler(request: Request, exc: Exception) -> JSONResponse:
     Returns:
         JSON响应
     """
-    # 构建错误响应
+    # 使用增强错误处理器
+    error_handler = get_error_handler(logger)
+    
+    # 构建错误上下文
     error_context = create_error_context(request)
-    error_response = ErrorResponse(
+    
+    # 创建增强错误
+    enhanced_error = EnhancedError(
         code="RESOURCE_001",
         message="请求的资源不存在",
-        context=error_context
+        category=ErrorCategory.RESOURCE,
+        severity=ErrorSeverity.LOW,
+        context=error_context.to_dict() if error_context else {}
     )
     
-    # 记录错误日志
-    logger.warning(
-        f"NotFound: {request.url.path}",
-        extra={
-            "error_code": "RESOURCE_001",
-            "context": error_context.to_dict()
-        }
+    # 处理错误
+    error_response = error_handler.handle_error(
+        enhanced_error,
+        request_id=request.headers.get("X-Request-ID"),
+        path=request.url.path,
+        method=request.method
     )
     
     # 返回标准错误响应
     return JSONResponse(
         status_code=404,
-        content={
-            "success": False,
-            "error": error_response.to_dict()
-        }
+        content=error_response
     )
 
 
@@ -278,31 +315,32 @@ async def unicode_decode_error_handler(request: Request, exc: UnicodeDecodeError
     Returns:
         JSON响应
     """
-    # 构建错误响应
+    # 使用增强错误处理器
+    error_handler = get_error_handler(logger)
+    
+    # 构建错误上下文
     error_context = create_error_context(request)
-    error_response = ErrorResponse(
+    
+    # 创建增强错误
+    enhanced_error = EnhancedError(
         code="VALIDATION_001",
         message="请求数据格式错误",
+        category=ErrorCategory.VALIDATION,
+        severity=ErrorSeverity.LOW,
         details=str(exc),
-        context=error_context
+        context=error_context.to_dict() if error_context else {}
     )
     
-    # 记录错误日志
-    logger.error(
-        f"UnicodeDecodeError: {str(exc)}",
-        extra={
-            "error_code": "VALIDATION_001",
-            "error_details": str(exc),
-            "context": error_context.to_dict(),
-            "traceback": traceback.format_exc()
-        }
+    # 处理错误
+    error_response = error_handler.handle_error(
+        enhanced_error,
+        request_id=request.headers.get("X-Request-ID"),
+        path=request.url.path,
+        method=request.method
     )
     
     # 返回标准错误响应
     return JSONResponse(
         status_code=400,
-        content={
-            "success": False,
-            "error": error_response.to_dict()
-        }
+        content=error_response
     )

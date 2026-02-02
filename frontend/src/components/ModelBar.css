@@ -1,0 +1,119 @@
+.model-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 16px;
+  z-index: 1000;
+}
+
+.model-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.sidebar-toggle-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.sidebar-toggle-btn:hover {
+  background: #f0f0f0;
+}
+
+.hamburger-icon {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 20px;
+}
+
+.hamburger-icon span {
+  display: block;
+  height: 2px;
+  background: #333;
+  border-radius: 1px;
+}
+
+.model-selector-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.model-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+  white-space: nowrap;
+}
+
+.model-selector {
+  min-width: 300px;
+}
+
+.model-bar-right {
+  display: flex;
+  align-items: center;
+}
+
+.model-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.model-logo-small {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.model-name {
+  font-weight: 500;
+  color: #333;
+}
+
+.supplier-name {
+  color: #666;
+  font-size: 13px;
+}
+
+/* 深色模式 */
+[data-theme="dark"] .model-bar {
+  background: #1e1e1e;
+  border-bottom-color: #333;
+}
+
+[data-theme="dark"] .sidebar-toggle-btn:hover {
+  background: #3d3d3d;
+}
+
+[data-theme="dark"] .hamburger-icon span {
+  background: #e0e0e0;
+}
+
+[data-theme="dark"] .model-label {
+  color: #999;
+}
+
+[data-theme="dark"] .model-name {
+  color: #e0e0e0;
+}
+
+[data-theme="dark"] .supplier-name {
+  color: #999;
+}

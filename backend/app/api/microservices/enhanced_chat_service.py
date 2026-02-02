@@ -14,7 +14,7 @@ from app.core.microservices import (
 from app.modules.memory.services.memory_service import MemoryService
 from app.models.chat_enhancements import (
     StreamingResponse as StreamingResponseModel,
-    Topic, ChainOfThought, UploadedFile, VoiceInput, SearchQuery
+    ChainOfThought, UploadedFile, VoiceInput, SearchQuery
 )
 from app.core.database import get_db
 
@@ -28,7 +28,6 @@ class EnhancedChatRequest(BaseModel):
     enable_chain_of_thought: bool = False
     enable_memory_enhancement: bool = True
     memory_retrieval_limit: int = 5
-    topic_id: Optional[int] = None
     file_ids: List[int] = []
     voice_input_id: Optional[int] = None
     search_enabled: bool = False
@@ -76,12 +75,30 @@ class EnhancedChatService:
             )
             
             # 3. 创建消息记录
-            from app.models.conversation import Message
+            from app.models.conversation import Message, Topic
+            # 获取活跃话题
+            active_topic = db.query(Topic).filter(
+                Topic.conversation_id == chat_request.conversation_id,
+                Topic.is_active == True
+            ).first()
+            
+            # 如果没有活跃话题，创建一个新话题
+            if not active_topic:
+                active_topic = Topic(
+                    conversation_id=chat_request.conversation_id,
+                    topic_name="新话题",
+                    is_active=True
+                )
+                db.add(active_topic)
+                db.commit()
+                db.refresh(active_topic)
+            
             message = Message(
                 conversation_id=chat_request.conversation_id,
                 user_id=chat_request.user_id,
                 content=chat_request.message,
-                role="user"
+                role="user",
+                topic_id=active_topic.id
             )
             db.add(message)
             db.commit()
@@ -126,7 +143,7 @@ class EnhancedChatService:
             "memories": memories,
             "enable_memory_enhancement": chat_request.enable_memory_enhancement,
             "memory_count": len(memories),
-            "topic_id": chat_request.topic_id,
+
             "file_ids": chat_request.file_ids,
             "voice_input_id": chat_request.voice_input_id,
             "search_enabled": chat_request.search_enabled,
@@ -134,18 +151,7 @@ class EnhancedChatService:
             "enable_chain_of_thought": chat_request.enable_chain_of_thought
         }
         
-        # 处理话题信息
-        if chat_request.topic_id:
-            db = next(get_db())
-            try:
-                topic = db.query(Topic).filter(Topic.id == chat_request.topic_id).first()
-                if topic:
-                    context["topic"] = {
-                        "name": topic.topic_name,
-                        "summary": topic.topic_summary
-                    }
-            finally:
-                db.close()
+
         
         # 处理文件信息
         if chat_request.file_ids:
@@ -166,9 +172,19 @@ class EnhancedChatService:
         
         return context
     
-    async def _generate_streaming_response(self, message_id: int, context: Dict[str, Any], 
+    async def _generate_streaming_response(self, user_message_id: int, context: Dict[str, Any], 
                                          chat_request: EnhancedChatRequest, db) -> AsyncGenerator[str, None]:
-        """生成流式响应"""
+        """生成流式响应
+        
+        Args:
+            user_message_id: 用户消息ID（用于关联AI回复）
+            context: 增强的对话上下文
+            chat_request: 聊天请求
+            db: 数据库会话
+            
+        Yields:
+            流式响应块
+        """
         
         chunk_id = 0
         full_response = ""
@@ -180,7 +196,8 @@ class EnhancedChatService:
                 memory_intro = await self._generate_memory_introduction(context["memories"])
                 yield self._format_chunk(chunk_id, memory_intro, False, {
                     "memory_references": context["memories"][:3],
-                    "reasoning_step": "记忆检索完成"
+                    "reasoning_step": "记忆检索完成",
+                    "user_message_id": user_message_id
                 })
                 full_response += memory_intro
                 chunk_id += 1
@@ -204,7 +221,8 @@ class EnhancedChatService:
                 yield self._format_chunk(chunk_id, chunk, is_final, {
                     "reasoning_step": reasoning_step,
                     "chunk_index": i,
-                    "total_chunks": len(response_chunks)
+                    "total_chunks": len(response_chunks),
+                    "user_message_id": user_message_id
                 })
                 
                 full_response += chunk
@@ -218,18 +236,27 @@ class EnhancedChatService:
                 summary = await self._generate_response_summary(full_response, context)
                 yield self._format_chunk(chunk_id, summary, True, {
                     "reasoning_step": "响应总结完成",
-                    "total_response_length": len(full_response)
+                    "total_response_length": len(full_response),
+                    "user_message_id": user_message_id
                 })
                 full_response += summary
                 chunk_id += 1
             
-            # 4. 保存完整的AI响应
-            from app.models.conversation import Message
+            # 4. 保存完整的AI响应（关联用户消息ID）
+            from app.models.conversation import Message, Topic
+            # 获取活跃话题
+            active_topic = db.query(Topic).filter(
+                Topic.conversation_id == chat_request.conversation_id,
+                Topic.is_active == True
+            ).first()
+            
             ai_message = Message(
                 conversation_id=chat_request.conversation_id,
                 user_id=chat_request.user_id,
                 content=full_response,
-                role="assistant"
+                role="assistant",
+                parent_message_id=user_message_id,  # 关联用户消息
+                topic_id=active_topic.id if active_topic else None
             )
             db.add(ai_message)
             db.commit()
@@ -249,12 +276,20 @@ class EnhancedChatService:
             # 6. 更新记忆访问记录
             if context["enable_memory_enhancement"] and context["memories"]:
                 await self._update_memory_access(context["memories"], chat_request.user_id)
+            
+            # 7. 发送完成信号，包含AI消息ID
+            yield self._format_chunk(chunk_id, "", True, {
+                "ai_message_id": ai_message.id,
+                "user_message_id": user_message_id,
+                "status": "completed"
+            })
         
         except Exception as e:
             print(f"流式响应生成错误: {e}")
             yield self._format_chunk(chunk_id, f"抱歉，响应生成过程中出现错误: {str(e)}", True, {
                 "error": True,
-                "error_message": str(e)
+                "error_message": str(e),
+                "user_message_id": user_message_id
             })
     
     def _format_chunk(self, chunk_id: int, content: str, is_final: bool, 
@@ -335,7 +370,12 @@ class EnhancedChatService:
             print(f"记忆访问更新失败: {e}")
     
     async def handle_enhanced_websocket(self, websocket: WebSocket, client_id: str):
-        """处理增强的WebSocket连接"""
+        """处理增强的WebSocket连接
+        
+        Args:
+            websocket: WebSocket连接对象
+            client_id: 客户端ID
+        """
         await websocket.accept()
         self.connected_websockets[client_id] = websocket
         
@@ -347,19 +387,64 @@ class EnhancedChatService:
                 if message_data.get("type") == "enhanced_chat":
                     chat_request = EnhancedChatRequest(**message_data["data"])
                     
-                    # 生成流式响应
-                    async for chunk in self._generate_streaming_response(
-                        0, await self._build_enhanced_context(chat_request, []), chat_request, next(get_db())
-                    ):
-                        await websocket.send_text(chunk)
+                    # 创建数据库会话
+                    db = next(get_db())
+                    try:
+                        # 创建用户消息记录
+                        from app.models.conversation import Message, Topic
+                        # 获取活跃话题
+                        active_topic = db.query(Topic).filter(
+                            Topic.conversation_id == chat_request.conversation_id,
+                            Topic.is_active == True
+                        ).first()
                         
-                        # 解析chunk检查是否结束
-                        chunk_data = json.loads(chunk)
-                        if chunk_data.get("is_final", False):
-                            break
+                        # 如果没有活跃话题，创建一个新话题
+                        if not active_topic:
+                            active_topic = Topic(
+                                conversation_id=chat_request.conversation_id,
+                                topic_name="新话题",
+                                is_active=True
+                            )
+                            db.add(active_topic)
+                            db.commit()
+                            db.refresh(active_topic)
+                        
+                        user_message = Message(
+                            conversation_id=chat_request.conversation_id,
+                            user_id=chat_request.user_id,
+                            content=chat_request.message,
+                            role="user",
+                            topic_id=active_topic.id
+                        )
+                        db.add(user_message)
+                        db.commit()
+                        db.refresh(user_message)
+                        
+                        # 构建增强上下文
+                        enhanced_context = await self._build_enhanced_context(chat_request, [])
+                        
+                        # 生成流式响应，传递用户消息ID
+                        async for chunk in self._generate_streaming_response(
+                            user_message.id, enhanced_context, chat_request, db
+                        ):
+                            await websocket.send_text(chunk)
                             
+                            # 解析chunk检查是否结束
+                            chunk_data = json.loads(chunk)
+                            if chunk_data.get("is_final", False):
+                                break
+                    except Exception as e:
+                        print(f"处理WebSocket聊天消息失败: {e}")
+                        await websocket.send_text(json.dumps({
+                            "type": "error",
+                            "error": str(e)
+                        }))
+                    finally:
+                        db.close()
+                        
         except WebSocketDisconnect:
             self.connected_websockets.pop(client_id, None)
+            print(f"客户端 {client_id} 断开WebSocket连接")
         except Exception as e:
             print(f"增强WebSocket错误: {e}")
             self.connected_websockets.pop(client_id, None)

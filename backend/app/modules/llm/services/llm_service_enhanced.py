@@ -95,7 +95,7 @@ class EnhancedLLMService:
         self,
         messages: List[Dict[str, str]],
         model_name: Optional[str] = None,
-        max_tokens: int = 1000,
+        max_tokens: int = 4096,
         temperature: float = 0.7,
         top_p: float = 1.0,
         n: int = 1,
@@ -292,7 +292,7 @@ class EnhancedLLMService:
                     messages, model_name, api_endpoint, api_key, 
                     max_tokens, temperature, start_time
                 )
-            elif supplier_display_name == "DeepSeek":
+            elif supplier_display_name in ["DeepSeek", "深度求索"]:
                 return self._call_deepseek_api_directly(
                     messages, model_name, api_endpoint, api_key, 
                     max_tokens, temperature, start_time
@@ -360,6 +360,11 @@ class EnhancedLLMService:
         timeout = 120 if thinking_enabled else 60
         
         try:
+            # 检查api_endpoint是否存在
+            if not api_endpoint:
+                logger.error("硅基流动API端点未配置")
+                raise Exception("硅基流动API端点未配置")
+            
             logger.info(f"发送硅基流动流式请求，超时时间: {timeout}秒")
             with requests.post(
                 f"{api_endpoint}/chat/completions",
@@ -537,6 +542,11 @@ class EnhancedLLMService:
         timeout = 120 if thinking_enabled else 60
         
         try:
+            # 检查api_endpoint是否存在
+            if not api_endpoint:
+                logger.error("DeepSeek API端点未配置")
+                raise Exception("DeepSeek API端点未配置")
+            
             logger.info(f"发送DeepSeek流式请求，超时时间: {timeout}秒")
             with requests.post(
                 f"{api_endpoint}/chat/completions",
@@ -706,6 +716,11 @@ class EnhancedLLMService:
         timeout = 60
         
         try:
+            # 检查api_endpoint是否存在
+            if not api_endpoint:
+                logger.error("OpenAI API端点未配置")
+                raise Exception("OpenAI API端点未配置")
+            
             logger.info(f"发送OpenAI流式请求，超时时间: {timeout}秒")
             with requests.post(
                 f"{api_endpoint}/chat/completions",
@@ -837,6 +852,11 @@ class EnhancedLLMService:
         timeout = 60
         
         try:
+            # 检查api_endpoint是否存在
+            if not api_endpoint:
+                logger.error(f"{supplier_display_name} API端点未配置")
+                raise Exception(f"{supplier_display_name} API端点未配置")
+            
             logger.info(f"发送通用API流式请求，超时时间: {timeout}秒")
             with requests.post(
                 f"{api_endpoint}/chat/completions",
@@ -955,6 +975,11 @@ class EnhancedLLMService:
                     "num_predict": max_tokens
                 }
             }
+            
+            # 检查api_endpoint是否存在
+            if not api_endpoint:
+                logger.error("Ollama API端点未配置")
+                raise Exception("Ollama API端点未配置")
             
             # 发送请求到Ollama API
             url = f"{api_endpoint}/chat"

@@ -21,7 +21,6 @@ class MessageResponse(MessageBase):
     """消息响应模型"""
     id: int
     created_at: datetime
-    updated_at: datetime
     conversation_id: int
     
     class Config:
@@ -86,6 +85,8 @@ class SendMessageRequest(BaseModel):
     content: str
     use_llm: bool = True
     model_name: Optional[str] = None
+    enable_thinking_chain: bool = False
+    topic_id: Optional[int] = None
 
 
 class SendMessageResponse(BaseModel):
