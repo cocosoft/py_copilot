@@ -126,15 +126,26 @@ const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => 
     try {
       const response = await capabilityApi.getAll();
       
-      // 处理两种响应格式：带success字段的对象和直接数组
+      // 处理多种响应格式
       if (response.success) {
+        // 格式: {success: true, capabilities: [...]}
         setCapabilities(response.capabilities || []);
+      } else if (response.code === 200 && Array.isArray(response.data)) {
+        // 格式: {code: 200, message: "...", data: [...]}
+        setCapabilities(response.data);
       } else if (Array.isArray(response)) {
         // 直接返回数组的情况
         setCapabilities(response);
+      } else if (response.data && Array.isArray(response.data)) {
+        // 格式: {data: [...]}
+        setCapabilities(response.data);
+      } else if (response.items && Array.isArray(response.items)) {
+        // 格式: {items: [...]}
+        setCapabilities(response.items);
       } else {
-        // 其他情况都视为错误
-        console.warn('获取能力列表格式不符合预期:', response);
+        // 其他情况都视为错误，输出详细的响应信息以便调试
+        console.warn('获取能力列表格式不符合预期，响应类型:', typeof response);
+        console.warn('响应内容:', JSON.stringify(response, null, 2));
         setError('获取能力列表失败：格式错误');
       }
     } catch (err) {

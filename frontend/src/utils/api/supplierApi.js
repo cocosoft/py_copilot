@@ -297,8 +297,12 @@ export const supplierApi = {
       throw new Error('供应商ID必须是有效的数字');
     }
     
-    // 添加调试信息
-    console.log('调用fetchModelsFromApi，传递的apiConfig:', JSON.stringify(apiConfig, null, 2));
+    // 添加调试信息（对API密钥进行脱敏处理）
+    const maskedConfig = {
+      apiUrl: apiConfig.apiUrl,
+      apiKey: apiConfig.apiKey ? `${apiConfig.apiKey.substring(0, 8)}...` : ''
+    };
+    console.log('调用fetchModelsFromApi，传递的apiConfig:', JSON.stringify(maskedConfig, null, 2));
     
     const endpoint = `/v1/suppliers/${numericId}/fetch-models`;
     const response = await request(endpoint, {

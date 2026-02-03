@@ -17,6 +17,44 @@
   background: #fff;
 }
 
+.topic-sidebar-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.collapse-button {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.collapse-button:hover {
+  background: #f0f0f0;
+}
+
+/* 收缩状态 */
+.topic-sidebar.collapsed {
+  width: 60px;
+}
+
+.topic-sidebar.collapsed .topic-sidebar-header h3 {
+  display: none;
+}
+
+.topic-sidebar.collapsed .create-topic-button {
+  display: none;
+}
+
+.topic-sidebar.collapsed .topic-sidebar-header {
+  justify-content: center;
+  padding: 16px 8px;
+}
+
 .topic-sidebar-header h3 {
   margin: 0;
   font-size: 16px;

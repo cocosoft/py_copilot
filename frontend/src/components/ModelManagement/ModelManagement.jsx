@@ -218,7 +218,12 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
         apiKey: supplierDetail.api_key
       };
       
-      console.log('获取模型API配置:', apiConfig);
+      // 对API密钥进行脱敏处理后再输出日志
+      const maskedConfig = {
+        apiUrl: apiConfig.apiUrl,
+        apiKey: apiConfig.apiKey ? `${apiConfig.apiKey.substring(0, 8)}...` : ''
+      };
+      console.log('获取模型API配置:', maskedConfig);
       
       // 调用获取模型列表API
       const response = await api.supplierApi.fetchModelsFromApi(selectedSupplier.id, apiConfig);

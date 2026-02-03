@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from '
 import { conversationApi } from '../utils/api';
 import { API_BASE_URL } from '../utils/apiUtils';
 import EnhancedMarkdownRenderer from '../components/EnhancedMarkdownRenderer/EnhancedMarkdownRenderer';
-import ModelBar from '../components/ModelBar';
+import LeftSidebar from '../components/LeftSidebar';
 import ChatMain from '../components/ChatMain';
 import TopicSidebar from '../components/TopicSidebar';
 import './chat.css';
@@ -155,6 +155,13 @@ const MessageItem = memo(({ message, formatTime, formatDuration, editingMessageI
         {/* 消息操作按钮和Tokens消耗 */}
         {!message.isStreaming && message.sender === 'user' && (
           <div className="message-actions">
+            <button 
+              className="message-action-btn"
+              onClick={() => copyMessage(message)}
+              title="复制消息"
+            >
+              📋
+            </button>
             <button 
               className="message-action-btn"
               onClick={() => startEditingMessage(message.id, message.text)}
@@ -376,6 +383,7 @@ const Chat = () => {
   const [activeTopic, setActiveTopic] = useState(null); // 当前活跃的话题
   const [showTopicSidebar, setShowTopicSidebar] = useState(true); // 是否显示话题侧边栏
   const [refreshTopicsFlag, setRefreshTopicsFlag] = useState(false); // 控制话题列表刷新的标志
+  const [topicSidebarCollapsed, setTopicSidebarCollapsed] = useState(false); // 话题侧边栏收缩状态
   const messagesEndRef = useRef(null);
   const reconnectTimerRef = useRef(null); // 重连定时器引用
   const modelsLoadedRef = useRef(false); // 防止重复加载模型列表
@@ -538,6 +546,23 @@ const Chat = () => {
     setRefreshTopicsFlag(prev => !prev);
   }, []);
 
+  // 处理话题创建
+  const handleTopicCreate = useCallback(async (newTopic) => {
+    if (newTopic) {
+      // 设置为活跃话题
+      setActiveTopic(newTopic);
+      // 清空消息列表，准备接收新消息
+      setMessages([]);
+      // 自动聚焦到输入框
+      setTimeout(() => {
+        const inputElement = document.querySelector('.message-input');
+        if (inputElement) {
+          inputElement.focus();
+        }
+      }, 100);
+    }
+  }, []);
+
   
   // 切换主题
   const toggleTheme = useCallback(() => {
@@ -571,6 +596,32 @@ const Chat = () => {
       setIsSearching(false);
     }, 300);
   }, [searchQuery, messages]);
+  
+  // 添加快捷键监听
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ctrl/Cmd + K: 聚焦到输入框
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        const inputElement = document.querySelector('.message-input');
+        if (inputElement) {
+          inputElement.focus();
+        }
+      }
+      
+      // Ctrl/Cmd + H: 切换话题侧边栏
+      if ((e.ctrlKey || e.metaKey) && e.key === 'h') {
+        e.preventDefault();
+        setShowTopicSidebar(prev => !prev);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
   
   // 清除搜索结果
   const clearSearch = useCallback(() => {
@@ -858,13 +909,18 @@ const Chat = () => {
   // 流式响应处理
   const handleStreamingResponse = useCallback(async (text, conversationId = 1, topicId = null) => {
     try {
+      // 构建消息数据，在新话题状态下不传递topic_id
       const messageData = {
         content: text,
         use_llm: true,
         model_name: selectedModel ? selectedModel.model_id : 'moonshotai/Kimi-K2-Thinking',
-        enable_thinking_chain: enableThinkingChain,
-        topic_id: topicId || activeTopic?.id || null
+        enable_thinking_chain: enableThinkingChain
       };
+      
+      // 只有在有活跃话题时才添加topic_id
+      if (topicId || activeTopic?.id) {
+        messageData.topic_id = topicId || activeTopic?.id;
+      }
 
       // 创建流式消息对象，使用时间戳+随机数确保唯一ID
       const streamingMessage = {
@@ -888,13 +944,16 @@ const Chat = () => {
       // 用于累积完整的思维链内容
       let fullThinkingChain = '';
 
-      // 使用fetch API的流式响应功能
-      const response = await fetch(`${API_BASE_URL}/v1/conversations/${conversationId}/messages/stream`, {
+      // 使用apiUtils中的request函数发送流式请求
+      // 注意：由于需要处理流式响应，这里直接使用fetch API，但确保使用正确的URL格式
+      const response = await fetch(`/api/v1/conversations/${conversationId}/messages/stream`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(messageData)
+        body: JSON.stringify(messageData),
+        // 增加超时时间，适合长连接
+        timeout: 60000
       });
 
       if (!response.ok) {
@@ -1388,6 +1447,17 @@ const Chat = () => {
   // 只在挂载时运行的初始化逻辑
   useEffect(() => {
     console.log('组件开始初始化');
+    // 清理所有上下文相关状态
+    setQuotedMessage(null);
+    setEditingMessageId(null);
+    setEditingMessageText('');
+    setCurrentStreamingMessage(null);
+    setExpandedThinkingChains({});
+    setMarkedMessages(new Set());
+    setMessages([]);
+    setActiveTopic(null);
+    console.log('上下文状态已清理');
+    
     // 加载保存的主题设置
     const savedTheme = localStorage.getItem('theme') || 'light';
     setTheme(savedTheme);
@@ -1437,21 +1507,18 @@ const Chat = () => {
   
   // 清除对话
   const clearConversation = useCallback(() => {
-    setMessages([
-      {
-        id: 1,
-        sender: 'bot',
-        text: '对话已清除！请选择模型并开始新的对话。',
-        timestamp: new Date(),
-        status: 'success'
-      }
-    ]);
+    // 清空消息列表，不设置欢迎消息
+    setMessages([]);
+    // 清空活跃话题
+    setActiveTopic(null);
   }, []);
   
   // 处理话题选择
   const handleTopicSelect = useCallback(async (topic) => {
     if (!topic) {
+      // 清空状态，显示空状态
       setActiveTopic(null);
+      setMessages([]);
       return;
     }
     
@@ -1611,60 +1678,148 @@ const Chat = () => {
   
   return (
     <div className={`chat-container ${theme}`}>
-      {/* 顶部模型栏 */}
-      <ModelBar
-        models={availableModels}
-        selectedModel={selectedModel}
-        onModelChange={setSelectedModel}
-      />
-      
       {/* 主内容区域：话题侧边栏 + 聊天主区域 */}
       <div className="chat-content-wrapper">
-        {/* 左侧话题侧边栏 */}
-        <TopicSidebar
+        {/* 左侧侧边栏（话题和模型管理） */}
+        <LeftSidebar
           conversationId={conversationId}
           activeTopic={activeTopic}
           onTopicSelect={handleTopicSelect}
-          showTopicSidebar={showTopicSidebar}
-          setShowTopicSidebar={setShowTopicSidebar}
+          onTopicCreate={handleTopicCreate}
+          onTopicDelete={(topicId) => {
+            // 当删除当前活跃话题时，清空状态
+            if (activeTopic && activeTopic.id === topicId) {
+              setActiveTopic(null);
+              setMessages([]);
+              // 清理上下文相关状态
+              setQuotedMessage(null);
+              setEditingMessageId(null);
+              setEditingMessageText('');
+              setCurrentStreamingMessage(null);
+              setExpandedThinkingChains({});
+              setMarkedMessages(new Set());
+            }
+          }}
           refreshFlag={refreshTopicsFlag}
+          onCollapseChange={setTopicSidebarCollapsed}
+          models={availableModels}
+          selectedModel={selectedModel}
+          onModelChange={setSelectedModel}
+          collapsed={topicSidebarCollapsed}
         />
         
         {/* 右侧聊天主区域 */}
-        <ChatMain
-          messages={messages}
-          inputText={inputText}
-          setInputText={setInputText}
-          onSendMessage={handleSendMessage}
-          onClearConversation={clearConversation}
-          messageSkeletons={messageSkeletons}
-          isTyping={isTyping}
-          editingMessageId={editingMessageId}
-          editingMessageText={editingMessageText}
-          setEditingMessageText={setEditingMessageText}
-          saveEditingMessage={saveEditingMessage}
-          cancelEditingMessage={cancelEditingMessage}
-          quoteMessage={quoteMessage}
-          toggleMessageMark={toggleMessageMark}
-          markedMessages={markedMessages}
-          expandedThinkingChains={expandedThinkingChains}
-          toggleThinkingChain={toggleThinkingChain}
-          startEditingMessage={startEditingMessage}
-          totalTokens={totalTokens}
-          copyMessage={copyMessage}
-          regenerateMessage={regenerateMessage}
-          translateMessage={translateMessage}
-          deleteMessage={deleteMessage}
-          saveMessage={saveMessage}
-          quotedMessage={quotedMessage}
-          cancelQuote={cancelQuote}
-          formatTime={formatTime}
-          formatDuration={formatDuration}
-          MessageItem={MessageItem}
-          MessageSkeleton={MessageSkeleton}
-          TypingIndicator={TypingIndicator}
-          activeTopic={activeTopic}
-        />
+        <div className={`chat-main-wrapper ${topicSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+          {/* 聊天主区域 */}
+          {messages.length === 0 && !activeTopic ? (
+            // 空状态显示 - 显示简化版ChatMain，突出输入面板
+            <div className="empty-chat-state-with-input">
+              <div className="empty-state-header">
+                <div className="empty-state-icon">💬</div>
+                <h2>开始新对话</h2>
+                <p>我是 Py Copilot，您的智能助手。请输入您的问题，我会为您提供帮助。</p>
+              </div>
+              
+              {/* 直接显示输入面板 */}
+              <form className="chat-input centered-input" onSubmit={handleSendMessage}>
+                <div className="input-actions">
+                  <button type="button" className="input-btn" title="联网搜索">🌐</button>
+                  <button type="button" className="input-btn" title="知识库搜索">📚</button>
+                  <button type="button" className="input-btn" title="翻译">🔤</button>
+                  <button type="button" className="input-btn" title="上传文件">📁</button>
+                  <button type="button" className={`input-btn ${enableThinkingChain ? 'active' : ''}`} title="思考模式" onClick={() => setEnableThinkingChain(!enableThinkingChain)}>🧠</button>
+                  <button type="button" className="input-btn" title="表情">😊</button>
+                  <button type="button" className="input-btn" title="录音">🎤</button>
+                  <button type="button" className="input-btn" title="视频">🎥</button>
+                </div>
+                {/* 引用消息显示 */}
+                {quotedMessage && (
+                  <div className="quoted-message">
+                    <div className="quoted-message-header">
+                      <span className="quoted-message-sender">
+                        {quotedMessage.sender === 'user' ? '你' : 'AI'}
+                      </span>
+                      <button 
+                        type="button"
+                        className="quoted-message-cancel"
+                        onClick={cancelQuote}
+                        title="取消引用"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div className="quoted-message-content">
+                      {quotedMessage.text.substring(0, 100)}
+                      {quotedMessage.text.length > 100 && '...'}
+                    </div>
+                  </div>
+                )}
+                
+                <div className="input-wrapper">
+                  <textarea
+                    placeholder="输入消息... 使用 Shift+Enter 换行"
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage(e);
+                      }
+                    }}
+                    className="message-input"
+                    rows="3"
+                    style={{ resize: 'none', overflowY: 'auto' }}
+                  />
+                  <button type="submit" className="send-btn">
+                    <span className="send-icon">➤</span>
+                    <span className="send-text">发送</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          ) : (
+            // 正常聊天界面
+            <ChatMain
+              messages={messages}
+              inputText={inputText}
+              setInputText={setInputText}
+              onSendMessage={handleSendMessage}
+              onClearConversation={clearConversation}
+              messageSkeletons={messageSkeletons}
+              isTyping={isTyping}
+              editingMessageId={editingMessageId}
+              editingMessageText={editingMessageText}
+              setEditingMessageText={setEditingMessageText}
+              saveEditingMessage={saveEditingMessage}
+              cancelEditingMessage={cancelEditingMessage}
+              quoteMessage={quoteMessage}
+              toggleMessageMark={toggleMessageMark}
+              markedMessages={markedMessages}
+              expandedThinkingChains={expandedThinkingChains}
+              toggleThinkingChain={toggleThinkingChain}
+              startEditingMessage={startEditingMessage}
+              totalTokens={totalTokens}
+              copyMessage={copyMessage}
+              regenerateMessage={regenerateMessage}
+              translateMessage={translateMessage}
+              deleteMessage={deleteMessage}
+              saveMessage={saveMessage}
+              quotedMessage={quotedMessage}
+              cancelQuote={cancelQuote}
+              formatTime={formatTime}
+              formatDuration={formatDuration}
+              MessageItem={MessageItem}
+              MessageSkeleton={MessageSkeleton}
+              TypingIndicator={TypingIndicator}
+              activeTopic={activeTopic}
+              enableThinkingChain={enableThinkingChain}
+              setEnableThinkingChain={setEnableThinkingChain}
+              selectedModel={selectedModel}
+              availableModels={availableModels}
+              onModelChange={setSelectedModel}
+            />
+          )}
+        </div>
       </div>
       
 

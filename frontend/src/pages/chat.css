@@ -2,12 +2,201 @@
 .chat-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
+  min-height: 0;
   background-color: #f5f5f5;
   border-radius: 0;
   overflow: hidden;
   box-shadow: none;
   position: relative;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* 空状态带输入面板样式 */
+.empty-chat-state-with-input {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 2rem;
+  text-align: center;
+  background-color: #f5f5f5;
+}
+
+.empty-state-header {
+  max-width: 600px;
+  margin-bottom: 2rem;
+}
+
+.empty-state-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.empty-state-header h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 0.5rem;
+}
+
+.empty-state-header p {
+  font-size: 1rem;
+  color: #6b7280;
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+}
+
+
+
+/* 居中输入面板样式 */
+.centered-input {
+  width: 100%;
+  max-width: 800px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 16px 20px;
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.centered-input .input-actions {
+  display: flex;
+  align-items: left;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.centered-input .input-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.centered-input .input-btn:hover {
+  background: #f0f0f0;
+}
+
+.centered-input .quoted-message {
+  background: #f0f0f0;
+  border-left: 3px solid #007bff;
+  padding: 12px;
+  margin-bottom: 12px;
+  border-radius: 4px;
+}
+
+.centered-input .quoted-message-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.centered-input .quoted-message-sender {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+}
+
+.centered-input .quoted-message-cancel {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #999;
+  font-size: 14px;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.centered-input .quoted-message-cancel:hover {
+  background: #e0e0e0;
+}
+
+.centered-input .quoted-message-content {
+  font-size: 14px;
+  color: #333;
+  line-height: 1.5;
+}
+
+.centered-input .input-wrapper {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.centered-input .message-input {
+  flex: 1;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  resize: none;
+  outline: none;
+  transition: border-color 0.2s;
+  min-height: 80px;
+  max-height: 200px;
+  font-family: inherit;
+}
+
+.centered-input .message-input:focus {
+  border-color: #007bff;
+}
+
+.centered-input .send-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 24px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  height: 100%;
+  min-height: 80px;
+  transition: background 0.2s;
+}
+
+.centered-input .send-btn:hover {
+  background: #0056b3;
+}
+
+.centered-input .send-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+/* 确保输入面板在小屏幕上也能正常显示 */
+@media (max-width: 768px) {
+  .empty-chat-state-with-input {
+    padding: 1rem;
+  }
+  
+  .centered-input {
+    padding: 12px 16px;
+  }
+  
+  .centered-input .input-actions {
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  
+  .centered-input .input-btn {
+    font-size: 18px;
+    padding: 6px;
+  }
 }
 
 /* 主内容区域包装器 */
@@ -15,6 +204,8 @@
   display: flex;
   flex: 1;
   overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* 聊天主体内容区 */
@@ -2169,7 +2360,7 @@ th {
 /* 输入区域 */
 .chat-input {
   display: flex;
-  align-items: center;
+  align-items: left;
   gap: 8px;
   padding: 12px 16px;
   background-color: #ffffff;
@@ -2179,8 +2370,9 @@ th {
 .input-actions {
   display: flex;
   gap: 6px;
-  align-items: center;
+  align-items: left;
   flex-shrink: 0;
+  justify-content: left;
 }
 
 .input-btn {
@@ -2256,7 +2448,7 @@ th {
     gap: 4px;
     order: 2;
     width: 100%;
-    justify-content: center;
+    justify-content: left;
     margin-top: 6px;
   }
   
@@ -2332,6 +2524,13 @@ th {
   background-color: #e67e22;
 }
 
+/* 思考模式按钮样式 */
+.input-btn.active {
+  background-color: rgba(74, 144, 226, 0.2);
+  border-radius: 4px;
+  color: #4a90e2;
+}
+
 .send-icon {
   font-size: 14px;
 }
@@ -2344,24 +2543,254 @@ th {
 @media (max-width: 768px) {
   .send-btn {
     padding: 6px 12px;
-    border-radius: 16px;
+  }
+}
+
+/* 聊天主区域包装器 */
+.chat-main-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  background-color: #ffffff;
+  transition: all 0.3s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.chat-main-wrapper.sidebar-collapsed {
+  margin-left: -220px;
+}
+
+/* 空状态显示 */
+.empty-chat-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 40px;
+  text-align: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+.empty-state-icon {
+  font-size: 64px;
+  margin-bottom: 24px;
+  animation: bounce 2s infinite;
+}
+
+.empty-chat-state h2 {
+  font-size: 28px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: white;
+}
+
+.empty-chat-state p {
+  font-size: 16px;
+  line-height: 1.6;
+  margin-bottom: 32px;
+  color: rgba(255, 255, 255, 0.9);
+  max-width: 480px;
+}
+
+.empty-state-actions {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.start-conversation-btn {
+  background-color: white;
+  color: #667eea;
+  border: none;
+  padding: 14px 32px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.start-conversation-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.start-conversation-btn:active {
+  transform: translateY(0);
+}
+
+.view-history-btn {
+  background-color: transparent;
+  color: white;
+  border: 2px solid white;
+  padding: 12px 28px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.view-history-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+.view-history-btn:active {
+  transform: translateY(0);
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-10px);
+  }
+  60% {
+    transform: translateY(-5px);
+  }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .empty-chat-state {
+    padding: 24px;
+  }
+  
+  .empty-state-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+  }
+  
+  .empty-chat-state h2 {
+    font-size: 24px;
+    margin-bottom: 8px;
+  }
+  
+  .empty-chat-state p {
+    font-size: 14px;
+    margin-bottom: 24px;
+    max-width: 320px;
+  }
+  
+  .empty-state-actions {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .start-conversation-btn,
+  .view-history-btn {
+    width: 100%;
+    max-width: 280px;
+  }
+}
+
+/* 深色主题适配 */
+[data-theme="dark"] .empty-chat-state {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+}
+
+[data-theme="dark"] .start-conversation-btn {
+  color: #667eea;
+}
+
+[data-theme="dark"] .view-history-btn {
+  border-color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+[data-theme="dark"] .view-history-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* 空状态提示样式 */
+.empty-state-tips {
+  margin-top: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  animation: fadeInUp 0.5s ease-in-out 0.2s both;
+}
+
+.empty-state-tips p {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+/* 键盘按键样式 */
+.empty-state-tips kbd {
+  background-color: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'Courier New', Courier, monospace;
+  color: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* 淡入上移动画 */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .empty-state-tips {
+    margin-top: 24px;
+  }
+  
+  .empty-state-tips p {
     font-size: 12px;
-    min-width: 60px;
-    gap: 3px;
   }
   
-  .send-icon {
-    font-size: 12px;
+  .empty-state-tips kbd {
+    font-size: 11px;
+    padding: 1px 6px;
   }
-  
-  .send-btn:hover:not(:disabled) {
-    transform: none;
-    box-shadow: none;
-  }
-  
-  .send-btn:active:not(:disabled) {
-    transform: scale(0.95);
-  }
+}
+
+/* 深色主题适配 */
+[data-theme="dark"] .empty-state-tips {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+[data-theme="dark"] .empty-state-tips kbd {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 /* 滚动条样式 */

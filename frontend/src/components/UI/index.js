@@ -8,6 +8,10 @@ export { default as Loading } from './Loading';
 export { default as ErrorBoundary } from './ErrorBoundary';
 export { default as Responsive } from './Responsive';
 export { default as Toast, ToastContainer, showToast, showSuccess, showError, showWarning, showInfo } from './Toast';
+export { default as Badge } from './Badge';
+export { default as Select } from './Select';
+export { default as Modal } from './Modal';
+export { default as Icon } from './Icon';
 
 // 工具函数和常量
 export * from './utils';

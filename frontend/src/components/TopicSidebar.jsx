@@ -7,8 +7,6 @@ const TopicSidebar = ({ conversationId, activeTopic, onTopicSelect, onTopicCreat
   const [topics, setTopics] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newTopicName, setNewTopicName] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [topicToDelete, setTopicToDelete] = useState(null);
 
@@ -56,18 +54,12 @@ const TopicSidebar = ({ conversationId, activeTopic, onTopicSelect, onTopicCreat
   };
 
   const handleCreateTopic = async () => {
-    if (!newTopicName.trim()) {
-      alert('请输入话题名称');
-      return;
-    }
-
     try {
-      const response = await conversationApi.createTopic(conversationId, newTopicName);
+      // 调用API创建话题，不传递topic_name，由后端自动生成
+      const response = await conversationApi.createTopic(conversationId, '');
       
       if (response) {
         setTopics([response, ...topics]);
-        setNewTopicName('');
-        setShowCreateModal(false);
         
         if (onTopicCreate) {
           onTopicCreate(response);
@@ -116,12 +108,15 @@ const TopicSidebar = ({ conversationId, activeTopic, onTopicSelect, onTopicCreat
     <div className="topic-sidebar">
       <div className="topic-sidebar-header">
         <h3>话题列表</h3>
-        <button 
-          className="create-topic-button"
-          onClick={() => setShowCreateModal(true)}
-        >
-          + 新建话题
-        </button>
+        <div className="topic-sidebar-actions">
+          <button 
+            className="create-topic-button"
+            onClick={handleCreateTopic}
+            title="新建话题"
+          >
+            + 新建话题
+          </button>
+        </div>
       </div>
 
       <div className="topic-search">
@@ -151,39 +146,6 @@ const TopicSidebar = ({ conversationId, activeTopic, onTopicSelect, onTopicCreat
           ))
         )}
       </div>
-
-      {showCreateModal && (
-        <div className="topic-modal-overlay">
-          <div className="topic-modal">
-            <h3>创建新话题</h3>
-            <input
-              type="text"
-              placeholder="请输入话题名称（最多20字）"
-              value={newTopicName}
-              onChange={(e) => setNewTopicName(e.target.value.slice(0, 20))}
-              maxLength={20}
-              className="topic-modal-input"
-            />
-            <div className="topic-modal-actions">
-              <button 
-                className="topic-modal-button topic-modal-cancel"
-                onClick={() => {
-                  setShowCreateModal(false);
-                  setNewTopicName('');
-                }}
-              >
-                取消
-              </button>
-              <button 
-                className="topic-modal-button topic-modal-confirm"
-                onClick={handleCreateTopic}
-              >
-                创建
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
