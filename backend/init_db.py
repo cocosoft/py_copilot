@@ -15,7 +15,8 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 # 数据库配置
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# 使用与应用程序相同的数据库连接URL
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SQLALCHEMY_DATABASE_URL = f"sqlite:///{os.path.join(BASE_DIR, 'py_copilot.db')}"
 
 # 创建数据库引擎
@@ -27,8 +28,8 @@ engine = create_engine(
 # 创建会话工厂
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# 创建基类
-Base = declarative_base()
+# 导入Base对象（使用app.core.database中定义的Base）
+from app.core.database import Base
 
 # 导入所有模型，确保它们被注册到Base.metadata
 # 注意：这里需要直接导入模型类，避免循环导入
@@ -54,6 +55,19 @@ from app.models.memory import (
 
 # 知识库模型
 from app.modules.knowledge.models.knowledge_document import KnowledgeBase, KnowledgeDocument, KnowledgeTag, DocumentEntity, DocumentChunk, EntityRelationship
+
+# 供应商和模型模型
+from app.models.supplier_db import SupplierDB, ModelDB, ModelParameter, ParameterVersion, ModelParameterVersion
+
+# 模型分类和能力模型
+from app.models.model_category import ModelCategory
+from app.models.model_capability import ModelCapability, ModelCapabilityAssociation
+
+# 参数模板模型
+from app.models.parameter_template import ParameterTemplate
+
+# 默认模型模型
+from app.models.default_model import DefaultModel, ModelFeedback, ModelPerformance
 
 def init_database():
     """初始化数据库表"""

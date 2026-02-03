@@ -319,13 +319,6 @@ async def send_message(
     db.commit()
     db.refresh(user_message)
     
-    # 如果话题标题是默认的"新话题"，立即生成更好的标题
-    if active_topic.topic_name == "新话题":
-        topic_title = TopicTitleGenerator.generate_title_from_messages(db, conversation_id)
-        if topic_title != "新话题":
-            TopicService.update_topic(db, active_topic.id, topic_name=topic_title)
-            active_topic.topic_name = topic_title
-    
     # 如果需要使用LLM生成回复
     assistant_message = None
     
@@ -419,11 +412,15 @@ async def send_message(
             TopicService.update_end_message(db, active_topic.id, assistant_message.id)
             
             # 如果话题标题是默认的"新话题"，尝试生成更好的标题
+            print(f"检查话题标题: active_topic.topic_name={active_topic.topic_name}")
             if active_topic.topic_name == "新话题":
-                topic_title = TopicTitleGenerator.generate_title_from_messages(db, conversation_id)
-                if topic_title != "新话题":
+                print("开始调用TopicTitleGenerator生成标题...")
+                topic_title = TopicTitleGenerator.generate_title_from_messages(db, conversation_id, active_topic.id)
+                print(f"生成的标题: {topic_title}")
+                if topic_title != "新对话" and topic_title != "新话题":
                     TopicService.update_topic(db, active_topic.id, topic_name=topic_title)
                     active_topic.topic_name = topic_title
+                    print(f"话题标题已更新为: {active_topic.topic_name}")
             
         except Exception as e:
             print(f"LLM生成回复失败: {str(e)}")
@@ -564,8 +561,8 @@ async def send_message_stream(
     # 使用清理后的内容
     sanitized_content = validation_result['sanitized_content']
     
-    # 获取或创建活跃话题
-    active_topic = TopicService.get_active_topic(db, conversation_id)
+    # 重置活跃话题，确保在新话题状态下能够创建新话题
+    active_topic = None
     
     # 如果请求中指定了话题ID，使用指定的话题
     if topic_id:
@@ -574,12 +571,13 @@ async def send_message_stream(
             active_topic = topic
             # 设置为活跃话题
             TopicService.set_active_topic(db, conversation_id, topic.id)
-    
-    # 如果没有活跃话题，创建一个新话题
-    if not active_topic:
+    else:
+        # 如果没有指定话题ID，总是创建一个新话题
         # 使用默认标题创建话题
         topic_name = "新话题"
         active_topic = TopicService.create_topic(db, conversation_id, topic_name)
+        # 设置新创建的话题为活跃话题
+        TopicService.set_active_topic(db, conversation_id, active_topic.id)
     
     # 创建流式响应优化器
     strategy_mapping = {
@@ -604,13 +602,6 @@ async def send_message_stream(
     db.commit()
     db.refresh(user_message)
     
-    # 如果话题标题是默认的"新话题"，立即生成更好的标题
-    if active_topic.topic_name == "新话题":
-        topic_title = TopicTitleGenerator.generate_title_from_messages(db, conversation_id)
-        if topic_title != "新话题":
-            TopicService.update_topic(db, active_topic.id, topic_name=topic_title)
-            active_topic.topic_name = topic_title
-    
     async def stream_generator():
         import json
         
@@ -623,7 +614,12 @@ async def send_message_stream(
             # 重新查询活跃话题，确保获取最新的话题信息
             active_topic = TopicService.get_active_topic(stream_db, conversation_id)
             
-            # 发送话题信息
+            # 如果没有活跃话题，创建一个新话题
+            if not active_topic:
+                topic_name = "新话题"
+                active_topic = TopicService.create_topic(stream_db, conversation_id, topic_name)
+            
+            # 立即发送话题信息，确保前端能够快速响应
             topic_data = {
                 "type": "topic",
                 "topic": {
@@ -636,13 +632,59 @@ async def send_message_stream(
             }
             yield f"data: {json.dumps(topic_data, ensure_ascii=False)}\n\n"
             
-            # 发送用户消息确认
+            # 立即发送用户消息确认，让用户知道系统已经收到了他们的消息
             user_msg_data = {
                 "type": "user_message",
-                "content": "消息已收到",
-                "message_id": 1
+                "content": sanitized_content,
+                "message_id": user_message.id,
+                "role": "user",
+                "created_at": user_message.created_at.isoformat() if user_message.created_at else None
             }
             yield f"data: {json.dumps(user_msg_data, ensure_ascii=False)}\n\n"
+            
+            # 发送开始处理消息，让用户知道系统正在处理他们的请求
+            processing_data = {
+                "type": "processing",
+                "content": "正在处理您的请求..."
+            }
+            yield f"data: {json.dumps(processing_data, ensure_ascii=False)}\n\n"
+            
+            # 异步生成话题标题，不阻塞流式响应
+            async def generate_topic_title_async():
+                try:
+                    if active_topic.topic_name == "新话题":
+                        print("[流式响应]开始异步生成话题标题...")
+                        topic_title = await asyncio.to_thread(
+                            TopicTitleGenerator.generate_title_from_messages, 
+                            stream_db, 
+                            conversation_id, 
+                            active_topic.id
+                        )
+                        print(f"[流式响应]生成的标题: {topic_title}")
+                        if topic_title != "新对话" and topic_title != "新话题":
+                            TopicService.update_topic(stream_db, active_topic.id, topic_name=topic_title)
+                            active_topic.topic_name = topic_title
+                            print(f"[流式响应]话题标题已更新为: {active_topic.topic_name}")
+                            
+                            # 发送更新后的话题信息
+                            updated_topic_data = {
+                                "type": "topic",
+                                "topic": {
+                                    "id": active_topic.id,
+                                    "title": active_topic.topic_name,
+                                    "conversation_id": active_topic.conversation_id,
+                                    "message_count": active_topic.message_count,
+                                    "created_at": active_topic.created_at.isoformat() if active_topic.created_at else None
+                                }
+                            }
+                            return updated_topic_data
+                except Exception as e:
+                    print(f"生成话题标题失败: {str(e)}")
+                    # 继续执行，不影响流式响应
+                return None
+            
+            # 启动异步生成话题标题的任务
+            topic_title_task = asyncio.create_task(generate_topic_title_async())
             
             if use_llm:
                 # 只获取当前活跃话题的消息作为上下文，而不是整个对话的消息
@@ -661,18 +703,32 @@ async def send_message_stream(
                 # 使用LLM生成回复
                 ai_content = ""
                 reasoning_content = ""
+                full_reasoning_content = ""
+                
+                # 发送开始生成回复的消息
+                generating_data = {
+                    "type": "generating",
+                    "content": "正在生成回复..."
+                }
+                yield f"data: {json.dumps(generating_data, ensure_ascii=False)}\n\n"
+                
                 try:
                     # 使用请求中的模型名称，如果没有则使用默认值
                     llm_model_name = model_name or "gpt-3.5-turbo"
                     print(f"调用enhanced_llm_service.chat_completion，模型: {llm_model_name}")
                     print(f"聊天消息: {chat_messages}")
                     
-                    llm_response = enhanced_llm_service.chat_completion(
-                        messages=chat_messages,
-                        model_name=llm_model_name,
-                        db=stream_db,
-                        agent_id=conversation.agent_id
-                    )
+                    # 异步调用LLM服务，避免阻塞流式响应
+                    async def call_llm_async():
+                        return await asyncio.to_thread(
+                            enhanced_llm_service.chat_completion,
+                            messages=chat_messages,
+                            model_name=llm_model_name,
+                            db=stream_db,
+                            agent_id=conversation.agent_id
+                        )
+                    
+                    llm_response = await call_llm_async()
                     
                     print(f"LLM响应类型: {type(llm_response)}")
                     
@@ -682,61 +738,82 @@ async def send_message_stream(
                         full_ai_content = ""
                         full_reasoning_content = ""
                         
-                        # 直接转发流式响应块，不使用优化器重新生成
-                        for chunk in llm_response:
-                            print(f"实时转发流式块: {chunk}")
-                            yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
+                        try:
+                            # 直接转发流式响应块，不使用优化器重新生成
+                            for chunk in llm_response:
+                                print(f"实时转发流式块: {chunk}")
+                                yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
+                                
+                                if chunk["type"] == "thinking":
+                                    # 累积思维链信息
+                                    full_reasoning_content += chunk['content']
+                                elif chunk["type"] == "content":
+                                    # 累积内容信息
+                                    full_ai_content += chunk['content']
+                                
+                                # 使用优化器的延迟控制
+                                await asyncio.sleep(optimizer.current_delay)
                             
-                            if chunk["type"] == "thinking":
-                                # 累积思维链信息
-                                full_reasoning_content += chunk['content']
-                            elif chunk["type"] == "content":
-                                # 累积内容信息
-                                full_ai_content += chunk['content']
-                            
-                            # 使用优化器的延迟控制
-                            await asyncio.sleep(optimizer.current_delay)
-                        
-                        ai_content = full_ai_content
+                            ai_content = full_ai_content
+                        except Exception as e:
+                            print(f"处理流式响应生成器失败: {str(e)}")
+                            # 发送错误消息
+                            error_data = {"type": "content", "content": f"抱歉，处理流式响应时发生错误: {str(e)}"}
+                            yield f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"
+                            ai_content = f"抱歉，处理流式响应时发生错误: {str(e)}"
                     else:
                         # 处理非流式响应
                         print(f"LLM响应: {llm_response}")
                         
                         # 检查LLM调用是否成功
-                        if llm_response.get("success", True):
-                            ai_content = llm_response.get("generated_text", "抱歉，我无法生成回复。")
-                            print(f"提取的AI内容: {ai_content}")
-                            
-                            # 检查是否有思维链信息
-                            reasoning_content = llm_response.get("reasoning_content", "")
-                            print(f"提取的思维链内容: {reasoning_content}")
+                        if isinstance(llm_response, dict):
+                            if llm_response.get("success", True):
+                                ai_content = llm_response.get("generated_text", "抱歉，我无法生成回复。")
+                                print(f"提取的AI内容: {ai_content}")
+                                
+                                # 检查是否有思维链信息
+                                reasoning_content = llm_response.get("reasoning_content", "")
+                                print(f"提取的思维链内容: {reasoning_content}")
+                            else:
+                                # 如果调用失败，使用失败原因作为回复
+                                ai_content = llm_response.get("generated_text", "抱歉，我无法生成回复。")
+                                print(f"LLM调用失败，返回错误信息: {ai_content}")
+                                # 如果有详细的失败分析，也加入到回复中
+                                if "failure_analysis" in llm_response:
+                                    ai_content += f"\n\n详细分析: {llm_response['failure_analysis']}"
                         else:
-                            # 如果调用失败，使用失败原因作为回复
-                            ai_content = llm_response.get("generated_text", "抱歉，我无法生成回复。")
-                            print(f"LLM调用失败，返回错误信息: {ai_content}")
-                            # 如果有详细的失败分析，也加入到回复中
-                            if "failure_analysis" in llm_response:
-                                ai_content += f"\n\n详细分析: {llm_response['failure_analysis']}"
+                            # 如果响应不是字典，使用默认错误消息
+                            ai_content = "抱歉，LLM服务返回了无效响应"
+                            print(f"LLM响应格式错误: {type(llm_response)}")
                         
                         # 检查是否启用了思维链，如果启用则发送思维链信息
-                        if enable_thinking_chain and reasoning_content:
+                        if enable_thinking_chain and 'reasoning_content' in locals() and reasoning_content:
                             # 使用优化器生成流式响应
-                            async for chunk in optimizer.generate_streaming_chunks(
-                                reasoning_content,
-                                chunk_type="thinking",
-                                metadata={"strategy": strategy.value}
-                            ):
-                                yield f"data: {json.dumps(chunk)}\n\n"
+                            try:
+                                async for chunk in optimizer.generate_streaming_chunks(
+                                    reasoning_content,
+                                    chunk_type="thinking",
+                                    metadata={"strategy": strategy.value}
+                                ):
+                                    yield f"data: {json.dumps(chunk)}\n\n"
+                            except Exception as e:
+                                print(f"生成思维链流式响应失败: {str(e)}")
                         
                         # 如果获取到了回复，使用优化器生成流式响应
                         if ai_content:
                             # 使用优化器生成逐字符流式响应
-                            async for chunk in optimizer.generate_character_streaming(
-                                ai_content,
-                                chunk_type="content",
-                                metadata={"strategy": strategy.value}
-                            ):
-                                yield f"data: {json.dumps(chunk)}\n\n"
+                            try:
+                                async for chunk in optimizer.generate_character_streaming(
+                                    ai_content,
+                                    chunk_type="content",
+                                    metadata={"strategy": strategy.value}
+                                ):
+                                    yield f"data: {json.dumps(chunk)}\n\n"
+                            except Exception as e:
+                                print(f"生成内容流式响应失败: {str(e)}")
+                                # 直接发送完整的错误消息
+                                error_data = {"type": "content", "content": f"抱歉，生成流式响应时发生错误: {str(e)}"}
+                                yield f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"
                 except (AttributeError, TypeError) as e:
                     print(f"chat_completion调用失败: {str(e)}")
                     # 使用错误信息作为回复
@@ -757,11 +834,16 @@ async def send_message_stream(
                     # 重新查询活跃话题，确保获取最新的话题信息
                     active_topic = TopicService.get_active_topic(stream_db, conversation_id)
                     
+                    # 如果没有活跃话题，创建一个新话题
+                    if not active_topic:
+                        topic_name = "新话题"
+                        active_topic = TopicService.create_topic(stream_db, conversation_id, topic_name)
+                    
                     assistant_message = Message(
                         conversation_id=conversation_id,
                         role="assistant",
                         content=ai_content,
-                        topic_id=active_topic.id if active_topic else None,
+                        topic_id=active_topic.id,
                         created_at=datetime.utcnow()
                     )
                     stream_db.add(assistant_message)
@@ -790,36 +872,52 @@ async def send_message_stream(
                         print(f"已保存思维链信息，共 {len(reasoning_steps)} 个步骤")
                     
                     # 更新话题的消息计数和结束消息ID
-                    if active_topic:
-                        TopicService.increment_message_count(stream_db, active_topic.id, count=2)
-                        TopicService.update_end_message(stream_db, active_topic.id, assistant_message.id)
-                        
-                        # 如果话题标题是默认的"新话题"，尝试生成更好的标题
-                        if active_topic.topic_name == "新话题":
-                            topic_title = TopicTitleGenerator.generate_title_from_messages(stream_db, conversation_id)
-                            if topic_title != "新话题":
-                                TopicService.update_topic(stream_db, active_topic.id, topic_name=topic_title)
-                                active_topic.topic_name = topic_title
-                                
-                                # 发送话题更新信息
-                                topic_data = {
-                                    "type": "topic",
-                                    "topic": {
-                                        "id": active_topic.id,
-                                        "title": active_topic.topic_name,
-                                        "conversation_id": active_topic.conversation_id,
-                                        "message_count": active_topic.message_count,
-                                        "created_at": active_topic.created_at.isoformat() if active_topic.created_at else None
-                                    }
+                    TopicService.increment_message_count(stream_db, active_topic.id, count=2)
+                    TopicService.update_end_message(stream_db, active_topic.id, assistant_message.id)
+                    
+                    # 如果话题标题是默认的"新话题"，尝试生成更好的标题
+                    print(f"[流式响应]检查话题标题: active_topic.topic_name={active_topic.topic_name}")
+                    if active_topic.topic_name == "新话题":
+                        print("[流式响应]开始调用TopicTitleGenerator生成标题...")
+                        topic_title = TopicTitleGenerator.generate_title_from_messages(stream_db, conversation_id, active_topic.id)
+                        print(f"[流式响应]生成的标题: {topic_title}")
+                        if topic_title != "新对话" and topic_title != "新话题":
+                            TopicService.update_topic(stream_db, active_topic.id, topic_name=topic_title)
+                            active_topic.topic_name = topic_title
+                            print(f"[流式响应]话题标题已更新为: {active_topic.topic_name}")
+                            
+                            # 发送话题更新信息
+                            topic_data = {
+                                "type": "topic",
+                                "topic": {
+                                    "id": active_topic.id,
+                                    "title": active_topic.topic_name,
+                                    "conversation_id": active_topic.conversation_id,
+                                    "message_count": active_topic.message_count,
+                                    "created_at": active_topic.created_at.isoformat() if active_topic.created_at else None
                                 }
-                                yield f"data: {json.dumps(topic_data, ensure_ascii=False)}\n\n"
+                            }
+                            yield f"data: {json.dumps(topic_data, ensure_ascii=False)}\n\n"
                 
-                # 发送完成信号
+                # 发送完成信号，让前端知道处理已经完成
                 yield "data: {\"type\": \"complete\", \"content\": \"\"}\n\n"
+            
+            # 等待话题标题生成任务完成
+            try:
+                updated_topic_data = await topic_title_task
+                if updated_topic_data:
+                    # 发送更新后的话题信息
+                    yield f"data: {json.dumps(updated_topic_data, ensure_ascii=False)}\n\n"
+            except Exception as e:
+                print(f"等待话题标题生成任务失败: {str(e)}")
+                # 继续执行，不影响流式响应
         except Exception as e:
             # 发送错误信息
             error_msg = f"流式响应生成失败: {str(e)}"
+            print(f"流式响应处理异常: {str(e)}")
             yield f"data: {json.dumps({'type': 'error', 'content': error_msg})}\n\n"
+            # 确保发送完成信号
+            yield "data: {\"type\": \"complete\", \"content\": \"\"}\n\n"
         finally:
             # 不要关闭数据库会话，因为我们使用的是外部传入的 db 会话
             pass
@@ -973,7 +1071,7 @@ async def get_conversation_models(db: Session = Depends(get_db)) -> Dict[str, An
 @router.post("/{conversation_id}/topics")
 async def create_topic(
     conversation_id: int,
-    topic_name: str = Body(..., embed=True),
+    topic_name: Optional[str] = Body(None, embed=True),
     db: Session = Depends(get_db)
 ) -> TopicResponse:
     """
@@ -986,6 +1084,11 @@ async def create_topic(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="对话不存在"
         )
+    
+    # 如果没有提供话题名称，使用默认标题"新话题"
+    # 真正的标题会在用户发送第一条消息后由大模型生成
+    if not topic_name or topic_name.strip() == '':
+        topic_name = "新话题"
     
     # 创建话题
     topic = TopicService.create_topic(db, conversation_id, topic_name)

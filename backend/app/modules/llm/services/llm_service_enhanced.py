@@ -319,7 +319,7 @@ class EnhancedLLMService:
             return self._get_api_error_response(supplier_display_name, str(e), model_name, start_time)
     
     def _call_siliconflow_api(self, messages, model_name, api_endpoint, api_key, 
-                             max_tokens, temperature, start_time):
+                             max_tokens, temperature, start_time, retry_without_thinking=False):
         """调用硅基流动API（支持流式响应）"""
         import requests
         import json
@@ -335,15 +335,15 @@ class EnhancedLLMService:
             "stream": True
         }
         
-        # 检查是否需要开启思考模式
+        # 检查是否需要开启思考模式（仅在首次调用时尝试）
         thinking_enabled = False
-        if (
+        if not retry_without_thinking and (
             "deepseek" in model_name.lower() or 
-            "moonshotai" in model_name.lower() or 
+            ("moonshotai" in model_name.lower() and "kimi-k2-thinking" not in model_name.lower()) or 
             ("thinking" in model_name.lower() and "qwen" in model_name.lower())
         ):
             # 如果是支持思考模式的模型，添加思考模式参数
-            payload["thinking"] = {"type": "enabled"}
+            payload["enable_thinking"] = True
             thinking_enabled = True
             logger.info(f"为硅基流动模型 {model_name} 启用思考模式")
         
@@ -375,8 +375,16 @@ class EnhancedLLMService:
             ) as response:
                 
                 if response.status_code != 200:
-                    logger.error(f"硅基流动API调用失败，状态码: {response.status_code}，响应: {response.text[:200]}")
-                    raise Exception(f"硅基流动API调用失败，状态码: {response.status_code}, 响应: {response.text[:200]}")
+                    error_text = response.text[:200]
+                    logger.error(f"硅基流动API调用失败，状态码: {response.status_code}，响应: {error_text}")
+                    
+                    # 如果是因为不支持 thinking 参数导致的错误，并且这是第一次尝试，则重试不使用 thinking 参数
+                    if thinking_enabled and not retry_without_thinking and "does not support parameter enable_thinking" in error_text:
+                        logger.warning(f"模型 {model_name} 不支持 thinking 参数，重试不使用 thinking 参数")
+                        return self._call_siliconflow_api(messages, model_name, api_endpoint, api_key, 
+                                                       max_tokens, temperature, start_time, retry_without_thinking=True)
+                    
+                    raise Exception(f"硅基流动API调用失败，状态码: {response.status_code}, 响应: {error_text}")
                 
                 # 确保响应是流式的
                 if 'text/event-stream' not in response.headers.get('Content-Type', ''):
@@ -506,7 +514,7 @@ class EnhancedLLMService:
             raise Exception(f"硅基流动API调用失败: {e}")
     
     def _call_deepseek_api_directly(self, messages, model_name, api_endpoint, api_key, 
-                                   max_tokens, temperature, start_time):
+                                   max_tokens, temperature, start_time, retry_without_thinking=False):
         """直接调用DeepSeek API（支持流式响应）"""
         import requests
         import json
@@ -522,11 +530,11 @@ class EnhancedLLMService:
             "stream": True
         }
         
-        # 检查是否需要开启思考模式
+        # 检查是否需要开启思考模式（仅在首次调用时尝试）
         thinking_enabled = False
-        if "deepseek" in model_name.lower():
+        if not retry_without_thinking and "deepseek" in model_name.lower():
             # DeepSeek模型支持thinking参数
-            payload["thinking"] = {"type": "enabled"}
+            payload["enable_thinking"] = True
             thinking_enabled = True
             logger.info(f"为DeepSeek模型 {model_name} 启用思考模式")
         
@@ -557,8 +565,16 @@ class EnhancedLLMService:
             ) as response:
                 
                 if response.status_code != 200:
-                    logger.error(f"DeepSeek API调用失败，状态码: {response.status_code}，响应: {response.text[:200]}")
-                    raise Exception(f"DeepSeek API调用失败，状态码: {response.status_code}, 响应: {response.text[:200]}")
+                    error_text = response.text[:200]
+                    logger.error(f"DeepSeek API调用失败，状态码: {response.status_code}，响应: {error_text}")
+                    
+                    # 如果是因为不支持 thinking 参数导致的错误，并且这是第一次尝试，则重试不使用 thinking 参数
+                    if thinking_enabled and not retry_without_thinking and "does not support parameter enable_thinking" in error_text:
+                        logger.warning(f"模型 {model_name} 不支持 thinking 参数，重试不使用 thinking 参数")
+                        return self._call_deepseek_api_directly(messages, model_name, api_endpoint, api_key, 
+                                                             max_tokens, temperature, start_time, retry_without_thinking=True)
+                    
+                    raise Exception(f"DeepSeek API调用失败，状态码: {response.status_code}, 响应: {error_text}")
                 
                 # 确保响应是流式的
                 if 'text/event-stream' not in response.headers.get('Content-Type', ''):
