@@ -157,16 +157,73 @@ class EnhancedChatService:
         if chat_request.file_ids:
             db = next(get_db())
             try:
+                from pathlib import Path
+                
                 files = db.query(UploadedFile).filter(
                     UploadedFile.id.in_(chat_request.file_ids)
                 ).all()
-                context["files"] = [
-                    {
+                
+                file_contents = []
+                for file in files:
+                    file_info = {
                         "id": file.id,
                         "filename": file.filename,
                         "file_type": file.file_type
-                    } for file in files
-                ]
+                    }
+                    
+                    # 尝试读取文件内容
+                    try:
+                        file_path = Path(file.file_path)
+                        if file_path.exists():
+                            if file.file_type in ['text', 'pdf', 'word', 'excel']:
+                                try:
+                                    with open(file_path, 'r', encoding='utf-8') as f:
+                                        content = f.read()
+                                        file_info['content'] = content
+                                        print(f"成功读取文件 {file.filename} 内容 (UTF-8), 长度: {len(content)}")
+                                except UnicodeDecodeError:
+                                    try:
+                                        with open(file_path, 'r', encoding='gbk') as f:
+                                            content = f.read()
+                                            file_info['content'] = content
+                                            print(f"成功读取文件 {file.filename} 内容 (GBK), 长度: {len(content)}")
+                                    except Exception as e:
+                                        print(f"无法读取文件 {file.filename}: {str(e)}")
+                                except Exception as e:
+                                    print(f"读取文件 {file.filename} 时出错: {str(e)}")
+                            else:
+                                # 对于非文本文件，只添加文件信息
+                                file_info['content'] = f"[文件类型: {file.file_type}, 大小: {file.file_size} 字节]"
+                                print(f"非文本文件 {file.filename}, 只添加文件信息")
+                        else:
+                            print(f"文件不存在: {file_path}")
+                    except Exception as e:
+                        print(f"处理文件 {file.filename} 时出错: {str(e)}")
+                    
+                    file_contents.append(file_info)
+                
+                context["files"] = file_contents
+                
+                # 如果有文件内容，将其附加到用户消息中
+                if file_contents:
+                    file_info_text = "\n\n[附件文件信息]\n"
+                    for fc in file_contents:
+                        file_info_text += f"\n文件名: {fc['filename']}\n"
+                        file_info_text += f"类型: {fc['type']}\n"
+                        if 'content' in fc and fc['type'] in ['text', 'pdf', 'word', 'excel']:
+                            # 限制文件内容长度，避免超出模型上下文限制
+                            content = fc['content']
+                            if len(content) > 5000:
+                                content = content[:5000] + "\n... (内容过长，已截断)"
+                            file_info_text += f"内容:\n{content}\n"
+                            print(f"文件 {fc['filename']} 内容长度: {len(fc['content'])}, 截断后长度: {len(content)}")
+                        else:
+                            file_info_text += f"说明: {fc.get('content', 'N/A')}\n"
+                    
+                    context["user_message"] = context["user_message"] + file_info_text
+                    print(f"已附加 {len(file_contents)} 个文件的内容到消息中")
+                    print(f"最终消息内容长度: {len(context['user_message'])}")
+                    print(f"最终消息内容前500字符: {context['user_message'][:500]}")
             finally:
                 db.close()
         

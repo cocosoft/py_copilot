@@ -253,6 +253,68 @@
   line-height: 1.5;
 }
 
+.uploaded-files {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.uploaded-file-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.uploaded-file-item:hover {
+  background: #f0f0f0;
+}
+
+.file-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.file-name {
+  flex: 1;
+  font-size: 13px;
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+
+.file-size {
+  font-size: 11px;
+  color: #666;
+  flex-shrink: 0;
+}
+
+.file-remove-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #999;
+  font-size: 14px;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background 0.2s, color 0.2s;
+  flex-shrink: 0;
+}
+
+.file-remove-btn:hover {
+  background: #e0e0e0;
+  color: #ff4444;
+}
+
 .message-input {
   flex: 1;
   padding: 12px;
@@ -310,6 +372,77 @@
 
 .send-text {
   font-size: 14px;
+}
+
+/* emoji选择器样式 */
+.emoji-picker {
+  position: absolute;
+  bottom: 100%;
+  left: 20px;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  width: 520px;
+  max-height: 400px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.emoji-categories {
+  display: flex;
+  gap: 2px;
+  padding: 6px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e0e0e0;
+  overflow-x: auto;
+}
+
+.emoji-category-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 4px;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.emoji-category-btn:hover {
+  background: #e0e0e0;
+}
+
+.emoji-category-btn.active {
+  background: #007bff;
+  color: white;
+}
+
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 2px;
+  padding: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.emoji-item {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 4px;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.emoji-item:hover {
+  background: #f0f0f0;
 }
 
 /* 深色模式 */
@@ -408,6 +541,36 @@
   color: #e0e0e0;
 }
 
+[data-theme="dark"] .uploaded-files {
+  background: transparent;
+}
+
+[data-theme="dark"] .uploaded-file-item {
+  background: #2d2d2d;
+  border-color: #444;
+}
+
+[data-theme="dark"] .uploaded-file-item:hover {
+  background: #3d3d3d;
+}
+
+[data-theme="dark"] .file-name {
+  color: #e0e0e0;
+}
+
+[data-theme="dark"] .file-size {
+  color: #999;
+}
+
+[data-theme="dark"] .file-remove-btn {
+  color: #999;
+}
+
+[data-theme="dark"] .file-remove-btn:hover {
+  background: #4d4d4d;
+  color: #ff6666;
+}
+
 [data-theme="dark"] .message-input {
   background: #2d2d2d;
   border-color: #444;
@@ -420,4 +583,28 @@
 
 [data-theme="dark"] .send-btn:disabled {
   background: #444;
+}
+
+/* 深色模式下的emoji选择器样式 */
+[data-theme="dark"] .emoji-picker {
+  background: #1e1e1e;
+  border-color: #444;
+}
+
+[data-theme="dark"] .emoji-categories {
+  background: #2d2d2d;
+  border-bottom-color: #444;
+}
+
+[data-theme="dark"] .emoji-category-btn:hover {
+  background: #3d3d3d;
+}
+
+[data-theme="dark"] .emoji-category-btn.active {
+  background: #007bff;
+  color: white;
+}
+
+[data-theme="dark"] .emoji-item:hover {
+  background: #3d3d3d;
 }

@@ -227,8 +227,8 @@ async def proxy_v1_request(path: str, request: Request):
                 except:
                     body = None
             
-            # 直接转发到主应用程序（运行在端口8007上）
-            target_url = f"http://localhost:8007/api/v1/{path}"
+            # 直接转发到主应用程序（运行在端口8000上）
+            target_url = f"http://localhost:8000/api/v1/{path}"
             
             # 检查是否是流式请求
             if path.endswith("stream"):

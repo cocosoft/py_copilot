@@ -36,6 +36,7 @@ from app.api.v1.supplier_model import router as supplier_model_v1_router
 from app.api.v1.skills import router as skills_router
 from app.api.v1.external_skills import router as external_skills_router
 from app.api.v1.skill_management_router import router as skill_management_router
+from app.api.v1.file_upload import router as file_upload_router
 
 api_router = APIRouter()
 
@@ -125,6 +126,9 @@ api_router.include_router(terminology_router, tags=["terminology"])
 # 注册智能体编排系统路由
 from app.modules.orchestration.api import router as orchestration_router
 api_router.include_router(orchestration_router, prefix="/orchestration", tags=["orchestration"])
+
+# 注册文件上传路由
+api_router.include_router(file_upload_router, prefix="/file-upload", tags=["file-upload"])
 
 # 导出API路由对象
 __all__ = ["api_router"]

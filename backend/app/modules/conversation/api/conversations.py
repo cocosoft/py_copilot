@@ -263,6 +263,13 @@ async def send_message(
     """
     在对话中发送消息
     """
+    print(f"========== 收到发送消息请求 ==========")
+    print(f"conversation_id: {conversation_id}")
+    print(f"request.content: {request.content}")
+    print(f"request.attached_files: {request.attached_files}")
+    print(f"request type: {type(request)}")
+    print(f"===============================")
+    
     # 查询对话
     conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
     
@@ -289,6 +296,77 @@ async def send_message(
     
     # 使用清理后的内容
     sanitized_content = validation_result['sanitized_content']
+    
+    # 处理附件文件
+    file_contents = []
+    print(f"========== 处理附件文件 ==========")
+    print(f"收到的文件ID列表: {request.attached_files}")
+    if request.attached_files and len(request.attached_files) > 0:
+        from app.models.chat_enhancements import UploadedFile
+        from pathlib import Path
+        
+        for file_id in request.attached_files:
+            try:
+                print(f"正在处理文件ID: {file_id}")
+                uploaded_file = db.query(UploadedFile).filter(UploadedFile.id == file_id).first()
+                if uploaded_file:
+                    print(f"找到文件记录: {uploaded_file.file_name}, 类型: {uploaded_file.file_type}, 路径: {uploaded_file.file_path}")
+                    # 确保文件路径是绝对路径
+                    file_path = Path(uploaded_file.file_path)
+                    if not file_path.is_absolute():
+                        # 如果是相对路径，转换为绝对路径
+                        file_path = Path(__file__).parent.parent.parent.parent / uploaded_file.file_path
+                        print(f"转换为绝对路径: {file_path}")
+                    if file_path.exists():
+                        # 使用文件处理器服务处理文件
+                        from app.modules.file.services.file_processor import file_processor_service
+                        try:
+                            file_result = file_processor_service.process_file(
+                                file_path=file_path,
+                                file_name=uploaded_file.file_name,
+                                file_type=uploaded_file.file_type
+                            )
+                            file_contents.append(file_result)
+                            print(f"文件处理结果: {file_result['filename']}, 内容长度: {len(file_result['content'])}")
+                        except Exception as e:
+                            print(f"文件处理器出错: {str(e)}")
+                            file_contents.append({
+                                'filename': uploaded_file.file_name,
+                                'content': f"[文件内容读取失败: {str(e)}]",
+                                'type': uploaded_file.file_type
+                            })
+                    else:
+                        print(f"文件不存在: {file_path}")
+                else:
+                    print(f"未找到文件ID: {file_id}")
+            except Exception as e:
+                print(f"处理文件 {file_id} 时出错: {str(e)}")
+        
+        # 如果有文件内容，将其附加到用户消息中
+        if file_contents:
+            file_info = "\n\n[附件文件信息]\n"
+            for fc in file_contents:
+                file_info += f"\n文件名: {fc['filename']}\n"
+                file_info += f"类型: {fc['type']}\n"
+                if fc['type'] in ['text', 'pdf', 'word', 'excel', 'ppt']:
+                    # 限制文件内容长度，避免超出模型上下文限制
+                    content = fc['content']
+                    if len(content) > 5000:
+                        content = content[:5000] + "\n... (内容过长，已截断)"
+                    file_info += f"内容:\n{content}\n"
+                    print(f"文件 {fc['filename']} 内容长度: {len(fc['content'])}, 截断后长度: {len(content)}")
+                else:
+                    file_info += f"说明: {fc['content']}\n"
+            
+            sanitized_content = sanitized_content + file_info
+            print(f"已附加 {len(file_contents)} 个文件的内容到消息中")
+            print(f"最终消息内容长度: {len(sanitized_content)}")
+            print(f"最终消息内容前500字符: {sanitized_content[:500]}")
+        else:
+            print("没有文件内容被附加")
+    else:
+        print("没有附件文件")
+    print(f"===============================")
     
     # 获取或创建活跃话题
     active_topic = TopicService.get_active_topic(db, conversation_id)
@@ -341,9 +419,13 @@ async def send_message(
             try:
                 # 使用请求中的模型名称，如果没有则使用默认值
                 model_name = request.model_name or "gpt-3.5-turbo"
-                print(f"调用enhanced_llm_service.chat_completion，模型: {model_name}")
-                print(f"聊天消息: {chat_messages}")
+                print(f"========== 调用LLM ==========")
+                print(f"模型: {model_name}")
+                print(f"聊天消息数量: {len(chat_messages)}")
+                print(f"传递给LLM的最后一条消息长度: {len(sanitized_content)}")
+                print(f"传递给LLM的最后一条消息前500字符: {sanitized_content[:500]}")
                 print(f"传递的agent_id参数: {conversation.agent_id}")
+                print(f"==============================")
                 llm_response = enhanced_llm_service.chat_completion(
                     messages=chat_messages,
                     model_name=model_name,
@@ -549,6 +631,7 @@ async def send_message_stream(
     enable_thinking_chain = request.enable_thinking_chain
     streaming_strategy = "balanced"
     topic_id = request.topic_id
+    attached_files = request.attached_files
     
     # 验证消息内容
     validation_result = validate_message_content(content)
@@ -560,6 +643,77 @@ async def send_message_stream(
     
     # 使用清理后的内容
     sanitized_content = validation_result['sanitized_content']
+    
+    # 处理附件文件
+    file_contents = []
+    print(f"========== 处理附件文件 (流式) ==========")
+    print(f"收到的文件ID列表: {attached_files}")
+    if attached_files and len(attached_files) > 0:
+        from app.models.chat_enhancements import UploadedFile
+        from pathlib import Path
+        
+        for file_id in attached_files:
+            try:
+                print(f"正在处理文件ID: {file_id}")
+                uploaded_file = db.query(UploadedFile).filter(UploadedFile.id == file_id).first()
+                if uploaded_file:
+                    print(f"找到文件记录: {uploaded_file.file_name}, 类型: {uploaded_file.file_type}, 路径: {uploaded_file.file_path}")
+                    # 确保文件路径是绝对路径
+                    file_path = Path(uploaded_file.file_path)
+                    if not file_path.is_absolute():
+                        # 如果是相对路径，转换为绝对路径
+                        file_path = Path(__file__).parent.parent.parent.parent / uploaded_file.file_path
+                        print(f"转换为绝对路径: {file_path}")
+                    if file_path.exists():
+                        # 使用文件处理器服务处理文件
+                        from app.modules.file.services.file_processor import file_processor_service
+                        try:
+                            file_result = file_processor_service.process_file(
+                                file_path=file_path,
+                                file_name=uploaded_file.file_name,
+                                file_type=uploaded_file.file_type
+                            )
+                            file_contents.append(file_result)
+                            print(f"文件处理结果: {file_result['filename']}, 内容长度: {len(file_result['content'])}")
+                        except Exception as e:
+                            print(f"文件处理器出错: {str(e)}")
+                            file_contents.append({
+                                'filename': uploaded_file.file_name,
+                                'content': f"[文件内容读取失败: {str(e)}]",
+                                'type': uploaded_file.file_type
+                            })
+                    else:
+                        print(f"文件不存在: {file_path}")
+                else:
+                    print(f"未找到文件ID: {file_id}")
+            except Exception as e:
+                print(f"处理文件 {file_id} 时出错: {str(e)}")
+        
+        # 如果有文件内容，将其附加到用户消息中
+        if file_contents:
+            file_info = "\n\n[附件文件信息]\n"
+            for fc in file_contents:
+                file_info += f"\n文件名: {fc['filename']}\n"
+                file_info += f"类型: {fc['type']}\n"
+                if fc['type'] in ['text', 'pdf', 'word', 'excel', 'ppt']:
+                    # 限制文件内容长度，避免超出模型上下文限制
+                    content = fc['content']
+                    if len(content) > 5000:
+                        content = content[:5000] + "\n... (内容过长，已截断)"
+                    file_info += f"内容:\n{content}\n"
+                    print(f"文件 {fc['filename']} 内容长度: {len(fc['content'])}, 截断后长度: {len(content)}")
+                else:
+                    file_info += f"说明: {fc['content']}\n"
+            
+            sanitized_content = sanitized_content + file_info
+            print(f"已附加 {len(file_contents)} 个文件的内容到消息中")
+            print(f"最终消息内容长度: {len(sanitized_content)}")
+            print(f"最终消息内容前500字符: {sanitized_content[:500]}")
+        else:
+            print("没有文件内容被附加")
+    else:
+        print("没有附件文件")
+    print(f"===============================")
     
     # 重置活跃话题，确保在新话题状态下能够创建新话题
     active_topic = None
@@ -579,17 +733,6 @@ async def send_message_stream(
         # 设置新创建的话题为活跃话题
         TopicService.set_active_topic(db, conversation_id, active_topic.id)
     
-    # 创建流式响应优化器
-    strategy_mapping = {
-        "fast": StreamingStrategy.FAST,
-        "balanced": StreamingStrategy.BALANCED,
-        "smooth": StreamingStrategy.SMOOTH,
-        "adaptive": StreamingStrategy.ADAPTIVE
-    }
-    strategy = strategy_mapping.get(streaming_strategy, StreamingStrategy.BALANCED)
-    config = StreamingConfig(strategy=strategy)
-    optimizer = StreamingOptimizer(config)
-    
     # 创建用户消息
     user_message = Message(
         conversation_id=conversation_id,
@@ -602,93 +745,24 @@ async def send_message_stream(
     db.commit()
     db.refresh(user_message)
     
-    async def stream_generator():
-        import json
+    # 构建初始响应
+    initial_response = {
+        "status": "processing",
+        "message_id": user_message.id,
+        "conversation_id": conversation_id,
+        "topic_id": active_topic.id,
+        "created_at": datetime.utcnow().isoformat()
+    }
+    
+    # 异步生成响应
+    async def generate_response():
+        # 发送初始响应
+        yield f"data: {json.dumps(initial_response)}\n\n"
         
-        # 使用同一个数据库会话，避免事务隔离的问题
-        stream_db = db
-        try:
-            # 重新查询对话对象，确保获取最新的对话信息
-            conversation = stream_db.query(Conversation).filter(Conversation.id == conversation_id).first()
-            
-            # 重新查询活跃话题，确保获取最新的话题信息
-            active_topic = TopicService.get_active_topic(stream_db, conversation_id)
-            
-            # 如果没有活跃话题，创建一个新话题
-            if not active_topic:
-                topic_name = "新话题"
-                active_topic = TopicService.create_topic(stream_db, conversation_id, topic_name)
-            
-            # 立即发送话题信息，确保前端能够快速响应
-            topic_data = {
-                "type": "topic",
-                "topic": {
-                    "id": active_topic.id,
-                    "title": active_topic.topic_name,
-                    "conversation_id": active_topic.conversation_id,
-                    "message_count": active_topic.message_count,
-                    "created_at": active_topic.created_at.isoformat() if active_topic.created_at else None
-                }
-            }
-            yield f"data: {json.dumps(topic_data, ensure_ascii=False)}\n\n"
-            
-            # 立即发送用户消息确认，让用户知道系统已经收到了他们的消息
-            user_msg_data = {
-                "type": "user_message",
-                "content": sanitized_content,
-                "message_id": user_message.id,
-                "role": "user",
-                "created_at": user_message.created_at.isoformat() if user_message.created_at else None
-            }
-            yield f"data: {json.dumps(user_msg_data, ensure_ascii=False)}\n\n"
-            
-            # 发送开始处理消息，让用户知道系统正在处理他们的请求
-            processing_data = {
-                "type": "processing",
-                "content": "正在处理您的请求..."
-            }
-            yield f"data: {json.dumps(processing_data, ensure_ascii=False)}\n\n"
-            
-            # 异步生成话题标题，不阻塞流式响应
-            async def generate_topic_title_async():
-                try:
-                    if active_topic.topic_name == "新话题":
-                        print("[流式响应]开始异步生成话题标题...")
-                        topic_title = await asyncio.to_thread(
-                            TopicTitleGenerator.generate_title_from_messages, 
-                            stream_db, 
-                            conversation_id, 
-                            active_topic.id
-                        )
-                        print(f"[流式响应]生成的标题: {topic_title}")
-                        if topic_title != "新对话" and topic_title != "新话题":
-                            TopicService.update_topic(stream_db, active_topic.id, topic_name=topic_title)
-                            active_topic.topic_name = topic_title
-                            print(f"[流式响应]话题标题已更新为: {active_topic.topic_name}")
-                            
-                            # 发送更新后的话题信息
-                            updated_topic_data = {
-                                "type": "topic",
-                                "topic": {
-                                    "id": active_topic.id,
-                                    "title": active_topic.topic_name,
-                                    "conversation_id": active_topic.conversation_id,
-                                    "message_count": active_topic.message_count,
-                                    "created_at": active_topic.created_at.isoformat() if active_topic.created_at else None
-                                }
-                            }
-                            return updated_topic_data
-                except Exception as e:
-                    print(f"生成话题标题失败: {str(e)}")
-                    # 继续执行，不影响流式响应
-                return None
-            
-            # 启动异步生成话题标题的任务
-            topic_title_task = asyncio.create_task(generate_topic_title_async())
-            
-            if use_llm:
+        if use_llm:
+            try:
                 # 只获取当前活跃话题的消息作为上下文，而不是整个对话的消息
-                conversation_history = stream_db.query(Message).filter(
+                conversation_history = db.query(Message).filter(
                     Message.conversation_id == conversation_id,
                     Message.topic_id == active_topic.id
                 ).order_by(Message.created_at.asc()).all()
@@ -701,752 +775,150 @@ async def send_message_stream(
                 chat_messages.append({"role": "user", "content": sanitized_content})
                 
                 # 使用LLM生成回复
-                ai_content = ""
-                reasoning_content = ""
-                full_reasoning_content = ""
-                
-                # 发送开始生成回复的消息
-                generating_data = {
-                    "type": "generating",
-                    "content": "正在生成回复..."
-                }
-                yield f"data: {json.dumps(generating_data, ensure_ascii=False)}\n\n"
-                
                 try:
                     # 使用请求中的模型名称，如果没有则使用默认值
-                    llm_model_name = model_name or "gpt-3.5-turbo"
-                    print(f"调用enhanced_llm_service.chat_completion，模型: {llm_model_name}")
-                    print(f"聊天消息: {chat_messages}")
+                    model_name = model_name or "gpt-3.5-turbo"
+                    print(f"========== 调用LLM (流式) ==========")
+                    print(f"模型: {model_name}")
+                    print(f"聊天消息数量: {len(chat_messages)}")
+                    print(f"传递给LLM的最后一条消息长度: {len(sanitized_content)}")
+                    print(f"传递给LLM的最后一条消息前500字符: {sanitized_content[:500]}")
+                    print(f"传递的agent_id参数: {conversation.agent_id}")
+                    print(f"==============================")
                     
-                    # 异步调用LLM服务，避免阻塞流式响应
-                    async def call_llm_async():
-                        return await asyncio.to_thread(
-                            enhanced_llm_service.chat_completion,
-                            messages=chat_messages,
-                            model_name=llm_model_name,
-                            db=stream_db,
-                            agent_id=conversation.agent_id
-                        )
-                    
-                    llm_response = await call_llm_async()
-                    
-                    print(f"LLM响应类型: {type(llm_response)}")
-                    
-                    # 检查是否是流式响应生成器
-                    if hasattr(llm_response, '__iter__') and not isinstance(llm_response, (list, dict)):
-                        print("检测到流式响应生成器")
-                        full_ai_content = ""
-                        full_reasoning_content = ""
-                        
-                        try:
-                            # 直接转发流式响应块，不使用优化器重新生成
-                            for chunk in llm_response:
-                                print(f"实时转发流式块: {chunk}")
-                                yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
+                    # 调用LLM服务的流式接口
+                    async for chunk in enhanced_llm_service.chat_completion_stream(
+                        messages=chat_messages,
+                        model_name=model_name,
+                        db=db,
+                        agent_id=conversation.agent_id
+                    ):
+                        if isinstance(chunk, dict):
+                            # 处理完整响应
+                            if "success" in chunk:
+                                ai_content = chunk.get("generated_text", "抱歉，我无法生成回复。")
                                 
-                                if chunk["type"] == "thinking":
-                                    # 累积思维链信息
-                                    full_reasoning_content += chunk['content']
-                                elif chunk["type"] == "content":
-                                    # 累积内容信息
-                                    full_ai_content += chunk['content']
+                                # 创建助手回复消息
+                                assistant_message = Message(
+                                    conversation_id=conversation_id,
+                                    role="assistant",
+                                    content=ai_content,
+                                    topic_id=active_topic.id,
+                                    created_at=datetime.utcnow()
+                                )
+                                db.add(assistant_message)
+                                db.commit()
+                                db.refresh(assistant_message)
                                 
-                                # 使用优化器的延迟控制
-                                await asyncio.sleep(optimizer.current_delay)
-                            
-                            ai_content = full_ai_content
-                        except Exception as e:
-                            print(f"处理流式响应生成器失败: {str(e)}")
-                            # 发送错误消息
-                            error_data = {"type": "content", "content": f"抱歉，处理流式响应时发生错误: {str(e)}"}
-                            yield f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"
-                            ai_content = f"抱歉，处理流式响应时发生错误: {str(e)}"
-                    else:
-                        # 处理非流式响应
-                        print(f"LLM响应: {llm_response}")
-                        
-                        # 检查LLM调用是否成功
-                        if isinstance(llm_response, dict):
-                            if llm_response.get("success", True):
-                                ai_content = llm_response.get("generated_text", "抱歉，我无法生成回复。")
-                                print(f"提取的AI内容: {ai_content}")
+                                # 保存思维链信息（如果有）
+                                reasoning_content = chunk.get("reasoning_content", "")
+                                if reasoning_content:
+                                    from app.models.chat_enhancements import ChainOfThought
+                                    
+                                    # 分割思维链内容为步骤
+                                    reasoning_steps = reasoning_content.split('\n')
+                                    reasoning_steps = [step.strip() for step in reasoning_steps if step.strip()]
+                                    
+                                    # 创建思维链记录
+                                    chain_of_thought = ChainOfThought(
+                                        message_id=assistant_message.id,
+                                        chain_type="step_by_step",
+                                        reasoning_steps=reasoning_steps,
+                                        final_answer=ai_content,
+                                        is_visible=True
+                                    )
+                                    db.add(chain_of_thought)
+                                    db.commit()
+                                    print(f"已保存思维链信息，共 {len(reasoning_steps)} 个步骤")
                                 
-                                # 检查是否有思维链信息
-                                reasoning_content = llm_response.get("reasoning_content", "")
-                                print(f"提取的思维链内容: {reasoning_content}")
-                            else:
-                                # 如果调用失败，使用失败原因作为回复
-                                ai_content = llm_response.get("generated_text", "抱歉，我无法生成回复。")
-                                print(f"LLM调用失败，返回错误信息: {ai_content}")
-                                # 如果有详细的失败分析，也加入到回复中
-                                if "failure_analysis" in llm_response:
-                                    ai_content += f"\n\n详细分析: {llm_response['failure_analysis']}"
-                        else:
-                            # 如果响应不是字典，使用默认错误消息
-                            ai_content = "抱歉，LLM服务返回了无效响应"
-                            print(f"LLM响应格式错误: {type(llm_response)}")
-                        
-                        # 检查是否启用了思维链，如果启用则发送思维链信息
-                        if enable_thinking_chain and 'reasoning_content' in locals() and reasoning_content:
-                            # 使用优化器生成流式响应
-                            try:
-                                async for chunk in optimizer.generate_streaming_chunks(
-                                    reasoning_content,
-                                    chunk_type="thinking",
-                                    metadata={"strategy": strategy.value}
-                                ):
-                                    yield f"data: {json.dumps(chunk)}\n\n"
-                            except Exception as e:
-                                print(f"生成思维链流式响应失败: {str(e)}")
-                        
-                        # 如果获取到了回复，使用优化器生成流式响应
-                        if ai_content:
-                            # 使用优化器生成逐字符流式响应
-                            try:
-                                async for chunk in optimizer.generate_character_streaming(
-                                    ai_content,
-                                    chunk_type="content",
-                                    metadata={"strategy": strategy.value}
-                                ):
-                                    yield f"data: {json.dumps(chunk)}\n\n"
-                            except Exception as e:
-                                print(f"生成内容流式响应失败: {str(e)}")
-                                # 直接发送完整的错误消息
-                                error_data = {"type": "content", "content": f"抱歉，生成流式响应时发生错误: {str(e)}"}
-                                yield f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"
-                except (AttributeError, TypeError) as e:
-                    print(f"chat_completion调用失败: {str(e)}")
-                    # 使用错误信息作为回复
-                    ai_content = f"抱歉，LLM服务调用失败: {str(e)}"
-                    # 直接发送完整的错误消息，不使用optimizer分割
-                    error_data = {"type": "content", "content": ai_content}
-                    yield f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"
-                except Exception as e:
-                    print(f"chat_completion调用发生其他错误: {str(e)}")
-                    # 使用错误信息作为回复
-                    ai_content = f"抱歉，处理您的请求时发生异常: {str(e)}"
-                    # 直接发送完整的错误消息，不使用optimizer分割
-                    error_data = {"type": "content", "content": ai_content}
-                    yield f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"
-                
-                # 创建最终的助手消息
-                if ai_content:
-                    # 重新查询活跃话题，确保获取最新的话题信息
-                    active_topic = TopicService.get_active_topic(stream_db, conversation_id)
-                    
-                    # 如果没有活跃话题，创建一个新话题
-                    if not active_topic:
-                        topic_name = "新话题"
-                        active_topic = TopicService.create_topic(stream_db, conversation_id, topic_name)
-                    
-                    assistant_message = Message(
-                        conversation_id=conversation_id,
-                        role="assistant",
-                        content=ai_content,
-                        topic_id=active_topic.id,
-                        created_at=datetime.utcnow()
-                    )
-                    stream_db.add(assistant_message)
-                    stream_db.commit()
-                    stream_db.refresh(assistant_message)
-                    
-                    # 保存思维链信息（如果有）
-                    reasoning_content_to_save = full_reasoning_content if 'full_reasoning_content' in locals() else reasoning_content if 'reasoning_content' in locals() else ''
-                    if reasoning_content_to_save:
-                        from app.models.chat_enhancements import ChainOfThought
-                        
-                        # 分割思维链内容为步骤
-                        reasoning_steps = reasoning_content_to_save.split('\n')
-                        reasoning_steps = [step.strip() for step in reasoning_steps if step.strip()]
-                        
-                        # 创建思维链记录
-                        chain_of_thought = ChainOfThought(
-                            message_id=assistant_message.id,
-                            chain_type="step_by_step",
-                            reasoning_steps=reasoning_steps,
-                            final_answer=ai_content,
-                            is_visible=True
-                        )
-                        stream_db.add(chain_of_thought)
-                        stream_db.commit()
-                        print(f"已保存思维链信息，共 {len(reasoning_steps)} 个步骤")
-                    
-                    # 更新话题的消息计数和结束消息ID
-                    TopicService.increment_message_count(stream_db, active_topic.id, count=2)
-                    TopicService.update_end_message(stream_db, active_topic.id, assistant_message.id)
-                    
-                    # 如果话题标题是默认的"新话题"，尝试生成更好的标题
-                    print(f"[流式响应]检查话题标题: active_topic.topic_name={active_topic.topic_name}")
-                    if active_topic.topic_name == "新话题":
-                        print("[流式响应]开始调用TopicTitleGenerator生成标题...")
-                        topic_title = TopicTitleGenerator.generate_title_from_messages(stream_db, conversation_id, active_topic.id)
-                        print(f"[流式响应]生成的标题: {topic_title}")
-                        if topic_title != "新对话" and topic_title != "新话题":
-                            TopicService.update_topic(stream_db, active_topic.id, topic_name=topic_title)
-                            active_topic.topic_name = topic_title
-                            print(f"[流式响应]话题标题已更新为: {active_topic.topic_name}")
-                            
-                            # 发送话题更新信息
-                            topic_data = {
-                                "type": "topic",
-                                "topic": {
-                                    "id": active_topic.id,
-                                    "title": active_topic.topic_name,
-                                    "conversation_id": active_topic.conversation_id,
-                                    "message_count": active_topic.message_count,
-                                    "created_at": active_topic.created_at.isoformat() if active_topic.created_at else None
+                                # 更新话题的消息计数和结束消息ID
+                                TopicService.increment_message_count(db, active_topic.id, count=2)
+                                TopicService.update_end_message(db, active_topic.id, assistant_message.id)
+                                
+                                # 如果话题标题是默认的"新话题"，尝试生成更好的标题
+                                if active_topic.topic_name == "新话题":
+                                    topic_title = TopicTitleGenerator.generate_title_from_messages(db, conversation_id, active_topic.id)
+                                    if topic_title != "新对话" and topic_title != "新话题":
+                                        TopicService.update_topic(db, active_topic.id, topic_name=topic_title)
+                                        active_topic.topic_name = topic_title
+                                
+                                # 发送最终响应
+                                final_response = {
+                                    "status": "completed",
+                                    "assistant_message": {
+                                        "id": assistant_message.id,
+                                        "content": assistant_message.content,
+                                        "role": "assistant",
+                                        "created_at": assistant_message.created_at.isoformat() if assistant_message.created_at else None
+                                    },
+                                    "topic": {
+                                        "id": active_topic.id,
+                                        "name": active_topic.topic_name
+                                    },
+                                    "completed_at": datetime.utcnow().isoformat()
                                 }
+                                yield f"data: {json.dumps(final_response)}\n\n"
+                            else:
+                                # 处理错误响应
+                                error_response = {
+                                    "status": "error",
+                                    "error": chunk.get("error", "LLM服务调用失败"),
+                                    "completed_at": datetime.utcnow().isoformat()
+                                }
+                                yield f"data: {json.dumps(error_response)}\n\n"
+                        else:
+                            # 处理流式文本块
+                            chunk_response = {
+                                "status": "streaming",
+                                "chunk": chunk,
+                                "timestamp": datetime.utcnow().isoformat()
                             }
-                            yield f"data: {json.dumps(topic_data, ensure_ascii=False)}\n\n"
-                
-                # 发送完成信号，让前端知道处理已经完成
-                yield "data: {\"type\": \"complete\", \"content\": \"\"}\n\n"
-            
-            # 等待话题标题生成任务完成
-            try:
-                updated_topic_data = await topic_title_task
-                if updated_topic_data:
-                    # 发送更新后的话题信息
-                    yield f"data: {json.dumps(updated_topic_data, ensure_ascii=False)}\n\n"
+                            yield f"data: {json.dumps(chunk_response)}\n\n"
+                except (AttributeError, TypeError) as e:
+                    print(f"chat_completion_stream调用失败: {str(e)}")
+                    # 发送错误响应
+                    error_response = {
+                        "status": "error",
+                        "error": f"LLM服务调用失败: {str(e)}",
+                        "completed_at": datetime.utcnow().isoformat()
+                    }
+                    yield f"data: {json.dumps(error_response)}\n\n"
+                except Exception as e:
+                    print(f"chat_completion_stream调用发生其他错误: {str(e)}")
+                    # 发送错误响应
+                    error_response = {
+                        "status": "error",
+                        "error": f"处理您的请求时发生异常: {str(e)}",
+                        "completed_at": datetime.utcnow().isoformat()
+                    }
+                    yield f"data: {json.dumps(error_response)}\n\n"
             except Exception as e:
-                print(f"等待话题标题生成任务失败: {str(e)}")
-                # 继续执行，不影响流式响应
-        except Exception as e:
-            # 发送错误信息
-            error_msg = f"流式响应生成失败: {str(e)}"
-            print(f"流式响应处理异常: {str(e)}")
-            yield f"data: {json.dumps({'type': 'error', 'content': error_msg})}\n\n"
-            # 确保发送完成信号
-            yield "data: {\"type\": \"complete\", \"content\": \"\"}\n\n"
-        finally:
-            # 不要关闭数据库会话，因为我们使用的是外部传入的 db 会话
-            pass
+                print(f"LLM生成回复失败: {str(e)}")
+                # 发送错误响应
+                error_response = {
+                    "status": "error",
+                    "error": f"处理您的请求时发生异常: {str(e)}",
+                    "completed_at": datetime.utcnow().isoformat()
+                }
+                yield f"data: {json.dumps(error_response)}\n\n"
+        else:
+            # 不使用LLM，直接返回成功响应
+            success_response = {
+                "status": "completed",
+                "message": "消息已发送",
+                "completed_at": datetime.utcnow().isoformat()
+            }
+            yield f"data: {json.dumps(success_response)}\n\n"
+        
+        # 发送结束标记
+        yield "data: [DONE]\n\n"
     
+    # 返回流式响应
     return StreamingResponse(
-        stream_generator(),
+        generate_response(),
         media_type="text/event-stream",
         headers={
-            "Content-Type": "text/event-stream",
             "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "Cache-Control, Content-Type",
-            "X-Accel-Buffering": "no"
+            "Connection": "keep-alive"
         }
-    )
-
-
-@router.get("/models/conversation")
-async def get_conversation_models(db: Session = Depends(get_db)) -> Dict[str, Any]:
-    """
-    获取已启用的供应商的对话模型列表
-    
-    返回具有对话能力的模型列表，包括模型ID、名称、供应商信息等
-    """
-    try:
-        # 获取所有已启用的供应商
-        enabled_suppliers = db.query(SupplierDB).filter(SupplierDB.is_active == True).all()
-        enabled_supplier_ids = [s.id for s in enabled_suppliers]
-        
-        # 获取所有已启用的供应商的模型
-        enabled_models = db.query(ModelDB).filter(
-            ModelDB.supplier_id.in_(enabled_supplier_ids),
-            ModelDB.is_active == True
-        ).all()
-        
-        # 检查对话相关能力
-        conversation_capabilities = db.query(ModelCapability).filter(
-            ModelCapability.name.ilike("%conversation%") | 
-            ModelCapability.name.ilike("%chat%") |
-            ModelCapability.name.ilike("%对话%") |
-            ModelCapability.display_name.ilike("%对话%")
-        ).all()
-        
-        conversation_capability_ids = [c.id for c in conversation_capabilities]
-        
-        # 筛选具有对话能力的模型
-        conversation_models = []
-        
-        for model in enabled_models:
-            # 检查模型的能力关联
-            associations = db.query(ModelCapabilityAssociation).filter(
-                ModelCapabilityAssociation.model_id == model.id
-            ).all()
-            
-            # 获取模型对应的能力
-            model_capabilities = []
-            for assoc in associations:
-                capability = db.query(ModelCapability).filter(
-                    ModelCapability.id == assoc.capability_id
-                ).first()
-                if capability:
-                    model_capabilities.append(capability)
-            
-            # 检查是否有对话相关能力
-            has_conversation = False
-            for capability in model_capabilities:
-                if any(keyword in capability.name.lower() for keyword in ['conversation', 'chat', '对话']) or \
-                   any(keyword in capability.display_name.lower() for keyword in ['对话']):
-                    has_conversation = True
-                    break
-            
-            # 如果模型没有明确的能力关联，假设所有语言模型都有对话能力
-            if not model_capabilities and model.model_name and any(keyword in model.model_name.lower() for keyword in ['chat', '对话', 'conversation']):
-                has_conversation = True
-            
-            # 如果没有明确的能力关联，但模型是语言模型，也假设有对话能力
-            if not model_capabilities and not has_conversation:
-                # 检查模型名称是否包含常见语言模型关键词
-                language_model_keywords = ['gpt', 'claude', 'gemini', 'llama', 'qwen', 'deepseek', 'glm', 'kimi', 'moonshot', 'baidu', 'tencent', '360', 'xunfei', 'jd', 'kuaishou', 'doubao', 'abab']
-                if any(keyword in model.model_name.lower() for keyword in language_model_keywords):
-                    has_conversation = True
-            
-            supplier = db.query(SupplierDB).filter(SupplierDB.id == model.supplier_id).first()
-            
-            if has_conversation:
-                # 构建模型LOGO路径
-                model_logo = None
-                if model.logo:
-                    if model.logo.startswith('http'):
-                        model_logo = model.logo
-                    elif model.logo.startswith('/'):
-                        # 如果是绝对路径，保持原样
-                        model_logo = model.logo
-                    else:
-                        # 相对路径，添加完整路径
-                        model_logo = f"/logos/models/{model.logo}"
-                
-                # 构建供应商LOGO路径
-                supplier_logo = None
-                if supplier and supplier.logo:
-                    if supplier.logo.startswith('http'):
-                        supplier_logo = supplier.logo
-                    elif supplier.logo.startswith('/'):
-                        # 如果是绝对路径，保持原样
-                        supplier_logo = supplier.logo
-                    else:
-                        # 相对路径，添加完整路径
-                        supplier_logo = f"/logos/providers/{supplier.logo}"
-                
-                conversation_models.append({
-                    'id': model.id,
-                    'model_id': model.model_id,
-                    'model_name': model.model_name,
-                    'description': model.description,
-                    'logo': model_logo,
-                    'supplier_id': model.supplier_id,
-                    'supplier_name': supplier.name if supplier else "未知供应商",
-                    'supplier_display_name': supplier.display_name if supplier else "未知供应商",
-                    'supplier_logo': supplier_logo,
-                    'is_default': model.is_default,
-                    'capabilities': [{
-                        'id': c.id,
-                        'name': c.name,
-                        'display_name': c.display_name
-                    } for c in model_capabilities]
-                })
-        
-        # 按模型名称排序
-        conversation_models.sort(key=lambda x: x['model_name'])
-        
-        return {
-            "status": "success",
-            "message": f"成功获取 {len(conversation_models)} 个对话模型",
-            "models": conversation_models,
-            "total": len(conversation_models)
-        }
-        
-    except Exception as e:
-        # 捕获所有异常，返回友好的错误信息
-        return {
-            "status": "error",
-            "message": f"获取对话模型列表失败: {str(e)}",
-            "models": [],
-            "total": 0
-        }
-
-
-# ============ 话题管理 API ============
-
-@router.post("/{conversation_id}/topics")
-async def create_topic(
-    conversation_id: int,
-    topic_name: Optional[str] = Body(None, embed=True),
-    db: Session = Depends(get_db)
-) -> TopicResponse:
-    """
-    创建新话题
-    """
-    # 验证对话存在
-    conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
-    if not conversation:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="对话不存在"
-        )
-    
-    # 如果没有提供话题名称，使用默认标题"新话题"
-    # 真正的标题会在用户发送第一条消息后由大模型生成
-    if not topic_name or topic_name.strip() == '':
-        topic_name = "新话题"
-    
-    # 创建话题
-    topic = TopicService.create_topic(db, conversation_id, topic_name)
-    
-    return TopicResponse(
-        id=topic.id,
-        conversation_id=topic.conversation_id,
-        topic_name=topic.topic_name,
-        topic_summary=topic.topic_summary,
-        is_active=topic.is_active,
-        message_count=topic.message_count,
-        created_at=topic.created_at,
-        updated_at=topic.updated_at
-    )
-
-
-@router.get("/{conversation_id}/topics")
-async def list_topics(
-    conversation_id: int,
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-    active_only: bool = Query(False),
-    db: Session = Depends(get_db)
-) -> TopicListResponse:
-    """
-    获取对话的话题列表
-    """
-    # 查询对话
-    conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
-    
-    # 如果对话不存在，自动创建一个新对话
-    if not conversation:
-        conversation = Conversation(
-            id=conversation_id,
-            user_id=1,  # 默认用户ID，实际应该从认证中获取
-            title=f"对话 {conversation_id}",
-            description=""
-        )
-        db.add(conversation)
-        db.commit()
-        db.refresh(conversation)
-        print(f"已自动创建对话: {conversation}")
-    
-    # 获取话题列表
-    offset = (page - 1) * page_size
-    topics = TopicService.get_conversation_topics(
-        db, conversation_id, skip=offset, limit=page_size, active_only=active_only
-    )
-    
-    # 获取总数
-    total = db.query(Topic).filter(Topic.conversation_id == conversation_id).count()
-    
-    return TopicListResponse(
-        topics=[
-            TopicResponse(
-                id=topic.id,
-                conversation_id=topic.conversation_id,
-                topic_name=topic.topic_name,
-                topic_summary=topic.topic_summary,
-                is_active=topic.is_active,
-                message_count=topic.message_count,
-                created_at=topic.created_at,
-                updated_at=topic.updated_at
-            )
-            for topic in topics
-        ],
-        total=total,
-        page=page,
-        page_size=page_size
-    )
-
-
-@router.get("/{conversation_id}/topics/{topic_id}")
-async def get_topic(
-    conversation_id: int,
-    topic_id: int,
-    db: Session = Depends(get_db)
-) -> TopicResponse:
-    """
-    获取话题详情
-    """
-    # 验证对话存在
-    conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
-    if not conversation:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="对话不存在"
-        )
-    
-    # 获取话题
-    topic = TopicService.get_topic_by_id(db, topic_id)
-    if not topic:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="话题不存在"
-        )
-    
-    return TopicResponse(
-        id=topic.id,
-        conversation_id=topic.conversation_id,
-        topic_name=topic.topic_name,
-        topic_summary=topic.topic_summary,
-        is_active=topic.is_active,
-        message_count=topic.message_count,
-        created_at=topic.created_at,
-        updated_at=topic.updated_at
-    )
-
-
-@router.put("/{conversation_id}/topics/{topic_id}")
-async def update_topic(
-    conversation_id: int,
-    topic_id: int,
-    topic_name: Optional[str] = Body(None, embed=True),
-    topic_summary: Optional[str] = Body(None, embed=True),
-    is_active: Optional[bool] = Body(None, embed=True),
-    db: Session = Depends(get_db)
-) -> TopicResponse:
-    """
-    更新话题信息
-    """
-    # 验证对话存在
-    conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
-    if not conversation:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="对话不存在"
-        )
-    
-    # 更新话题
-    topic = TopicService.update_topic(
-        db, topic_id, topic_name=topic_name, topic_summary=topic_summary, is_active=is_active
-    )
-    
-    if not topic:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="话题不存在"
-        )
-    
-    return TopicResponse(
-        id=topic.id,
-        conversation_id=topic.conversation_id,
-        topic_name=topic.topic_name,
-        topic_summary=topic.topic_summary,
-        is_active=topic.is_active,
-        message_count=topic.message_count,
-        created_at=topic.created_at,
-        updated_at=topic.updated_at
-    )
-
-
-@router.delete("/{conversation_id}/topics/{topic_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_topic(
-    conversation_id: int,
-    topic_id: int,
-    cascade_delete: bool = Query(True, description="是否级联删除消息"),
-    db: Session = Depends(get_db)
-) -> None:
-    """
-    删除话题（支持级联删除消息）
-    """
-    # 验证对话存在
-    conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
-    if not conversation:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="对话不存在"
-        )
-    
-    # 删除话题
-    success = TopicService.delete_topic(db, topic_id, cascade_delete=cascade_delete)
-    
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="话题不存在"
-        )
-
-
-@router.post("/{conversation_id}/topics/{topic_id}/switch")
-async def switch_topic(
-    conversation_id: int,
-    topic_id: int,
-    db: Session = Depends(get_db)
-) -> SwitchTopicResponse:
-    """
-    切换到指定话题
-    """
-    # 验证对话存在
-    conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
-    if not conversation:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="对话不存在"
-        )
-    
-    # 设置活跃话题
-    success = TopicService.set_active_topic(db, conversation_id, topic_id)
-    
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="话题不存在"
-        )
-    
-    # 获取话题和消息
-    topic = TopicService.get_topic_by_id(db, topic_id)
-    messages = TopicService.get_topic_messages(db, topic_id, limit=100)
-    
-    # 获取所有消息ID
-    message_ids = [msg.id for msg in messages]
-    
-    # 批量查询思维链信息
-    chain_of_thoughts = {}
-    if message_ids:
-        from app.models.chat_enhancements import ChainOfThought
-        cot_records = db.query(ChainOfThought).filter(
-            ChainOfThought.message_id.in_(message_ids)
-        ).all()
-        
-        # 将思维链信息按消息ID组织
-        for cot in cot_records:
-            reasoning_steps = []
-            try:
-                if cot.reasoning_steps:
-                    # 尝试解析 JSON 字符串
-                    if isinstance(cot.reasoning_steps, str):
-                        reasoning_steps = json.loads(cot.reasoning_steps)
-                    else:
-                        # 如果已经是对象，直接使用
-                        reasoning_steps = cot.reasoning_steps
-            except (json.JSONDecodeError, TypeError):
-                # 如果解析失败，使用空列表
-                reasoning_steps = []
-            
-            chain_of_thoughts[cot.message_id] = {
-                "chain_type": cot.chain_type,
-                "reasoning_steps": reasoning_steps,
-                "final_answer": cot.final_answer,
-                "is_visible": cot.is_visible
-            }
-    
-    return SwitchTopicResponse(
-        active_topic=TopicResponse(
-            id=topic.id,
-            conversation_id=topic.conversation_id,
-            topic_name=topic.topic_name,
-            topic_summary=topic.topic_summary,
-            is_active=topic.is_active,
-            message_count=topic.message_count,
-            created_at=topic.created_at,
-            updated_at=topic.updated_at
-        ),
-        messages=[
-            {
-                "id": msg.id,
-                "conversation_id": msg.conversation_id,
-                "role": msg.role,
-                "content": msg.content,
-                "created_at": msg.created_at.isoformat() if msg.created_at else None,
-                "thinking": chain_of_thoughts.get(msg.id, None)
-            }
-            for msg in messages
-        ]
-    )
-
-
-@router.get("/{conversation_id}/topics/{topic_id}/messages")
-async def get_topic_messages(
-    conversation_id: int,
-    topic_id: int,
-    page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
-    db: Session = Depends(get_db)
-) -> Dict[str, Any]:
-    """
-    获取话题的消息列表
-    """
-    # 验证对话存在
-    conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
-    if not conversation:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="对话不存在"
-        )
-    
-    # 获取话题
-    topic = TopicService.get_topic_by_id(db, topic_id)
-    if not topic:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="话题不存在"
-        )
-    
-    # 获取消息列表
-    offset = (page - 1) * page_size
-    messages = TopicService.get_topic_messages(db, topic_id, skip=offset, limit=page_size)
-    
-    # 获取总数
-    total = db.query(Message).filter(Message.topic_id == topic_id).count()
-    
-    return {
-        "status": "success",
-        "messages": [
-            {
-                "id": msg.id,
-                "conversation_id": msg.conversation_id,
-                "role": msg.role,
-                "content": msg.content,
-                "created_at": msg.created_at.isoformat() if msg.created_at else None
-            }
-            for msg in messages
-        ],
-        "total": total,
-        "page": page,
-        "page_size": page_size
-    }
-
-
-@router.get("/{conversation_id}/topics/search")
-async def search_topics(
-    conversation_id: int,
-    keyword: str = Query(..., min_length=1),
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-    db: Session = Depends(get_db)
-) -> TopicListResponse:
-    """
-    搜索话题
-    """
-    # 验证对话存在
-    conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
-    if not conversation:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="对话不存在"
-        )
-    
-    # 搜索话题
-    offset = (page - 1) * page_size
-    topics = TopicService.search_topics(db, conversation_id, keyword, skip=offset, limit=page_size)
-    
-    return TopicListResponse(
-        topics=[
-            TopicResponse(
-                id=topic.id,
-                conversation_id=topic.conversation_id,
-                topic_name=topic.topic_name,
-                topic_summary=topic.topic_summary,
-                is_active=topic.is_active,
-                message_count=topic.message_count,
-                created_at=topic.created_at,
-                updated_at=topic.updated_at
-            )
-            for topic in topics
-        ],
-        total=len(topics),
-        page=page,
-        page_size=page_size
     )

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import { conversationApi } from '../utils/api';
 import { API_BASE_URL } from '../utils/apiUtils';
+import emojis from '../utils/emojis';
 import EnhancedMarkdownRenderer from '../components/EnhancedMarkdownRenderer/EnhancedMarkdownRenderer';
 import LeftSidebar from '../components/LeftSidebar';
 import ChatMain from '../components/ChatMain';
@@ -33,7 +34,73 @@ const calculateTokens = (text) => {
 const MemoizedMarkdownRenderer = memo(EnhancedMarkdownRenderer);
 
 // 使用React.memo优化消息项组件
-const MessageItem = memo(({ message, formatTime, formatDuration, editingMessageId, editingMessageText, setEditingMessageText, saveEditingMessage, cancelEditingMessage, quoteMessage, toggleMessageMark, markedMessages, expandedThinkingChains, toggleThinkingChain, startEditingMessage, totalTokens, copyMessage, regenerateMessage, translateMessage, deleteMessage, saveMessage }) => {
+const MessageItem = memo(({ message, formatTime, formatDuration, formatFileSize, editingMessageId, editingMessageText, setEditingMessageText, saveEditingMessage, cancelEditingMessage, quoteMessage, toggleMessageMark, markedMessages, expandedThinkingChains, toggleThinkingChain, startEditingMessage, totalTokens, copyMessage, regenerateMessage, translateMessage, deleteMessage, saveMessage }) => {
+  // 处理搜索结果消息
+  if (message.type === 'search_result') {
+    return (
+      <div 
+        key={message.id} 
+        className="message search-result-message success"
+      >
+        <div className="message-avatar">🌐</div>
+        <div className="message-content">
+          <div className="message-bubble">
+            <div className="message-header">
+              <div className="message-status">
+                <span className="status-badge success">🔍 搜索结果</span>
+              </div>
+              <span className="message-timestamp">{formatTime(message.timestamp)}</span>
+            </div>
+            <div className="search-result-content">
+              {message.search_result ? (
+                <>
+                  <h4 className="search-result-title">{message.search_result.title}</h4>
+                  <p className="search-result-description">{message.search_result.content}</p>
+                  <a 
+                    href={message.search_result.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="search-result-url"
+                  >
+                    {message.search_result.url}
+                  </a>
+                </>
+              ) : (
+                <div className="message-text">
+                  <MemoizedMarkdownRenderer content={message.text} />
+                </div>
+              )}
+            </div>
+            <div className="message-actions">
+              <button 
+                className="message-action-btn"
+                onClick={() => copyMessage(message)}
+                title="复制"
+              >
+                📋
+              </button>
+              <button 
+                className="message-action-btn"
+                onClick={() => quoteMessage(message)}
+                title="引用回复"
+              >
+                📝
+              </button>
+              <button 
+                className={`message-action-btn ${markedMessages.has(message.id) ? 'active' : ''}`}
+                onClick={() => toggleMessageMark(message.id)}
+                title={markedMessages.has(message.id) ? '取消标记' : '标记消息'}
+              >
+                {markedMessages.has(message.id) ? '⭐' : '☆'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 处理普通消息
   return (
     <div 
       key={message.id} 
@@ -118,7 +185,25 @@ const MessageItem = memo(({ message, formatTime, formatDuration, editingMessageI
           </div>
         ) : (
           /* 普通显示模式 */
-          <>                <div className={`message-text ${message.isStreaming ? 'streaming-text' : ''}`}>
+          <>
+            {/* 文件信息显示 */}
+            {message.attachedFiles && message.attachedFiles.length > 0 && (
+              <div className="message-files">
+                {message.attachedFiles.map(file => (
+                  <div key={file.id} className="message-file-item">
+                    <span className="file-icon">📄</span>
+                    <span className="file-name" title={file.name}>
+                      {file.name}
+                    </span>
+                    <span className="file-size">
+                      {formatFileSize(file.size)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* 消息文本显示 */}
+            <div className={`message-text ${message.isStreaming ? 'streaming-text' : ''}`}>
               <MemoizedMarkdownRenderer 
                 content={message.text} 
                 className={message.isStreaming ? 'streaming' : ''}
@@ -300,17 +385,36 @@ const Chat = () => {
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [selectedModel, setSelectedModel] = useState(null);
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+  
+  // 格式化文件大小
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
+   
+  // 添加日志来追踪 uploadedFiles 的变化
+  useEffect(() => {
+    console.log('========== uploadedFiles 状态变化 ==========');
+    console.log('当前文件数量:', uploadedFiles.length);
+    console.log('当前文件列表:', uploadedFiles);
+    console.log('================================');
+  }, [uploadedFiles]);
+   
   const [availableModels, setAvailableModels] = useState([
     {
       id: 50,
       model_id: 'moonshotai/Kimi-K2-Thinking',
       model_name: 'Kimi-K2-Thinking',
       description: 'Kimi K2 Thinking 是最新、最强大的开源思考模型。它通过大幅扩展多步推理深度，并在 200–300 次连续工具调用中保持稳定的工具使用，在 Humanity\'s Last Exam (HLE)、BrowseComp 及其他基准测试中树立了新的标杆。同时，K2 Thinking 是一款原生支持 INT4 量化的模型，拥有 256K 上下文窗口，实现了推理延迟和 GPU 显存占用的无损降低',
-      logo: '/logos/models/20251227_102702_831766.png',
+      logo: 'default.png',
       supplier_id: 45,
       supplier_name: '硅基流动',
       supplier_display_name: '硅基流动',
-      supplier_logo: '/logos/providers/siliconflow.png',
+      supplier_logo: 'siliconflow.png',
       is_default: true,
       capabilities: [
         {
@@ -387,6 +491,11 @@ const Chat = () => {
   const messagesEndRef = useRef(null);
   const reconnectTimerRef = useRef(null); // 重连定时器引用
   const modelsLoadedRef = useRef(false); // 防止重复加载模型列表
+  const modelSelectRef = useRef(null); // 模型选择器引用
+  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false); // 模型下拉列表是否打开
+  const [dropdownDirection, setDropdownDirection] = useState('down'); // 下拉列表显示方向
+  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false); // emoji选择器是否打开
+  const [selectedEmojiCategory, setSelectedEmojiCategory] = useState(0); // 当前选中的emoji分类
   
   // 滚动到底部
   const scrollToBottom = useCallback(() => {
@@ -502,6 +611,8 @@ const Chat = () => {
             model_name: 'Kimi-K2-Thinking',
             supplier_name: '硅基流动',
             supplier_display_name: '硅基流动',
+            supplier_logo: 'siliconflow.png',
+            logo: 'default.png',
             is_default: true
           }
         ]);
@@ -511,6 +622,8 @@ const Chat = () => {
           model_name: 'Kimi-K2-Thinking',
           supplier_name: '硅基流动',
           supplier_display_name: '硅基流动',
+          supplier_logo: 'siliconflow.png',
+          logo: 'default.png',
           is_default: true
         });
       }
@@ -524,6 +637,8 @@ const Chat = () => {
           model_name: 'Kimi-K2-Thinking',
           supplier_name: '硅基流动',
           supplier_display_name: '硅基流动',
+          supplier_logo: 'siliconflow.png',
+          logo: 'default.png',
           is_default: true
         }
       ]);
@@ -533,6 +648,8 @@ const Chat = () => {
         model_name: 'Kimi-K2-Thinking',
         supplier_name: '硅基流动',
         supplier_display_name: '硅基流动',
+        supplier_logo: 'siliconflow.png',
+        logo: 'default.png',
         is_default: true
       });
     } finally {
@@ -572,6 +689,99 @@ const Chat = () => {
     // 应用主题到文档根元素
     document.documentElement.setAttribute('data-theme', newTheme);
   }, [theme]);
+  
+  // 获取模型LOGO URL
+  const getModelLogoUrl = useCallback((model) => {
+    if (model.logo !== null && model.logo !== undefined && model.logo !== '') {
+      if (model.logo.startsWith('http') || model.logo.startsWith('/')) {
+        return model.logo;
+      }
+      return `/logos/models/${model.logo}`;
+    }
+    
+    if (model.supplier_logo !== null && model.supplier_logo !== undefined && model.supplier_logo !== '') {
+      if (model.supplier_logo.startsWith('http') || model.supplier_logo.startsWith('/')) {
+        return model.supplier_logo;
+      }
+      return `/logos/providers/${model.supplier_logo}`;
+    }
+    
+    return '/logos/models/default.png';
+  }, []);
+  
+  // 计算下拉列表显示方向
+  const calculateDropdownDirection = useCallback(() => {
+    if (!modelSelectRef.current) return 'down';
+    
+    const rect = modelSelectRef.current.getBoundingClientRect();
+    const dropdownHeight = 320; // 下拉列表的最大高度
+    const windowHeight = window.innerHeight;
+    const spaceBelow = windowHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    
+    // 如果下方空间不足，且上方空间更充足，则向上显示
+    if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
+      return 'up';
+    }
+    
+    return 'down';
+  }, []);
+  
+  // 处理打开/关闭下拉列表
+  const toggleModelDropdown = useCallback(() => {
+    if (!isModelDropdownOpen) {
+      // 打开前计算显示方向
+      setDropdownDirection(calculateDropdownDirection());
+    }
+    setIsModelDropdownOpen(!isModelDropdownOpen);
+  }, [isModelDropdownOpen, calculateDropdownDirection]);
+  
+  // 处理模型选择
+  const handleSelectModel = useCallback((model) => {
+    setSelectedModel(model);
+    setIsModelDropdownOpen(false);
+  }, []);
+  
+  // 处理点击外部关闭模型选择下拉列表和emoji选择器
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (modelSelectRef.current && !modelSelectRef.current.contains(event.target)) {
+        setIsModelDropdownOpen(false);
+      }
+      if (!event.target.closest('.input-btn[title="表情"]') && !event.target.closest('.emoji-picker')) {
+        setIsEmojiPickerOpen(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // 处理切换emoji选择器
+  const toggleEmojiPicker = useCallback(() => {
+    setIsEmojiPickerOpen(!isEmojiPickerOpen);
+  }, [isEmojiPickerOpen]);
+
+  // 处理切换emoji分类
+  const handleEmojiCategoryChange = useCallback((index) => {
+    setSelectedEmojiCategory(index);
+  }, []);
+  
+  // 窗口大小变化时重新计算下拉列表方向
+  useEffect(() => {
+    const handleResize = () => {
+      if (isModelDropdownOpen) {
+        setDropdownDirection(calculateDropdownDirection());
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [isModelDropdownOpen, calculateDropdownDirection]);
   
   // 执行消息搜索
   const performSearch = useCallback(() => {
@@ -909,13 +1119,22 @@ const Chat = () => {
   // 流式响应处理
   const handleStreamingResponse = useCallback(async (text, conversationId = 1, topicId = null) => {
     try {
+      console.log('========== 流式响应处理 ==========');
+      console.log('消息内容:', text);
+      console.log('已上传文件数量:', uploadedFiles.length);
+      console.log('已上传文件列表:', uploadedFiles);
+      console.log('================================');
+      
       // 构建消息数据，在新话题状态下不传递topic_id
       const messageData = {
         content: text,
         use_llm: true,
         model_name: selectedModel ? selectedModel.model_id : 'moonshotai/Kimi-K2-Thinking',
-        enable_thinking_chain: enableThinkingChain
+        enable_thinking_chain: enableThinkingChain,
+        attached_files: uploadedFiles.map(f => f.id)
       };
+      
+      console.log('流式响应消息数据:', JSON.stringify(messageData, null, 2));
       
       // 只有在有活跃话题时才添加topic_id
       if (topicId || activeTopic?.id) {
@@ -1115,6 +1334,9 @@ const Chat = () => {
                 
                 // 刷新话题列表，更新消息数量
                 refreshTopics();
+                
+                // 清空已上传文件列表
+                setUploadedFiles([]);
 
                 break;
                 
@@ -1216,7 +1438,7 @@ const Chat = () => {
       setMessages(prevMessages => [...prevMessages, errorMessage]);
       setConnectionStatus('error');
     }
-  }, [selectedModel, enableThinkingChain, getErrorDetails, activeTopic]);
+  }, [selectedModel, enableThinkingChain, getErrorDetails, activeTopic, uploadedFiles]);
 
   // 处理发送消息
   // 重连函数
@@ -1225,6 +1447,12 @@ const Chat = () => {
     if (!text.trim()) return;
     
     try {
+      console.log('========== 开始发送消息 ==========');
+      console.log('消息内容:', text);
+      console.log('已上传文件数量:', uploadedFiles.length);
+      console.log('已上传文件列表:', uploadedFiles);
+      console.log('================================');
+      
       // 只记录关键步骤的日志
       console.log(`开始发送消息: ${text.substring(0, 50)}${text.length > 50 ? '...' : ''}`);
       
@@ -1240,6 +1468,7 @@ const Chat = () => {
         status: 'sending',
         conversationId: conversationId,
         topicId: activeTopic?.id || null,
+        attachedFiles: uploadedFiles, // 添加文件信息
         metrics: {
           tokens_used: userTokens
         }
@@ -1266,16 +1495,21 @@ const Chat = () => {
       // 在线状态，发送消息
       if (enableStreaming) {
         // 流式响应已在handleStreamingResponse中记录日志
+        console.log('使用流式响应发送消息');
         await handleStreamingResponse(text.trim());
       } else {
         // 普通响应
-        const response = await conversationApi.sendMessage(conversationId, {
+        console.log('使用普通响应发送消息');
+        const messageData = {
           content: text.trim(),
           use_llm: true,
           model_name: selectedModel ? selectedModel.model_id : 'moonshotai/Kimi-K2-Thinking',
           enable_thinking_chain: enableThinkingChain,
-          topic_id: activeTopic?.id || null
-        });
+          topic_id: activeTopic?.id || null,
+          attached_files: uploadedFiles.map(f => f.id)
+        };
+        console.log('发送的消息数据:', JSON.stringify(messageData, null, 2));
+        const response = await conversationApi.sendMessage(conversationId, messageData);
         
         // 更新消息状态
         setMessages(prev => prev.map(msg => 
@@ -1312,6 +1546,9 @@ const Chat = () => {
         // 刷新话题列表，更新消息数量
         refreshTopics();
         
+        // 清空已上传文件列表
+        setUploadedFiles([]);
+        
       }
       
     } catch (error) {
@@ -1335,7 +1572,7 @@ const Chat = () => {
         topicId: activeTopic?.id || null
       }]);
     }
-  }, [enableStreaming, selectedModel, handleStreamingResponse, getErrorDetails, conversationId, activeTopic, refreshTopics]);
+  }, [enableStreaming, selectedModel, handleStreamingResponse, getErrorDetails, conversationId, activeTopic, refreshTopics, uploadedFiles]);
   
   // 重新生成消息
   const regenerateMessage = useCallback(async (message) => {
@@ -1721,16 +1958,187 @@ const Chat = () => {
               </div>
               
               {/* 直接显示输入面板 */}
-              <form className="chat-input centered-input" onSubmit={handleSendMessage}>
+              <div style={{ position: 'relative' }}>
+                <form className="chat-input centered-input" onSubmit={handleSendMessage}>
                 <div className="input-actions">
+                  <button 
+                    type="button" 
+                    className="input-btn" 
+                    title="表情"
+                    onClick={toggleEmojiPicker}
+                  >
+                    😊
+                  </button>
+                  {isEmojiPickerOpen && (
+                    <div className="emoji-picker">
+                      <div className="emoji-categories">
+                        {emojis.map((category, index) => (
+                          <button
+                            key={index}
+                            type="button"
+                            className={`emoji-category-btn ${selectedEmojiCategory === index ? 'active' : ''}`}
+                            onClick={() => handleEmojiCategoryChange(index)}
+                            title={category.category}
+                          >
+                            {category.icon}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="emoji-grid">
+                        {emojis[selectedEmojiCategory].items.map((emoji, index) => (
+                          <button
+                            key={index}
+                            type="button"
+                            className="emoji-item"
+                            onClick={() => setInputText(prev => prev + emoji)}
+                            title={emoji}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <button 
+                    type="button" 
+                    className="input-btn" 
+                    title="上传文件"
+                    onClick={() => {
+                      const fileInput = document.createElement('input');
+                      fileInput.type = 'file';
+                      fileInput.style.display = 'none';
+                      fileInput.onchange = async (e) => {
+                        const files = e.target.files;
+                        if (!files || files.length === 0) return;
+
+                        const file = files[0];
+                        
+                        console.log('========== 空状态文件上传开始 ==========');
+                        console.log('文件名:', file.name);
+                        console.log('文件大小:', file.size);
+                        console.log('文件类型:', file.type);
+                        console.log('================================');
+                        
+                        // 检查文件大小（50MB限制）
+                        const maxSize = 50 * 1024 * 1024;
+                        if (file.size > maxSize) {
+                          alert('文件大小超过50MB限制');
+                          return;
+                        }
+
+                        try {
+                          const formData = new FormData();
+                          formData.append('file', file);
+
+                          console.log('开始上传文件到:', `${API_BASE_URL}/v1/file-upload/upload`);
+                          
+                          const response = await fetch(`${API_BASE_URL}/v1/file-upload/upload`, {
+                            method: 'POST',
+                            body: formData
+                          });
+
+                          console.log('上传响应状态:', response.status, response.statusText);
+
+                          if (!response.ok) {
+                            const errorData = await response.json();
+                            console.error('上传失败响应:', errorData);
+                            throw new Error(errorData.detail || '文件上传失败');
+                          }
+
+                          const result = await response.json();
+                          console.log('上传成功响应:', result);
+
+                          const newFile = {
+                            id: result.file_id,
+                            name: result.filename,
+                            size: result.file_size,
+                            type: result.file_type,
+                            path: result.upload_path
+                          };
+                          
+                          console.log('新文件对象:', newFile);
+                          console.log('当前 uploadedFiles:', uploadedFiles);
+                          console.log('调用 setUploadedFiles');
+                          
+                          setUploadedFiles(prev => {
+                            const newFiles = [...prev, newFile];
+                            console.log('更新后的文件列表:', newFiles);
+                            return newFiles;
+                          });
+
+                          alert('文件上传成功！');
+                        } catch (error) {
+                          console.error('文件上传错误:', error);
+                          alert(`文件上传失败: ${error.message}`);
+                        }
+                      };
+                      document.body.appendChild(fileInput);
+                      fileInput.click();
+                      document.body.removeChild(fileInput);
+                    }}
+                  >
+                    📁
+                  </button>
                   <button type="button" className="input-btn" title="联网搜索">🌐</button>
                   <button type="button" className="input-btn" title="知识库搜索">📚</button>
-                  <button type="button" className="input-btn" title="翻译">🔤</button>
-                  <button type="button" className="input-btn" title="上传文件">📁</button>
                   <button type="button" className={`input-btn ${enableThinkingChain ? 'active' : ''}`} title="思考模式" onClick={() => setEnableThinkingChain(!enableThinkingChain)}>🧠</button>
-                  <button type="button" className="input-btn" title="表情">😊</button>
+                  <button type="button" className="input-btn" title="翻译">🔤</button>
+                  <div className="input-divider"></div>
                   <button type="button" className="input-btn" title="录音">🎤</button>
                   <button type="button" className="input-btn" title="视频">🎥</button>
+                  <div className="input-divider"></div>
+                  {selectedModel && (
+                    <div className="current-model-info" ref={modelSelectRef}>
+                      <div 
+                        className="current-model-display"
+                        onClick={toggleModelDropdown}
+                      >
+                        <img 
+                          src={getModelLogoUrl(selectedModel)} 
+                          alt={selectedModel.model_name || '模型LOGO'} 
+                          className="current-model-logo"
+                        />
+                        <span className="current-model-text">
+                          {selectedModel.model_name || selectedModel.name || '未知模型'} 
+                          <span className="current-supplier-text">
+                            ({selectedModel.supplier_display_name || selectedModel.supplier_name || '未知供应商'})
+                          </span>
+                        </span>
+                        <span className="current-model-arrow">
+                          {isModelDropdownOpen ? (dropdownDirection === 'up' ? '▼' : '▲') : '▼'}
+                        </span>
+                      </div>
+                      {isModelDropdownOpen && (
+                        <div className={`model-dropdown model-dropdown-${dropdownDirection}`}>
+                          {availableModels.length === 0 ? (
+                            <div className="model-dropdown-item">暂无模型数据</div>
+                          ) : (
+                            availableModels.map(model => (
+                              <div 
+                                key={model.id} 
+                                className={`model-dropdown-item ${selectedModel?.id === model.id ? 'selected' : ''}`}
+                                onClick={() => handleSelectModel(model)}
+                              >
+                                <img 
+                                  src={getModelLogoUrl(model)} 
+                                  alt={model.model_name || '模型LOGO'} 
+                                  className="dropdown-model-logo"
+                                />
+                                <div className="dropdown-model-info">
+                                  <span className="dropdown-model-name">
+                                    {model.model_name || model.name || '未知模型'}
+                                  </span>
+                                  <span className="dropdown-supplier-name">
+                                    {model.supplier_display_name || model.supplier_name || '未知供应商'}
+                                  </span>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 {/* 引用消息显示 */}
                 {quotedMessage && (
@@ -1755,6 +2163,41 @@ const Chat = () => {
                   </div>
                 )}
                 
+                {/* 已上传文件显示 - 空状态 */}
+                {uploadedFiles.length > 0 && (
+                  <div className="uploaded-files">
+                    {uploadedFiles.map(file => (
+                      <div key={file.id} className="uploaded-file-item">
+                        <span className="file-icon">📄</span>
+                        <span className="file-name" title={file.name}>
+                          {file.name}
+                        </span>
+                        <span className="file-size">
+                          {formatFileSize(file.size)}
+                        </span>
+                        <button
+                          type="button"
+                          className="file-remove-btn"
+                          onClick={() => {
+                            fetch(`${API_BASE_URL}/v1/file-upload/files/${file.id}`, {
+                              method: 'DELETE'
+                            }).then(() => {
+                              setUploadedFiles(prev => prev.filter(f => f.id !== file.id));
+                              alert('文件删除成功！');
+                            }).catch(error => {
+                              console.error('删除文件错误:', error);
+                              alert(`删除文件失败: ${error.message}`);
+                            });
+                          }}
+                          title="删除文件"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
                 <div className="input-wrapper">
                   <textarea
                     placeholder="输入消息... 使用 Shift+Enter 换行"
@@ -1776,6 +2219,7 @@ const Chat = () => {
                   </button>
                 </div>
               </form>
+              </div>
             </div>
           ) : (
             // 正常聊天界面
@@ -1817,6 +2261,8 @@ const Chat = () => {
               selectedModel={selectedModel}
               availableModels={availableModels}
               onModelChange={setSelectedModel}
+              uploadedFiles={uploadedFiles}
+              setUploadedFiles={setUploadedFiles}
             />
           )}
         </div>

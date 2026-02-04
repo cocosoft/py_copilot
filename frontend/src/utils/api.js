@@ -2,6 +2,9 @@
 // 从共享工具导入通用函数和常量
 import { API_BASE_URL, STORAGE_PREFIX, request } from './apiUtils';
 
+// 导出 API_BASE_URL 供其他模块使用
+export { API_BASE_URL, STORAGE_PREFIX, request };
+
 // 从独立模块导入供应商API
 import { supplierApi } from './api/supplierApi';
 export { supplierApi };

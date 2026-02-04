@@ -87,6 +87,7 @@ class SendMessageRequest(BaseModel):
     model_name: Optional[str] = None
     enable_thinking_chain: bool = False
     topic_id: Optional[int] = None
+    attached_files: Optional[List[int]] = Field(default_factory=list, description="附件文件ID列表")
 
 
 class SendMessageResponse(BaseModel):
