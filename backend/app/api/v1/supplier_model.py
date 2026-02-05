@@ -945,61 +945,28 @@ async def fetch_models_from_api(supplier_id: int, api_config: dict, db: Session 
                 "X-DashScope-Async": "enable"  # 阿里云特定的头
             }
             
+            logger.info(f"[获取模型] 阿里云百炼API - 方法: GET, 端点: {models_endpoint}")
             response = requests.get(models_endpoint, headers=aliyun_headers, timeout=10)
             
             if response.status_code == 200:
                 data = response.json()
-                logger.info(f"[获取模型] 阿里云百炼API响应: {data}")
-                
-                # 阿里云百炼返回格式：包含data数组
-                if "data" in data and isinstance(data["data"], list):
+                if "data" in data:
                     for model_data in data["data"]:
                         models.append({
-                            "model_id": model_data.get("model_id", model_data.get("id")),
-                            "model_name": model_data.get("model_name", model_data.get("name", model_data.get("model_id"))),
-                            "description": model_data.get("description", f"阿里云模型: {model_data.get('model_name', model_data.get('model_id'))}"),
+                            "model_id": model_data.get("id"),
+                            "model_name": model_data.get("name", model_data.get("id")),
+                            "description": model_data.get("description", ""),
                             "context_window": model_data.get("context_window", 8000),
                             "max_tokens": model_data.get("max_tokens", 1000),
                             "is_default": False,
                             "is_active": True
                         })
-                else:
-                    # 如果标准格式不匹配，尝试其他可能的格式
-                    logger.warning(f"[获取模型] 阿里云百炼API返回格式未知，尝试备用解析: {type(data)}")
-                    # 备用方案：返回一些常见的阿里云模型
-                    common_aliyun_models = [
-                        {
-                            "model_id": "qwen-max",
-                            "model_name": "通义千问Max",
-                            "description": "阿里云通义千问Max模型，支持128K上下文",
-                            "context_window": 128000,
-                            "max_tokens": 4000,
-                            "is_default": True,
-                            "is_active": True
-                        },
-                        {
-                            "model_id": "qwen-plus",
-                            "model_name": "通义千问Plus",
-                            "description": "阿里云通义千问Plus模型",
-                            "context_window": 32000,
-                            "max_tokens": 2000,
-                            "is_default": False,
-                            "is_active": True
-                        },
-                        {
-                            "model_id": "qwen-turbo",
-                            "model_name": "通义千问Turbo",
-                            "description": "阿里云通义千问Turbo模型，响应速度快",
-                            "context_window": 8000,
-                            "max_tokens": 1500,
-                            "is_default": False,
-                            "is_active": True
-                        }
-                    ]
-                    models.extend(common_aliyun_models)
         else:
-            # 通用API - 尝试使用/models端点
-            models_endpoint = api_endpoint.rstrip('/') + "/v1/models"
+            # 通用API - 尝试使用OpenAI兼容的/models端点
+            base_url = api_endpoint.rstrip('/')
+            if base_url.endswith('/v1'):
+                base_url = base_url[:-3]  # 去掉最后的/v1
+            models_endpoint = base_url.rstrip('/') + "/v1/models"
             logger.info(f"[获取模型] 通用API - 方法: GET, 端点: {models_endpoint}")
             response = requests.get(models_endpoint, headers=headers, timeout=10)
             
@@ -1017,15 +984,13 @@ async def fetch_models_from_api(supplier_id: int, api_config: dict, db: Session 
                             "is_active": True
                         })
         
-        logger.info(f"[获取模型] 获取成功 - 供应商ID: {supplier_id}, 获取到 {len(models)} 个模型")
-        
+        logger.info(f"[获取模型] 成功获取 {len(models)} 个模型")
         return {
             "status": "success",
             "message": f"成功获取 {len(models)} 个模型",
             "models": models,
             "total": len(models)
         }
-    
     except requests.exceptions.ConnectionError as e:
         logger.error(f"[获取模型] 连接错误 - 供应商ID: {supplier_id}, API端点: {api_endpoint}, 错误: {str(e)}")
         return {
@@ -1059,6 +1024,134 @@ async def fetch_models_from_api(supplier_id: int, api_config: dict, db: Session 
             "total": 0
         }
 
+# 模型选择视图相关路由
+@router.get("/models/select")
+def get_model_select_data(scene: str = Query("all", description="使用场景"), db: Session = Depends(get_db)):
+    """
+    获取模型选择数据（从视图）
+    支持场景筛选
+    """
+    try:
+        from sqlalchemy import text
+        
+        if scene == "all":
+            # 查询所有模型
+            result = db.execute(text("SELECT * FROM model_select_view"))
+        else:
+            # 查询所有模型（由于models表中没有scene字段，暂时不做场景筛选）
+            result = db.execute(text("SELECT * FROM model_select_view"))
+        
+        # 转换为字典列表
+        models = []
+        for row in result.fetchall():
+            model_data = {
+                "id": row[0],
+                "model_id": row[1],
+                "model_name": row[2],
+                "description": row[3],
+                "logo": row[4],
+                "supplier_id": row[5],
+                "supplier_name": row[6],
+                "supplier_display_name": row[7],
+                "supplier_logo": row[8],
+                "is_default": bool(row[9]),
+                "capabilities": []  # 固定返回空数组
+            }
+            models.append(model_data)
+        
+        return {"data": models}
+    except Exception as e:
+        import logging
+        logging.error(f"获取模型选择数据失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"获取模型数据失败: {str(e)}")
+
+@router.get("/models/select/{model_id}")
+def get_model_select_item(model_id: int, db: Session = Depends(get_db)):
+    """
+    获取单个模型选择数据（从视图）
+    """
+    try:
+        from sqlalchemy import text
+        
+        result = db.execute(text("SELECT * FROM model_select_view WHERE id = :model_id"), {
+            "model_id": model_id
+        })
+        
+        row = result.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="模型不存在")
+        
+        model_data = {
+            "id": row[0],
+            "model_id": row[1],
+            "model_name": row[2],
+            "description": row[3],
+            "logo": row[4],
+            "supplier_id": row[5],
+            "supplier_name": row[6],
+            "supplier_display_name": row[7],
+            "supplier_logo": row[8],
+            "is_default": bool(row[9]),
+            "capabilities": []  # 固定返回空数组
+        }
+        
+        return {"data": model_data}
+    except HTTPException:
+        raise
+    except Exception as e:
+        import logging
+        logging.error(f"获取模型数据失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"获取模型数据失败: {str(e)}")
+
+@router.get("/models/select/default/{scene}")
+def get_default_model(scene: str, db: Session = Depends(get_db)):
+    """
+    获取默认模型（从视图）
+    """
+    try:
+        from sqlalchemy import text
+        
+        # 优先获取默认模型
+        result = db.execute(text("""
+            SELECT * FROM model_select_view 
+            WHERE is_default = 1
+            LIMIT 1
+        """))
+        
+        row = result.fetchone()
+        
+        if not row:
+            # 如果没有默认模型，返回第一个模型
+            result = db.execute(text("""
+                SELECT * FROM model_select_view 
+                LIMIT 1
+            """))
+            row = result.fetchone()
+        
+        if not row:
+            raise HTTPException(status_code=404, detail="暂无模型数据")
+        
+        model_data = {
+            "id": row[0],
+            "model_id": row[1],
+            "model_name": row[2],
+            "description": row[3],
+            "logo": row[4],
+            "supplier_id": row[5],
+            "supplier_name": row[6],
+            "supplier_display_name": row[7],
+            "supplier_logo": row[8],
+            "is_default": bool(row[9]),
+            "capabilities": []  # 固定返回空数组
+        }
+        
+        return {"data": model_data}
+    except HTTPException:
+        raise
+    except Exception as e:
+        import logging
+        logging.error(f"获取默认模型失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"获取默认模型失败: {str(e)}")
 @router.post("/suppliers/{supplier_id}/test-api")
 async def test_api_config(supplier_id: int, api_config: dict, db: Session = Depends(get_db)):
     import requests

@@ -129,17 +129,17 @@ class TopicTitleGenerator:
                 print(f"从缓存获取标题成功: {cached_title}")
                 return cached_title
             
-            # 尝试使用 LLM 生成标题
-            print("开始尝试使用LLM生成标题...")
-            logger.info("开始尝试使用LLM生成标题")
-            llm_title = cls._generate_with_llm(content, db)
-            
-            if llm_title:
-                print(f"LLM生成标题成功: {llm_title}")
-                logger.info(f"LLM生成标题成功: {llm_title}")
-                # 添加到缓存
-                cls._add_to_cache(content, llm_title)
-                return llm_title
+            # 尝试使用 LLM 生成标题（暂时禁用）
+            print("跳过LLM生成标题，直接使用规则生成...")
+            logger.info("跳过LLM生成标题，直接使用规则生成")
+            # llm_title = cls._generate_with_llm(content, db)
+            # 
+            # if llm_title:
+            #     print(f"LLM生成标题成功: {llm_title}")
+            #     logger.info(f"LLM生成标题成功: {llm_title}")
+            #     # 添加到缓存
+            #     cls._add_to_cache(content, llm_title)
+            #     return llm_title
             
             # LLM 生成失败，使用规则生成
             print("LLM生成失败，使用规则生成...")

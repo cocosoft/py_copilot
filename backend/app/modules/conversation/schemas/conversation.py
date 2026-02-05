@@ -96,3 +96,49 @@ class SendMessageResponse(BaseModel):
     user_message: MessageResponse
     assistant_message: Optional[MessageResponse] = None
     generated_at: datetime
+
+
+class TopicBase(BaseModel):
+    """话题基础模型"""
+    topic_name: str
+    topic_summary: Optional[str] = None
+    is_active: bool = True
+
+
+class TopicCreate(TopicBase):
+    """创建话题请求模型"""
+    pass
+
+
+class TopicUpdate(BaseModel):
+    """更新话题请求模型"""
+    topic_name: Optional[str] = None
+    topic_summary: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class TopicResponse(TopicBase):
+    """话题响应模型"""
+    id: int
+    conversation_id: int
+    message_count: int = 0
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
+
+class TopicListResponse(BaseModel):
+    """话题列表响应模型"""
+    topics: List[TopicResponse]
+    total: int
+    conversation_id: int
+
+
+class TopicMessagesResponse(BaseModel):
+    """话题消息列表响应模型"""
+    messages: List[MessageResponse]
+    total: int
+    topic_id: int
+    conversation_id: int

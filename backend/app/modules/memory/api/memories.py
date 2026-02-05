@@ -1,6 +1,6 @@
 """记忆模块API接口"""
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy.orm import Session
 from functools import wraps
 from collections import defaultdict
@@ -561,4 +561,159 @@ async def compress_similar_memories(
         "processed": result["processed"],
         "compressed": result["compressed"],
         "created": result["created"]
+    }
+
+
+@router.get("/memories/{memory_id}/export")
+async def export_memory(
+    memory_id: int,
+    format: str = "md",
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """导出记忆为指定格式"""
+    from fastapi import Response
+    from datetime import datetime
+    
+    # 获取记忆
+    memory = MemoryService.get_memory(db, memory_id, current_user.id)
+    if not memory:
+        raise HTTPException(status_code=404, detail="记忆不存在")
+    
+    # 生成MD格式内容
+    md_content = f"# {memory.title or '无标题'}\n\n"
+    md_content += f"- **类型**: {memory.memory_type}\n"
+    md_content += f"- **分类**: {memory.memory_category or '未分类'}\n"
+    md_content += f"- **重要性**: {memory.importance_score or 0.0}\n"
+    md_content += f"- **创建时间**: {memory.created_at.isoformat()}\n"
+    md_content += f"- **更新时间**: {memory.updated_at.isoformat() if memory.updated_at else '未更新'}\n\n"
+    md_content += f"## 内容\n\n{memory.content}\n"
+    
+    if memory.tags:
+        md_content += f"\n## 标签\n\n{', '.join(memory.tags)}\n"
+    
+    return Response(
+        content=md_content,
+        media_type="text/markdown",
+        headers={
+            "Content-Disposition": f"attachment; filename=memory_{memory_id}_{datetime.now().strftime('%Y-%m-%d')}.md"
+        }
+    )
+
+
+@router.get("/memories/export")
+async def export_all_memories(
+    format: str = "md",
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """批量导出所有记忆"""
+    from fastapi import Response
+    from datetime import datetime
+    
+    # 获取用户的所有记忆
+    memories = await MemoryService.get_user_memories(db, current_user.id, limit=1000)
+    
+    # 生成批量MD内容
+    md_content = f"# 记忆导出 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+    md_content += f"共 {len(memories)} 条记忆\n\n"
+    
+    for i, memory in enumerate(memories, 1):
+        md_content += f"## {i}. {memory.title or '无标题'}\n\n"
+        md_content += f"- **ID**: {memory.id}\n"
+        md_content += f"- **类型**: {memory.memory_type}\n"
+        md_content += f"- **分类**: {memory.memory_category or '未分类'}\n"
+        md_content += f"- **重要性**: {memory.importance_score or 0.0}\n"
+        md_content += f"- **创建时间**: {memory.created_at.isoformat()}\n"
+        md_content += f"- **更新时间**: {memory.updated_at.isoformat() if memory.updated_at else '未更新'}\n\n"
+        md_content += f"### 内容\n\n{memory.content}\n\n"
+        
+        if memory.tags:
+            md_content += f"### 标签\n\n{', '.join(memory.tags)}\n\n"
+        
+        md_content += "---\n\n"
+    
+    return Response(
+        content=md_content,
+        media_type="text/markdown",
+        headers={
+            "Content-Disposition": f"attachment; filename=memories_export_{datetime.now().strftime('%Y-%m-%d')}.md"
+        }
+    )
+
+
+@router.post("/memories/import")
+async def import_memory(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """导入MD文件为记忆"""
+    import re
+    from app.schemas.memory import MemoryCreate
+    
+    # 读取文件内容
+    content = await file.read()
+    content_str = content.decode('utf-8')
+    
+    # 解析MD文件内容
+    lines = content_str.split('\n')
+    
+    # 提取标题
+    title = "无标题"
+    if lines and lines[0].startswith('# '):
+        title = lines[0][2:].strip()
+    
+    # 提取元数据
+    memory_type = "LONG_TERM"
+    memory_category = "KNOWLEDGE"
+    importance_score = 0.5
+    
+    # 提取内容
+    content_start = False
+    memory_content = []
+    tags = []
+    
+    for line in lines:
+        if line.startswith('## 内容'):
+            content_start = True
+            continue
+        elif line.startswith('## 标签'):
+            content_start = False
+            continue
+        elif line.startswith('- **类型**:'):
+            memory_type = line.split(':', 1)[1].strip()
+        elif line.startswith('- **分类**:'):
+            memory_category = line.split(':', 1)[1].strip()
+        elif line.startswith('- **重要性**:'):
+            try:
+                importance_score = float(line.split(':', 1)[1].strip())
+            except:
+                pass
+        elif content_start and line.strip():
+            memory_content.append(line)
+        elif line.startswith('Tags:'):
+            # 兼容旧格式的标签
+            tags = [tag.strip() for tag in line.split(':', 1)[1].split(',')]
+    
+    # 构建记忆内容
+    memory_content_str = '\n'.join(memory_content)
+    
+    # 创建记忆
+    memory_data = MemoryCreate(
+        title=title,
+        content=memory_content_str,
+        memory_type=memory_type,
+        memory_category=memory_category,
+        importance_score=importance_score,
+        tags=tags if tags else None
+    )
+    
+    # 保存记忆
+    new_memory = await MemoryService.create_memory(db, memory_data, current_user.id)
+    
+    return {
+        "message": "记忆导入成功",
+        "memory_id": new_memory.id,
+        "title": new_memory.title
     }

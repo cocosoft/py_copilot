@@ -28,41 +28,10 @@ class LLMService:
         self.search_management_service = SearchManagementService()
         self.web_search_service = WebSearchService()
         
-        # 可用模型列表
-        self.available_models = [
-            {
-                "name": "gpt-3.5-turbo",
-                "provider": "OpenAI",
-                "type": "chat",
-                "max_tokens": 4096,
-                "description": "OpenAI的GPT-3.5 Turbo模型，适用于聊天和通用任务",
-                "is_default": True
-            },
-            {
-                "name": "text-davinci-003",
-                "provider": "OpenAI",
-                "type": "completion",
-                "max_tokens": 4097,
-                "description": "OpenAI的GPT-3文本生成模型",
-                "is_default": False
-            },
-            {
-                "name": "gpt-4",
-                "provider": "OpenAI",
-                "type": "chat",
-                "max_tokens": 8192,
-                "description": "OpenAI的GPT-4模型，适用于复杂任务",
-                "is_default": False
-            },
-            {
-                "name": "deepseek-chat",
-                "provider": "DeepSeek",
-                "type": "chat",
-                "max_tokens": 16384,
-                "description": "DeepSeek的对话模型，适用于多种聊天场景",
-                "is_default": False
-            }
-        ]
+        # TODO: 移除模拟数据 - 类型：默认模型列表
+        # 原因：硬编码的模型列表，应从数据库获取
+        # 处理方案：删除此列表，改为从数据库动态获取
+        self.available_models = []
         
         # 配置OpenAI客户端
         if hasattr(settings, 'OPENAI_API_KEY') and settings.OPENAI_API_KEY:
@@ -212,28 +181,13 @@ class LLMService:
                 except Exception as openai_error:
                     logger.warning(f"OpenAI API error, falling back to simulated response: {str(openai_error)}")
             
-            # 模拟模式或OpenAI不可用时返回模拟响应
+            # OpenAI不可用时抛出异常
             execution_time = (time.time() - start_time) * 1000
-            return {
-                "model": f"{model} (simulation)",
-                "generated_text": f"[模拟响应] 基于提示: {prompt[:50]}...",
-                "tokens_used": len(prompt.split()) // 2 + max_tokens // 2,
-                "execution_time_ms": round(execution_time, 2),
-                "success": False,
-                "simulated": True
-            }
+            raise ValueError("LLM服务不可用，请检查API密钥配置")
         except Exception as e:
             logger.error(f"Error in text completion: {str(e)}")
             execution_time = (time.time() - start_time) * 1000
-            return {
-                "model": model,
-                "generated_text": f"[模拟响应] 基于提示: {prompt[:50]}...",
-                "tokens_used": 0,
-                "error": str(e),
-                "execution_time_ms": round(execution_time, 2),
-                "success": False,
-                "simulated": True
-            }
+            raise
     
     def chat_completion(
         self,
@@ -638,16 +592,6 @@ class LLMService:
                 "execution_time_ms": round(execution_time, 2)
             }
         except Exception as e:
-            # 模拟模式
-            if hasattr(settings, 'SIMULATION_MODE') and settings.SIMULATION_MODE:
-                execution_time = (time.time() - start_time) * 1000
-                # 返回一个模拟的1536维向量
-                return {
-                    "model": f"{model} (simulation)",
-                    "embedding": [0.1 for _ in range(1536)],
-                    "tokens_used": len(text.split()) // 2,
-                    "execution_time_ms": round(execution_time, 2)
-                }
             logger.error(f"Embeddings generation error: {str(e)}")
             raise
     

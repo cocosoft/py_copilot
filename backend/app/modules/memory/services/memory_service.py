@@ -236,6 +236,10 @@ class MemoryService:
         # 更新字段
         update_data = memory_update.model_dump(exclude_unset=True)
         
+        # 检查内容是否有变化
+        content_changed = 'content' in update_data
+        title_changed = 'title' in update_data
+        
         # 处理向量嵌入（JSON序列化）
         if 'embedding' in update_data:
             update_data['embedding'] = json.dumps(update_data['embedding']) if update_data['embedding'] else None
@@ -248,6 +252,39 @@ class MemoryService:
             setattr(db_memory, key, value)
         
         db_memory.updated_at = datetime.now()
+        
+        # 如果内容或标题发生变化，重新生成向量嵌入
+        if content_changed or title_changed:
+            try:
+                # 生成新的向量嵌入
+                from app.services.llm_service import llm_service
+                embedding_result = llm_service.generate_embeddings(
+                    text=f"{db_memory.title or ''} {db_memory.content}",
+                    model_name="text-embedding-ada-002"
+                )
+                
+                # 更新向量嵌入
+                db_memory.embedding = json.dumps(embedding_result['embedding']) if embedding_result.get('embedding') else None
+                
+                # 更新向量数据库
+                from app.services.vector_store_service import chroma_service
+                chroma_service.update_document(
+                    document_id=str(db_memory.id),
+                    document=db_memory.content,
+                    metadata={
+                        "memory_id": str(db_memory.id),
+                        "user_id": user_id,
+                        "memory_type": db_memory.memory_type,
+                        "memory_category": db_memory.memory_category,
+                        "title": db_memory.title,
+                        "created_at": db_memory.created_at.isoformat()
+                    },
+                    embedding=embedding_result.get('embedding')
+                )
+            except Exception as e:
+                # 向量嵌入更新失败不影响记忆更新
+                import logging
+                logging.warning(f"向量嵌入更新失败: {str(e)}")
         
         db.commit()
         db.refresh(db_memory)
@@ -1803,7 +1840,8 @@ class MemoryService:
         
         # 3. 基于时间调整（如果当前时间是用户活跃时间）
         current_hour = datetime.now().hour
-        if current_hour in preferences["time_based_preferences"]["peak_hours"]:
+        peak_hour = preferences["time_based_preferences"].get("peak_hour", 14)
+        if current_hour == peak_hour:
             importance_score += 0.01
         
         # 限制重要性评分在0.0-1.0之间
@@ -1815,19 +1853,23 @@ class MemoryService:
         memory.access_count += 1
         
         # 更新向量数据库中的记忆信息
-        chroma_service.update_document(
-            document_id=str(memory.id),
-            text=memory.content,
-            metadata={
-                "memory_id": memory.id,
-                "user_id": user_id,
-                "memory_type": memory.memory_type,
-                "memory_category": memory.memory_category,
-                "title": memory.title,
-                "importance_score": memory.importance_score,
-                "created_at": memory.created_at.isoformat()
-            }
-        )
+        try:
+            chroma_service.update_document(
+                document_id=str(memory.id),
+                text=memory.content,
+                metadata={
+                    "memory_id": memory.id,
+                    "user_id": user_id,
+                    "memory_type": memory.memory_type,
+                    "memory_category": memory.memory_category,
+                    "title": memory.title,
+                    "importance_score": memory.importance_score,
+                    "created_at": memory.created_at.isoformat()
+                }
+            )
+        except Exception as e:
+            import logging
+            logging.warning(f"向量数据库更新失败: {str(e)}")
         
         db.commit()
     

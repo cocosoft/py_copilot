@@ -269,8 +269,8 @@ class WebSearchService:
         # 检查API密钥
         api_key = self.api_keys.get("google")
         if not api_key:
-            logger.warning("Google API密钥未配置，使用模拟结果")
-            return self._mock_search_result(query, "google")
+            logger.error("Google API密钥未配置")
+            raise ValueError("Google搜索服务未配置API密钥")
         
         try:
             # 调用Google Search API
@@ -304,8 +304,8 @@ class WebSearchService:
             
         except Exception as e:
             logger.error(f"Google搜索API调用失败: {str(e)}")
-            # 失败时使用模拟结果
-            return self._mock_search_result(query, "google")
+            # 直接抛出异常，不使用模拟结果
+            raise
     
     def _search_bing(self, query: str, safe_search: bool, params: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Bing搜索实现"""
@@ -314,8 +314,8 @@ class WebSearchService:
         # 检查API密钥
         api_key = self.api_keys.get("bing")
         if not api_key:
-            logger.warning("Bing API密钥未配置，使用模拟结果")
-            return self._mock_search_result(query, "bing")
+            logger.error("Bing API密钥未配置")
+            raise ValueError("Bing搜索服务未配置API密钥")
         
         try:
             # 调用Bing Search API
@@ -350,8 +350,8 @@ class WebSearchService:
             
         except Exception as e:
             logger.error(f"Bing搜索API调用失败: {str(e)}")
-            # 失败时使用模拟结果
-            return self._mock_search_result(query, "bing")
+            # 直接抛出异常，不使用模拟结果
+            raise
     
     def _search_baidu(self, query: str, safe_search: bool, params: Dict[str, Any]) -> List[Dict[str, Any]]:
         """百度搜索实现"""
@@ -360,8 +360,8 @@ class WebSearchService:
         # 检查API密钥
         api_key = self.api_keys.get("baidu")
         if not api_key:
-            logger.warning("百度API密钥未配置，使用模拟结果")
-            return self._mock_search_result(query, "baidu")
+            logger.error("百度API密钥未配置")
+            raise ValueError("百度搜索服务未配置API密钥")
         
         try:
             # 调用百度搜索API
@@ -393,9 +393,12 @@ class WebSearchService:
             
         except Exception as e:
             logger.error(f"百度搜索API调用失败: {str(e)}")
-            # 失败时使用模拟结果
-            return self._mock_search_result(query, "baidu")
+            # 直接抛出异常，不使用模拟结果
+            raise
     
+    # TODO: 移除模拟数据 - 类型：搜索结果模拟
+    # 原因：当API调用失败时返回模拟数据，应改为抛出异常
+    # 处理方案：删除此方法，修改错误处理逻辑
     def _mock_search_result(self, query: str, engine: str) -> List[Dict[str, Any]]:
         """生成模拟搜索结果"""
         return [

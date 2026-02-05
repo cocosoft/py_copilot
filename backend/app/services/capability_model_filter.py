@@ -109,3 +109,26 @@ class CapabilityBasedModelFilter:
         """
         scene_capabilities = self._get_scene_capabilities(scene)
         return self._calculate_capability_match_score(model, scene_capabilities)
+    
+    def _calculate_capability_match_score(self, model: ModelDB, scene_capabilities: List[str]) -> float:
+        """
+        计算模型与场景能力需求的匹配度分数
+        
+        Args:
+            model: 模型对象
+            scene_capabilities: 场景所需的能力列表
+            
+        Returns:
+            能力匹配度分数（0.0-1.0）
+        """
+        if not scene_capabilities:
+            return 1.0
+        
+        # 计算模型具有的场景所需能力数量
+        matched_capabilities = 0
+        for capability in scene_capabilities:
+            if self._get_model_has_capability(model.id, capability):
+                matched_capabilities += 1
+        
+        # 计算匹配度分数
+        return matched_capabilities / len(scene_capabilities)
