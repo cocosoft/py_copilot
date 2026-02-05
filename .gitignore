@@ -784,3 +784,11 @@ OPTIMIZATION_PROPOSAL.md
 chat-interface-implementation.md
 chat-interface-optimization.md
 SEARCH_INTEGRATION_PLAN.md
+CHAT_FEATURE_IMPLEMENTATION_PLAN.md
+GLOBAL_MEMORY_ANALYSIS_AND_OPTIMIZATION.md
+GLOBAL_MEMORY_ENHANCEMENT_IMPLEMENTATION_PLAN.md
+MEMORY_EDITING_SOLUTION.md
+MEMORY_STORAGE_OPTION_ANALYSIS.md
+MOCK_DATA_CLEANUP_PLAN.md
+ModelSelectDropdown升级方案.md
+frontend/src/components/ModelManagement/DefaultModelManagement优化方案.md

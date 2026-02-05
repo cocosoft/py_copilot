@@ -253,6 +253,9 @@ const Settings = () => {
   const [totalMemories, setTotalMemories] = useState(0);
   const [isDeletingMemory, setIsDeletingMemory] = useState(false);
   const [pageInput, setPageInput] = useState('1');
+  // 排序状态
+  const [sortField, setSortField] = useState('created_at');
+  const [sortDirection, setSortDirection] = useState('desc');
   
   // 记忆统计和分析相关状态
   const [memoryStats, setMemoryStats] = useState(null);
@@ -266,6 +269,17 @@ const Settings = () => {
   const [knowledgeGraph, setKnowledgeGraph] = useState(null);
   const [isLoadingGraph, setIsLoadingGraph] = useState(false);
   const [maxNodes, setMaxNodes] = useState(100);
+  
+  // 记忆详情模态框相关状态
+  const [showMemoryDetailModal, setShowMemoryDetailModal] = useState(false);
+  const [currentMemory, setCurrentMemory] = useState(null);
+  const [isLoadingMemoryDetail, setIsLoadingMemoryDetail] = useState(false);
+  
+  // 记忆编辑模态框相关状态
+  const [showMemoryEditModal, setShowMemoryEditModal] = useState(false);
+  const [editingMemory, setEditingMemory] = useState(null);
+  const [isSavingMemory, setIsSavingMemory] = useState(false);
+  const [editFormData, setEditFormData] = useState({ title: '', content: '', memory_type: '', memory_category: '' });
   
   // 图表引用
   const memoryTypeChartRef = useRef(null);
@@ -527,7 +541,9 @@ const Settings = () => {
     try {
       const params = {
         page: currentPage,
-        limit: memoriesPerPage
+        limit: memoriesPerPage,
+        sort_by: sortField,
+        sort_order: sortDirection
       };
       if (memorySearchQuery) {
         params.query = memorySearchQuery;
@@ -750,12 +766,120 @@ const Settings = () => {
     }
   };
 
-  // 分页变化时重新加载数据（只重新加载记忆列表，不重新加载统计数据）
+  // 加载记忆详情
+  const loadMemoryDetail = async (memoryId) => {
+    setIsLoadingMemoryDetail(true);
+    try {
+      const data = await request(`/v1/memory/memories/${memoryId}`, { method: 'GET' });
+      setCurrentMemory(data);
+      setShowMemoryDetailModal(true);
+    } catch (error) {
+      console.error('加载记忆详情失败:', error);
+      alert('加载记忆详情失败，请重试');
+    } finally {
+      setIsLoadingMemoryDetail(false);
+    }
+  };
+
+  // 打开编辑模态框
+  const openEditModal = (memory) => {
+    setEditingMemory(memory);
+    setEditFormData({
+      title: memory.title || '',
+      content: memory.content || '',
+      memory_type: memory.memory_type || '',
+      memory_category: memory.memory_category || ''
+    });
+    setShowMemoryEditModal(true);
+  };
+
+  // 保存记忆编辑
+  const saveMemoryEdit = async () => {
+    if (!editingMemory) return;
+    
+    setIsSavingMemory(true);
+    try {
+      const data = await request(`/v1/memory/memories/${editingMemory.id}`, {
+        method: 'PUT',
+        data: editFormData
+      });
+      alert('记忆编辑成功');
+      setShowMemoryEditModal(false);
+      loadMemories(); // 重新加载记忆列表
+    } catch (error) {
+      console.error('保存记忆编辑失败:', error);
+      alert('保存记忆编辑失败，请重试');
+    } finally {
+      setIsSavingMemory(false);
+    }
+  };
+
+  // 导出记忆为MD文件
+  const exportMemory = async (memoryId) => {
+    try {
+      const response = await fetch(`/api/v1/memory/memories/${memoryId}/export`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'text/markdown'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('导出记忆失败');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `memory_${memoryId}_${new Date().toISOString().split('T')[0]}.md`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('导出记忆失败:', error);
+      alert('导出记忆失败，请重试');
+    }
+  };
+
+  // 处理MD文件导入
+  const handleFileImport = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetch(`/api/v1/memory/memories/import`, {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error('导入记忆失败');
+      }
+      
+      const data = await response.json();
+      alert(`导入成功：${data.message}`);
+      loadMemories(); // 重新加载记忆列表
+      // 重置文件输入
+      event.target.value = '';
+    } catch (error) {
+      console.error('导入记忆失败:', error);
+      alert('导入记忆失败，请重试');
+      // 重置文件输入
+      event.target.value = '';
+    }
+  };
+
+  // 分页或排序变化时重新加载数据（只重新加载记忆列表，不重新加载统计数据）
   useEffect(() => {
     if (activeSection === 'globalMemory') {
       loadMemories();
     }
-  }, [currentPage, activeSection]);
+  }, [currentPage, sortField, sortDirection, activeSection]);
 
   // 保存默认模型设置 - 移到组件顶层
   const handleSaveDefaultModel = () => {
@@ -1539,6 +1663,16 @@ const Settings = () => {
                       <button className="refresh-btn" onClick={loadMemories} disabled={isLoadingMemories}>
                         {isLoadingMemories ? '加载中...' : '刷新'}
                       </button>
+                      <button className="import-btn" onClick={() => document.getElementById('import-file').click()}>
+                        导入MD
+                      </button>
+                      <input
+                        type="file"
+                        id="import-file"
+                        accept=".md"
+                        style={{ display: 'none' }}
+                        onChange={handleFileImport}
+                      />
                       <button className="clear-btn" onClick={clearAllMemories} disabled={isDeletingMemory}>
                         {isDeletingMemory ? '处理中...' : '清空所有'}
                       </button>
@@ -1552,12 +1686,52 @@ const Settings = () => {
                       <table className="data-table">
                         <thead>
                           <tr>
-                            <th>ID</th>
-                            <th>类型</th>
-                            <th>分类</th>
+                            <th 
+                              style={{ cursor: 'pointer' }} 
+                              onClick={() => {
+                                setSortField('id');
+                                setSortDirection(sortField === 'id' && sortDirection === 'asc' ? 'desc' : 'asc');
+                              }}
+                            >
+                              ID {sortField === 'id' && (sortDirection === 'asc' ? '↑' : '↓')}
+                            </th>
+                            <th 
+                              style={{ cursor: 'pointer' }} 
+                              onClick={() => {
+                                setSortField('memory_type');
+                                setSortDirection(sortField === 'memory_type' && sortDirection === 'asc' ? 'desc' : 'asc');
+                              }}
+                            >
+                              类型 {sortField === 'memory_type' && (sortDirection === 'asc' ? '↑' : '↓')}
+                            </th>
+                            <th 
+                              style={{ cursor: 'pointer' }} 
+                              onClick={() => {
+                                setSortField('memory_category');
+                                setSortDirection(sortField === 'memory_category' && sortDirection === 'asc' ? 'desc' : 'asc');
+                              }}
+                            >
+                              分类 {sortField === 'memory_category' && (sortDirection === 'asc' ? '↑' : '↓')}
+                            </th>
                             <th>内容</th>
-                            <th>重要性</th>
-                            <th>创建时间</th>
+                            <th 
+                              style={{ cursor: 'pointer' }} 
+                              onClick={() => {
+                                setSortField('importance');
+                                setSortDirection(sortField === 'importance' && sortDirection === 'asc' ? 'desc' : 'asc');
+                              }}
+                            >
+                              重要性 {sortField === 'importance' && (sortDirection === 'asc' ? '↑' : '↓')}
+                            </th>
+                            <th 
+                              style={{ cursor: 'pointer' }} 
+                              onClick={() => {
+                                setSortField('created_at');
+                                setSortDirection(sortField === 'created_at' && sortDirection === 'asc' ? 'desc' : 'asc');
+                              }}
+                            >
+                              创建时间 {sortField === 'created_at' && (sortDirection === 'asc' ? '↑' : '↓')}
+                            </th>
                             <th>操作</th>
                           </tr>
                         </thead>
@@ -1571,6 +1745,27 @@ const Settings = () => {
                               <td>{memory.importance}</td>
                               <td>{new Date(memory.created_at).toLocaleString()}</td>
                               <td>
+                                <button 
+                                  className="view-btn" 
+                                  onClick={() => loadMemoryDetail(memory.id)}
+                                  disabled={isLoadingMemoryDetail}
+                                >
+                                  查看
+                                </button>
+                                <button 
+                                  className="edit-btn" 
+                                  onClick={() => openEditModal(memory)}
+                                  disabled={isSavingMemory}
+                                >
+                                  编辑
+                                </button>
+                                <button 
+                                  className="export-btn" 
+                                  onClick={() => exportMemory(memory.id)}
+                                  disabled={false}
+                                >
+                                  导出
+                                </button>
                                 <button 
                                   className="delete-btn" 
                                   onClick={() => deleteMemory(memory.id)}
@@ -1651,6 +1846,31 @@ const Settings = () => {
                       <p>系统中尚未存储任何全局记忆</p>
                     </div>
                   )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+           
+      case 'mcp':
+        return (
+          <div className="settings-content">
+            <div className="content-header">
+              <h2>MCP服务</h2>
+              <p>管理MCP服务的配置和连接</p>
+            </div>
+            
+            <div className="mcp-service-container">
+              <div className="setting-card">
+                <div className="setting-header">
+                  <h3>MCP服务设置</h3>
+                  <p>MCP服务页面内容暂空</p>
+                </div>
+                
+                <div className="empty-state">
+                  <div className="empty-icon">🔗</div>
+                  <h4>MCP服务配置</h4>
+                  <p>页面内容正在建设中...</p>
                 </div>
               </div>
             </div>
@@ -1751,6 +1971,14 @@ const Settings = () => {
               <span className="nav-icon">💾</span>
               <span className="nav-text">全局记忆</span>
             </button>
+            
+            <button 
+              className={`nav-item ${activeSection === 'mcp' ? 'active' : ''}`}
+              onClick={() => setActiveSection('mcp')}
+            >
+              <span className="nav-icon">🔗</span>
+              <span className="nav-text">MCP服务</span>
+            </button>
               
 
         </nav>
@@ -1770,6 +1998,153 @@ const Settings = () => {
           {renderContent()}
         </div>
       </div>
+      
+      {/* 记忆详情模态框 */}
+      {showMemoryDetailModal && (
+        <div className="modal-overlay">
+          <div className="modal-content memory-detail-modal">
+            <div className="modal-header">
+              <h3>记忆详情</h3>
+              <button className="close-btn" onClick={() => setShowMemoryDetailModal(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              {isLoadingMemoryDetail ? (
+                <div className="loading">加载中...</div>
+              ) : currentMemory ? (
+                <div className="memory-detail-content">
+                  <div className="detail-item">
+                    <label>标题:</label>
+                    <div className="detail-value">{currentMemory.title || '无标题'}</div>
+                  </div>
+                  <div className="detail-item">
+                    <label>类型:</label>
+                    <div className="detail-value">{currentMemory.memory_type}</div>
+                  </div>
+                  <div className="detail-item">
+                    <label>分类:</label>
+                    <div className="detail-value">{currentMemory.memory_category || '未分类'}</div>
+                  </div>
+                  <div className="detail-item">
+                    <label>重要性:</label>
+                    <div className="detail-value">{currentMemory.importance}</div>
+                  </div>
+                  <div className="detail-item">
+                    <label>创建时间:</label>
+                    <div className="detail-value">{new Date(currentMemory.created_at).toLocaleString()}</div>
+                  </div>
+                  {currentMemory.updated_at && (
+                    <div className="detail-item">
+                      <label>更新时间:</label>
+                      <div className="detail-value">{new Date(currentMemory.updated_at).toLocaleString()}</div>
+                    </div>
+                  )}
+                  <div className="detail-item detail-content">
+                    <label>内容:</label>
+                    <div className="detail-value content-value">{currentMemory.content}</div>
+                  </div>
+                  {currentMemory.tags && currentMemory.tags.length > 0 && (
+                    <div className="detail-item">
+                      <label>标签:</label>
+                      <div className="detail-value">{currentMemory.tags.join(', ')}</div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="empty-state">
+                  <p>记忆详情加载失败</p>
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="export-btn" onClick={() => exportMemory(currentMemory.id)}>
+                导出为MD
+              </button>
+              <button className="edit-btn" onClick={() => {
+                setShowMemoryDetailModal(false);
+                openEditModal(currentMemory);
+              }}>
+                编辑
+              </button>
+              <button className="close-btn" onClick={() => setShowMemoryDetailModal(false)}>
+                关闭
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* 记忆编辑模态框 */}
+      {showMemoryEditModal && (
+        <div className="modal-overlay">
+          <div className="modal-content memory-edit-modal">
+            <div className="modal-header">
+              <h3>编辑记忆</h3>
+              <button className="close-btn" onClick={() => setShowMemoryEditModal(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <div className="edit-form">
+                <div className="form-item">
+                  <label htmlFor="edit-title">标题</label>
+                  <input
+                    type="text"
+                    id="edit-title"
+                    className="form-input"
+                    value={editFormData.title}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="请输入标题"
+                  />
+                </div>
+                <div className="form-item">
+                  <label htmlFor="edit-content">内容</label>
+                  <textarea
+                    id="edit-content"
+                    className="form-textarea"
+                    value={editFormData.content}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, content: e.target.value }))}
+                    placeholder="请输入内容"
+                    rows={8}
+                  />
+                </div>
+                <div className="form-item">
+                  <label htmlFor="edit-type">类型</label>
+                  <select
+                    id="edit-type"
+                    className="form-select"
+                    value={editFormData.memory_type}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, memory_type: e.target.value }))}
+                  >
+                    <option value="SHORT_TERM">短期记忆</option>
+                    <option value="LONG_TERM">长期记忆</option>
+                  </select>
+                </div>
+                <div className="form-item">
+                  <label htmlFor="edit-category">分类</label>
+                  <input
+                    type="text"
+                    id="edit-category"
+                    className="form-input"
+                    value={editFormData.memory_category}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, memory_category: e.target.value }))}
+                    placeholder="请输入分类"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="cancel-btn" onClick={() => setShowMemoryEditModal(false)}>
+                取消
+              </button>
+              <button 
+                className="save-btn" 
+                onClick={saveMemoryEdit}
+                disabled={isSavingMemory}
+              >
+                {isSavingMemory ? '保存中...' : '保存'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

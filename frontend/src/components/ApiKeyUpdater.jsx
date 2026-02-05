@@ -4,8 +4,7 @@ import api from '../utils/api';
 
 const ApiKeyUpdater = () => {
   useEffect(() => {
-    // 此组件不再自动更新API密钥，API密钥应通过供应商管理界面手动设置
-    // 仅保留localStorage降级功能，确保前端应用能正常工作
+    // 从API获取供应商数据并缓存到localStorage
     const ensureLocalStorageSuppliers = async () => {
       try {
         // 从API获取所有供应商
@@ -18,45 +17,17 @@ const ApiKeyUpdater = () => {
         const STORAGE_PREFIX = 'model_management_';
         const suppliersKey = `${STORAGE_PREFIX}suppliers`;
         localStorage.setItem(suppliersKey, JSON.stringify(suppliersArray));
+        console.log('✅ 供应商数据已从API更新到localStorage');
       } catch (error) {
-        console.error('获取供应商数据时出错:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
-        // API调用失败时，确保localStorage中有基本的供应商数据结构
-        const STORAGE_PREFIX = 'model_management_';
-        const suppliersKey = `${STORAGE_PREFIX}suppliers`;
-        let suppliers = [];
-        
-        try {
-          const stored = localStorage.getItem(suppliersKey);
-          if (stored) {
-            suppliers = JSON.parse(stored);
-          }
-          
-          // 确保至少有一个基本的供应商结构
-          if (suppliers.length === 0) {
-            suppliers = [
-              {
-                id: 'deepseek',
-                name: 'DeepSeek',
-                key: 'deepseek',
-                logo: getImageUrl('providers', 'deepseek.png'),
-                category: 'llm',
-                website: 'https://deepseek.com',
-                api_endpoint: 'https://api.deepseek.com/v1',
-                api_docs: 'https://platform.deepseek.com/api-docs/v1',
-                api_key_required: true,
-                is_active: true
-                // 注意：不再硬编码API密钥
-              }
-            ];
-            localStorage.setItem(suppliersKey, JSON.stringify(suppliers));
-          }
-        } catch (localError) {
-          console.error('localStorage操作失败:', JSON.stringify({ message: localError.message, stack: localError.stack }, null, 2));
-        }
+        console.error('❌ 获取供应商数据失败:', error.message);
+        console.error('请检查后端服务是否正常运行');
       }
     };
     
-    ensureLocalStorageSuppliers();
+    // 添加防抖，避免与其他组件的请求冲突
+    const timer = setTimeout(ensureLocalStorageSuppliers, 1000);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   // 这个组件不会渲染任何内容

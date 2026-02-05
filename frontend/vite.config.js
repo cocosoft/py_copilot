@@ -14,14 +14,14 @@ export default defineConfig(({ mode }) => {
     server: {
       proxy: {
         '/api': {
-            target: 'http://localhost:8001',
+            target: 'http://localhost:8000',
             changeOrigin: true,
             secure: false,
             timeout: 30000, // 增加超时时间到30秒，适合长连接
             configure: (proxy, options) => {
               // 禁用代理缓冲，确保流式响应能正确传递
               options.onProxyReq = (proxyReq, req, res) => {
-                console.log('📤 Sending Request to Target:', req.method, req.url, '→', 'http://localhost:8001' + req.url);
+                console.log('📤 Sending Request to Target:', req.method, req.url, '→', 'http://localhost:8000' + req.url);
                 // 添加调试头
                 proxyReq.setHeader('X-Proxy-Request', 'true');
               };
@@ -47,7 +47,7 @@ export default defineConfig(({ mode }) => {
                 if (err.code === 'ECONNRESET') {
                   console.error('🚨 Connection reset by peer - check if backend server is running and accessible');
                 } else if (err.code === 'ECONNREFUSED') {
-                  console.error('🚨 Connection refused - check if backend server is running on port:', 'http://localhost:8001');
+                  console.error('🚨 Connection refused - check if backend server is running on port:', 'http://localhost:8000');
                 }
                 // 确保响应被发送，避免客户端等待超时
                 res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -56,7 +56,7 @@ export default defineConfig(({ mode }) => {
             }
           },
         '/logos': {
-            target: 'http://localhost:8001',
+            target: 'http://localhost:8000',
             changeOrigin: true,
             secure: false,
             configure: (proxy, options) => {

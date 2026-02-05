@@ -6,6 +6,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .topic-sidebar-header {
@@ -47,6 +48,14 @@
 }
 
 .topic-sidebar.collapsed .create-topic-button {
+  display: none;
+}
+
+.topic-sidebar.collapsed .topic-search {
+  display: none;
+}
+
+.topic-sidebar.collapsed .topic-list {
   display: none;
 }
 

@@ -10,6 +10,7 @@
   position: relative;
   width: 100%;
   box-sizing: border-box;
+  min-width: 0;
 }
 
 .chat-main.with-sidebar {
@@ -92,6 +93,33 @@
   height: 24px;
   background: #e0e0e0;
   margin: 0 4px;
+}
+
+/* 聊天模型选择器样式 */
+.chat-model-selector {
+  min-width: 220px;
+  max-width: 300px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* 确保模型选择器的箭头被边框包住 */
+.chat-model-selector .custom-select {
+  position: relative;
+  overflow: hidden;
+}
+
+.chat-model-selector .custom-select__arrow {
+  position: relative;
+  z-index: 1;
+  margin-left: 8px;
+  margin-right: 4px;
+}
+
+/* 确保模型选择器的下拉菜单宽度适当 */
+.chat-model-selector .custom-select__dropdown {
+  min-width: 300px;
 }
 
 .current-model-info {

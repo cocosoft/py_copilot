@@ -3,7 +3,15 @@ import conversationApi from '../utils/api/conversationApi';
 import TopicItem from './TopicItem';
 import './TopicSidebar.css';
 
-const TopicSidebar = ({ conversationId, activeTopic, onTopicSelect, onTopicCreate, onTopicDelete, refreshFlag }) => {
+const TopicSidebar = ({ 
+  conversationId, 
+  activeTopic, 
+  setActiveTopic, 
+  refreshFlag, 
+  setRefreshFlag,
+  collapsed, 
+  setCollapsed 
+}) => {
   const [topics, setTopics] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
@@ -55,20 +63,18 @@ const TopicSidebar = ({ conversationId, activeTopic, onTopicSelect, onTopicCreat
 
   const handleCreateTopic = async () => {
     try {
-      // 调用API创建话题，不传递topic_name，由后端自动生成
-      const response = await conversationApi.createTopic(conversationId, '');
+    // 调用API创建话题，不传递topic_name，由后端自动生成
+    const response = await conversationApi.createTopic(conversationId, '');
+    
+    if (response) {
+      setTopics([response, ...topics]);
       
-      if (response) {
-        setTopics([response, ...topics]);
-        
-        if (onTopicCreate) {
-          onTopicCreate(response);
-        }
-      }
-    } catch (error) {
-      console.error('创建话题失败:', error);
-      alert('创建话题失败，请重试');
+      // 移除对未定义参数的引用
     }
+  } catch (error) {
+    console.error('创建话题失败:', error);
+    alert('创建话题失败，请重试');
+  }
   };
 
   const handleDeleteTopic = async (topicId) => {
@@ -89,9 +95,7 @@ const TopicSidebar = ({ conversationId, activeTopic, onTopicSelect, onTopicCreat
       
       setTopics(topics.filter(t => t.id !== topicId));
       
-      if (onTopicDelete) {
-        onTopicDelete(topicId);
-      }
+      // 移除对未定义参数的引用
     } catch (error) {
       console.error('删除话题失败:', error);
       alert('删除话题失败，请重试');
@@ -99,53 +103,66 @@ const TopicSidebar = ({ conversationId, activeTopic, onTopicSelect, onTopicCreat
   };
 
   const handleTopicClick = (topic) => {
-    if (onTopicSelect) {
-      onTopicSelect(topic);
+    if (setActiveTopic) {
+      setActiveTopic(topic);
     }
   };
 
   return (
-    <div className="topic-sidebar">
+    <div className={`topic-sidebar ${collapsed ? 'collapsed' : ''}`}>
       <div className="topic-sidebar-header">
-        <h3>话题列表</h3>
+        {!collapsed && <h3>话题列表</h3>}
         <div className="topic-sidebar-actions">
+          {!collapsed && (
+            <button 
+              className="create-topic-button"
+              onClick={handleCreateTopic}
+              title="新建话题"
+            >
+              + 新建话题
+            </button>
+          )}
           <button 
-            className="create-topic-button"
-            onClick={handleCreateTopic}
-            title="新建话题"
+            className="collapse-button"
+            onClick={() => setCollapsed && setCollapsed(!collapsed)}
+            title={collapsed ? '展开' : '收缩'}
           >
-            + 新建话题
+            {collapsed ? '▶' : '◀'}
           </button>
         </div>
       </div>
 
-      <div className="topic-search">
-        <input
-          type="text"
-          placeholder="搜索话题..."
-          value={searchKeyword}
-          onChange={(e) => handleSearch(e.target.value)}
-          className="topic-search-input"
-        />
-      </div>
-
-      <div className="topic-list">
-        {loading ? (
-          <div className="topic-loading">加载中...</div>
-        ) : topics.length === 0 ? (
-          <div className="topic-empty">暂无话题</div>
-        ) : (
-          topics.map(topic => (
-            <TopicItem
-              key={topic.id}
-              topic={topic}
-              isActive={activeTopic && activeTopic.id === topic.id}
-              onClick={() => handleTopicClick(topic)}
-              onDelete={() => handleDeleteTopic(topic.id)}
+      {!collapsed && (
+        <>
+          <div className="topic-search">
+            <input
+              type="text"
+              placeholder="搜索话题..."
+              value={searchKeyword}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="topic-search-input"
             />
-          ))
-        )}
-      </div>
+          </div>
+
+          <div className="topic-list">
+            {loading ? (
+              <div className="topic-loading">加载中...</div>
+            ) : topics.length === 0 ? (
+              <div className="topic-empty">暂无话题</div>
+            ) : (
+              topics.map(topic => (
+                <TopicItem
+                  key={topic.id}
+                  topic={topic}
+                  isActive={activeTopic && activeTopic.id === topic.id}
+                  onClick={() => handleTopicClick(topic)}
+                  onDelete={() => handleDeleteTopic(topic.id)}
+                />
+              ))
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 };

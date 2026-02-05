@@ -1,7 +1,7 @@
 /* 聊天页面样式 */
 .chat-container {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   height: 100%;
   min-height: 0;
   background-color: #f5f5f5;
@@ -197,6 +197,16 @@
     font-size: 18px;
     padding: 6px;
   }
+}
+
+/* 主聊天区域容器 */
+.chat-main-container {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 /* 主内容区域包装器 */

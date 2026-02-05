@@ -5,54 +5,54 @@ import './LeftSidebar.css';
 const LeftSidebar = ({
   conversationId,
   activeTopic,
-  onTopicSelect,
-  onTopicCreate,
-  onTopicDelete,
+  setActiveTopic,
   refreshFlag,
-  onCollapseChange,
-  models,
-  selectedModel,
-  onModelChange,
-  collapsed
+  setRefreshFlag,
+  collapsed,
+  setCollapsed
 }) => {
-  const [activeTab, setActiveTab] = useState('topics'); // 'topics' 或 'settings'
+  const [activeTab, setActiveTab] = useState('topics');
 
   return (
     <div className={`left-sidebar ${collapsed ? 'collapsed' : ''}`}>
       {!collapsed && (
         <div className="sidebar-tabs">
-          <button
+          <button 
             className={`sidebar-tab ${activeTab === 'topics' ? 'active' : ''}`}
             onClick={() => setActiveTab('topics')}
-            title="话题管理"
           >
-            📋 话题
+            话题
           </button>
-          <button
+          <button 
             className={`sidebar-tab ${activeTab === 'settings' ? 'active' : ''}`}
             onClick={() => setActiveTab('settings')}
-            title="设置"
           >
-            ⚙️ 设置
+            设置
           </button>
         </div>
       )}
-
+      
       <div className="sidebar-content">
-        {!collapsed && activeTab === 'topics' && (
+        {activeTab === 'topics' && (
           <TopicSidebar
             conversationId={conversationId}
             activeTopic={activeTopic}
-            onTopicSelect={onTopicSelect}
-            onTopicCreate={onTopicCreate}
-            onTopicDelete={onTopicDelete}
+            setActiveTopic={setActiveTopic}
             refreshFlag={refreshFlag}
-            onCollapseChange={onCollapseChange}
+            setRefreshFlag={setRefreshFlag}
+            collapsed={collapsed}
+            setCollapsed={setCollapsed}
           />
         )}
-
-        {!collapsed && activeTab === 'settings' && (
-          <div className="settings-panel">
+        
+        {activeTab === 'settings' && (
+          <div className="settings-content">
+            <div className="settings-header">
+              <h3>设置</h3>
+            </div>
+            <div className="settings-placeholder">
+              <p>设置内容将在下一个对话中讨论</p>
+            </div>
           </div>
         )}
       </div>

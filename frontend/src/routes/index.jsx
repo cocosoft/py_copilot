@@ -12,6 +12,7 @@ import Tool from '../pages/Tool';
 import Settings from '../pages/Settings';
 import PersonalCenter from '../pages/PersonalCenter';
 import HelpCenter from '../pages/HelpCenter';
+import ModelSelectDropdownTest from '../pages/ModelSelectDropdownTest';
 
 const AppRoutes = () => {
   return (
@@ -29,6 +30,7 @@ const AppRoutes = () => {
       <Route path="settings" element={<Settings />} />
       <Route path="personal/*" element={<PersonalCenter />} />
       <Route path="help/*" element={<HelpCenter />} />
+      <Route path="model-select-test" element={<ModelSelectDropdownTest />} />
     </Routes>
   );
 };

@@ -223,18 +223,21 @@ const ModelSelector = ({
 
   // 获取模型LOGO
   const getModelLogoUrl = (model) => {
+    // 1. 优先使用模型自身的logo字段
     if (model.logo) {
       return model.logo.startsWith('http') || model.logo.startsWith('/') 
         ? model.logo 
         : `/logos/models/${model.logo}`;
     }
     
+    // 2. 如果模型没有logo，使用供应商的logo
     if (model.supplier && model.supplier.logo) {
       return model.supplier.logo.startsWith('http') || model.supplier.logo.startsWith('/')
         ? model.supplier.logo
         : `/logos/providers/${model.supplier.logo}`;
     }
     
+    // 3. 最后使用默认图标
     return '/logos/models/default.png';
   };
 

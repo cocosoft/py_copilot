@@ -425,13 +425,7 @@ const DefaultModelManagement = () => {
             onModelSelect={handleGlobalModelSelect}
             placeholder="请选择模型"
             disabled={isLoadingModels}
-            getModelLogoUrl={(model) => {
-              // 根据供应商返回不同的LOGO URL
-              const supplier = model.supplier;
-              // 优先使用供应商LOGO文件名，如果没有则使用供应商名称
-              const logoFileName = supplier?.logo || supplier?.name || supplier?.display_name || supplier?.id || 'default';
-              return `/logos/providers/${logoFileName}`;
-            }}
+            scene="chat"
           />
           {validationErrors.global && (
             <span className="field-error">{validationErrors.global}</span>
@@ -468,12 +462,7 @@ const DefaultModelManagement = () => {
             onModelSelect={handleSceneModelSelect('chat')}
             placeholder="请选择模型"
             disabled={isLoadingModels}
-            getModelLogoUrl={(model) => {
-              const supplier = model.supplier;
-              // 优先使用供应商LOGO文件名，如果没有则使用供应商名称
-              const logoFileName = supplier?.logo || supplier?.name || supplier?.display_name || supplier?.id || 'default';
-              return `/logos/providers/${logoFileName}`;
-            }}
+            scene="chat"
             getModelBadge={(model) => {
               const score = capabilityScores[`chat_${model.id}`];
               if (score) {
@@ -513,12 +502,7 @@ const DefaultModelManagement = () => {
             onModelSelect={handleSceneModelSelect('image')}
             placeholder="请选择模型"
             disabled={isLoadingModels}
-            getModelLogoUrl={(model) => {
-              const supplier = model.supplier;
-              // 优先使用供应商LOGO文件名，如果没有则使用供应商名称
-              const logoFileName = supplier?.logo || supplier?.name || supplier?.display_name || supplier?.id || 'default';
-              return `/logos/providers/${logoFileName}`;
-            }}
+            scene="image"
           />
           {validationErrors.image && (
             <span className="field-error">{validationErrors.image}</span>
@@ -534,12 +518,7 @@ const DefaultModelManagement = () => {
             onModelSelect={handleSceneModelSelect('video')}
             placeholder="请选择模型"
             disabled={isLoadingModels}
-            getModelLogoUrl={(model) => {
-              const supplier = model.supplier;
-              // 优先使用供应商LOGO文件名，如果没有则使用供应商名称
-              const logoFileName = supplier?.logo || supplier?.name || supplier?.display_name || supplier?.id || 'default';
-              return `/logos/providers/${logoFileName}`;
-            }}
+            scene="video"
           />
           {validationErrors.video && (
             <span className="field-error">{validationErrors.video}</span>
@@ -555,12 +534,7 @@ const DefaultModelManagement = () => {
             onModelSelect={handleSceneModelSelect('voice')}
             placeholder="请选择模型"
             disabled={isLoadingModels}
-            getModelLogoUrl={(model) => {
-              const supplier = model.supplier;
-              // 优先使用供应商LOGO文件名，如果没有则使用供应商名称
-              const logoFileName = supplier?.logo || supplier?.name || supplier?.display_name || supplier?.id || 'default';
-              return `/logos/providers/${logoFileName}`;
-            }}
+            scene="voice"
           />
           {validationErrors.voice && (
             <span className="field-error">{validationErrors.voice}</span>
@@ -589,12 +563,7 @@ const DefaultModelManagement = () => {
             onModelSelect={handleSceneModelSelect('translate')}
             placeholder="请选择模型"
             disabled={isLoadingModels}
-            getModelLogoUrl={(model) => {
-              const supplier = model.supplier;
-              // 优先使用供应商LOGO文件名，如果没有则使用供应商名称
-              const logoFileName = supplier?.logo || supplier?.name || supplier?.display_name || supplier?.id || 'default';
-              return `/logos/providers/${logoFileName}`;
-            }}
+            scene="translate"
             getModelBadge={(model) => {
               const score = capabilityScores[`translate_${model.id}`];
               if (score) {
@@ -634,12 +603,7 @@ const DefaultModelManagement = () => {
             onModelSelect={handleSceneModelSelect('knowledge')}
             placeholder="请选择模型"
             disabled={isLoadingModels}
-            getModelLogoUrl={(model) => {
-              const supplier = model.supplier;
-              // 优先使用供应商LOGO文件名，如果没有则使用供应商名称
-              const logoFileName = supplier?.logo || supplier?.name || supplier?.display_name || supplier?.id || 'default';
-              return `/logos/providers/${logoFileName}`;
-            }}
+            scene="knowledge"
           />
           {validationErrors.knowledge && (
             <span className="field-error">{validationErrors.knowledge}</span>
@@ -655,12 +619,7 @@ const DefaultModelManagement = () => {
             onModelSelect={handleSceneModelSelect('workflow')}
             placeholder="请选择模型"
             disabled={isLoadingModels}
-            getModelLogoUrl={(model) => {
-              const supplier = model.supplier;
-              // 优先使用供应商LOGO文件名，如果没有则使用供应商名称
-              const logoFileName = supplier?.logo || supplier?.name || supplier?.display_name || supplier?.id || 'default';
-              return `/logos/providers/${logoFileName}`;
-            }}
+            scene="workflow"
           />
           {validationErrors.workflow && (
             <span className="field-error">{validationErrors.workflow}</span>
@@ -676,12 +635,7 @@ const DefaultModelManagement = () => {
             onModelSelect={handleSceneModelSelect('tool')}
             placeholder="请选择模型"
             disabled={isLoadingModels}
-            getModelLogoUrl={(model) => {
-              const supplier = model.supplier;
-              // 优先使用供应商LOGO文件名，如果没有则使用供应商名称
-              const logoFileName = supplier?.logo || supplier?.name || supplier?.display_name || supplier?.id || 'default';
-              return `/logos/providers/${logoFileName}`;
-            }}
+            scene="tool"
           />
           {validationErrors.tool && (
             <span className="field-error">{validationErrors.tool}</span>
@@ -697,12 +651,7 @@ const DefaultModelManagement = () => {
             onModelSelect={handleSceneModelSelect('search')}
             placeholder="请选择模型"
             disabled={isLoadingModels}
-            getModelLogoUrl={(model) => {
-              const supplier = model.supplier;
-              // 优先使用供应商LOGO文件名，如果没有则使用供应商名称
-              const logoFileName = supplier?.logo || supplier?.name || supplier?.display_name || supplier?.id || 'default';
-              return `/logos/providers/${logoFileName}`;
-            }}
+            scene="search"
           />
           {validationErrors.search && (
             <span className="field-error">{validationErrors.search}</span>
@@ -718,12 +667,7 @@ const DefaultModelManagement = () => {
             onModelSelect={handleSceneModelSelect('mcp')}
             placeholder="请选择模型"
             disabled={isLoadingModels}
-            getModelLogoUrl={(model) => {
-              const supplier = model.supplier;
-              // 优先使用供应商LOGO文件名，如果没有则使用供应商名称
-              const logoFileName = supplier?.logo || supplier?.name || supplier?.display_name || supplier?.id || 'default';
-              return `/logos/providers/${logoFileName}`;
-            }}
+            scene="mcp"
           />
           {validationErrors.mcp && (
             <span className="field-error">{validationErrors.mcp}</span>

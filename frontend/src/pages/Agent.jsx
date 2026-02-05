@@ -8,6 +8,7 @@ import modelApi from '../utils/api/modelApi';
 import skillApi from '../services/skillApi';
 import AgentParameterManagement from '../components/ModelManagement/AgentParameterManagement';
 import ModelSelectDropdown from '../components/ModelManagement/ModelSelectDropdown';
+import ModelDataManager from '../services/modelDataManager';
 
 const Agent = () => {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -469,9 +470,9 @@ const Agent = () => {
   const fetchDefaultModels = async () => {
     setLoadingDefaultModels(true);
     try {
-      // 使用modelApi获取所有可用模型，而不是默认模型配置
-      const response = await modelApi.getAll();
-      setDefaultModels(response.models || []);
+      // 使用ModelDataManager加载模型数据，确保数据格式一致
+      const models = await ModelDataManager.loadModels('agent');
+      setDefaultModels(models || []);
     } catch (err) {
       console.error('获取模型列表失败:', err);
       setDefaultModels([]);
@@ -867,11 +868,7 @@ const Agent = () => {
                     onModelSelect={handleDefaultModelSelect}
                     placeholder="无（使用系统默认）"
                     disabled={loadingDefaultModels}
-                    getModelLogoUrl={(model) => {
-                      if (model?.logo) return model.logo;
-                      if (model?.supplier_logo) return model.supplier_logo;
-                      return '/logos/models/default.png';
-                    }}
+                    scene="agent"
                   />
                 )}
               </div>

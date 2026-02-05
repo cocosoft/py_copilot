@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { API_BASE_URL } from '../utils/api';
 import emojis from '../utils/emojis';
 import SearchModal from './SearchModal';
+import ModelSelectDropdown from './ModelManagement/ModelSelectDropdown';
 import './ChatMain.css';
 
 const ChatMain = ({ 
@@ -31,8 +32,6 @@ const ChatMain = ({
   saveMessage,
   quotedMessage,
   cancelQuote,
-  formatTime,
-  formatDuration,
   MessageItem,
   MessageSkeleton,
   TypingIndicator,
@@ -42,15 +41,13 @@ const ChatMain = ({
   selectedModel,
   availableModels,
   onModelChange,
+  isLoadingModels,
   uploadedFiles,
   setUploadedFiles
 }) => {
   const messagesEndRef = useRef(null);
   const chatMessagesRef = useRef(null);
-  const modelSelectRef = useRef(null);
   const fileInputRef = useRef(null);
-  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
-  const [dropdownDirection, setDropdownDirection] = useState('down');
   const [isUploading, setIsUploading] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [selectedEmojiCategory, setSelectedEmojiCategory] = useState(0);
@@ -68,12 +65,9 @@ const ChatMain = ({
     }
   };
 
-  // 处理点击外部关闭模型选择下拉列表和emoji选择器
+  // 处理点击外部关闭emoji选择器
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (modelSelectRef.current && !modelSelectRef.current.contains(event.target)) {
-        setIsModelDropdownOpen(false);
-      }
       if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target)) {
         setIsEmojiPickerOpen(false);
       }
@@ -98,39 +92,6 @@ const ChatMain = ({
   // 处理切换emoji分类
   const handleEmojiCategoryChange = (index) => {
     setSelectedEmojiCategory(index);
-  };
-
-  // 处理模型选择
-  const handleSelectModel = (model) => {
-    onModelChange(model);
-    setIsModelDropdownOpen(false);
-  };
-
-  // 计算下拉列表显示方向
-  const calculateDropdownDirection = () => {
-    if (!modelSelectRef.current) return 'down';
-    
-    const rect = modelSelectRef.current.getBoundingClientRect();
-    const dropdownHeight = 320; // 下拉列表的最大高度
-    const windowHeight = window.innerHeight;
-    const spaceBelow = windowHeight - rect.bottom;
-    const spaceAbove = rect.top;
-    
-    // 如果下方空间不足，且上方空间更充足，则向上显示
-    if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
-      return 'up';
-    }
-    
-    return 'down';
-  };
-
-  // 处理打开/关闭下拉列表
-  const toggleModelDropdown = () => {
-    if (!isModelDropdownOpen) {
-      // 打开前计算显示方向
-      setDropdownDirection(calculateDropdownDirection());
-    }
-    setIsModelDropdownOpen(!isModelDropdownOpen);
   };
 
   // 处理文件上传按钮点击
@@ -251,7 +212,7 @@ const ChatMain = ({
     try {
       setIsSearching(true);
       
-      const response = await fetch(`${API_BASE_URL}/search`, {
+      const response = await fetch(`${API_BASE_URL}/v1/search`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -299,25 +260,6 @@ const ChatMain = ({
     // 或者直接调用onSendMessage函数
   };
 
-  // 获取模型LOGO URL
-  const getModelLogoUrl = (model) => {
-    if (model.logo !== null && model.logo !== undefined && model.logo !== '') {
-      if (model.logo.startsWith('http') || model.logo.startsWith('/')) {
-        return model.logo;
-      }
-      return `/logos/models/${model.logo}`;
-    }
-    
-    if (model.supplier_logo !== null && model.supplier_logo !== undefined && model.supplier_logo !== '') {
-      if (model.supplier_logo.startsWith('http') || model.supplier_logo.startsWith('/')) {
-        return model.supplier_logo;
-      }
-      return `/logos/providers/${model.supplier_logo}`;
-    }
-    
-    return '/logos/models/default.png';
-  };
-
   // 自动滚动到最新消息
   useEffect(() => {
     // 使用setTimeout确保DOM更新后再滚动
@@ -334,20 +276,6 @@ const ChatMain = ({
 
     return () => clearTimeout(timer);
   }, [messages, messageSkeletons, isTyping, activeTopic]);
-
-  // 窗口大小变化时重新计算下拉列表方向
-  useEffect(() => {
-    const handleResize = () => {
-      if (isModelDropdownOpen) {
-        setDropdownDirection(calculateDropdownDirection());
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  }, [isModelDropdownOpen]);
 
   return (
     <div className="chat-main">
@@ -374,9 +302,6 @@ const ChatMain = ({
           <MessageItem 
             key={message.id}
             message={message}
-            formatTime={formatTime}
-            formatDuration={formatDuration}
-            formatFileSize={formatFileSize}
             editingMessageId={editingMessageId}
             editingMessageText={editingMessageText}
             setEditingMessageText={setEditingMessageText}
@@ -442,58 +367,17 @@ const ChatMain = ({
           <button type="button" className="input-btn" title="录音">🎤</button>
           <button type="button" className="input-btn" title="视频">🎥</button>
           <div className="input-divider"></div>
-          {selectedModel && (
-            <div className="current-model-info" ref={modelSelectRef}>
-              <div 
-                className="current-model-display"
-                onClick={toggleModelDropdown}
-              >
-                <img 
-                  src={getModelLogoUrl(selectedModel)} 
-                  alt={selectedModel.model_name || '模型LOGO'} 
-                  className="current-model-logo"
-                />
-                <span className="current-model-text">
-                  {selectedModel.model_name || selectedModel.name || '未知模型'} 
-                  <span className="current-supplier-text">
-                    ({selectedModel.supplier_display_name || selectedModel.supplier_name || '未知供应商'})
-                  </span>
-                </span>
-                <span className="current-model-arrow">
-                  {isModelDropdownOpen ? (dropdownDirection === 'up' ? '▼' : '▲') : '▼'}
-                </span>
-              </div>
-              {isModelDropdownOpen && (
-                <div className={`model-dropdown model-dropdown-${dropdownDirection}`}>
-                  {availableModels.length === 0 ? (
-                    <div className="model-dropdown-item">暂无模型数据</div>
-                  ) : (
-                    availableModels.map(model => (
-                      <div 
-                        key={model.id} 
-                        className={`model-dropdown-item ${selectedModel?.id === model.id ? 'selected' : ''}`}
-                        onClick={() => handleSelectModel(model)}
-                      >
-                        <img 
-                          src={getModelLogoUrl(model)} 
-                          alt={model.model_name || '模型LOGO'} 
-                          className="dropdown-model-logo"
-                        />
-                        <div className="dropdown-model-info">
-                          <span className="dropdown-model-name">
-                            {model.model_name || model.name || '未知模型'}
-                          </span>
-                          <span className="dropdown-supplier-name">
-                            {model.supplier_display_name || model.supplier_name || '未知供应商'}
-                          </span>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+          <ModelSelectDropdown
+            models={availableModels}
+            selectedModel={selectedModel}
+            onModelSelect={onModelChange}
+            placeholder="请选择模型"
+            className="chat-model-selector"
+            disabled={isLoadingModels}
+            scene="chat"
+            dropDirection="up"
+            singleLine={true}
+          />
         </div>
         
         {/* emoji选择器 */}
