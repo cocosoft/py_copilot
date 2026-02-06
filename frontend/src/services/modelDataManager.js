@@ -123,12 +123,28 @@ class ModelDataManager {
     const grouped = {};
     
     models.forEach(model => {
+      // 确定供应商ID
       const supplierKey = model.supplier_id;
+      
       if (!grouped[supplierKey]) {
+        // 尝试从多个来源获取供应商信息
+        let supplierName = '未知供应商';
+        let supplierLogo = '';
+        
+        // 优先从supplier对象获取
+        if (model.supplier) {
+          supplierName = model.supplier.display_name || model.supplier.name || supplierName;
+          supplierLogo = model.supplier.logo || '';
+        }
+        
+        // 其次从模型直接属性获取
+        supplierName = model.supplier_display_name || model.supplier_name || supplierName;
+        supplierLogo = model.supplier_logo || supplierLogo;
+        
         grouped[supplierKey] = {
           id: supplierKey,
-          name: model.supplier_display_name || model.supplier_name || '未知供应商',
-          logo: model.supplier_logo,
+          name: supplierName,
+          logo: supplierLogo,
           models: []
         };
       }

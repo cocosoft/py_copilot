@@ -19,20 +19,10 @@ const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => 
   const isModalMode = isOpen !== undefined;
   
   // 分页和筛选状态
-  const [modelsPage, setModelsPage] = useState(1);
   const [capabilitiesPage, setCapabilitiesPage] = useState(1);
   const [capabilitiesPerPage, setCapabilitiesPerPage] = useState(12);
-  const [modelSearch, setModelSearch] = useState('');
   const [capabilitySearch, setCapabilitySearch] = useState('');
   const [capabilityFilter, setCapabilityFilter] = useState('all');
-
-  // 筛选后的模型列表
-  const getFilteredModels = useCallback(() => {
-    return models.filter(model =>
-      model.model_name?.toLowerCase().includes(modelSearch.toLowerCase()) ||
-      model.id?.toString().includes(modelSearch)
-    );
-  }, [models, modelSearch]);
 
   // 使用useMemo缓存筛选后的能力列表
   const filteredCapabilities = useMemo(() => {
@@ -347,28 +337,14 @@ const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => 
       <div className="card">
         <div className="form-group">
           <label>选择模型 *</label>
-          <div className="input-group">
-            <input
-              type="text"
-              id="model-search"
-              value={modelSearch}
-              onChange={(e) => setModelSearch(e.target.value)}
-              placeholder="搜索模型..."
-              className="form-control"
-            />
-            <ModelSelectDropdown
-              models={getFilteredModels()}
-              selectedModel={selectedModel}
-              onModelSelect={(model) => {
-                setSelectedModel(model);
-                fetchModelCapabilities(model.id);
-              }}
-              placeholder="-- 请选择模型 --"
-            />
-          </div>
-          {getFilteredModels().length > 0 && (
-            <small className="text-muted">共找到 {getFilteredModels().length} 个模型</small>
-          )}
+          <ModelSelectDropdown
+            selectedModel={selectedModel}
+            onModelSelect={(model) => {
+              setSelectedModel(model);
+              fetchModelCapabilities(model.id);
+            }}
+            placeholder="-- 请选择模型 --"
+          />
         </div>
       </div>
 
@@ -562,28 +538,14 @@ const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => 
             <div className="card">
               <div className="form-group">
                 <label>选择模型 *</label>
-                <div className="input-group">
-                  <input
-                    type="text"
-                    id="model-search"
-                    value={modelSearch}
-                    onChange={(e) => setModelSearch(e.target.value)}
-                    placeholder="搜索模型..."
-                    className="form-control"
-                  />
-                  <ModelSelectDropdown
-                    models={getFilteredModels()}
-                    selectedModel={selectedModel}
-                    onModelSelect={(model) => {
-                      setSelectedModel(model);
-                      fetchModelCapabilities(model.id);
-                    }}
-                    placeholder="-- 请选择模型 --"
-                  />
-                </div>
-                {getFilteredModels().length > 0 && (
-                  <small className="text-muted">共找到 {getFilteredModels().length} 个模型</small>
-                )}
+                <ModelSelectDropdown
+                  selectedModel={selectedModel}
+                  onModelSelect={(model) => {
+                    setSelectedModel(model);
+                    fetchModelCapabilities(model.id);
+                  }}
+                  placeholder="-- 请选择模型 --"
+                />
               </div>
             </div>
           )}

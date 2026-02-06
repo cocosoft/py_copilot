@@ -260,7 +260,7 @@ export const capabilityApi = {
       }
       const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
       
-      const path = queryString ? `/v1/capability/dimensions/${queryString}` : `/v1/capability/dimensions/`;
+      const path = queryString ? `/v1/model-capability/dimensions/${queryString}` : `/v1/model-capability/dimensions/`;
       const response = await request(path, {
         method: 'GET'
       });
@@ -290,7 +290,7 @@ export const capabilityApi = {
       }
       const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
       
-      const response = await request(`/v1/capability/dimensions/subdimensions${queryString}`, {
+      const response = await request(`/v1/model-capability/dimensions/subdimensions${queryString}`, {
         method: 'GET'
       });
       
@@ -304,7 +304,7 @@ export const capabilityApi = {
   // 创建能力维度
   createDimension: async (dimensionData) => {
     try {
-      return await request('/v1/capability/dimensions', {
+      return await request('/v1/model-capability/dimensions', {
         method: 'POST',
         body: JSON.stringify(dimensionData),
         headers: {
@@ -320,7 +320,7 @@ export const capabilityApi = {
   // 更新能力维度
   updateDimension: async (dimensionId, dimensionData) => {
     try {
-      return await request(`/v1/capability/dimensions/${dimensionId}`, {
+      return await request(`/v1/model-capability/dimensions/${dimensionId}`, {
         method: 'PUT',
         body: JSON.stringify(dimensionData),
         headers: {
@@ -336,7 +336,7 @@ export const capabilityApi = {
   // 删除能力维度
   deleteDimension: async (dimensionId) => {
     try {
-      return await request(`/v1/capability/dimensions/${dimensionId}`, {
+      return await request(`/v1/model-capability/dimensions/${dimensionId}`, {
         method: 'DELETE'
       });
     } catch (error) {
@@ -348,7 +348,7 @@ export const capabilityApi = {
   // 创建能力子维度
   createSubdimension: async (subdimensionData) => {
     try {
-      return await request('/v1/capability/dimensions/subdimensions', {
+      return await request('/v1/model-capability/dimensions/subdimensions', {
         method: 'POST',
         body: JSON.stringify(subdimensionData),
         headers: {
@@ -364,7 +364,7 @@ export const capabilityApi = {
   // 更新能力子维度
   updateSubdimension: async (subdimensionId, subdimensionData) => {
     try {
-      return await request(`/v1/capability/dimensions/subdimensions/${subdimensionId}`, {
+      return await request(`/v1/model-capability/dimensions/subdimensions/${subdimensionId}`, {
         method: 'PUT',
         body: JSON.stringify(subdimensionData),
         headers: {
@@ -380,7 +380,7 @@ export const capabilityApi = {
   // 删除能力子维度
   deleteSubdimension: async (subdimensionId) => {
     try {
-      return await request(`/v1/capability/dimensions/subdimensions/${subdimensionId}`, {
+      return await request(`/v1/model-capability/dimensions/subdimensions/${subdimensionId}`, {
         method: 'DELETE'
       });
     } catch (error) {

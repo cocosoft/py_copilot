@@ -856,3 +856,20 @@ async def remove_category_from_model_external(
     model_category_service.remove_category_from_model(db, model_id, category_id)
     return None
 
+
+@router.get("/{category_id}/default-capabilities", response_model=List[Dict[str, Any]])
+async def get_default_capabilities_by_category(
+    category_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """获取指定分类的默认能力列表"""
+    try:
+        default_capabilities = model_category_service.get_default_capabilities_by_category(db, category_id)
+        return default_capabilities
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取分类默认能力失败: {str(e)}"
+        )
+

@@ -191,6 +191,30 @@ const styles = `
     max-width: none;
   }
   
+  /* 分组样式 */
+  .custom-select__group {
+    border-bottom: 1px solid #f0f0f0;
+  }
+  
+  .custom-select__group:last-child {
+    border-bottom: none;
+  }
+  
+  .custom-select__group-header {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    background-color: #f8f9fa;
+    font-weight: 500;
+    color: #333333;
+    font-size: 13px;
+    border-left: 3px solid #007bff;
+  }
+  
+  .custom-select__group-options {
+    padding: 0;
+  }
+  
   /* 加载状态 */
   .custom-select__option.loading {
     justify-content: center;
@@ -235,6 +259,16 @@ const styles = `
   
   [data-theme="dark"] .custom-select__option.selected {
     background-color: #1a3a5c;
+  }
+  
+  [data-theme="dark"] .custom-select__group-header {
+    background-color: #3d3d3d;
+    color: #e0e0e0;
+    border-left-color: #007bff;
+  }
+  
+  [data-theme="dark"] .custom-select__group {
+    border-bottom-color: #444444;
   }
   
   [data-theme="dark"] .search-input {
@@ -485,61 +519,64 @@ const ModelSelectDropdown = ({
           ) : filteredModels.length === 0 ? (
             <div className="custom-select__option">暂无模型数据</div>
           ) : (
-            filteredModels.map(model => (
-              <div 
-                key={model.id} 
-                className={`custom-select__option ${selectedModel?.id === model.id ? 'selected' : ''}`}
-                onClick={() => handleSelectModel(model)}
-              >
-                <img 
-                  src={logoUrlFunction(model)} 
-                  alt={model.model_name || '模型LOGO'} 
-                  className="model-logo"
-                  onError={(e) => {
-                    // 模型LOGO加载失败时，尝试使用供应商LOGO
-                    const supplierLogoUrl = () => {
-                      if (model.supplier_logo) {
-                        if (model.supplier_logo.startsWith('http')) {
-                          return model.supplier_logo;
-                        }
-                        if (model.supplier_logo.startsWith('/')) {
-                          return model.supplier_logo;
-                        }
-                        if (model.supplier_logo.startsWith('logos/providers/')) {
-                          return `/${model.supplier_logo}`;
-                        }
-                        return `/logos/providers/${model.supplier_logo}`;
-                      }
-                      if (model.supplier && model.supplier.logo) {
-                        if (model.supplier.logo.startsWith('http')) {
-                          return model.supplier.logo;
-                        }
-                        if (model.supplier.logo.startsWith('/')) {
-                          return model.supplier.logo;
-                        }
-                        if (model.supplier.logo.startsWith('logos/providers/')) {
-                          return `/${model.supplier.logo}`;
-                        }
-                        return `/logos/providers/${model.supplier.logo}`;
-                      }
-                      return '/logos/models/default.png';
-                    };
-                    e.target.src = supplierLogoUrl();
-                  }}
-                />
-                <div className="option-content">
-                  <span className="model-name">
-                    {model.model_name || model.name || '未知模型'}{!singleLine && ` (${model.model_id || model.id || '未知ID'})`}
-                  </span>
-                  <span className="supplier-name">
-                    {model.supplier_display_name || model.supplier_name || 
-                     (model.supplier && (model.supplier.display_name || model.supplier.name)) || 
-                     model.supplierDisplayName || 
-                     model.supplierName || 
-                     '未知供应商'}
-                  </span>
+            groupedModels.map(group => (
+              <div key={group.id} className="custom-select__group">
+                <div className="custom-select__group-header">
+                  {group.logo && (
+                    <img 
+                      src={group.logo.startsWith('http') || group.logo.startsWith('/') ? group.logo : `/logos/providers/${group.logo}`} 
+                      alt={group.name} 
+                      className="supplier-logo"
+                      style={{ width: '20px', height: '20px', marginRight: '8px', borderRadius: '4px' }}
+                    />
+                  )}
+                  <span className="custom-select__group-name">{group.name}</span>
                 </div>
-                {getModelBadge && getModelBadge(model)}
+                <div className="custom-select__group-options">
+                  {group.models.map(model => (
+                    <div 
+                      key={model.id} 
+                      className={`custom-select__option ${selectedModel?.id === model.id ? 'selected' : ''}`}
+                      onClick={() => handleSelectModel(model)}
+                    >
+                      <img 
+                        src={logoUrlFunction(model)} 
+                        alt={model.model_name || '模型LOGO'} 
+                        className="model-logo"
+                        onError={(e) => {
+                          // 模型LOGO加载失败时，尝试使用供应商LOGO
+                          const supplierLogoUrl = () => {
+                            if (model.supplier_logo) {
+                              return model.supplier_logo.startsWith('http') || model.supplier_logo.startsWith('/') 
+                                ? model.supplier_logo 
+                                : `/logos/providers/${model.supplier_logo}`;
+                            }
+                            if (model.supplier && model.supplier.logo) {
+                              return model.supplier.logo.startsWith('http') || model.supplier.logo.startsWith('/') 
+                                ? model.supplier.logo 
+                                : `/logos/providers/${model.supplier.logo}`;
+                            }
+                            return '/logos/models/default.png';
+                          };
+                          e.target.src = supplierLogoUrl();
+                        }}
+                      />
+                      <div className="option-content">
+                        <span className="model-name">
+                          {model.model_name || model.name || '未知模型'}{!singleLine && ` (${model.model_id || model.id || '未知ID'})`}
+                        </span>
+                        <span className="supplier-name">
+                          {model.supplier_display_name || model.supplier_name || 
+                           (model.supplier && (model.supplier.display_name || model.supplier.name)) || 
+                           model.supplierDisplayName || 
+                           model.supplierName || 
+                           '未知供应商'}
+                        </span>
+                      </div>
+                      {getModelBadge && getModelBadge(model)}
+                    </div>
+                  ))}
+                </div>
               </div>
             ))
           )}
