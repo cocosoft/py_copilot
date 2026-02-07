@@ -4,8 +4,10 @@ from typing import Dict, Any
 from datetime import datetime, timedelta
 import psutil
 import os
+from app.core.config import Settings
 
 router = APIRouter()
+settings = Settings()
 
 # 全局监控服务实例（从主应用导入）
 from app.api.main import get_monitoring_service
@@ -183,12 +185,12 @@ async def get_services_status():
         services = {
             "gateway": {
                 "status": "healthy",
-                "port": 8000,
+                "port": settings.gateway_port,
                 "last_heartbeat": datetime.now().isoformat()
             },
             "chat": {
                 "status": "healthy", 
-                "port": 8001,
+                "port": settings.chat_service_port,
                 "last_heartbeat": datetime.now().isoformat()
             },
             "search": {

@@ -322,20 +322,16 @@ class LLMService:
                             
                             # 添加API端点配置（如果提供）
                             if supplier["api_endpoint"]:
-                                # Ollama API端点需要是OpenAI兼容格式，即 http://localhost:11434/v1
+                                # ChatOllama直接使用基础URL，不需要添加/v1后缀
                                 ollama_url = supplier["api_endpoint"]
-                                logger.info(f"原始Ollama API端点: {ollama_url}")
+                                logger.info(f"Ollama API端点: {ollama_url}")
                                 
-                                # 修复URL格式：如果以/api结尾，替换为/v1；否则确保以/v1结尾
-                                if ollama_url.endswith('/api'):
-                                    ollama_url = ollama_url[:-4] + '/v1'  # 将/api替换为/v1
-                                elif ollama_url.endswith('/api/'):
-                                    ollama_url = ollama_url[:-5] + '/v1'  # 将/api/替换为/v1
-                                elif not ollama_url.endswith('/v1'):
-                                    ollama_url += '/v1'  # 如果没有/v1后缀，添加它
+                                # 确保URL格式正确
+                                if ollama_url.endswith('/'):
+                                    ollama_url = ollama_url.rstrip('/')
                                 
                                 ollama_params["base_url"] = ollama_url
-                                logger.info(f"修复后的Ollama API端点: {ollama_url}")
+                                logger.info(f"Ollama客户端base_url: {ollama_url}")
                             
                             logger.info(f"Ollama客户端参数: {ollama_params}")
                             

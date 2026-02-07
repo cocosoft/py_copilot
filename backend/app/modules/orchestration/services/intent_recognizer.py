@@ -41,7 +41,8 @@ class IntentRecognizer:
     async def recognize_intent(
         self, 
         user_input: str, 
-        context: Dict[str, Any] = None
+        context: Dict[str, Any] = None,
+        db = None
     ) -> Dict[str, Any]:
         """
         识别用户输入的意图
@@ -87,9 +88,10 @@ class IntentRecognizer:
                     },
                     {"role": "user", "content": prompt}
                 ],
-                model_name="gpt-3.5-turbo",
+                model_name="deepseek-r1:1.5b",
                 max_tokens=300,  # 增加最大令牌数以支持更详细的参数提取
-                temperature=0.1
+                temperature=0.1,
+                db=db
             )
             
             # 解析大模型返回的结果
@@ -103,9 +105,10 @@ class IntentRecognizer:
                 strict_prompt = self._build_strict_intent_prompt(user_input, context)
                 strict_result = await self.llm_service.chat_completion(
                     messages=[{"role": "user", "content": strict_prompt}],
-                    model_name="gpt-3.5-turbo",
+                    model_name="deepseek-r1:1.5b",
                     max_tokens=100,
-                    temperature=0.0
+                    temperature=0.0,
+                    db=db
                 )
                 strict_intent = self._parse_intent_result(strict_result["generated_text"])
                 
@@ -120,7 +123,8 @@ class IntentRecognizer:
             if not intent_result.get("params"):
                 intent_result["params"] = await self._extract_intent_params(
                     user_input, 
-                    intent_result["type"]
+                    intent_result["type"],
+                    db
                 )
             
             # 添加上下文使用标记
@@ -267,7 +271,7 @@ class IntentRecognizer:
         
         return prompt
     
-    async def _extract_intent_params(self, user_input: str, intent_type: str) -> Dict[str, Any]:
+    async def _extract_intent_params(self, user_input: str, intent_type: str, db = None) -> Dict[str, Any]:
         """
         增强参数提取
         
@@ -313,9 +317,10 @@ class IntentRecognizer:
                     {"role": "system", "content": prompt["system"]},
                     {"role": "user", "content": prompt["user"]}
                 ],
-                model_name="gpt-3.5-turbo",
+                model_name="deepseek-r1:1.5b",
                 max_tokens=200,
-                temperature=0.1
+                temperature=0.1,
+                db=db
             )
             
             # 解析参数结果

@@ -10,6 +10,9 @@ from app.models.skill import Skill, SkillExecutionLog, SkillArtifact, SkillDepen
 from app.core.database import get_db
 from app.core.config import settings
 
+# 导入本地技能匹配服务
+from app.services.local_llm.skill_matching import LocalSkillMatchingService
+
 
 class ParameterValidator:
     """参数验证器"""
@@ -260,13 +263,14 @@ class SkillExecutionEngine:
         self.db = db
         self.parameter_validator = ParameterValidator()
         self.artifact_manager = ArtifactManager(db)
+        self.local_skill_matching_service = LocalSkillMatchingService()
     
-    def execute(self, skill_id: int, task: Optional[str] = None, params: Optional[Dict[str, Any]] = None, 
+    async def execute(self, skill_id: int, task: Optional[str] = None, params: Optional[Dict[str, Any]] = None, 
                 session_id: Optional[int] = None, conversation_id: Optional[int] = None, user_id: Optional[int] = None, 
                 context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """执行技能（API兼容方法）"""
         # 调用核心执行方法
-        execution_log = self.execute_skill(skill_id=skill_id, user_id=user_id, params=params, context=context)
+        execution_log = await self.execute_skill(skill_id=skill_id, user_id=user_id, params=params, context=context)
         
         # 获取artifacts
         artifacts = self.artifact_manager.get_artifacts(execution_log.id)
@@ -289,7 +293,7 @@ class SkillExecutionEngine:
             "artifacts": artifact_list
         }
     
-    def execute_skill(self, skill_id: int, user_id: Optional[int] = None, params: Optional[Dict[str, Any]] = None, 
+    async def execute_skill(self, skill_id: int, user_id: Optional[int] = None, params: Optional[Dict[str, Any]] = None, 
                       context: Optional[Dict[str, Any]] = None) -> SkillExecutionLog:
         """执行技能"""
         # 获取技能
@@ -299,6 +303,21 @@ class SkillExecutionEngine:
             
         if skill.status != "enabled":
             raise ValueError(f"技能 {skill.name} 未启用")
+        
+        # 使用本地技能匹配服务进行技能意图识别和参数提取
+        try:
+            intent_result = await self.local_skill_matching_service.identify_skill_intent(
+                skill_name=skill.name,
+                user_input=context.get('user_input') if context else None,
+                db=self.db
+            )
+            if intent_result.get('parameters'):
+                # 合并提取的参数
+                for key, value in intent_result['parameters'].items():
+                    if key not in params:
+                        params[key] = value
+        except Exception as e:
+            print(f"本地技能意图识别失败: {str(e)}")
         
         # 验证参数
         validated_params = self.parameter_validator.validate_parameters(skill, params or {})
@@ -354,6 +373,20 @@ class SkillExecutionEngine:
                 execution_log.status = "completed"
                 execution_log.output_result = result
                 execution_log.execution_time_ms = execution_time_ms
+                
+                # 使用本地技能匹配服务进行执行结果分析
+                try:
+                    analysis_result = await self.local_skill_matching_service.analyze_execution_result(
+                        skill_name=skill.name,
+                        execution_result=result,
+                        execution_time_ms=execution_time_ms,
+                        db=self.db
+                    )
+                    # 更新执行日志，添加分析结果
+                    if analysis_result.get('enhanced_result'):
+                        execution_log.output_result = analysis_result['enhanced_result']
+                except Exception as e:
+                    print(f"本地执行结果分析失败: {str(e)}")
                 
                 # 更新技能使用统计
                 skill.last_used_at = datetime.now()

@@ -795,3 +795,6 @@ frontend/src/components/ModelManagement/DefaultModelManagement优化方案.md
 本地LLM全局调度方案.md
 本地LLM全局调度方案（优化版）.md
 本地LLM全局调度实施方案.md
+模型参数管理适配方案.md
+模型参数管理与其他模块集成方案.md
+API管理实施方案.md

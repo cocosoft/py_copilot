@@ -494,3 +494,73 @@ async def recommend_default_models(
             result.append(fallback_model)
     
     return result
+
+
+# 获取本地模型配置
+@router.get("/default-models/local", response_model=Optional[DefaultModelResponse])
+async def get_local_model_config(
+    db: Session = Depends(get_db)
+) -> Any:
+    """
+    获取本地模型配置
+    
+    Args:
+        db: 数据库会话
+    
+    Returns:
+        本地模型配置，如果没有设置则返回None
+    """
+    # 从数据库查询本地模型配置
+    local_model_config = db.query(DefaultModel).filter(
+        DefaultModel.scope == 'local',
+        DefaultModel.is_active == True
+    ).first()
+    
+    return local_model_config
+
+
+# 设置本地模型配置
+@router.post("/default-models/set-local", response_model=DefaultModelResponse)
+async def set_local_model_config(
+    request: SetGlobalDefaultRequest,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_superuser_permission)
+) -> Any:
+    """
+    设置本地模型配置
+    
+    Args:
+        request: 设置本地模型配置请求
+        db: 数据库会话
+    
+    Returns:
+        设置后的本地模型配置
+    """
+    # 验证模型ID是否存在
+    model = db.query(ModelDB).filter(ModelDB.id == request.model_id).first()
+    if not model:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"模型 ID {request.model_id} 不存在"
+        )
+    
+    # 先停用现有的本地模型配置
+    db.query(DefaultModel).filter(
+        DefaultModel.scope == 'local'
+    ).update({'is_active': False})
+    
+    # 创建新的本地模型配置
+    new_local_config = DefaultModel(
+        scope='local',
+        scene=None,
+        model_id=request.model_id,
+        priority=1,
+        fallback_model_id=request.fallback_model_id,
+        is_active=True
+    )
+    
+    db.add(new_local_config)
+    db.commit()
+    db.refresh(new_local_config)
+    
+    return new_local_config

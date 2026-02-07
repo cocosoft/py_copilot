@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_db
+from app.core.config import Settings
 
 from app.schemas.agent import AgentCreate, AgentUpdate, AgentResponse, AgentListResponse
 from app.services.agent_service import (
@@ -69,11 +70,12 @@ def get_agent_api(
     agent_dict = AgentResponse.from_orm(agent).dict()
     
     # 手动添加avatar_url字段
+    settings = Settings()
     if agent.avatar:
         if agent.avatar.startswith(('http://', 'https://')):
             agent_dict['avatar_url'] = agent.avatar
         else:
-            agent_dict['avatar_url'] = f"http://localhost:8000/logos/agents/{agent.avatar}"
+            agent_dict['avatar_url'] = f"http://localhost:{settings.server_port}/logos/agents/{agent.avatar}"
     else:
         agent_dict['avatar_url'] = None
     
@@ -105,11 +107,12 @@ def get_agents_api(
     agent_responses = []
     for agent in agents:
         agent_dict = AgentResponse.from_orm(agent).dict()
+        settings = Settings()
         if agent.avatar:
             if agent.avatar.startswith(('http://', 'https://')):
                 agent_dict['avatar_url'] = agent.avatar
             else:
-                agent_dict['avatar_url'] = f"http://localhost:8000/logos/agents/{agent.avatar}"
+                agent_dict['avatar_url'] = f"http://localhost:{settings.server_port}/logos/agents/{agent.avatar}"
         else:
             agent_dict['avatar_url'] = None
         
@@ -151,11 +154,12 @@ def get_public_agents_api(
     agent_responses = []
     for agent in agents:
         agent_dict = AgentResponse.from_orm(agent).dict()
+        settings = Settings()
         if agent.avatar:
             if agent.avatar.startswith(('http://', 'https://')):
                 agent_dict['avatar_url'] = agent.avatar
             else:
-                agent_dict['avatar_url'] = f"http://localhost:8000/logos/agents/{agent.avatar}"
+                agent_dict['avatar_url'] = f"http://localhost:{settings.server_port}/logos/agents/{agent.avatar}"
         else:
             agent_dict['avatar_url'] = None
         agent_responses.append(agent_dict)
@@ -186,11 +190,12 @@ def get_recommended_agents_api(
     agent_responses = []
     for agent in agents:
         agent_dict = AgentResponse.from_orm(agent).dict()
+        settings = Settings()
         if agent.avatar:
             if agent.avatar.startswith(('http://', 'https://')):
                 agent_dict['avatar_url'] = agent.avatar
             else:
-                agent_dict['avatar_url'] = f"http://localhost:8000/logos/agents/{agent.avatar}"
+                agent_dict['avatar_url'] = f"http://localhost:{settings.server_port}/logos/agents/{agent.avatar}"
         else:
             agent_dict['avatar_url'] = None
         agent_responses.append(agent_dict)
@@ -229,11 +234,12 @@ def update_agent_api(
     agent_dict = AgentResponse.from_orm(agent).dict()
     
     # 添加头像URL
+    settings = Settings()
     if agent.avatar:
         if agent.avatar.startswith(('http://', 'https://')):
             agent_dict['avatar_url'] = agent.avatar
         else:
-            agent_dict['avatar_url'] = f"http://localhost:8000/logos/agents/{agent.avatar}"
+            agent_dict['avatar_url'] = f"http://localhost:{settings.server_port}/logos/agents/{agent.avatar}"
     else:
         agent_dict['avatar_url'] = None
     

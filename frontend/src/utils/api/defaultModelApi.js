@@ -224,6 +224,29 @@ const defaultModelApi = {
       method: 'POST',
       body: formData
     });
+  },
+
+  /**
+   * 获取本地模型配置
+   */
+  async getLocalModelConfig() {
+    const endpoint = '/v1/default-models/local';
+    return request(endpoint, { method: 'GET' });
+  },
+
+  /**
+   * 设置本地模型配置
+   * @param {Object} data - 本地模型配置数据
+   * @param {number} data.model_id - 模型ID
+   * @param {boolean} data.enabled - 是否启用
+   */
+  async setLocalModelConfig(data) {
+    const endpoint = '/v1/default-models/set-local';
+    return request(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 };
 

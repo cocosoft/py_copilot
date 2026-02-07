@@ -2,6 +2,7 @@
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import './help-center.css';
 import About from './About';
+import ApiManagement from './ApiManagement';
 
 const HelpCenterMain = () => {
   return (
@@ -114,6 +115,7 @@ const HelpCenter = () => {
     { path: '/help', label: '帮助中心', component: HelpCenterMain, icon: '📖' },
     { path: '/help/logs', label: '更新日志', component: UpdateLogs, icon: '📝' },
     { path: '/help/feedback', label: '问题反馈', component: Feedback, icon: '💬' },
+    { path: '/help/api', label: 'API管理', component: ApiManagement, icon: '🔌' },
     { path: '/help/about', label: '关于我们', component: About, icon: 'ℹ️' },
   ];
 
@@ -149,6 +151,7 @@ const HelpCenter = () => {
             <Route path="/" element={<HelpCenterMain />} />
             <Route path="logs" element={<UpdateLogs />} />
             <Route path="feedback" element={<Feedback />} />
+            <Route path="api" element={<ApiManagement />} />
             <Route path="about" element={<About />} />
           </Routes>
         </div>

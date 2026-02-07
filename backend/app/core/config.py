@@ -7,6 +7,9 @@ import os
 # 获取当前文件所在目录
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# 获取项目根目录（用于数据库路径）
+PROJECT_ROOT = os.path.dirname(BASE_DIR)
+
 
 class Settings(BaseSettings):
     """应用配置类"""
@@ -45,6 +48,30 @@ class Settings(BaseSettings):
     # DeepSeek API配置
     deepseek_api_key: Optional[str] = Field(default=None, env="DEEPSEEK_API_KEY")
     deepseek_api_base: Optional[str] = Field(default="https://api.deepseek.com/v1", env="DEEPSEEK_API_BASE")
+    
+    # API基础URL配置（用于API测试）
+    api_base_url: str = Field(default="http://localhost:8007", env="API_BASE_URL")
+    
+    # 前端配置
+    frontend_url: str = Field(default="http://localhost:5173", env="FRONTEND_URL")
+    frontend_ports: str = Field(default="5173,5174,5175,5176,5177", env="FRONTEND_PORTS")
+    
+    # Redis配置
+    redis_host: str = Field(default="localhost", env="REDIS_HOST")
+    redis_port: int = Field(default=6379, env="REDIS_PORT")
+    
+    # Ollama配置
+    ollama_api_endpoint: str = Field(default="http://localhost:11434/v1", env="OLLAMA_API_ENDPOINT")
+    ollama_port: int = Field(default=11434, env="OLLAMA_PORT")
+    
+    # 微服务端口配置
+    gateway_port: int = Field(default=8000, env="GATEWAY_PORT")
+    chat_service_port: int = Field(default=8001, env="CHAT_SERVICE_PORT")
+    search_service_port: int = Field(default=8002, env="SEARCH_SERVICE_PORT")
+    file_service_port: int = Field(default=8003, env="FILE_SERVICE_PORT")
+    voice_service_port: int = Field(default=8004, env="VOICE_SERVICE_PORT")
+    monitoring_service_port: int = Field(default=8005, env="MONITORING_SERVICE_PORT")
+    enhanced_chat_service_port: int = Field(default=8006, env="ENHANCED_CHAT_SERVICE_PORT")
     
     # 服务器配置
     server_host: str = Field(default="127.0.0.1", env="SERVER_HOST")

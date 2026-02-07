@@ -334,10 +334,10 @@ class LLMService:
                         print("DEBUG: 未找到Ollama供应商信息")
                         logger.warning("未找到Ollama供应商信息")
                         
-                        # 使用默认的Ollama API端点
-                        api_base = "http://localhost:11434/v1"
-                        logger.info(f"使用默认的Ollama API端点: {api_base}")
-                        print(f"DEBUG: 使用默认API端点: {api_base}")
+                        # 使用配置的Ollama API端点
+                        api_base = settings.ollama_api_endpoint
+                        logger.info(f"使用配置的Ollama API端点: {api_base}")
+                        print(f"DEBUG: 使用配置API端点: {api_base}")
                     
                     if api_base:
                         try:

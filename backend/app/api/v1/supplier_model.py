@@ -8,6 +8,7 @@ import os
 import aiofiles
 
 from app.core.dependencies import get_db
+from app.core.config import Settings
 from app.models.supplier_db import SupplierDB, ModelDB
 from app.schemas.supplier_model import (
     SupplierCreate, SupplierResponse,
@@ -881,7 +882,7 @@ async def fetch_models_from_api(supplier_id: int, api_config: dict, db: Session 
                         })
                 else:
                     logger.warning(f"[获取模型] 硅基流动API返回格式未知: {type(data)}")
-        elif "ollama" in api_endpoint.lower() or "localhost:11434" in api_endpoint.lower():
+        elif "ollama" in api_endpoint.lower() or f"localhost:{Settings().ollama_port}" in api_endpoint.lower():
             # Ollama API - 使用/api/tags获取模型列表
             # 对于Ollama，API端点通常是基础URL，需要构建正确的模型列表端点
             base_url = api_endpoint.rstrip('/')
@@ -1252,7 +1253,7 @@ async def test_api_config(supplier_id: int, api_config: dict, db: Session = Depe
             }
             logger.info(f"[API测试] 阿里云百炼API测试 - 方法: POST, 端点: {test_endpoint}")
             response = requests.post(test_endpoint, headers=headers, json=test_payload, timeout=10)
-        elif "ollama" in api_endpoint.lower() or "localhost:11434" in api_endpoint.lower():
+        elif "ollama" in api_endpoint.lower() or f"localhost:{Settings().ollama_port}" in api_endpoint.lower():
             # Ollama API需要GET请求到/api/tags来获取模型列表
             test_endpoint = api_endpoint.rstrip('/') + "/tags"
             logger.info(f"[API测试] Ollama API测试 - 方法: GET, 端点: {test_endpoint}")

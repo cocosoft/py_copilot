@@ -2,6 +2,7 @@
 from typing import Optional
 from datetime import datetime
 from pydantic import BaseModel, Field, computed_field
+from app.core.config import Settings
 
 
 class AgentBase(BaseModel):
@@ -66,7 +67,8 @@ class AgentResponse(BaseModel):
             if self.avatar.startswith(('http://', 'https://')):
                 return self.avatar
             # 否则转换为完整的后端URL
-            return f"http://localhost:8000/logos/agents/{self.avatar}"
+            settings = Settings()
+            return f"http://localhost:{settings.server_port}/logos/agents/{self.avatar}"
         return None
     
     model_config = {

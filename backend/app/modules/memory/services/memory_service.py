@@ -5,6 +5,9 @@ import json
 from datetime import datetime, timedelta
 import time
 
+# 导入本地记忆分析服务
+from app.services.local_llm.memory_analysis import LocalMemoryAnalysisService
+
 from app.models.memory import GlobalMemory, UserMemoryConfig, MemoryAccessLog, ConversationMemoryMapping, KnowledgeMemoryMapping, MemoryAssociation
 from app.schemas.memory import MemoryCreate, MemoryUpdate, MemoryStats, MemoryPatterns
 from app.services.knowledge.chroma_service import ChromaService
@@ -24,6 +27,16 @@ class MemoryService:
     _cache = {}
     _cache_expiry = {}
     _cache_ttl = 300  # 缓存过期时间（秒），默认5分钟
+    
+    # 本地记忆分析服务实例
+    _local_memory_analysis_service = None
+    
+    @classmethod
+    def get_local_memory_analysis_service(cls):
+        """获取本地记忆分析服务实例"""
+        if cls._local_memory_analysis_service is None:
+            cls._local_memory_analysis_service = LocalMemoryAnalysisService()
+        return cls._local_memory_analysis_service
     
     @staticmethod
     def _get_cache_key(prefix: str, user_id: int, **kwargs) -> str:
@@ -146,6 +159,32 @@ class MemoryService:
                 MemoryService.build_memory_associations(db, db_memory.id, user_id)
             except Exception as e:
                 memory_logger.error(f"建立记忆关联失败: {str(e)}", extra_fields={
+                    "memory_id": db_memory.id,
+                    "user_id": user_id
+                }, exc_info=e)
+            
+            # 使用本地记忆分析服务进行记忆分析
+            try:
+                local_analysis_service = MemoryService.get_local_memory_analysis_service()
+                analysis_result = await local_analysis_service.analyze_memory_content(
+                    db=db,
+                    memory_content=db_memory.content,
+                    user_id=user_id
+                )
+                
+                # 更新记忆元数据
+                if analysis_result.get('metadata'):
+                    db_memory.memory_metadata = analysis_result['metadata']
+                    db.commit()
+                    db.refresh(db_memory)
+                
+                # 增强记忆关联关系
+                if analysis_result.get('associations'):
+                    for assoc in analysis_result['associations']:
+                        # 这里可以根据需要建立更丰富的关联关系
+                        pass
+            except Exception as e:
+                memory_logger.error(f"本地记忆分析失败: {str(e)}", extra_fields={
                     "memory_id": db_memory.id,
                     "user_id": user_id
                 }, exc_info=e)
@@ -364,7 +403,7 @@ class MemoryService:
         return deleted_count
     
     @staticmethod
-    def search_memories(db: Session, query: str, user_id: int, memory_types: Optional[List[str]] = None,
+    async def search_memories(db: Session, query: str, user_id: int, memory_types: Optional[List[str]] = None,
                        memory_categories: Optional[List[str]] = None, limit: int = 10,
                        session_id: Optional[str] = None, context_ids: Optional[List[int]] = None) -> List[GlobalMemory]:
         """搜索记忆条目（上下文感知版本）"""
@@ -391,6 +430,22 @@ class MemoryService:
             if session_memories:
                 session_context = " ".join([mem.content[:100] for mem in session_memories if mem.content])
                 enhanced_query = f"{query} [上下文: {session_context}]"
+        
+        # 使用本地记忆分析服务增强查询理解
+        try:
+            local_analysis_service = MemoryService.get_local_memory_analysis_service()
+            enhanced_query_result = await local_analysis_service.enhance_query_understanding(
+                query=query,
+                context=session_context if 'session_context' in locals() else None,
+                db=db
+            )
+            if enhanced_query_result.get('enhanced_query'):
+                enhanced_query = enhanced_query_result['enhanced_query']
+        except Exception as e:
+            memory_logger.error(f"本地查询理解增强失败: {str(e)}", extra_fields={
+                "user_id": user_id,
+                "query": query[:100]
+            }, exc_info=e)
         
         # 3. 使用Chroma进行向量相似性搜索
         search_results = chroma_service.search_similar(

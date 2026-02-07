@@ -70,8 +70,20 @@ async def list_conversations(
     conversations = db.query(Conversation).offset(offset).limit(page_size).all()
     total = db.query(Conversation).count()
     
+    # 将 SQLAlchemy 对象转换为字典
+    conversations_data = []
+    for conv in conversations:
+        conversations_data.append({
+            "id": conv.id,
+            "user_id": conv.user_id,
+            "title": conv.title,
+            "description": conv.description,
+            "created_at": conv.created_at.isoformat() if conv.created_at else None,
+            "updated_at": conv.updated_at.isoformat() if conv.updated_at else None
+        })
+    
     return {
-        "conversations": conversations,
+        "conversations": conversations_data,
         "total": total,
         "page": page,
         "page_size": page_size

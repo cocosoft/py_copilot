@@ -402,6 +402,36 @@ export const supplierApi = {
       console.error(`获取模型 ${modelId} 在场景 ${scene} 的能力分数失败:`, error);
       throw error;
     }
+  },
+
+  // 获取本地模型列表
+  getLocalModels: async () => {
+    try {
+      const response = await request('/v1/local-models', {
+        method: 'GET'
+      });
+      
+      // 处理后端返回格式
+      let modelsData = [];
+      
+      // 后端返回的是直接数组格式
+      if (Array.isArray(response)) {
+        modelsData = response;
+      }
+      // 如果是对象格式，检查是否有items属性
+      else if (typeof response === 'object' && response !== null && Array.isArray(response.items)) {
+        modelsData = response.items;
+      }
+      // 如果是对象格式且有models属性
+      else if (typeof response === 'object' && response !== null && Array.isArray(response.models)) {
+        modelsData = response.models;
+      }
+      
+      return modelsData;
+    } catch (error) {
+      console.error('获取本地模型列表失败:', error);
+      throw error;
+    }
   }
 };
 

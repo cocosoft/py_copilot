@@ -3,9 +3,10 @@ import useAuthStore from '../stores/authStore';
 import useErrorStore from '../stores/errorStore';
 import errorService from './errorService';
 
-// Create axios instance
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 const apiClient = axios.create({
-  baseURL: '/api', // Use relative path to go through Vite proxy
+  baseURL: API_BASE_URL || '',  // 如果为空，使用相对路径，通过 Vite 代理
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',

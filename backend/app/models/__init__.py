@@ -16,6 +16,7 @@ from app.models.skill import Skill, SkillSession, SkillModelBinding, SkillExecut
 from app.models.memory import GlobalMemory, ConversationMemoryMapping, KnowledgeMemoryMapping, MemoryAssociation, MemoryAccessLog, UserMemoryConfig
 from app.models.translation_history import TranslationHistory
 from app.models.platform_config import PlatformConfig
+from app.models.api_favorite import ApiFavorite
 
 __all__ = [
     "User",
@@ -50,5 +51,6 @@ __all__ = [
     "MemoryAccessLog",
     "UserMemoryConfig",
     "TranslationHistory",
-    "PlatformConfig"
+    "PlatformConfig",
+    "ApiFavorite"
 ]

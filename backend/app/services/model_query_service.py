@@ -8,6 +8,17 @@ from app.core.encryption import encryption_tool
 class ModelQueryService:
     """模型查询服务类"""
     
+    # 本地模型推荐服务实例
+    _local_model_recommendation_service = None
+    
+    @classmethod
+    def get_local_model_recommendation_service(cls):
+        """获取本地模型推荐服务实例"""
+        if cls._local_model_recommendation_service is None:
+            from app.services.local_llm.model_recommendation import LocalModelRecommendationService
+            cls._local_model_recommendation_service = LocalModelRecommendationService()
+        return cls._local_model_recommendation_service
+    
     @staticmethod
     def get_all_models(db: Session, is_active: bool = None) -> List[Model]:
         """
@@ -218,6 +229,138 @@ class ModelQueryService:
             }
             for item in models_with_suppliers
         ]
+    
+    @staticmethod
+    async def get_recommended_model(db: Session, task_type: str, task_description: str = None, 
+                                   model_type: str = "chat", max_context_window: int = None) -> Optional[Dict[str, Any]]:
+        """
+        获取推荐的模型
+        
+        Args:
+            db: 数据库会话
+            task_type: 任务类型
+            task_description: 任务描述（可选）
+            model_type: 模型类型（默认chat）
+            max_context_window: 最大上下文窗口（可选）
+            
+        Returns:
+            推荐的模型信息字典或None
+        """
+        try:
+            # 获取本地模型推荐服务实例
+            recommendation_service = ModelQueryService.get_local_model_recommendation_service()
+            
+            # 获取所有可用模型
+            available_models = ModelQueryService.get_available_models_dict(db, model_type)
+            
+            # 使用本地模型推荐服务评估和推荐模型
+            recommendation_result = await recommendation_service.evaluate_models(
+                models=available_models,
+                task_type=task_type,
+                task_description=task_description,
+                db=db
+            )
+            
+            if recommendation_result.get('recommended_model'):
+                # 获取推荐模型的详细信息
+                recommended_model_info = recommendation_result['recommended_model']
+                model_id = recommended_model_info.get('id')
+                if model_id:
+                    model_with_supplier = ModelQueryService.get_model_with_supplier(db, model_id)
+                    if model_with_supplier:
+                        # 添加推荐理由和分数
+                        model_with_supplier['recommendation_reason'] = recommendation_result.get('reason')
+                        model_with_supplier['recommendation_score'] = recommendation_result.get('score')
+                        return model_with_supplier
+            
+            # 如果没有推荐模型，返回默认模型
+            default_model = ModelQueryService.get_default_model(db, model_type)
+            if default_model:
+                return {
+                    "model": default_model,
+                    "supplier": ModelQueryService.get_supplier_with_decrypted_api_key(default_model.supplier),
+                    "recommendation_reason": "使用默认模型",
+                    "recommendation_score": 0.5
+                }
+            
+        except Exception as e:
+            print(f"获取推荐模型失败: {str(e)}")
+        
+        return None
+    
+    @staticmethod
+    async def optimize_model_config(db: Session, model_id: int, task_type: str, 
+                                   task_description: str = None) -> Dict[str, Any]:
+        """
+        优化模型配置参数
+        
+        Args:
+            db: 数据库会话
+            model_id: 模型ID
+            task_type: 任务类型
+            task_description: 任务描述（可选）
+            
+        Returns:
+            优化后的配置参数
+        """
+        try:
+            # 获取本地模型推荐服务实例
+            recommendation_service = ModelQueryService.get_local_model_recommendation_service()
+            
+            # 获取模型信息
+            model_with_supplier = ModelQueryService.get_model_with_supplier(db, model_id)
+            if not model_with_supplier:
+                return {"error": "模型不存在"}
+            
+            # 使用本地模型推荐服务优化配置参数
+            optimization_result = await recommendation_service.optimize_config(
+                model_name=model_with_supplier["model"].model_id,
+                task_type=task_type,
+                task_description=task_description,
+                db=db
+            )
+            
+            return optimization_result
+            
+        except Exception as e:
+            print(f"优化模型配置失败: {str(e)}")
+            return {"error": str(e)}
+    
+    @staticmethod
+    async def analyze_model_performance(db: Session, model_id: int, 
+                                       performance_data: Dict[str, Any] = None) -> Dict[str, Any]:
+        """
+        分析模型性能数据
+        
+        Args:
+            db: 数据库会话
+            model_id: 模型ID
+            performance_data: 性能数据（可选）
+            
+        Returns:
+            性能分析结果
+        """
+        try:
+            # 获取本地模型推荐服务实例
+            recommendation_service = ModelQueryService.get_local_model_recommendation_service()
+            
+            # 获取模型信息
+            model_with_supplier = ModelQueryService.get_model_with_supplier(db, model_id)
+            if not model_with_supplier:
+                return {"error": "模型不存在"}
+            
+            # 使用本地模型推荐服务分析性能数据
+            analysis_result = await recommendation_service.analyze_performance_data(
+                model_name=model_with_supplier["model"].model,
+                performance_data=performance_data,
+                db=db
+            )
+            
+            return analysis_result
+            
+        except Exception as e:
+            print(f"分析模型性能失败: {str(e)}")
+            return {"error": str(e)}
 
 
 # 创建全局模型查询服务实例

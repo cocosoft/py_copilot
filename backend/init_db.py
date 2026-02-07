@@ -10,26 +10,8 @@ import os
 # 添加项目根目录到Python路径
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-
-# 数据库配置
-# 使用与应用程序相同的数据库连接URL
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SQLALCHEMY_DATABASE_URL = f"sqlite:///{os.path.join(BASE_DIR, 'py_copilot.db')}"
-
-# 创建数据库引擎
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False}
-)
-
-# 创建会话工厂
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-# 导入Base对象（使用app.core.database中定义的Base）
-from app.core.database import Base
+# 导入Base对象和数据库引擎（使用app.core.database中定义的）
+from app.core.database import Base, engine
 
 # 导入所有模型，确保它们被注册到Base.metadata
 # 注意：这里需要直接导入模型类，避免循环导入
@@ -68,6 +50,9 @@ from app.models.parameter_template import ParameterTemplate
 
 # 默认模型模型
 from app.models.default_model import DefaultModel, ModelFeedback, ModelPerformance
+
+# API文档收藏模型
+from app.models.api_favorite import ApiFavorite
 
 def init_database():
     """初始化数据库表"""

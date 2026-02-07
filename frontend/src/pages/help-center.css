@@ -1,6 +1,6 @@
 .help-center-container {
   padding: 20px;
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
 }
 
@@ -26,6 +26,7 @@
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   overflow: hidden;
+  min-height: 700px;
 }
 
 /* 侧边栏样式 */
@@ -78,10 +79,18 @@
 .help-main {
   flex: 1;
   padding: 20px;
+  min-height: 600px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .help-content {
+  flex: 1;
   min-height: 400px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .content-header {

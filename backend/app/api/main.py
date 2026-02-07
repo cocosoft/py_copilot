@@ -59,10 +59,19 @@ def monitor_memory():
 memory_monitor_thread = threading.Thread(target=monitor_memory, daemon=True)
 memory_monitor_thread.start()
 
-# 使用硬编码配置避免复杂导入
+# 从配置文件读取CORS设置
+from app.core.config import Settings
+settings = Settings()
+
 API_TITLE = "Py Copilot API"
 API_VERSION = "1.0.0"
-CORS_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:5174", "http://127.0.0.1:5174", "http://localhost:5175", "http://127.0.0.1:5175", "http://localhost:5176", "http://127.0.0.1:5176", "http://localhost:5177", "http://127.0.0.1:5177"]
+
+# 从配置生成CORS允许的源
+frontend_ports_list = [int(port.strip()) for port in settings.frontend_ports.split(',')]
+CORS_ORIGINS = []
+for port in frontend_ports_list:
+    CORS_ORIGINS.append(f"http://localhost:{port}")
+    CORS_ORIGINS.append(f"http://127.0.0.1:{port}")
 CORS_CREDENTIALS = True
 CORS_METHODS = ["*"]
 CORS_HEADERS = ["*"]

@@ -1,0 +1,413 @@
+/* 默认模型管理组件样式 */
+
+.default-model-management {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* 错误消息样式 */
+.error-message {
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  color: #721c24;
+  padding: 15px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.error-message .retry-btn {
+  background-color: #721c24;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
+}
+
+.error-message .retry-btn:hover {
+  background-color: #5a171f;
+}
+
+.error-message .retry-btn:disabled {
+  background-color: #c82333;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* 设置卡片样式 */
+.setting-card {
+  background-color: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  animation: slideIn 0.3s ease-out;
+}
+
+.setting-header {
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.setting-header h4 {
+  margin: 0 0 5px 0;
+  color: #495057;
+  font-size: 18px;
+}
+
+.setting-header p {
+  margin: 0;
+  color: #6c757d;
+  font-size: 14px;
+}
+
+/* 设置项样式 */
+.setting-item {
+  margin-bottom: 20px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
+}
+
+.setting-item:hover {
+  background-color: #e9ecef;
+}
+
+.setting-item label {
+  display: block;
+  margin-bottom: 10px;
+  font-weight: 500;
+  color: #495057;
+}
+
+/* 场景头部样式 */
+.scene-header {
+  margin-bottom: 10px;
+}
+
+.scene-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.scene-description {
+  font-size: 13px;
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* 推荐按钮样式 */
+.recommend-btn {
+  background-color: #e3f2fd;
+  color: #1976d2;
+  border: 1px solid #bbdefb;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s ease;
+}
+
+.recommend-btn:hover {
+  background-color: #bbdefb;
+  transform: translateY(-1px);
+}
+
+.recommend-btn:disabled {
+  background-color: #f1f3f4;
+  color: #9aa0a6;
+  border: 1px solid #dadce0;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* 能力信息样式 */
+.capability-info {
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+.info-text {
+  color: #6c757d;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.recommendation-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.recommendation-title {
+  font-weight: 500;
+  color: #495057;
+}
+
+.recommendation-item {
+  background-color: #e8f5e8;
+  color: #2e7d32;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  border: 1px solid #c8e6c9;
+}
+
+/* 能力徽章样式 */
+.capability-badge {
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 500;
+  margin-left: 8px;
+}
+
+.capability-badge.excellent {
+  background-color: #c8e6c9;
+  color: #2e7d32;
+}
+
+.capability-badge.good {
+  background-color: #bbdefb;
+  color: #1976d2;
+}
+
+.capability-badge.fair {
+  background-color: #ffecb3;
+  color: #f57f17;
+}
+
+.capability-badge.poor {
+  background-color: #ffcdd2;
+  color: #c62828;
+}
+
+/* 字段错误样式 */
+.field-error {
+  display: block;
+  margin-top: 5px;
+  color: #dc3545;
+  font-size: 13px;
+}
+
+/* 设置操作样式 */
+.setting-actions {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 15px;
+  margin-top: 25px;
+  padding-top: 20px;
+  border-top: 1px solid #e9ecef;
+}
+
+.save-btn {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.save-btn:hover {
+  background-color: #0069d9;
+  transform: translateY(-1px);
+}
+
+.save-btn:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* 未保存更改指示器 */
+.unsaved-changes-indicator {
+  color: #ffc107;
+  font-size: 14px;
+  font-weight: 500;
+  animation: pulse 2s infinite;
+}
+
+/* 加载状态样式 */
+.loading-text {
+  display: block;
+  margin-top: 10px;
+  color: #6c757d;
+  font-size: 14px;
+  animation: pulse 1.5s infinite;
+}
+
+/* 配置信息样式 */
+.config-info {
+  margin-top: 10px;
+  padding: 10px;
+  background-color: #e3f2fd;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #1976d2;
+}
+
+/* 本地LLM配置信息样式 */
+.setting-info {
+  margin-top: 15px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.setting-info h5 {
+  margin: 0 0 10px 0;
+  color: #495057;
+  font-size: 15px;
+}
+
+.setting-info ul {
+  margin: 0 0 15px 0;
+  padding-left: 20px;
+}
+
+.setting-info li {
+  margin-bottom: 5px;
+  color: #6c757d;
+}
+
+.setting-info p {
+  margin: 0;
+  color: #6c757d;
+  font-size: 14px;
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* 加载动画 */
+.loading-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .default-model-management {
+    padding: 10px;
+  }
+  
+  .setting-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  
+  .save-btn {
+    justify-content: center;
+  }
+  
+  .recommendation-list {
+    flex-direction: column;
+    gap: 5px;
+  }
+}
+
+/* 调试面板样式增强 */
+.debug-panel {
+  background: #f5f5f5;
+  border: 1px solid #ddd;
+  padding: 15px;
+  margin-bottom: 20px;
+  border-radius: 4px;
+  font-size: 12px;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.debug-panel h4 {
+  margin: 0 0 15px 0;
+  color: #666;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.debug-panel strong {
+  color: #495057;
+}
+
+.debug-panel ul {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.debug-panel li {
+  margin-bottom: 3px;
+  color: #6c757d;
+}
+
+.debug-panel p {
+  margin: 8px 0;
+  font-size: 11px;
+  color: #d63384;
+}
