@@ -208,7 +208,7 @@ async def process_task(
         )
 
 
-@router.get("/models", response_model=llm_schemas.AvailableModelsResponse)
+@router.get("/model-management/models", response_model=llm_schemas.AvailableModelsResponse)
 async def get_available_models(
     current_user: User = Depends(get_current_active_user)
 ) -> Any:

@@ -364,13 +364,14 @@ const ModelSelectDropdown = ({
       return `/logos/models/${model.logo}`;
     }
     
-    // 如果没有模型LOGO或模型LOGO是默认值，使用供应商LOGO（优先检查 supplier_logo 字段）
+    // 如果没有模型LOGO或模型LOGO是默认值，使用供应商LOGO
+    // 优先检查 supplier_logo 字段（来自 /models/select 端点）
     if (model.supplier_logo !== null && model.supplier_logo !== undefined && model.supplier_logo !== '') {
       // 检查是否已经是完整URL
       if (model.supplier_logo.startsWith('http')) {
         return model.supplier_logo;
       }
-      // 检查是否已经是完整路径
+      // 检查是否已经是完整路径（以/开头）
       if (model.supplier_logo.startsWith('/')) {
         return model.supplier_logo;
       }
@@ -382,13 +383,13 @@ const ModelSelectDropdown = ({
       return `/logos/providers/${model.supplier_logo}`;
     }
     
-    // 如果 supplier_logo 不存在，检查 supplier.logo 字段
+    // 如果没有 supplier_logo，检查 supplier.logo 字段（来自 /models 端点）
     if (model.supplier && model.supplier.logo !== null && model.supplier.logo !== undefined && model.supplier.logo !== '') {
       // 检查是否已经是完整URL
       if (model.supplier.logo.startsWith('http')) {
         return model.supplier.logo;
       }
-      // 检查是否已经是完整路径
+      // 检查是否已经是完整路径（以/开头）
       if (model.supplier.logo.startsWith('/')) {
         return model.supplier.logo;
       }
@@ -466,15 +467,21 @@ const ModelSelectDropdown = ({
                 onError={(e) => {
                   // 模型LOGO加载失败时，尝试使用供应商LOGO
                   const supplierLogoUrl = () => {
+                    // 优先使用 supplier_logo 字段
                     if (selectedModel.supplier_logo) {
                       return selectedModel.supplier_logo.startsWith('http') || selectedModel.supplier_logo.startsWith('/') 
                         ? selectedModel.supplier_logo 
-                        : `/logos/providers/${selectedModel.supplier_logo}`;
+                        : (selectedModel.supplier_logo.startsWith('logos/providers/') 
+                          ? `/${selectedModel.supplier_logo}` 
+                          : `/logos/providers/${selectedModel.supplier_logo}`);
                     }
+                    // 如果没有 supplier_logo，检查 supplier.logo
                     if (selectedModel.supplier && selectedModel.supplier.logo) {
                       return selectedModel.supplier.logo.startsWith('http') || selectedModel.supplier.logo.startsWith('/') 
                         ? selectedModel.supplier.logo 
-                        : `/logos/providers/${selectedModel.supplier.logo}`;
+                        : (selectedModel.supplier.logo.startsWith('logos/providers/') 
+                          ? `/${selectedModel.supplier.logo}` 
+                          : `/logos/providers/${selectedModel.supplier.logo}`);
                     }
                     return '/logos/models/default.png';
                   };
@@ -524,10 +531,14 @@ const ModelSelectDropdown = ({
                 <div className="custom-select__group-header">
                   {group.logo && (
                     <img 
-                      src={group.logo.startsWith('http') || group.logo.startsWith('/') ? group.logo : `/logos/providers/${group.logo}`} 
+                      src={group.logo.startsWith('http') || group.logo.startsWith('/') ? group.logo : 
+                           (group.logo.startsWith('logos/providers/') ? `/${group.logo}` : `/logos/providers/${group.logo}`)} 
                       alt={group.name} 
                       className="supplier-logo"
                       style={{ width: '20px', height: '20px', marginRight: '8px', borderRadius: '4px' }}
+                      onError={(e) => {
+                        e.target.src = '/logos/providers/default.png';
+                      }}
                     />
                   )}
                   <span className="custom-select__group-name">{group.name}</span>
@@ -546,15 +557,21 @@ const ModelSelectDropdown = ({
                         onError={(e) => {
                           // 模型LOGO加载失败时，尝试使用供应商LOGO
                           const supplierLogoUrl = () => {
+                            // 优先使用 supplier_logo 字段
                             if (model.supplier_logo) {
                               return model.supplier_logo.startsWith('http') || model.supplier_logo.startsWith('/') 
                                 ? model.supplier_logo 
-                                : `/logos/providers/${model.supplier_logo}`;
+                                : (model.supplier_logo.startsWith('logos/providers/') 
+                                  ? `/${model.supplier_logo}` 
+                                  : `/logos/providers/${model.supplier_logo}`);
                             }
+                            // 如果没有 supplier_logo，检查 supplier.logo
                             if (model.supplier && model.supplier.logo) {
                               return model.supplier.logo.startsWith('http') || model.supplier.logo.startsWith('/') 
                                 ? model.supplier.logo 
-                                : `/logos/providers/${model.supplier.logo}`;
+                                : (model.supplier.logo.startsWith('logos/providers/') 
+                                  ? `/${model.supplier.logo}` 
+                                  : `/logos/providers/${model.supplier.logo}`);
                             }
                             return '/logos/models/default.png';
                           };

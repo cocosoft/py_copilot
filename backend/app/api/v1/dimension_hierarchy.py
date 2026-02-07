@@ -127,7 +127,7 @@ async def get_models_by_dimension_and_category(
         )
 
 
-@router.get("/models/{model_id}/dimensions",
+@router.get("/model-management/models/{model_id}/dimensions",
            response_model=Dict[str, Any],
            responses={
                200: {"description": "成功获取模型维度信息"},
@@ -181,7 +181,7 @@ async def get_model_dimensions(
         )
 
 
-@router.post("/models/{model_id}/dimensions/{dimension}/categories/{category_id}",
+@router.post("/model-management/models/{model_id}/dimensions/{dimension}/categories/{category_id}",
            response_model=Dict[str, Any],
            responses={
                200: {"description": "成功添加模型到维度分类"},
@@ -292,7 +292,7 @@ async def add_model_to_dimension_category(
         )
 
 
-@router.delete("/models/{model_id}/categories/{category_id}",
+@router.delete("/model-management/models/{model_id}/categories/{category_id}",
            response_model=Dict[str, Any],
            responses={
                200: {"description": "成功移除模型关联"},
@@ -357,7 +357,7 @@ async def remove_model_from_dimension_category(
         )
 
 
-@router.delete("/models/{model_id}/categories",
+@router.delete("/model-management/models/{model_id}/categories",
            response_model=Dict[str, Any],
            responses={
                200: {"description": "成功删除所有模型关联"},

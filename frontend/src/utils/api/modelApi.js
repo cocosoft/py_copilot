@@ -337,24 +337,8 @@ const modelApi = {
    */
   async getAll() {
     try {
-      // 尝试使用不同的API端点
-      const endpoints = [
-        { path: '/v1/model-management/models', method: 'GET' },
-        { path: '/v1/models', method: 'GET' }
-      ];
-      
-      for (const endpoint of endpoints) {
-        try {
-          const response = await request(endpoint.path, { method: endpoint.method });
-          return response;
-        } catch (err) {
-          console.warn(`尝试端点 ${endpoint.path} 失败:`, err.message);
-          // 继续尝试下一个端点
-        }
-      }
-      
-      // 如果所有端点都失败，返回默认空数据结构
-      return { models: [] };
+      const response = await request('/v1/model-management/models', { method: 'GET' });
+      return response;
     } catch (error) {
       console.error('获取模型列表失败:', error);
       return { models: [] };

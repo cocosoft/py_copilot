@@ -125,10 +125,6 @@ const dimensionHierarchyApi = {
       // 尝试使用可能的API端点
       // 注意：不要在endpoint中包含/api前缀，因为apiUtils.js会自动添加
       const endpoints = [
-        `/v1/dimension-hierarchy/models/${modelId}/dimensions`,
-        `/v1/models/${modelId}/dimensions`,
-        `/v1/dimension-hierarchy/model/${modelId}/dimensions`,
-        `/v1/model-management/dimension-hierarchy/models/${modelId}/dimensions`,
         `/v1/model-management/models/${modelId}/dimensions`
       ];
       

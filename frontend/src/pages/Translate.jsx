@@ -1298,8 +1298,24 @@ const Translate = () => {
                   onModelSelect={handleModelSelect}
                   placeholder="选择模型"
                   getModelLogoUrl={(model) => {
-                    if (model?.logo) return model.logo;
-                    if (model?.supplier_logo) return model.supplier_logo;
+                    if (model?.logo) {
+                      if (model.logo.startsWith('http') || model.logo.startsWith('/')) {
+                        return model.logo;
+                      }
+                      if (model.logo.startsWith('logos/models/')) {
+                        return `/${model.logo}`;
+                      }
+                      return `/logos/models/${model.logo}`;
+                    }
+                    if (model?.supplier_logo) {
+                      if (model.supplier_logo.startsWith('http') || model.supplier_logo.startsWith('/')) {
+                        return model.supplier_logo;
+                      }
+                      if (model.supplier_logo.startsWith('logos/providers/')) {
+                        return `/${model.supplier_logo}`;
+                      }
+                      return `/logos/providers/${model.supplier_logo}`;
+                    }
                     return '/logos/models/default.png';
                   }}
                 />

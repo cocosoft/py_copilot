@@ -24,7 +24,7 @@ from app.modules.supplier_model_management.schemas.model_management import (
 )
 from app.schemas.model_management import (
     ModelParameterCreate, ModelParameterUpdate, ModelParameterResponse,
-    ModelParameterListResponse
+    ModelParameterListResponse, ModelSupplierResponse
 )
 
 # 创建上传目录
@@ -154,17 +154,58 @@ async def get_all_models(
     models = db.query(ModelDB).options(joinedload(ModelDB.supplier)).offset(skip).limit(limit).all()
     total = db.query(ModelDB).count()
     
-    # 确保logo字段包含完整路径
+    # 转换为ModelWithSupplierResponse格式，确保logo字段被正确序列化
+    model_responses = []
     for model in models:
-        if model.logo and not model.logo.startswith("/logos/models/"):
-            model.logo = f"/logos/models/{model.logo}"
+        # 确保logo字段包含完整路径
+        logo = model.logo
+        if logo and not logo.startswith("/logos/models/"):
+            logo = f"/logos/models/{logo}"
+        
+        # 创建ModelWithSupplierResponse对象
+        model_response = ModelWithSupplierResponse(
+            id=model.id,
+            model_id=model.model_id or "",
+            model_name=model.model_name or model.model_id or "",
+            description=model.description,
+            supplier_id=model.supplier_id,
+            type="chat",
+            context_window=model.context_window or 8000,
+            default_temperature=0.7,
+            default_max_tokens=model.max_tokens or 1000,
+            default_top_p=1.0,
+            default_frequency_penalty=0.0,
+            default_presence_penalty=0.0,
+            custom_params=None,
+            is_active=model.is_active,
+            is_default=model.is_default,
+            logo=logo,
+            created_at=model.created_at,
+            updated_at=model.updated_at,
+            categories=[],
+            supplier=ModelSupplierResponse(
+                id=model.supplier.id,
+                name=model.supplier.name,
+                display_name=model.supplier.display_name,
+                description=model.supplier.description,
+                logo=model.supplier.logo,
+                is_active=model.supplier.is_active,
+                created_at=model.supplier.created_at,
+                updated_at=model.supplier.updated_at,
+                api_endpoint=model.supplier.api_endpoint,
+                api_key_required=model.supplier.api_key_required,
+                category=model.supplier.category,
+                website=model.supplier.website,
+                api_docs=model.supplier.api_docs
+            )
+        )
+        model_responses.append(model_response)
     
-    print(f"返回 {len(models)} 个模型，总计 {total} 个模型")
+    print(f"返回 {len(model_responses)} 个模型，总计 {total} 个模型")
     
-    # 返回数据库查询结果，注意：虽然ModelListResponse定义为List[ModelResponse]，但我们返回的是包含supplier信息的ModelDB实例
-    # SQLAlchemy会自动将关联的supplier信息加载到model对象中
+    # 返回转换后的模型列表
     return ModelListResponse(
-        models=models,
+        models=model_responses,
         total=total
     )
 

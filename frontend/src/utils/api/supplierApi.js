@@ -333,7 +333,7 @@ export const supplierApi = {
   // 获取所有模型
   getModels: async () => {
     try {
-      const response = await request('/v1/models', {
+      const response = await request('/v1/model-management/models', {
         method: 'GET'
       });
       
@@ -363,7 +363,7 @@ export const supplierApi = {
   // 根据场景获取模型
   getModelsByScene: async (scene) => {
     try {
-      const response = await request(`/v1/models/by-scene/${scene}`, {
+      const response = await request(`/v1/model-management/models/by-scene/${scene}`, {
         method: 'GET'
       });
       
@@ -393,7 +393,7 @@ export const supplierApi = {
   // 获取模型的能力分数
   getModelCapabilityScores: async (modelId, scene) => {
     try {
-      const response = await request(`/v1/models/${modelId}/capability-scores/${scene}`, {
+      const response = await request(`/v1/model-management/models/${modelId}/capability-scores/${scene}`, {
         method: 'GET'
       });
       

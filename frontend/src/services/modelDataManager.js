@@ -58,7 +58,7 @@ class ModelDataManager {
    */
   static async fetchModels(scene = 'all') {
     try {
-      const response = await fetch(`${API_BASE_URL}/v1/models/select?scene=${encodeURIComponent(scene)}`);
+      const response = await fetch(`${API_BASE_URL}/v1/model-management/models/select?scene=${encodeURIComponent(scene)}`);
 
       if (!response.ok) {
         throw new Error(`API请求失败: ${response.status}`);
@@ -79,7 +79,7 @@ class ModelDataManager {
    */
   static async getModelById(modelId) {
     try {
-      const response = await fetch(`${API_BASE_URL}/v1/models/select/${modelId}`);
+      const response = await fetch(`${API_BASE_URL}/v1/model-management/models/select/${modelId}`);
 
       if (!response.ok) {
         throw new Error(`API请求失败: ${response.status}`);
@@ -100,7 +100,7 @@ class ModelDataManager {
    */
   static async getDefaultModel(scene = 'chat') {
     try {
-      const response = await fetch(`${API_BASE_URL}/v1/models/select/default/${encodeURIComponent(scene)}`);
+      const response = await fetch(`${API_BASE_URL}/v1/model-management/models/select/default/${encodeURIComponent(scene)}`);
 
       if (!response.ok) {
         throw new Error(`API请求失败: ${response.status}`);
@@ -140,6 +140,19 @@ class ModelDataManager {
         // 其次从模型直接属性获取
         supplierName = model.supplier_display_name || model.supplier_name || supplierName;
         supplierLogo = model.supplier_logo || supplierLogo;
+        
+        // 如果supplier_logo包含路径前缀，提取纯文件名
+        if (supplierLogo && supplierLogo.includes('logos/providers/')) {
+          const parts = supplierLogo.split('logos/providers/');
+          const lastPart = parts[parts.length - 1];
+          // 如果最后一部分仍然包含logos/providers/，说明路径重复了
+          if (lastPart.includes('logos/providers/')) {
+            const subParts = lastPart.split('logos/providers/');
+            supplierLogo = subParts[subParts.length - 1];
+          } else {
+            supplierLogo = lastPart;
+          }
+        }
         
         grouped[supplierKey] = {
           id: supplierKey,

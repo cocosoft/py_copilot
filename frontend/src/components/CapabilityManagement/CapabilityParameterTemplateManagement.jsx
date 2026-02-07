@@ -60,7 +60,9 @@ const CapabilityParameterTemplateManagement = () => {
       const capabilitiesResponse = await capabilityApi.getAll();
       const processedCapabilities = Array.isArray(capabilitiesResponse?.capabilities)
         ? capabilitiesResponse.capabilities
-        : capabilitiesResponse;
+        : Array.isArray(capabilitiesResponse?.data)
+        ? capabilitiesResponse.data
+        : Array.isArray(capabilitiesResponse) ? capabilitiesResponse : [];
       setCapabilities(processedCapabilities);
       
       // 加载所有参数模板

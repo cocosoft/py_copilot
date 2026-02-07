@@ -151,7 +151,7 @@ export const getTranslationAgents = async () => {
  */
 export const getTranslationModels = async () => {
   try {
-    const response = await apiClient.get('/v1/models/by-scene/translate');
+    const response = await apiClient.get('/v1/model-management/models/by-scene/translate');
     return response.data;
   } catch (error) {
     console.error('获取翻译模型列表API调用失败:', error);

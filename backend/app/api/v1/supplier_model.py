@@ -431,62 +431,6 @@ def delete_supplier(supplier_id: int, db: Session = Depends(get_db)):
     
     return {"message": "供应商删除成功"}
 
-# 模型相关路由
-@router.get("/models", response_model=ModelListResponse)
-def get_all_models(db: Session = Depends(get_db)):
-    """获取所有模型（通用接口）"""
-    try:
-        import logging
-        logger = logging.getLogger()
-        # 获取所有模型，包括供应商信息
-        from sqlalchemy.orm import joinedload
-        from app.models.supplier_db import ModelDB
-        
-        models = db.query(ModelDB).options(joinedload(ModelDB.supplier)).all()
-        total = len(models)
-        
-        # 转换为响应格式
-        model_responses = []
-        for model in models:
-            # 创建ModelWithSupplierResponse对象
-            model_response = ModelWithSupplierResponse(
-                id=str(model.id),
-                model_id=str(model.model_id) if model.model_id is not None else "",
-                model_name=str(getattr(model, "model_name", model.model_id)) if getattr(model, "model_name", model.model_id) is not None else "",
-                description=str(model.description) if model.description is not None else None,
-                supplier_id=int(model.supplier_id),
-                type=getattr(model, "type", "chat"),  # 添加type字段，默认为chat
-                context_window=int(model.context_window) if model.context_window is not None else None,
-                max_tokens=int(model.max_tokens) if model.max_tokens is not None else None,
-                is_default=bool(model.is_default),
-                is_active=bool(model.is_active),
-                created_at=model.created_at if hasattr(model, 'created_at') else datetime.now(),  # 添加created_at字段
-                supplier=ModelSupplierResponse(
-                    id=model.supplier.id,
-                    name=model.supplier.name,
-                    display_name=model.supplier.display_name,
-                    description=model.supplier.description,
-                    is_active=model.supplier.is_active,
-                    logo=model.supplier.logo,
-                    api_endpoint=model.supplier.api_endpoint,
-                    api_key_required=model.supplier.api_key_required,
-                    category=model.supplier.category,
-                    website=model.supplier.website,
-                    api_docs=model.supplier.api_docs,
-                    created_at=model.supplier.created_at,
-                    updated_at=model.supplier.updated_at
-                )
-            )
-            model_responses.append(model_response)
-        
-        return ModelListResponse(models=model_responses, total=total)
-    except Exception as e:
-        logger.error(f"获取所有模型失败: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"获取所有模型失败: {str(e)}"
-        )
-
 @router.get("/suppliers/{supplier_id}/models", response_model=ModelListResponse)
 def get_supplier_models(supplier_id: int, db: Session = Depends(get_db)):
     """获取指定供应商的模型列表"""
@@ -589,7 +533,8 @@ def get_model(supplier_id: int, model_id: int, db: Session = Depends(get_db)):
         context_window=model.context_window,
         max_tokens=model.max_tokens,
         is_default=model.is_default,
-        is_active=model.is_active
+        is_active=model.is_active,
+        logo=model.logo  # 添加模型自己的logo
     )
 
 @router.post("/suppliers/{supplier_id}/models", response_model=ModelResponse, status_code=201)
@@ -1026,7 +971,7 @@ async def fetch_models_from_api(supplier_id: int, api_config: dict, db: Session 
         }
 
 # 模型选择视图相关路由
-@router.get("/models/select")
+@router.get("/model-management/models/select")
 def get_model_select_data(scene: str = Query("all", description="使用场景"), db: Session = Depends(get_db)):
     """
     获取模型选择数据（从视图）
@@ -1066,7 +1011,7 @@ def get_model_select_data(scene: str = Query("all", description="使用场景"),
         logging.error(f"获取模型选择数据失败: {str(e)}")
         raise HTTPException(status_code=500, detail=f"获取模型数据失败: {str(e)}")
 
-@router.get("/models/select/{model_id}")
+@router.get("/model-management/models/select/{model_id}")
 def get_model_select_item(model_id: int, db: Session = Depends(get_db)):
     """
     获取单个模型选择数据（从视图）
@@ -1104,7 +1049,7 @@ def get_model_select_item(model_id: int, db: Session = Depends(get_db)):
         logging.error(f"获取模型数据失败: {str(e)}")
         raise HTTPException(status_code=500, detail=f"获取模型数据失败: {str(e)}")
 
-@router.get("/models/select/default/{scene}")
+@router.get("/model-management/models/select/default/{scene}")
 def get_default_model(scene: str, db: Session = Depends(get_db)):
     """
     获取默认模型（从视图）
@@ -1317,7 +1262,7 @@ async def test_api_config(supplier_id: int, api_config: dict, db: Session = Depe
 
 
 # 基于场景的模型查询API
-@router.get("/models/by-scene/{scene}")
+@router.get("/model-management/models/by-scene/{scene}")
 def get_models_by_scene(
     scene: str,
     include_match_score: bool = Query(False, description="是否包含能力匹配度评分"),
@@ -1365,6 +1310,7 @@ def get_models_by_scene(
                     "model_name": model.model_name,
                     "description": model.description,
                     "supplier_id": model.supplier_id,
+                    "logo": model.logo,  # 添加模型自己的logo
                     "supplier": {
                         "id": supplier.id if supplier else None,
                         "name": supplier.name if supplier else "未知供应商",
@@ -1403,6 +1349,7 @@ def get_models_by_scene(
                     "model_name": model.model_name,
                     "description": model.description,
                     "supplier_id": model.supplier_id,
+                    "logo": model.logo,  # 添加模型自己的logo
                     "supplier": {
                         "id": supplier.id if supplier else None,
                         "name": supplier.name if supplier else "未知供应商",
@@ -1437,7 +1384,7 @@ def get_models_by_scene(
         }
 
 
-@router.get("/models/available-scenes")
+@router.get("/model-management/models/available-scenes")
 def get_available_scenes(db: Session = Depends(get_db)) -> Dict[str, Any]:
     """
     获取所有可用的场景列表
@@ -1470,7 +1417,7 @@ def get_available_scenes(db: Session = Depends(get_db)) -> Dict[str, Any]:
         }
 
 
-@router.get("/models/{model_id}/capability-scores/{scene}")
+@router.get("/model-management/models/{model_id}/capability-scores/{scene}")
 def get_model_capability_scores(
     model_id: int,
     scene: str,

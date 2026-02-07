@@ -27,6 +27,7 @@ class SupplierDB(Base):
     api_docs = Column(String(255), nullable=True)
     _api_key = Column("api_key", String(255), nullable=True)
     is_active = Column(Boolean, default=True)
+    is_local = Column(Boolean, default=False)
     
     @property
     def api_key(self):

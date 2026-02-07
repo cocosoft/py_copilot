@@ -7,18 +7,18 @@ import { defaultModelApi, supplierApi } from '../../../utils/api';
  */
 const useModelManagement = () => {
   // 状态管理
-  const [globalDefaultModel, setGlobalDefaultModel] = useState('');
+  const [globalDefaultModel, setGlobalDefaultModel] = useState(null);
   const [sceneDefaultModels, setSceneDefaultModels] = useState({
-    chat: '',
-    image: '',
-    video: '',
-    voice: '',
-    translate: '',
-    knowledge: '',
-    workflow: '',
-    tool: '',
-    search: '',
-    mcp: ''
+    chat: null,
+    image: null,
+    video: null,
+    voice: null,
+    translate: null,
+    knowledge: null,
+    workflow: null,
+    tool: null,
+    search: null,
+    mcp: null
   });
   const [isSavingDefaultModel, setIsSavingDefaultModel] = useState(false);
   const [models, setModels] = useState([]);
@@ -49,9 +49,9 @@ const useModelManagement = () => {
 
   // 检查是否有未保存的更改
   useEffect(() => {
-    const hasChanges = globalDefaultModel !== (globalModelConfig?.model_id?.toString() || '') ||
+    const hasChanges = globalDefaultModel !== globalModelConfig?.model_id ||
       Object.keys(sceneDefaultModels).some(scene => 
-        sceneDefaultModels[scene] !== (sceneModelConfigs[scene]?.model_id?.toString() || '')
+        sceneDefaultModels[scene] !== sceneModelConfigs[scene]?.model_id
       );
     setHasUnsavedChanges(hasChanges);
   }, [globalDefaultModel, sceneDefaultModels, globalModelConfig, sceneModelConfigs]);
@@ -81,15 +81,15 @@ const useModelManagement = () => {
     const errors = {};
     
     // 验证全局模型
-    if (globalDefaultModel) {
-      const globalError = validateModelSelection(globalDefaultModel, 'global');
+    if (!globalDefaultModel) {
+      const globalError = validateModelSelection(null, 'global');
       Object.assign(errors, globalError);
     }
     
     // 验证场景模型
     Object.entries(sceneDefaultModels).forEach(([scene, modelId]) => {
-      if (modelId) {
-        const sceneError = validateModelSelection(modelId, 'scene', scene);
+      if (!modelId) {
+        const sceneError = validateModelSelection(null, 'scene', scene);
         Object.assign(errors, sceneError);
       }
     });
@@ -202,15 +202,12 @@ const useModelManagement = () => {
       
       // 处理API返回格式
       const localModelsList = Array.isArray(localModelsResponse) ? localModelsResponse : (localModelsResponse?.items || []);
-      // 筛选供应商为Ollama的本地模型
-      const ollamaLocalModels = localModelsList.filter(model => 
-        model.supplier?.toLowerCase() === 'ollama'
-      );
-      setLocalModels(ollamaLocalModels);
+      // 直接使用后端返回的本地模型列表（后端已根据供应商的is_local字段筛选）
+      setLocalModels(localModelsList);
       
       // 获取本地模型配置
       const localConfigResponse = await defaultModelApi.getLocalModelConfig().catch(() => null);
-      setLocalModelConfig(localConfigResponse?.data || null);
+      setLocalModelConfig(localConfigResponse || null);
       
     } catch (error) {
       console.error('加载本地模型失败:', error);
@@ -232,7 +229,7 @@ const useModelManagement = () => {
         defaultModelApi.getDefaultModels({ scope: 'scene' }).catch(() => ({ items: [] }))
       ]);
 
-      setGlobalModelConfig(globalConfig?.data || null);
+      setGlobalModelConfig(globalConfig || null);
 
       // 处理场景默认模型配置
       const sceneConfigs = {};
@@ -243,20 +240,20 @@ const useModelManagement = () => {
       }
       setSceneModelConfigs(sceneConfigs);
 
-      // 设置全局默认模型ID
-      if (globalConfig?.data?.model_id) {
-        setGlobalDefaultModel(globalConfig.data.model_id.toString());
+      // 设置全局默认模型ID（保持为整数类型，与模型列表中的id类型一致）
+      if (globalConfig?.model_id) {
+        setGlobalDefaultModel(globalConfig.model_id);
       }
 
-      // 设置场景默认模型ID
+      // 设置场景默认模型ID（保持为整数类型，与模型列表中的id类型一致）
       const sceneDefaults = {};
       // 遍历所有可能的场景（与初始状态保持一致）
       const allScenes = ['chat', 'image', 'video', 'voice', 'translate', 'knowledge', 'workflow', 'tool', 'search', 'mcp'];
       allScenes.forEach(scene => {
         if (sceneConfigs[scene]?.model_id) {
-          sceneDefaults[scene] = sceneConfigs[scene].model_id.toString();
+          sceneDefaults[scene] = sceneConfigs[scene].model_id;
         } else {
-          sceneDefaults[scene] = ''; // 确保所有场景都有值
+          sceneDefaults[scene] = null; // 确保所有场景都有值
         }
       });
       setSceneDefaultModels(sceneDefaults);
@@ -282,7 +279,9 @@ const useModelManagement = () => {
         const sceneModelsData = {};
         allScenes.forEach((scene, index) => {
           const response = sceneResponses[index];
-          const modelsForScene = Array.isArray(response) ? response : (response?.items || []);
+          // 后端API返回格式：{status, message, scene, models, total}
+          // 需要从response.models中获取模型列表
+          const modelsForScene = Array.isArray(response) ? response : (response?.models || response?.items || []);
           sceneModelsData[scene] = modelsForScene;
         });
         
@@ -390,7 +389,7 @@ const useModelManagement = () => {
       if (globalDefaultModel) {
         savePromises.push(
           defaultModelApi.setGlobalDefaultModel({
-            model_id: parseInt(globalDefaultModel)
+            model_id: globalDefaultModel
           })
         );
       }
@@ -401,7 +400,7 @@ const useModelManagement = () => {
           savePromises.push(
             defaultModelApi.setSceneDefaultModel({
               scene,
-              model_id: parseInt(modelId),
+              model_id: modelId,
               priority: 1
             })
           );
