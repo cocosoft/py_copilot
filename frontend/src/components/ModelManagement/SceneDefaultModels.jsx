@@ -10,7 +10,6 @@ const SceneDefaultModels = ({
   onModelSelect, 
   onApplyRecommendation, 
   getRecommendedModels, 
-  getModelsByType, 
   sceneModels, 
   capabilityScores, 
   validationErrors, 
@@ -67,6 +66,11 @@ const SceneDefaultModels = ({
       key: 'mcp',
       label: 'MCP场景',
       description: '多模态处理、跨媒体理解、统一表示'
+    },
+    {
+      key: 'topic_title',
+      label: '话题标题生成',
+      description: '对话内容总结、标题提炼、核心意图提取'
     }
   ];
 
@@ -78,7 +82,7 @@ const SceneDefaultModels = ({
       </div>
       
       {scenes.map(scene => {
-        const modelsForScene = sceneModels[scene.key]?.length ? sceneModels[scene.key] : getModelsByType(scene.key);
+        const modelsForScene = Array.isArray(sceneModels[scene.key]) ? sceneModels[scene.key] : [];
         const recommendedModels = getRecommendedModels(scene.key);
         
         return (

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { conversationApi, defaultModelApi, capabilityApi } from '../utils/api';
+import { conversationApi, defaultModelApi, capabilityApi, topicTitleApi } from '../utils/api';
 import { API_BASE_URL } from '../utils/apiUtils';
 import emojis from '../utils/emojis';
 import LeftSidebar from '../components/LeftSidebar';
@@ -198,6 +198,8 @@ const Chat = () => {
   const [messages, setMessages] = useState([]); // 消息列表
   const [conversationId, setConversationId] = useState(1); // 对话ID
   const [activeTopic, setActiveTopic] = useState(null); // 当前活跃的话题
+  const [topicTitle, setTopicTitle] = useState(''); // 话题标题
+  const [isGeneratingTitle, setIsGeneratingTitle] = useState(false); // 是否正在生成标题
   const [refreshTopicsFlag, setRefreshTopicsFlag] = useState(false); // 控制话题列表刷新的标志
   const messagesEndRef = useRef(null); // 滚动到底部的引用
   const reconnectTimerRef = useRef(null); // 重连定时器引用
@@ -266,6 +268,42 @@ const Chat = () => {
       loadTopicMessages(activeTopic.id);
     }
   }, [activeTopic, loadTopicMessages]);
+
+  // 生成话题标题
+  const generateTopicTitle = useCallback(async () => {
+    if (!messages || messages.length < 2) {
+      return;
+    }
+
+    setIsGeneratingTitle(true);
+    try {
+      const content = messages
+        .map(msg => `${msg.sender}: ${msg.text}`)
+        .join('\n');
+
+      const response = await topicTitleApi.generateTitle({
+        conversation_id: conversationId,
+        content: content,
+        max_length: 20,
+        style: 'concise'
+      });
+
+      if (response.data) {
+        setTopicTitle(response.data.title);
+      }
+    } catch (error) {
+      console.error('生成标题失败:', error);
+    } finally {
+      setIsGeneratingTitle(false);
+    }
+  }, [messages, conversationId]);
+
+  // 当消息达到一定长度后自动生成标题
+  useEffect(() => {
+    if (messages && messages.length >= 3 && !topicTitle && !isGeneratingTitle) {
+      generateTopicTitle();
+    }
+  }, [messages, topicTitle, isGeneratingTitle, generateTopicTitle]);
 
   // 处理发送消息
   const handleSendMessage = useCallback(async (e) => {
@@ -997,6 +1035,20 @@ const Chat = () => {
 
       {/* 主聊天区域 */}
       <div className="chat-main-container">
+        {/* 话题标题显示 */}
+        {topicTitle && (
+          <div className="topic-title-display">
+            <h3>{topicTitle}</h3>
+            <button 
+              onClick={generateTopicTitle}
+              disabled={isGeneratingTitle}
+              className="regenerate-title-btn"
+            >
+              {isGeneratingTitle ? '生成中...' : '重新生成'}
+            </button>
+          </div>
+        )}
+
         {/* 聊天主区域 */}
         <ChatMain
           messages={messages}

@@ -18,7 +18,8 @@ const useModelManagement = () => {
     workflow: null,
     tool: null,
     search: null,
-    mcp: null
+    mcp: null,
+    topic_title: null
   });
   const [isSavingDefaultModel, setIsSavingDefaultModel] = useState(false);
   const [models, setModels] = useState([]);
@@ -121,7 +122,8 @@ const useModelManagement = () => {
       workflow: ['task_planning', 'step_coordination', 'process_optimization'],
       tool: ['tool_calling', 'api_integration', 'function_execution'],
       search: ['information_retrieval', 'relevance_ranking', 'semantic_search'],
-      mcp: ['multi_modal_processing', 'cross_media_understanding', 'unified_representation']
+      mcp: ['multi_modal_processing', 'cross_media_understanding', 'unified_representation'],
+      topic_title: ['text_summarization', 'intent_recognition', 'keyword_extraction', 'concise_expression']
     };
     
     const requiredCapabilities = sceneCapabilities[scene] || [];
@@ -248,7 +250,7 @@ const useModelManagement = () => {
       // 设置场景默认模型ID（保持为整数类型，与模型列表中的id类型一致）
       const sceneDefaults = {};
       // 遍历所有可能的场景（与初始状态保持一致）
-      const allScenes = ['chat', 'image', 'video', 'voice', 'translate', 'knowledge', 'workflow', 'tool', 'search', 'mcp'];
+      const allScenes = ['chat', 'image', 'video', 'voice', 'translate', 'knowledge', 'workflow', 'tool', 'search', 'mcp', 'topic_title'];
       allScenes.forEach(scene => {
         if (sceneConfigs[scene]?.model_id) {
           sceneDefaults[scene] = sceneConfigs[scene].model_id;
@@ -277,13 +279,51 @@ const useModelManagement = () => {
         
         // 处理所有场景的模型数据
         const sceneModelsData = {};
-        allScenes.forEach((scene, index) => {
-          const response = sceneResponses[index];
-          // 后端API返回格式：{status, message, scene, models, total}
-          // 需要从response.models中获取模型列表
-          const modelsForScene = Array.isArray(response) ? response : (response?.models || response?.items || []);
-          sceneModelsData[scene] = modelsForScene;
+        
+        // 初始化所有场景为空数组
+        allScenes.forEach(scene => {
+          sceneModelsData[scene] = [];
         });
+        
+        for (let i = 0; i < allScenes.length; i++) {
+          const scene = allScenes[i];
+          const response = sceneResponses[i];
+          
+          if (scene === 'topic_title') {
+            // 对于话题标题场景，使用能力匹配来筛选模型
+            const topicTitleCapabilities = ['text_summarization', 'intent_recognition', 'keyword_extraction', 'concise_expression'];
+            const filteredModels = [];
+            
+            // 从后端API返回的模型列表中筛选
+            const modelsFromAPI = Array.isArray(response) ? response : (response?.models || response?.items || []);
+            
+            for (const model of modelsFromAPI) {
+              try {
+                // 获取模型的能力
+                const modelCapabilities = await capabilityApi.getModelCapabilities(model.id);
+                
+                // 检查模型是否具有话题标题相关能力
+                const hasTopicTitleCapability = modelCapabilities.some(capability => {
+                  const capabilityName = capability.name || capability.capability?.name || '';
+                  return topicTitleCapabilities.includes(capabilityName);
+                });
+                
+                if (hasTopicTitleCapability) {
+                  filteredModels.push(model);
+                }
+              } catch (error) {
+                console.error(`获取模型 ${model.model_name} 的能力失败:`, error);
+                continue;
+              }
+            }
+            
+            sceneModelsData[scene] = filteredModels;
+          } else {
+            // 对于其他场景，使用后端API返回的模型列表
+            const modelsForScene = Array.isArray(response) ? response : (response?.models || response?.items || []);
+            sceneModelsData[scene] = modelsForScene;
+          }
+        }
         
         setSceneModels(sceneModelsData);
 
@@ -310,9 +350,46 @@ const useModelManagement = () => {
         console.warn('获取场景特定模型失败，使用默认模型列表:', error);
         // 如果API调用失败，使用默认模型列表
         const defaultSceneModels = {};
+        
+        // 初始化所有场景为空数组
         allScenes.forEach(scene => {
-          defaultSceneModels[scene] = allModels.filter(model => model.type === scene || model.type === 'chat');
+          defaultSceneModels[scene] = [];
         });
+        
+        // 为每个场景生成模型列表
+        for (const scene of allScenes) {
+          if (scene === 'topic_title') {
+            // 对于话题标题场景，使用能力匹配来筛选模型
+            const topicTitleCapabilities = ['text_summarization', 'intent_recognition', 'keyword_extraction', 'concise_expression'];
+            const filteredModels = [];
+            
+            for (const model of allModels) {
+              try {
+                // 获取模型的能力
+                const modelCapabilities = await capabilityApi.getModelCapabilities(model.id);
+                
+                // 检查模型是否具有话题标题相关能力
+                const hasTopicTitleCapability = modelCapabilities.some(capability => {
+                  const capabilityName = capability.name || capability.capability?.name || '';
+                  return topicTitleCapabilities.includes(capabilityName);
+                });
+                
+                if (hasTopicTitleCapability) {
+                  filteredModels.push(model);
+                }
+              } catch (error) {
+                console.error(`获取模型 ${model.model_name} 的能力失败:`, error);
+                continue;
+              }
+            }
+            
+            defaultSceneModels[scene] = filteredModels;
+          } else {
+            // 对于其他场景，使用原有的筛选逻辑
+            defaultSceneModels[scene] = allModels.filter(model => model.type === scene || model.type === 'chat');
+          }
+        }
+        
         setSceneModels(defaultSceneModels);
         
         // 计算默认模型的能力匹配度
@@ -424,11 +501,6 @@ const useModelManagement = () => {
     }
   }, [globalDefaultModel, sceneDefaultModels, validateForm, loadModelsAndConfigs]);
 
-  // 根据场景类型过滤模型
-  const getModelsByType = useCallback((type) => {
-    return models.filter(model => model.type === type || model.type === 'chat');
-  }, [models]);
-
   // 初始化加载
   useEffect(() => {
     loadModelsAndConfigs();
@@ -459,7 +531,6 @@ const useModelManagement = () => {
     getRecommendedModels,
     handleSaveDefaultModel,
     handleSaveLocalModelConfig,
-    getModelsByType,
     loadModelsAndConfigs
   };
 };

@@ -35,7 +35,6 @@ const DefaultModelManagement = () => {
     getRecommendedModels,
     handleSaveDefaultModel,
     handleSaveLocalModelConfig,
-    getModelsByType,
     loadModelsAndConfigs
   } = useModelManagement();
 
@@ -88,7 +87,6 @@ const DefaultModelManagement = () => {
         onModelSelect={handleSceneModelSelect}
         onApplyRecommendation={applySmartRecommendation}
         getRecommendedModels={getRecommendedModels}
-        getModelsByType={getModelsByType}
         sceneModels={sceneModels}
         capabilityScores={capabilityScores}
         validationErrors={validationErrors}

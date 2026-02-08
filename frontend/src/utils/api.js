@@ -30,6 +30,10 @@ export { capabilityApi };
 import { conversationApi } from './api/conversationApi';
 export { conversationApi };
 
+// 从话题标题API模块导入
+import { topicTitleApi } from './api/topicTitleApi';
+export { topicTitleApi };
+
 // 从维度层次API模块导入
 import dimensionHierarchyApi from './api/dimensionHierarchyApi';
 export { dimensionHierarchyApi };

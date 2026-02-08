@@ -38,6 +38,7 @@ from app.api.v1.external_skills import router as external_skills_router
 from app.api.v1.skill_management_router import router as skill_management_router
 from app.api.v1.file_upload import router as file_upload_router
 from app.api.v1.local_models import router as local_models_router
+from app.api.v1.topic_title import router as topic_title_router
 
 api_router = APIRouter()
 
@@ -133,6 +134,9 @@ api_router.include_router(file_upload_router, prefix="/file-upload", tags=["file
 
 # 注册本地模型路由
 api_router.include_router(local_models_router, tags=["local-models"])
+
+# 注册话题标题路由
+api_router.include_router(topic_title_router, tags=["topic-title"])
 
 # 注册API文档管理路由
 from app.api.v1.api_docs import router as api_docs_router
