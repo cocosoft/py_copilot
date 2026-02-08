@@ -36,7 +36,9 @@ const CategoryDefaultCapabilityManagement = () => {
       setCategories(taskTypeCategories);
       
       // 处理能力数据
-      const processedCapabilities = Array.isArray(capabilitiesResponse?.capabilities)
+      const processedCapabilities = Array.isArray(capabilitiesResponse?.data)
+        ? capabilitiesResponse.data
+        : Array.isArray(capabilitiesResponse?.capabilities)
         ? capabilitiesResponse.capabilities
         : Array.isArray(capabilitiesResponse) ? capabilitiesResponse : [];
       setCapabilities(processedCapabilities);

@@ -47,7 +47,7 @@ class TranslationHistory(Base):
     # 关联关系
     user = relationship("User", back_populates="translation_history")
     agent = relationship("Agent", back_populates="translation_history")
-    knowledge_base = relationship("KnowledgeBase", back_populates="translation_history")
+    knowledge_base = relationship("KnowledgeBase")
     
     def __repr__(self):
         return f"<TranslationHistory(id={self.id}, source_language={self.source_language}, target_language={self.target_language})>"

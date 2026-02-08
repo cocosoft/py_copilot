@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { defaultModelApi, supplierApi } from '../../../utils/api';
+import { defaultModelApi, supplierApi, capabilityApi } from '../../../utils/api';
 
 /**
  * 模型管理自定义钩子
@@ -123,7 +123,7 @@ const useModelManagement = () => {
       tool: ['tool_calling', 'api_integration', 'function_execution'],
       search: ['information_retrieval', 'relevance_ranking', 'semantic_search'],
       mcp: ['multi_modal_processing', 'cross_media_understanding', 'unified_representation'],
-      topic_title: ['text_summarization', 'intent_recognition', 'keyword_extraction', 'concise_expression']
+      topic_title: ['text_summarization', 'keyword_extraction']
     };
     
     const requiredCapabilities = sceneCapabilities[scene] || [];
@@ -289,40 +289,9 @@ const useModelManagement = () => {
           const scene = allScenes[i];
           const response = sceneResponses[i];
           
-          if (scene === 'topic_title') {
-            // 对于话题标题场景，使用能力匹配来筛选模型
-            const topicTitleCapabilities = ['text_summarization', 'intent_recognition', 'keyword_extraction', 'concise_expression'];
-            const filteredModels = [];
-            
-            // 从后端API返回的模型列表中筛选
-            const modelsFromAPI = Array.isArray(response) ? response : (response?.models || response?.items || []);
-            
-            for (const model of modelsFromAPI) {
-              try {
-                // 获取模型的能力
-                const modelCapabilities = await capabilityApi.getModelCapabilities(model.id);
-                
-                // 检查模型是否具有话题标题相关能力
-                const hasTopicTitleCapability = modelCapabilities.some(capability => {
-                  const capabilityName = capability.name || capability.capability?.name || '';
-                  return topicTitleCapabilities.includes(capabilityName);
-                });
-                
-                if (hasTopicTitleCapability) {
-                  filteredModels.push(model);
-                }
-              } catch (error) {
-                console.error(`获取模型 ${model.model_name} 的能力失败:`, error);
-                continue;
-              }
-            }
-            
-            sceneModelsData[scene] = filteredModels;
-          } else {
-            // 对于其他场景，使用后端API返回的模型列表
-            const modelsForScene = Array.isArray(response) ? response : (response?.models || response?.items || []);
-            sceneModelsData[scene] = modelsForScene;
-          }
+          // 直接使用后端API返回的模型列表（后端已经根据场景能力进行了筛选）
+          const modelsForScene = Array.isArray(response) ? response : (response?.models || response?.items || []);
+          sceneModelsData[scene] = modelsForScene;
         }
         
         setSceneModels(sceneModelsData);
@@ -358,36 +327,8 @@ const useModelManagement = () => {
         
         // 为每个场景生成模型列表
         for (const scene of allScenes) {
-          if (scene === 'topic_title') {
-            // 对于话题标题场景，使用能力匹配来筛选模型
-            const topicTitleCapabilities = ['text_summarization', 'intent_recognition', 'keyword_extraction', 'concise_expression'];
-            const filteredModels = [];
-            
-            for (const model of allModels) {
-              try {
-                // 获取模型的能力
-                const modelCapabilities = await capabilityApi.getModelCapabilities(model.id);
-                
-                // 检查模型是否具有话题标题相关能力
-                const hasTopicTitleCapability = modelCapabilities.some(capability => {
-                  const capabilityName = capability.name || capability.capability?.name || '';
-                  return topicTitleCapabilities.includes(capabilityName);
-                });
-                
-                if (hasTopicTitleCapability) {
-                  filteredModels.push(model);
-                }
-              } catch (error) {
-                console.error(`获取模型 ${model.model_name} 的能力失败:`, error);
-                continue;
-              }
-            }
-            
-            defaultSceneModels[scene] = filteredModels;
-          } else {
-            // 对于其他场景，使用原有的筛选逻辑
-            defaultSceneModels[scene] = allModels.filter(model => model.type === scene || model.type === 'chat');
-          }
+          // 使用原有的筛选逻辑
+          defaultSceneModels[scene] = allModels.filter(model => model.type === scene || model.type === 'chat');
         }
         
         setSceneModels(defaultSceneModels);

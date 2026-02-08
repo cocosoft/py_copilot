@@ -462,8 +462,8 @@ export const capabilityApi = {
     try {
       // 尝试使用不同的API端点
       const endpoints = [
-        { path: `/v1/capability/categories/${categoryId}/default-capabilities`, method: 'GET' },
-        { path: `/v1/model/categories/${categoryId}/capabilities`, method: 'GET' }
+        { path: `/v1/model-capability/categories/${categoryId}/default-capabilities`, method: 'GET' },
+        { path: `/v1/categories/${categoryId}/default-capabilities`, method: 'GET' }
       ];
       
       for (const endpoint of endpoints) {
@@ -488,7 +488,7 @@ export const capabilityApi = {
   // 设置分类的默认能力
   setDefaultCapabilities: async (categoryId, capabilityIds) => {
     try {
-      return await request(`/v1/capability/categories/${categoryId}/default-capabilities`, {
+      return await request(`/v1/model-capability/categories/${categoryId}/default-capabilities`, {
         method: 'POST',
         body: JSON.stringify({ capability_ids: capabilityIds }),
         headers: {

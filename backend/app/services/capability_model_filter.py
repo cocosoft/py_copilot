@@ -10,10 +10,11 @@ from app.models.model_capability import ModelCapability, ModelCapabilityAssociat
 class CapabilityBasedModelFilter:
     """基于能力的模型筛选器"""
     
-    # 场景-能力映射表（chat和translate场景）- 只基于能力名称匹配，不关心强度
+    # 场景-能力映射表 - 只基于能力名称匹配，不关心强度
     SCENE_CAPABILITY_MAPPING = {
         "chat": ["chat", "multi_turn_conversation", "context_management", "text_generation"],
-        "translate": ["translation", "language_translation", "text_generation"]
+        "translate": ["translation", "language_translation", "text_generation"],
+        "topic_title": ["text_summarization", "keyword_extraction"]
     }
     
     def __init__(self, db: Session):
