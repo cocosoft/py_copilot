@@ -173,6 +173,8 @@ const Chat = () => {
   const [lastResponseTime, setLastResponseTime] = useState(null);
   const [enableStreaming, setEnableStreaming] = useState(false);
   const [enableThinkingChain, setEnableThinkingChain] = useState(false);
+  const [enableWebSearch, setEnableWebSearch] = useState(false);
+  const [enableKnowledgeSearch, setEnableKnowledgeSearch] = useState(false);
   const [expandedThinkingChains, setExpandedThinkingChains] = useState({}); // 管理各个消息的思维链展开/收缩状态
   const [currentStreamingMessage, setCurrentStreamingMessage] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // 左侧控制面板伸缩状态
@@ -306,10 +308,274 @@ const Chat = () => {
   }, [messages, topicTitle, isGeneratingTitle, generateTopicTitle]);
 
   // 处理发送消息
-  const handleSendMessage = useCallback(async (e) => {
+  const handleSendMessage = useCallback(async (e, searchCommand = null, searchResult = null) => {
+    // 处理搜索命令的情况
+    if (searchCommand && searchResult) {
+      // 创建用户搜索请求消息
+      const searchRequestMessage = {
+        id: Date.now(),
+        sender: 'user',
+        text: searchCommand,
+        timestamp: new Date(),
+        status: 'sent',
+        conversationId: conversationId,
+        topicId: activeTopic?.id || null,
+        type: 'search_request'
+      };
+      
+      // 创建系统搜索结果消息
+      const searchResultMessage = {
+        id: Date.now() + 1,
+        sender: 'system',
+        text: searchResult,
+        timestamp: new Date(),
+        status: 'sent',
+        conversationId: conversationId,
+        topicId: activeTopic?.id || null,
+        type: 'search_result'
+      };
+      
+      // 添加到消息列表
+      setMessages(prev => [...prev, searchRequestMessage, searchResultMessage]);
+      scrollToBottom();
+      return;
+    }
+    
     e.preventDefault();
     
     if (!inputText.trim()) return;
+    
+    // 检查是否为搜索命令
+    if (inputText.trim().startsWith('/search ')) {
+      const searchQuery = inputText.trim().substring(8); // 提取搜索关键词
+      if (searchQuery) {
+        try {
+          // 创建搜索请求消息
+          const searchRequestMessage = {
+            id: Date.now(),
+            sender: 'user',
+            text: inputText.trim(),
+            timestamp: new Date(),
+            status: 'sending',
+            conversationId: conversationId,
+            topicId: activeTopic?.id || null,
+            type: 'search_request'
+          };
+          
+          // 添加到消息列表
+          setMessages(prev => [...prev, searchRequestMessage]);
+          scrollToBottom();
+          
+          // 执行搜索
+          const response = await fetch(`${API_BASE_URL}/v1/search`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              query: searchQuery,
+              search_type: 'web',
+              limit: 5
+            })
+          });
+          
+          if (!response.ok) {
+            throw new Error('搜索失败');
+          }
+          
+          const data = await response.json();
+          
+          // 构建搜索结果消息
+          let searchResultText = '';
+          if (data.results && data.results.length > 0) {
+            searchResultText = `## 搜索结果: ${searchQuery}\n\n`;
+            
+            data.results.forEach((result, index) => {
+              searchResultText += `### ${index + 1}. ${result.title}\n`;
+              searchResultText += `${result.description}\n`;
+              searchResultText += `[查看原文](${result.url})\n\n`;
+            });
+          } else {
+            searchResultText = `搜索 "${searchQuery}" 未找到结果`;
+          }
+          
+          // 创建搜索结果消息
+          const searchResultMessage = {
+            id: Date.now() + 1,
+            sender: 'system',
+            text: searchResultText,
+            timestamp: new Date(),
+            status: 'sent',
+            conversationId: conversationId,
+            topicId: activeTopic?.id || null,
+            type: 'search_result'
+          };
+          
+          // 更新消息列表
+          setMessages(prev => {
+            // 更新搜索请求消息状态
+            const updatedMessages = prev.map(msg => 
+              msg.id === searchRequestMessage.id 
+                ? { ...msg, status: 'sent' }
+                : msg
+            );
+            // 添加搜索结果消息
+            return [...updatedMessages, searchResultMessage];
+          });
+          
+          scrollToBottom();
+          setInputText('');
+          return;
+        } catch (error) {
+          console.error('搜索错误:', error);
+          
+          // 创建搜索错误消息
+          const errorMessage = {
+            id: Date.now() + 1,
+            sender: 'system',
+            text: `搜索失败: ${error.message}`,
+            timestamp: new Date(),
+            status: 'sent',
+            conversationId: conversationId,
+            topicId: activeTopic?.id || null,
+            type: 'search_error'
+          };
+          
+          // 更新消息列表
+          setMessages(prev => [...prev, errorMessage]);
+          scrollToBottom();
+          setInputText('');
+          return;
+        }
+      }
+    }
+    
+    // 检查是否开启了联网搜索开关
+    if (enableWebSearch) {
+      try {
+        // 创建用户消息
+        const searchTempMessage = {
+          id: Date.now(),
+          sender: 'user',
+          text: inputText.trim(),
+          timestamp: new Date(),
+          status: 'sending',
+          conversationId: conversationId,
+          topicId: activeTopic?.id || null,
+          attachedFiles: uploadedFiles,
+          metrics: {
+            tokens_used: calculateTokens(inputText.trim())
+          }
+        };
+        
+        // 添加到消息列表
+        setMessages(prev => [...prev, searchTempMessage]);
+        scrollToBottom();
+        
+        // 执行联网搜索
+        const searchResponse = await fetch(`${API_BASE_URL}/v1/search`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            query: inputText.trim(),
+            search_type: 'web',
+            limit: 3
+          })
+        });
+        
+        if (!searchResponse.ok) {
+          throw new Error('搜索失败');
+        }
+        
+        const searchData = await searchResponse.json();
+        
+        // 如果有搜索结果，将结果发送给后端进行分析
+        if (searchData.results && searchData.results.length > 0) {
+          // 创建搜索结果消息
+          const searchResultMessage = {
+            id: Date.now() + 1,
+            sender: 'system',
+            text: `正在分析搜索结果...`,
+            timestamp: new Date(),
+            status: 'sending',
+            conversationId: conversationId,
+            topicId: activeTopic?.id || null,
+            type: 'search_analysis'
+          };
+          
+          // 添加到消息列表
+          setMessages(prev => [...prev, searchResultMessage]);
+          scrollToBottom();
+          
+          // 发送搜索结果给后端进行分析
+          const analysisResponse = await fetch(`${API_BASE_URL}/v1/search/analyze-search-results`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              query: inputText.trim(),
+              search_results: searchData.results,
+              model_name: selectedModel ? selectedModel.model_id : 'moonshotai/Kimi-K2-Thinking'
+            })
+          });
+          
+          if (!analysisResponse.ok) {
+            throw new Error('分析失败');
+          }
+          
+          const analysisData = await analysisResponse.json();
+          
+          // 创建分析结果消息
+          const analysisResultMessage = {
+            id: Date.now() + 2,
+            sender: 'assistant',
+            text: analysisData.analysis_result,
+            timestamp: new Date(),
+            status: 'sent',
+            conversationId: conversationId,
+            topicId: activeTopic?.id || null,
+            type: 'search_analysis_result'
+          };
+          
+          // 更新消息列表
+          setMessages(prev => {
+            // 更新搜索结果消息状态
+            const updatedMessages = prev.map(msg => 
+              msg.id === searchResultMessage.id 
+                ? { ...msg, status: 'sent', text: '搜索结果分析完成' }
+                : msg
+            );
+            // 添加分析结果消息
+            return [...updatedMessages, analysisResultMessage];
+          });
+          
+          scrollToBottom();
+          setInputText('');
+          return;
+        }
+      } catch (error) {
+        console.error('联网搜索分析错误:', error);
+        
+        // 创建错误消息
+        const errorMessage = {
+          id: Date.now() + 1,
+          sender: 'system',
+          text: `联网搜索分析失败: ${error.message}`,
+          timestamp: new Date(),
+          status: 'sent',
+          conversationId: conversationId,
+          topicId: activeTopic?.id || null,
+          type: 'search_error'
+        };
+        
+        // 更新消息列表
+        setMessages(prev => [...prev, errorMessage]);
+        scrollToBottom();
+      }
+    }
     
     // 创建临时消息（移到try块外面，确保在catch块中也能访问）
     const tempMessage = {
@@ -1083,6 +1349,10 @@ const Chat = () => {
           activeTopic={activeTopic}
           enableThinkingChain={enableThinkingChain}
           setEnableThinkingChain={setEnableThinkingChain}
+          enableWebSearch={enableWebSearch}
+          setEnableWebSearch={setEnableWebSearch}
+          enableKnowledgeSearch={enableKnowledgeSearch}
+          setEnableKnowledgeSearch={setEnableKnowledgeSearch}
           selectedModel={selectedModel}
           availableModels={availableModels}
           onModelChange={setSelectedModel}

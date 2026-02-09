@@ -136,14 +136,23 @@ class ChromaService:
     
     def get_document_count(self, collection_name: Optional[str] = None) -> int:
         """获取文档数量"""
-        collection = self._get_collection(collection_name)
-        if not collection:
-            return 0
-        
         try:
-            return collection.count()
+            collection = self._get_collection(collection_name)
+            if not collection:
+                return 0
+            
+            # 尝试获取文档数量，添加超时保护
+            import time
+            start_time = time.time()
+            count = collection.count()
+            elapsed = time.time() - start_time
+            if elapsed > 1:
+                logger.warning(f"获取向量数据库文档数量耗时较长: {elapsed:.2f}秒")
+            return count
         except Exception as e:
             logger.error(f"获取向量数据库文档数量失败: {str(e)}")
+            import traceback
+            logger.error(f"错误堆栈: {traceback.format_exc()}")
             return 0
     
     def list_documents(self, limit: int = 100, collection_name: Optional[str] = None) -> List[Dict[str, Any]]:

@@ -278,6 +278,31 @@ async def create_model(
         
         db.commit()
         db.refresh(db_model)
+        
+        # 使用智能能力发现服务自动发现模型能力
+        try:
+            from app.services.model_capability_service import intelligent_capability_discovery
+            
+            # 执行智能能力发现
+            discovery_result = intelligent_capability_discovery.discover_capabilities(db, db_model.id)
+            print(f"[INFO] 模型 {db_model.model_name} (ID: {db_model.id}) 能力发现结果:")
+            print(f"  - 发现能力数量: {len(discovery_result['discovered_capabilities'])}")
+            print(f"  - 发现来源: {set(discovery_result['discovery_sources'].values())}")
+            
+            # 自动关联高置信度的能力（置信度 >= 50）
+            auto_capabilities = intelligent_capability_discovery.auto_associate_discovered_capabilities(
+                db, db_model.id, min_confidence=50
+            )
+            print(f"[INFO] 模型 {db_model.model_name} (ID: {db_model.id}) 自动关联了 {len(auto_capabilities)} 个能力")
+            
+            # 记录发现详情
+            for detail in discovery_result['discovery_details']:
+                print(f"  - 能力ID {detail['capability_id']}: 来源={detail['source']}, 置信度={detail['confidence']}, 详情={detail['details']}")
+                
+        except Exception as e:
+            print(f"[WARNING] 智能能力发现失败: {str(e)}")
+            # 不影响模型创建，只记录警告
+        
         return db_model
     except IntegrityError:
         db.rollback()

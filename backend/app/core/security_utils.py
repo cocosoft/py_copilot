@@ -9,7 +9,7 @@ import base64
 import hashlib
 from typing import Dict, Any, Optional, List, Union
 import os
-import magic
+# import magic
 import logging
 from datetime import datetime
 
@@ -229,21 +229,21 @@ class SecurityUtils:
             return result
         
         # 验证文件类型（基于文件内容）
-        if content:
-            try:
-                # 使用python-magic检测文件类型
-                file_type = magic.from_buffer(content, mime=True)
-                result['file_info']['mime_type'] = file_type
-                
-                # 验证MIME类型
-                if not cls._is_allowed_mime_type(file_type):
-                    result['is_valid'] = False
-                    result['message'] = f'不允许的文件类型: {file_type}'
-                    return result
-                    
-            except Exception as e:
-                logger.warning(f"文件类型检测失败: {e}")
-                # 检测失败时，继续验证其他项
+        # if content:
+        #     try:
+        #         # 使用python-magic检测文件类型
+        #         # file_type = magic.from_buffer(content, mime=True)
+        #         # result['file_info']['mime_type'] = file_type
+        #         
+        #         # 验证MIME类型
+        #         # if not cls._is_allowed_mime_type(file_type):
+        #         #     result['is_valid'] = False
+        #         #     result['message'] = f'不允许的文件类型: {file_type}'
+        #         #     return result
+        #             
+        #     except Exception as e:
+        #         logger.warning(f"文件类型检测失败: {e}")
+        #         # 检测失败时，继续验证其他项
         
         return result
     

@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { API_BASE_URL } from '../utils/api';
 import emojis from '../utils/emojis';
-import SearchModal from './SearchModal';
 import ModelSelectDropdown from './ModelManagement/ModelSelectDropdown';
 import './ChatMain.css';
 
@@ -38,6 +37,10 @@ const ChatMain = ({
   activeTopic,
   enableThinkingChain,
   setEnableThinkingChain,
+  enableWebSearch,
+  setEnableWebSearch,
+  enableKnowledgeSearch,
+  setEnableKnowledgeSearch,
   selectedModel,
   availableModels,
   onModelChange,
@@ -53,10 +56,9 @@ const ChatMain = ({
   const [selectedEmojiCategory, setSelectedEmojiCategory] = useState(0);
   const emojiPickerRef = useRef(null);
   
-  // 搜索相关状态
-  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
-  const [searchResults, setSearchResults] = useState([]);
-  const [isSearching, setIsSearching] = useState(false);
+  // 搜索相关状态从props获取
+  // enableWebSearch, setEnableWebSearch
+  // enableKnowledgeSearch, setEnableKnowledgeSearch
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -202,63 +204,7 @@ const ChatMain = ({
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
   
-  // 处理网络搜索按钮点击
-  const handleSearchButtonClick = () => {
-    setIsSearchModalOpen(true);
-  };
-  
-  // 处理搜索提交
-  const handleSearchSubmit = async (query) => {
-    try {
-      setIsSearching(true);
-      
-      const response = await fetch(`${API_BASE_URL}/v1/search`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          query: query,
-          search_type: 'web',
-          limit: 10
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error('搜索失败');
-      }
-      
-      const data = await response.json();
-      setSearchResults(data.results || []);
-    } catch (error) {
-      console.error('搜索错误:', error);
-      alert(`搜索失败: ${error.message}`);
-      setSearchResults([]);
-    } finally {
-      setIsSearching(false);
-    }
-  };
-  
-  // 处理将搜索结果添加到对话中
-  const handleAddSearchResultToChat = (result) => {
-    // 创建搜索结果消息
-    const searchMessage = {
-      id: `search_${Date.now()}`,
-      sender: 'system',
-      text: `搜索结果: ${result.title}\n${result.content}\n来源: ${result.url}`,
-      type: 'search_result',
-      search_result: result,
-      timestamp: new Date().toISOString()
-    };
-    
-    // 将搜索结果添加到消息列表
-    // 这里需要通过props传递的函数来添加消息
-    // 暂时先关闭模态框
-    setIsSearchModalOpen(false);
-    
-    // 可以在这里添加逻辑，将搜索结果作为用户消息的一部分发送
-    // 或者直接调用onSendMessage函数
-  };
+  // 搜索功能已通过命令式方式实现，不再需要模态框
 
   // 自动滚动到最新消息
   useEffect(() => {
@@ -359,9 +305,23 @@ const ChatMain = ({
             style={{ display: 'none' }}
             onChange={handleFileSelect}
           />
-          <button type="button" className="input-btn" title="联网搜索" onClick={handleSearchButtonClick}>🌐</button>
-          <button type="button" className="input-btn" title="知识库搜索">📚</button>
-          <button type="button" className={`input-btn ${enableThinkingChain ? 'active' : ''}`} title="思考模式" onClick={() => setEnableThinkingChain(!enableThinkingChain)}>🧠</button>
+          <button type="button" className={`input-btn ${enableWebSearch ? 'active' : ''}`} title="联网搜索（开关按钮）" onClick={() => {
+            if (!enableWebSearch) {
+              setEnableWebSearch(true);
+              setEnableKnowledgeSearch(false);
+            } else {
+              setEnableWebSearch(false);
+            }
+          }}>🌐</button>
+          <button type="button" className={`input-btn ${enableKnowledgeSearch ? 'active' : ''}`} title="知识库搜索（开关按钮）" onClick={() => {
+            if (!enableKnowledgeSearch) {
+              setEnableKnowledgeSearch(true);
+              setEnableWebSearch(false);
+            } else {
+              setEnableKnowledgeSearch(false);
+            }
+          }}>📚</button>
+          <button type="button" className={`input-btn ${enableThinkingChain ? 'active' : ''}`} title="思考模式（开关按钮）" onClick={() => setEnableThinkingChain(!enableThinkingChain)}>🧠</button>
           <button type="button" className="input-btn" title="翻译">🔤</button>
           <div className="input-divider"></div>
           <button type="button" className="input-btn" title="录音">🎤</button>
@@ -462,7 +422,7 @@ const ChatMain = ({
         
         <div className="input-wrapper">
           <textarea
-            placeholder="输入消息... 使用 Shift+Enter 换行"
+            placeholder="输入消息... 使用 Shift+Enter 换行\n提示: 使用 /search 关键词 直接进行网页搜索"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyPress={handleKeyPress}
@@ -476,16 +436,6 @@ const ChatMain = ({
           </button>
         </div>
       </form>
-      
-      {/* 搜索模态框 */}
-      <SearchModal
-        isOpen={isSearchModalOpen}
-        onClose={() => setIsSearchModalOpen(false)}
-        onSearchSubmit={handleSearchSubmit}
-        searchResults={searchResults}
-        isSearching={isSearching}
-        onAddToChat={handleAddSearchResultToChat}
-      />
     </div>
   );
 };

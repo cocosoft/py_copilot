@@ -62,6 +62,14 @@ const CategoryDefaultCapabilityManagement = () => {
       setError(null);
       setSelectedCategory(categoryId);
       
+      // 验证 categoryId 是否有效
+      if (!categoryId || isNaN(categoryId) || categoryId <= 0) {
+        setDefaultCapabilities([]);
+        updateAvailableCapabilities([]);
+        setLoading(false);
+        return;
+      }
+      
       // 获取该分类的默认能力
       const defaultCapabilitiesResponse = await capabilityApi.getDefaultCapabilitiesByCategory(categoryId);
       const processedDefaults = Array.isArray(defaultCapabilitiesResponse?.data)

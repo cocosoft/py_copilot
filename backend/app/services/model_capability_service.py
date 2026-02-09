@@ -1029,4 +1029,361 @@ class ModelCapabilityService:
         
         return version
 
+
+class IntelligentCapabilityDiscoveryService:
+    """智能能力发现服务 - 多层次能力发现机制"""
+    
+    # 能力关键词映射表
+    CAPABILITY_KEYWORDS = {
+        'text_classification': ['text', 'classification', 'categorization', '文本', '分类', '分类'],
+        'text_generation': ['text', 'generation', 'chat', '对话', '文本生成', '聊天', 'completion'],
+        'image_generation': ['image', 'vision', 'vision-language', '图像', '图片', '视觉', 'dall-e', 'midjourney', 'stable diffusion'],
+        'code_generation': ['code', 'coding', 'programming', '代码', '编程', 'developer'],
+        'speech_recognition': ['speech', 'audio', 'voice', 'whisper', '语音', '声音', '音频'],
+        'text_to_speech': ['tts', 'speech synthesis', '语音合成', '文本转语音'],
+        'translation': ['translate', 'translation', '翻译', 'multilingual'],
+        'summarization': ['summarize', 'summary', '摘要', '总结'],
+        'question_answering': ['qa', 'question', 'answer', '问答', '检索'],
+        'knowledge_retrieval': ['knowledge', 'retrieval', '知识', '检索', 'rag'],
+        'reasoning': ['reasoning', 'logic', '推理', '逻辑'],
+        'math': ['math', 'calculation', '数学', '计算'],
+        'multimodal': ['multimodal', 'multi-modal', '多模态'],
+        'function_calling': ['function', 'tool', 'api', '函数', '工具'],
+        'embedding': ['embedding', 'embed', '向量', 'embedding'],
+        'fine_tuning': ['fine-tune', 'finetune', '微调', 'training'],
+        'streaming': ['stream', '流式'],
+        'json_mode': ['json', 'structured'],
+        'vision': ['vision', 'visual', '视觉'],
+        'video': ['video', '视频']
+    }
+    
+    # 模型参数能力推断规则
+    PARAMETER_CAPABILITY_RULES = {
+        'context_window': {
+            'threshold': 32000,
+            'capability': 'long_context',
+            'strength': 4
+        },
+        'max_tokens': {
+            'threshold': 4000,
+            'capability': 'text_generation',
+            'strength': 3
+        },
+        'has_vision': {
+            'condition': True,
+            'capability': 'image_recognition',
+            'strength': 3
+        },
+        'has_audio': {
+            'condition': True,
+            'capability': 'speech_recognition',
+            'strength': 3
+        },
+        'has_function_calling': {
+            'condition': True,
+            'capability': 'function_calling',
+            'strength': 4
+        }
+    }
+    
+    @staticmethod
+    def discover_capabilities(db: Session, model_id: int) -> Dict[str, Any]:
+        """
+        智能发现模型能力 - 多层次发现机制
+        
+        Args:
+            db: 数据库会话
+            model_id: 模型ID
+            
+        Returns:
+            发现结果字典，包含:
+            - discovered_capabilities: 发现的能力列表
+            - discovery_sources: 每个能力的发现来源
+            - confidence_scores: 每个能力的置信度
+        """
+        model = db.query(ModelDB).filter(ModelDB.id == model_id).first()
+        if not model:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"模型 ID {model_id} 不存在"
+            )
+        
+        # 初始化发现结果
+        result = {
+            'discovered_capabilities': [],
+            'discovery_sources': {},
+            'confidence_scores': {},
+            'discovery_details': []
+        }
+        
+        # 第一层：基于供应商默认能力
+        supplier_capabilities = IntelligentCapabilityDiscoveryService._discover_from_supplier(db, model)
+        for cap_info in supplier_capabilities:
+            IntelligentCapabilityDiscoveryService._add_discovered_capability(
+                result, cap_info['capability_id'], 
+                'supplier_default', cap_info.get('confidence', 80),
+                f"供应商 {model.supplier.name} 的默认能力"
+            )
+        
+        # 第二层：基于模型参数推断
+        parameter_capabilities = IntelligentCapabilityDiscoveryService._discover_from_parameters(db, model)
+        for cap_info in parameter_capabilities:
+            IntelligentCapabilityDiscoveryService._add_discovered_capability(
+                result, cap_info['capability_id'],
+                'parameter_inference', cap_info.get('confidence', 70),
+                f"基于模型参数推断: {cap_info.get('reason', '')}"
+            )
+        
+        # 第三层：基于模型名称和描述的关键词匹配
+        keyword_capabilities = IntelligentCapabilityDiscoveryService._discover_from_keywords(db, model)
+        for cap_info in keyword_capabilities:
+            IntelligentCapabilityDiscoveryService._add_discovered_capability(
+                result, cap_info['capability_id'],
+                'keyword_matching', cap_info.get('confidence', 60),
+                f"关键词匹配: {cap_info.get('matched_keywords', [])}"
+            )
+        
+        # 第四层：基于分类默认能力（回退方案）
+        category_capabilities = IntelligentCapabilityDiscoveryService._discover_from_category(db, model)
+        for cap_info in category_capabilities:
+            IntelligentCapabilityDiscoveryService._add_discovered_capability(
+                result, cap_info['capability_id'],
+                'category_default', cap_info.get('confidence', 50),
+                f"分类 {model.model_type.display_name if model.model_type else '未知'} 的默认能力"
+            )
+        
+        return result
+    
+    @staticmethod
+    def auto_associate_discovered_capabilities(db: Session, model_id: int, min_confidence: int = 50) -> List[ModelCapabilityAssociation]:
+        """
+        自动关联发现的能力
+        
+        Args:
+            db: 数据库会话
+            model_id: 模型ID
+            min_confidence: 最低置信度阈值（0-100）
+            
+        Returns:
+            创建的能力关联列表
+        """
+        # 发现能力
+        discovery_result = IntelligentCapabilityDiscoveryService.discover_capabilities(db, model_id)
+        
+        # 过滤低置信度的能力
+        high_confidence_capabilities = [
+            cap_id for cap_id, confidence in discovery_result['confidence_scores'].items()
+            if confidence >= min_confidence
+        ]
+        
+        # 创建能力关联
+        associated_capabilities = []
+        for capability_id in high_confidence_capabilities:
+            # 检查是否已关联
+            existing = db.query(ModelCapabilityAssociation).filter(
+                and_(
+                    ModelCapabilityAssociation.model_id == model_id,
+                    ModelCapabilityAssociation.capability_id == capability_id
+                )
+            ).first()
+            
+            if not existing:
+                try:
+                    association_data = ModelCapabilityAssociationCreate(
+                        model_id=model_id,
+                        capability_id=capability_id,
+                        actual_strength=3,
+                        confidence_score=discovery_result['confidence_scores'][capability_id],
+                        assessment_method='automated',
+                        assessment_data={
+                            'discovery_source': discovery_result['discovery_sources'][capability_id],
+                            'discovery_details': discovery_result.get('discovery_details', [])
+                        },
+                        is_default=True
+                    )
+                    association = ModelCapabilityService.add_capability_to_model(db, association_data)
+                    associated_capabilities.append(association)
+                except HTTPException:
+                    continue
+        
+        return associated_capabilities
+    
+    @staticmethod
+    def _discover_from_supplier(db: Session, model: ModelDB) -> List[Dict[str, Any]]:
+        """基于供应商默认能力发现"""
+        if not model.supplier:
+            return []
+        
+        # 查询供应商的默认能力（假设有supplier_capability_associations表）
+        # 如果没有，可以基于供应商名称匹配
+        supplier_name = model.supplier.name.lower()
+        
+        # 供应商特定能力映射
+        supplier_capability_map = {
+            'openai': ['text_generation', 'image_generation', 'function_calling', 'embedding'],
+            'anthropic': ['text_generation', 'long_context', 'reasoning'],
+            'google': ['text_generation', 'multimodal', 'function_calling'],
+            'meta': ['text_generation', 'code_generation'],
+            'aliyun': ['text_generation', 'image_generation', 'speech_recognition'],
+            'tencent': ['text_generation', 'image_generation'],
+            'baidu': ['text_generation', 'image_generation', 'speech_recognition'],
+            'zhipu': ['text_generation', 'function_calling', 'long_context'],
+            'deepseek': ['text_generation', 'code_generation', 'reasoning']
+        }
+        
+        capabilities = []
+        for supplier_key, capability_names in supplier_capability_map.items():
+            if supplier_key in supplier_name:
+                for cap_name in capability_names:
+                    capability = db.query(ModelCapability).filter(
+                        ModelCapability.name == cap_name
+                    ).first()
+                    if capability:
+                        capabilities.append({
+                            'capability_id': capability.id,
+                            'confidence': 85,
+                            'reason': f'供应商 {model.supplier.name} 的典型能力'
+                        })
+                break
+        
+        return capabilities
+    
+    @staticmethod
+    def _discover_from_parameters(db: Session, model: ModelDB) -> List[Dict[str, Any]]:
+        """基于模型参数推断能力"""
+        capabilities = []
+        
+        # 检查上下文窗口
+        if model.context_window and model.context_window >= 32000:
+            capability = db.query(ModelCapability).filter(
+                ModelCapability.name == 'long_context'
+            ).first()
+            if capability:
+                capabilities.append({
+                    'capability_id': capability.id,
+                    'confidence': 75,
+                    'reason': f'上下文窗口 {model.context_window} >= 32000',
+                    'matched_keywords': ['context_window']
+                })
+        
+        # 检查最大token数
+        if model.max_tokens and model.max_tokens >= 4000:
+            capability = db.query(ModelCapability).filter(
+                ModelCapability.name == 'text_generation'
+            ).first()
+            if capability:
+                capabilities.append({
+                    'capability_id': capability.id,
+                    'confidence': 70,
+                    'reason': f'最大token数 {model.max_tokens} >= 4000',
+                    'matched_keywords': ['max_tokens']
+                })
+        
+        return capabilities
+    
+    @staticmethod
+    def _discover_from_keywords(db: Session, model: ModelDB) -> List[Dict[str, Any]]:
+        """基于模型名称和描述的关键词匹配"""
+        capabilities = []
+        
+        # 合并模型名称和描述用于关键词匹配
+        text_to_match = f"{model.model_name} {model.description or ''}".lower()
+        
+        matched_capabilities = set()
+        
+        # 遍历能力关键词映射表
+        for capability_name, keywords in IntelligentCapabilityDiscoveryService.CAPABILITY_KEYWORDS.items():
+            matched_keywords = []
+            for keyword in keywords:
+                if keyword.lower() in text_to_match:
+                    matched_keywords.append(keyword)
+            
+            if matched_keywords:
+                capability = db.query(ModelCapability).filter(
+                    ModelCapability.name == capability_name
+                ).first()
+                if capability and capability.id not in matched_capabilities:
+                    # 根据匹配的关键词数量计算置信度
+                    confidence = min(50 + len(matched_keywords) * 10, 90)
+                    capabilities.append({
+                        'capability_id': capability.id,
+                        'confidence': confidence,
+                        'reason': f'关键词匹配',
+                        'matched_keywords': matched_keywords
+                    })
+                    matched_capabilities.add(capability.id)
+        
+        return capabilities
+    
+    @staticmethod
+    def _discover_from_category(db: Session, model: ModelDB) -> List[Dict[str, Any]]:
+        """基于分类默认能力发现（回退方案）"""
+        if not model.model_type:
+            return []
+        
+        # 调用现有的分类默认能力关联方法
+        from app.services.model_category_service import model_category_service
+        
+        try:
+            categories = model_category_service.get_categories_by_model(db, model.id)
+            default_capability_ids = set()
+            
+            for category in categories:
+                category_capabilities = db.query(CategoryCapabilityAssociation).filter(
+                    and_(
+                        CategoryCapabilityAssociation.category_id == category.id,
+                        CategoryCapabilityAssociation.is_default == True
+                    )
+                ).all()
+                
+                for cat_cap in category_capabilities:
+                    default_capability_ids.add(cat_cap.capability_id)
+            
+            capabilities = []
+            for capability_id in default_capability_ids:
+                capabilities.append({
+                    'capability_id': capability_id,
+                    'confidence': 50,
+                    'reason': f'分类 {category.display_name} 的默认能力'
+                })
+            
+            return capabilities
+        except Exception as e:
+            print(f"[WARNING] 基于分类发现能力失败: {str(e)}")
+            return []
+    
+    @staticmethod
+    def _add_discovered_capability(
+        result: Dict[str, Any],
+        capability_id: int,
+        source: str,
+        confidence: int,
+        details: str
+    ):
+        """添加发现的能力到结果中"""
+        # 如果能力已存在，保留更高置信度的来源
+        if capability_id in result['confidence_scores']:
+            if confidence > result['confidence_scores'][capability_id]:
+                result['confidence_scores'][capability_id] = confidence
+                result['discovery_sources'][capability_id] = source
+                result['discovery_details'].append({
+                    'capability_id': capability_id,
+                    'source': source,
+                    'confidence': confidence,
+                    'details': details
+                })
+        else:
+            result['discovered_capabilities'].append(capability_id)
+            result['confidence_scores'][capability_id] = confidence
+            result['discovery_sources'][capability_id] = source
+            result['discovery_details'].append({
+                'capability_id': capability_id,
+                'source': source,
+                'confidence': confidence,
+                'details': details
+            })
+
+
+# 创建服务实例
 model_capability_service = ModelCapabilityService()
+intelligent_capability_discovery = IntelligentCapabilityDiscoveryService()

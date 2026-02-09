@@ -402,6 +402,34 @@
   font-size: 14px;
 }
 
+/* 命令提示样式 */
+.command-hint {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #666;
+  text-align: center;
+  border: 1px solid #e9ecef;
+}
+
+/* 搜索结果消息样式 */
+.message.search-result {
+  background-color: #f0f8ff;
+  border-left: 4px solid #1890ff;
+}
+
+.message.search-request {
+  background-color: #f8f9fa;
+  border-left: 4px solid #6c757d;
+}
+
+.message.search-error {
+  background-color: #fff3cd;
+  border-left: 4px solid #ffc107;
+}
+
 /* emoji选择器样式 */
 .emoji-picker {
   position: absolute;

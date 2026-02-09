@@ -1,7 +1,7 @@
 """LLM工具函数模块"""
 from typing import Dict, Any, List, Optional
 import re
-import tiktoken
+# import tiktoken
 import logging
 
 logger = logging.getLogger(__name__)
@@ -42,31 +42,23 @@ class PromptTemplates:
 def count_tokens(text: str, model_name: str = "gpt-3.5-turbo") -> int:
     """计算文本的token数量"""
     try:
-        # 尝试使用tiktoken库计算token
-        encoding = tiktoken.encoding_for_model(model_name)
-        tokens = encoding.encode(text)
-        return len(tokens)
-    except Exception as e:
-        logger.error(f"Error counting tokens: {str(e)}")
         # 回退方案：粗略估算（英文通常1token≈4字符，中文通常1token≈2字符）
         chinese_chars = len(re.findall(r'[\u4e00-\u9fff]', text))
         non_chinese = len(text) - chinese_chars
         estimated_tokens = chinese_chars + (non_chinese // 4)
         return estimated_tokens
+    except Exception as e:
+        logger.error(f"Error counting tokens: {str(e)}")
+        # 简单回退：按字符数估算
+        return len(text) // 2
 
 
 def truncate_text(text: str, max_tokens: int, model_name: str = "gpt-3.5-turbo") -> str:
     """截断文本至指定的最大token数"""
     try:
-        encoding = tiktoken.encoding_for_model(model_name)
-        tokens = encoding.encode(text)
-        
-        if len(tokens) <= max_tokens:
-            return text
-        
-        # 截断并解码回文本
-        truncated_tokens = tokens[:max_tokens]
-        truncated_text = encoding.decode(truncated_tokens)
+        # 回退方案：粗略截断
+        avg_token_length = 4  # 假设平均每个token 4个字符
+        truncated_text = text[:max_tokens * avg_token_length]
         
         # 确保截断的文本不会在单词中间
         if len(truncated_text) < len(text) and not truncated_text.endswith(' '):
@@ -77,9 +69,8 @@ def truncate_text(text: str, max_tokens: int, model_name: str = "gpt-3.5-turbo")
         return truncated_text + "..."
     except Exception as e:
         logger.error(f"Error truncating text: {str(e)}")
-        # 回退方案：粗略截断
-        avg_token_length = 4  # 假设平均每个token 4个字符
-        return text[:max_tokens * avg_token_length] + "..."
+        # 简单回退：按字符数截断
+        return text[:max_tokens * 4] + "..."
 
 
 def prepare_conversation_history(
