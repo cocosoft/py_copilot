@@ -121,7 +121,7 @@ const Chat = () => {
   const [connectionStatus, setConnectionStatus] = useState('connected');
   const [lastResponseTime, setLastResponseTime] = useState(null);
   const [enableStreaming, setEnableStreaming] = useState(true);
-  const [enableThinkingChain, setEnableThinkingChain] = useState(false);
+  const [enableThinkingChain, setEnableThinkingChain] = useState(true);
   const [enableWebSearch, setEnableWebSearch] = useState(false);
   const [enableKnowledgeSearch, setEnableKnowledgeSearch] = useState(false);
   const [expandedThinkingChains, setExpandedThinkingChains] = useState({}); // 管理各个消息的思维链展开/收缩状态
