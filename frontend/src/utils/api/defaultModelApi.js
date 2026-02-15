@@ -40,10 +40,12 @@ const defaultModelApi = {
   /**
    * 获取指定场景的默认模型
    * @param {string} scene - 场景名称
+   * @param {Object} options - 选项
+   * @param {AbortSignal} options.signal - 取消信号
    */
-  async getSceneDefaultModel(scene) {
+  async getSceneDefaultModel(scene, options = {}) {
     const endpoint = `/v1/default-models/scene/${encodeURIComponent(scene)}`;
-    return request(endpoint, { method: 'GET' });
+    return request(endpoint, { method: 'GET', signal: options.signal });
   },
 
   /**

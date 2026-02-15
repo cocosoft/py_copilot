@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { conversationApi, defaultModelApi, capabilityApi, topicTitleApi } from '../utils/api';
+import { conversationApi, defaultModelApi, topicTitleApi } from '../utils/api';
 import { API_BASE_URL } from '../utils/apiUtils';
 import emojis from '../utils/emojis';
 import LeftSidebar from '../components/LeftSidebar';
@@ -30,124 +30,66 @@ const Chat = () => {
   const [isLoadingModels, setIsLoadingModels] = useState(false);
 
   // 加载模型数据
-  const loadModels = useCallback(async () => {
-    if (modelsLoadedRef.current) return;
-    
+  const loadModels = useCallback(async (signal) => {
     setIsLoadingModels(true);
+    
     try {
-      // 加载所有模型
-      const allModels = await ModelDataManager.loadModels('chat');
-      
-      // 按聊天相关能力筛选模型
-      // 使用真实的能力数据从数据库中查询
-      
-      // 首先获取所有聊天相关的能力
-      let chatCapabilities = [];
+      let chatModels;
       try {
-        const capabilitiesResponse = await capabilityApi.getAll({ capability_type: 'chat' });
-        chatCapabilities = capabilitiesResponse.data || [];
+        // 后端已经根据scene='chat'过滤了模型，直接使用返回的列表
+        chatModels = await ModelDataManager.loadModels('chat', { signal });
       } catch (error) {
-        console.error('获取聊天相关能力失败:', error);
-        // 如果获取能力失败，使用备选方案
-        chatCapabilities = [];
+        if (error.name === 'AbortError' || error.isCancelled) return;
+        console.error('加载模型列表失败:', error);
+        chatModels = [];
       }
       
-      // 筛选聊天相关的模型
-      const chatRelatedModels = [];
+      if (signal?.aborted) return;
       
-      // 为每个模型获取其能力并检查是否与聊天相关
-      for (const model of allModels) {
-        try {
-          // 获取模型的能力
-          const modelCapabilities = await capabilityApi.getModelCapabilities(model.id);
-          
-          // 检查模型是否具有聊天相关能力
-          const hasChatCapability = modelCapabilities.some(capability => {
-            // 检查能力是否与聊天相关
-            const capabilityName = capability.name || capability.capability?.name || '';
-            const capabilityType = capability.capability_type || capability.capability?.capability_type || '';
-            
-            return capabilityType === 'chat' || 
-                   capabilityName.toLowerCase().includes('chat') ||
-                   capabilityName.toLowerCase().includes('conversation') ||
-                   capabilityName.toLowerCase().includes('dialog');
-          });
-          
-          // 如果模型具有聊天相关能力，将其添加到筛选列表中
-          if (hasChatCapability) {
-            chatRelatedModels.push(model);
-          }
-        } catch (error) {
-          console.error(`获取模型 ${model.model_name} 的能力失败:`, error);
-          // 如果获取能力失败，跳过该模型
-          continue;
-        }
-      }
+      setAvailableModels(chatModels || []);
       
-      setAvailableModels(chatRelatedModels || []);
-      
-      // 首先尝试获取系统中的默认聊天模型
       try {
-        const defaultModelConfig = await defaultModelApi.getSceneDefaultModel('chat');
+        const defaultModelConfig = await defaultModelApi.getSceneDefaultModel('chat', { signal });
         if (defaultModelConfig && defaultModelConfig.model_id) {
-          // 从所有模型列表中找到对应的系统默认模型
-          const defaultModelFromAll = allModels.find(m => m.id === defaultModelConfig.model_id);
-          if (defaultModelFromAll) {
-            
-            // 检查该模型是否已经在筛选后的列表中
-            let defaultModel = chatRelatedModels.find(m => m.id === defaultModelConfig.model_id);
-            
-            // 如果系统默认模型不在筛选后的列表中，将其添加进去
-            if (!defaultModel) {
-              chatRelatedModels.unshift(defaultModelFromAll);
-              setAvailableModels(chatRelatedModels);
-              defaultModel = defaultModelFromAll;
-            }
-            
+          const defaultModel = chatModels.find(m => m.id === defaultModelConfig.model_id);
+          if (defaultModel) {
             setSelectedModel(defaultModel);
             localStorage.setItem('selectedModel', JSON.stringify(defaultModel));
             modelsLoadedRef.current = true;
             return;
-          } else {
-            console.warn('系统默认模型不在所有模型列表中:', defaultModelConfig.model_id);
           }
         }
       } catch (error) {
+        if (error.name === 'AbortError' || error.isCancelled) return;
         console.error('获取系统默认模型失败:', error);
-        // 继续使用其他逻辑
       }
       
-      // 如果没有获取到系统默认模型，从localStorage获取之前选择的模型
       const savedModel = localStorage.getItem('selectedModel');
       if (savedModel) {
         try {
           const parsedModel = JSON.parse(savedModel);
-          // 检查保存的模型是否仍然可用（在筛选后的列表中）
-          const modelExists = chatRelatedModels.some(m => m.id === parsedModel.id);
+          const modelExists = chatModels.some(m => m.id === parsedModel.id);
           if (modelExists) {
-
             setSelectedModel(parsedModel);
-          } else if (chatRelatedModels.length > 0) {
-            // 如果保存的模型不可用，使用筛选后列表的第一个模型作为默认值
-            setSelectedModel(chatRelatedModels[0]);
-            localStorage.setItem('selectedModel', JSON.stringify(chatRelatedModels[0]));
+          } else if (chatModels.length > 0) {
+            setSelectedModel(chatModels[0]);
+            localStorage.setItem('selectedModel', JSON.stringify(chatModels[0]));
           }
         } catch (error) {
           console.error('解析保存的模型失败:', error);
-          // 如果解析失败，使用筛选后列表的第一个模型作为默认值
-          if (chatRelatedModels.length > 0) {
-            setSelectedModel(chatRelatedModels[0]);
-            localStorage.setItem('selectedModel', JSON.stringify(chatRelatedModels[0]));
+          if (chatModels.length > 0) {
+            setSelectedModel(chatModels[0]);
+            localStorage.setItem('selectedModel', JSON.stringify(chatModels[0]));
           }
         }
-      } else if (chatRelatedModels.length > 0) {
-        // 如果没有保存的模型，使用筛选后列表的第一个模型作为默认值
-        setSelectedModel(chatRelatedModels[0]);
-        localStorage.setItem('selectedModel', JSON.stringify(chatRelatedModels[0]));
+      } else if (chatModels.length > 0) {
+        setSelectedModel(chatModels[0]);
+        localStorage.setItem('selectedModel', JSON.stringify(chatModels[0]));
       }
       
       modelsLoadedRef.current = true;
     } catch (error) {
+      if (error.name === 'AbortError' || error.isCancelled) return;
       console.error('加载模型失败:', error);
       setAvailableModels([]);
     } finally {
@@ -157,7 +99,14 @@ const Chat = () => {
 
   // 组件加载时加载模型数据
   useEffect(() => {
-    loadModels();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    
+    loadModels(controller.signal);
+    
+    return () => {
+      controller.abort();
+    };
   }, [loadModels]);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   
@@ -171,7 +120,7 @@ const Chat = () => {
    
   const [connectionStatus, setConnectionStatus] = useState('connected');
   const [lastResponseTime, setLastResponseTime] = useState(null);
-  const [enableStreaming, setEnableStreaming] = useState(false);
+  const [enableStreaming, setEnableStreaming] = useState(true);
   const [enableThinkingChain, setEnableThinkingChain] = useState(false);
   const [enableWebSearch, setEnableWebSearch] = useState(false);
   const [enableKnowledgeSearch, setEnableKnowledgeSearch] = useState(false);
@@ -206,6 +155,7 @@ const Chat = () => {
   const messagesEndRef = useRef(null); // 滚动到底部的引用
   const reconnectTimerRef = useRef(null); // 重连定时器引用
   const modelsLoadedRef = useRef(false); // 防止重复加载模型列表
+  const abortControllerRef = useRef(null); // 用于取消请求的 AbortController
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false); // emoji选择器是否打开
   const [selectedEmojiCategory, setSelectedEmojiCategory] = useState(0); // 当前选中的emoji分类
   
@@ -241,21 +191,27 @@ const Chat = () => {
   }, []);
 
   // 加载话题消息
-  const loadTopicMessages = useCallback(async (topicId) => {
+  const loadTopicMessages = useCallback(async (topicId, signal) => {
     if (!conversationId || !topicId) return;
     
     try {
       setIsLoadingMessages(true);
       setMessageSkeletons([1, 2, 3]);
       
-      const response = await conversationApi.getTopicMessages(conversationId, topicId);
+      const response = await conversationApi.getTopicMessages(conversationId, topicId, { signal });
       
       if (response && response.messages) {
-        setMessages(response.messages);
+        const formattedMessages = response.messages.map(msg => ({
+          ...msg,
+          sender: msg.role === 'user' ? 'user' : 'bot',
+          text: msg.content
+        }));
+        setMessages(formattedMessages);
       } else {
         setMessages([]);
       }
     } catch (error) {
+      if (error.name === 'AbortError' || error.isCancelled) return;
       console.error('加载话题消息失败:', error);
       setMessages([]);
     } finally {
@@ -267,7 +223,9 @@ const Chat = () => {
   // 当活跃话题变化时，加载对应话题的消息
   useEffect(() => {
     if (activeTopic) {
-      loadTopicMessages(activeTopic.id);
+      const controller = new AbortController();
+      loadTopicMessages(activeTopic.id, controller.signal);
+      return () => controller.abort();
     }
   }, [activeTopic, loadTopicMessages]);
 
@@ -877,6 +835,25 @@ const Chat = () => {
                     : msg
                 )
               );
+            } else if (data.status === 'streaming' && data.thinking) {
+              // 处理后端返回的思维链内容
+              console.log('[流式响应] 收到思维链数据:', data.thinking.substring(0, 50));
+              fullThinkingChain += data.thinking;
+              
+              // 更新思维链显示
+              setCurrentStreamingMessage(prev => ({
+                ...prev,
+                thinking: fullThinkingChain
+              }));
+              
+              // 更新消息列表中的思维链
+              setMessages(prevMessages => 
+                prevMessages.map(msg => 
+                  msg.id === streamingMessage.id 
+                    ? { ...msg, thinking: fullThinkingChain }
+                    : msg
+                )
+              );
             } else if (data.status === 'completed') {
               // 处理后端返回的完成响应
               streamCompleted = true;
@@ -904,6 +881,7 @@ const Chat = () => {
                         text: responseText,
                         status: 'success', 
                         isStreaming: false,
+                        thinking: fullThinkingChain || msg.thinking,
                         metrics: {
                           tokens_used: aiTokens
                         }
@@ -911,8 +889,10 @@ const Chat = () => {
                     : msg
                 )
               );
-              // 设置思维链默认收缩状态
-              setExpandedThinkingChains(prev => ({ ...prev, [streamingMessage.id]: false }));
+              // 如果有思考链内容，默认展开
+              if (fullThinkingChain) {
+                setExpandedThinkingChains(prev => ({ ...prev, [streamingMessage.id]: true }));
+              }
               setConnectionStatus('connected');
               
               // 刷新话题列表，更新消息数量
@@ -1353,6 +1333,8 @@ const Chat = () => {
           setEnableWebSearch={setEnableWebSearch}
           enableKnowledgeSearch={enableKnowledgeSearch}
           setEnableKnowledgeSearch={setEnableKnowledgeSearch}
+          enableStreaming={enableStreaming}
+          setEnableStreaming={setEnableStreaming}
           selectedModel={selectedModel}
           availableModels={availableModels}
           onModelChange={setSelectedModel}

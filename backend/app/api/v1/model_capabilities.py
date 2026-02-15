@@ -642,3 +642,177 @@ async def set_stable_version(
             message="设置稳定版本失败",
             detail=str(e)
         )
+
+
+# ============ 能力自动发现API端点 ============
+from app.services.capability_discovery_service import capability_discovery_service
+from app.models.supplier_db import ModelDB
+
+
+@router.post("/discovery/model/{model_id}", response_model=SuccessData[Dict[str, Any]])
+async def discover_capabilities_for_model(
+    model_id: int,
+    auto_create: bool = Query(False, description="是否自动创建不存在的能力"),
+    auto_associate: bool = Query(True, description="是否自动关联发现的能力"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    为单个模型发现能力
+    
+    根据模型名称、描述、供应商等信息自动推断模型的能力
+    """
+    try:
+        model = db.query(ModelDB).filter(ModelDB.id == model_id).first()
+        if not model:
+            raise_http_exception(
+                status_code=status.HTTP_404_NOT_FOUND,
+                message=f"模型 ID {model_id} 不存在"
+            )
+        
+        result = capability_discovery_service.discover_capabilities_for_model(
+            db=db,
+            model=model,
+            auto_create=auto_create,
+            auto_associate=auto_associate
+        )
+        
+        return success_with_data(result, message="能力发现完成")
+    except Exception as e:
+        raise_http_exception(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="能力发现失败",
+            detail=str(e)
+        )
+
+
+@router.post("/discovery/all-models", response_model=SuccessData[Dict[str, Any]])
+async def discover_capabilities_for_all_models(
+    auto_create: bool = Query(False, description="是否自动创建不存在的能力"),
+    auto_associate: bool = Query(True, description="是否自动关联发现的能力"),
+    force_update: bool = Query(False, description="是否强制更新已有关联"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    为所有模型发现能力
+    
+    批量为所有活跃模型自动发现和关联能力
+    """
+    try:
+        result = capability_discovery_service.discover_capabilities_for_all_models(
+            db=db,
+            auto_create=auto_create,
+            auto_associate=auto_associate,
+            force_update=force_update
+        )
+        
+        return success_with_data(result, message="批量能力发现完成")
+    except Exception as e:
+        raise_http_exception(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="批量能力发现失败",
+            detail=str(e)
+        )
+
+
+@router.post("/discovery/category/{category_id}", response_model=SuccessData[Dict[str, Any]])
+async def discover_capabilities_by_category(
+    category_id: int,
+    auto_associate: bool = Query(True, description="是否自动关联发现的能力"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    根据模型分类发现能力
+    
+    根据分类名称自动推断该分类应有的能力并关联
+    """
+    try:
+        result = capability_discovery_service.discover_capabilities_by_category(
+            db=db,
+            category_id=category_id,
+            auto_associate=auto_associate
+        )
+        
+        if not result.get("success"):
+            raise_http_exception(
+                status_code=status.HTTP_404_NOT_FOUND,
+                message=result.get("error", "分类不存在")
+            )
+        
+        return success_with_data(result, message="分类能力发现完成")
+    except Exception as e:
+        raise_http_exception(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="分类能力发现失败",
+            detail=str(e)
+        )
+
+
+@router.get("/suggestions", response_model=SuccessData[List[Dict[str, Any]]])
+async def get_capability_suggestions(
+    model_name: str = Query(..., description="模型名称"),
+    model_description: Optional[str] = Query(None, description="模型描述"),
+    supplier_name: Optional[str] = Query(None, description="供应商名称"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    获取模型的能力建议
+    
+    根据模型信息返回建议的能力列表，不自动关联
+    """
+    try:
+        suggestions = capability_discovery_service.get_capability_suggestions(
+            db=db,
+            model_name=model_name,
+            model_description=model_description,
+            supplier_name=supplier_name
+        )
+        
+        return success_with_data(suggestions, message="获取能力建议成功")
+    except Exception as e:
+        raise_http_exception(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="获取能力建议失败",
+            detail=str(e)
+        )
+
+
+@router.get("/discovery/keywords", response_model=SuccessData[Dict[str, Any]])
+async def get_discovery_keywords(
+    current_user: User = Depends(get_current_user)
+):
+    """
+    获取能力发现关键词映射
+    
+    返回用于能力自动发现的关键词配置
+    """
+    try:
+        keywords = capability_discovery_service.CAPABILITY_KEYWORDS
+        provider_hints = capability_discovery_service.PROVIDER_CAPABILITY_HINTS
+        category_mapping = capability_discovery_service.CATEGORY_CAPABILITY_MAPPING
+        
+        result = {
+            "capability_keywords": {
+                name: {
+                    "keywords": config["keywords"],
+                    "display_name": config["display_name"],
+                    "description": config["description"],
+                    "capability_dimension": config["capability_dimension"],
+                    "domain": config["domain"]
+                }
+                for name, config in keywords.items()
+            },
+            "provider_hints": provider_hints,
+            "category_mapping": category_mapping
+        }
+        
+        return success_with_data(result, message="获取发现关键词成功")
+    except Exception as e:
+        raise_http_exception(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="获取发现关键词失败",
+            detail=str(e)
+        )

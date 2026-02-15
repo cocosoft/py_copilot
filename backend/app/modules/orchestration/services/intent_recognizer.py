@@ -162,13 +162,14 @@ class IntentRecognizer:
             intent_list.append(f"- {intent_type}: {description}")
         
         # 构建上下文信息
+        newline = "\n"
         context_info = ""
         if context and "conversation_history" in context and context["conversation_history"]:
-            recent_context = "\n".join([
+            recent_context = newline.join([
                 f"- {item['content'][:100]}..." 
                 for item in context["conversation_history"][-3:]
             ])
-            context_info = f"\n\n对话上下文：\n{recent_context}"
+            context_info = f"{newline}{newline}对话上下文：{newline}{recent_context}"
         
         # 构建提示词
         prompt = f"""
@@ -176,7 +177,7 @@ class IntentRecognizer:
         用户输入：{user_input}{context_info}
         
         支持的意图类型：
-        {"\n".join(intent_list)}
+        {newline.join(intent_list)}
         
         请以JSON格式返回结果，包含以下字段：
         - type: 意图类型（必须是上述支持的类型之一）
@@ -249,13 +250,14 @@ class IntentRecognizer:
         intent_list = [f"- {intent}" for intent in basic_intents]
         
         # 构建上下文信息（如果有）
+        newline = "\n"
         context_info = ""
         if context and "conversation_history" in context and context["conversation_history"]:
-            recent_context = "\n".join([
+            recent_context = newline.join([
                 f"- {item['content'][:50]}..." 
                 for item in context["conversation_history"][-2:]
             ])
-            context_info = f"\n\n简要上下文：\n{recent_context}"
+            context_info = f"{newline}{newline}简要上下文：{newline}{recent_context}"
         
         # 构建严格提示词
         prompt = f"""
@@ -263,7 +265,7 @@ class IntentRecognizer:
         用户输入：{user_input[:200]}...{context_info}
         
         可用意图类型：
-        {"\n".join(intent_list)}
+        {newline.join(intent_list)}
         
         请仅返回意图类型名称，不要添加任何其他内容。
         示例：simple_qa

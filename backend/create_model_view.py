@@ -17,6 +17,9 @@ def create_model_view():
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
+        # 先删除旧视图（如果存在）
+        cursor.execute("DROP VIEW IF EXISTS model_select_view")
+        
         # 创建视图
         view_sql = '''
         CREATE VIEW IF NOT EXISTS model_select_view AS
@@ -47,9 +50,12 @@ def create_model_view():
                 ELSE 'logos/providers/default.png'
             END AS supplier_logo,
             COALESCE(m.is_default, 0) AS is_default,
+            m.model_type_id,
+            COALESCE(mc.name, '') AS model_type_name,
             '[]' AS capabilities
         FROM models m
         LEFT JOIN suppliers s ON m.supplier_id = s.id
+        LEFT JOIN model_categories mc ON m.model_type_id = mc.id
         ORDER BY 
             m.is_default DESC,
             s.name ASC,

@@ -13,7 +13,7 @@ class ModelCapabilityBase(BaseModel):
     description: Optional[str] = None
     
     # 能力维度（根据文档定义）
-    capability_dimension: str = Field(default="generation", pattern="^(comprehension|generation|reasoning|memory|interaction|professional)$")
+    capability_dimension: str = Field(default="generation", pattern="^(comprehension|generation|reasoning|memory|interaction|professional|specialized|multimodal)$")
     capability_subdimension: Optional[str] = Field(None, max_length=50)
     
     # 能力强度量化

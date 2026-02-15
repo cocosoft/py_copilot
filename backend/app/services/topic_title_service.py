@@ -5,8 +5,8 @@ from typing import Dict, Any, Optional
 import time
 from sqlalchemy.orm import Session
 
-from app.services.default_model_cache_service import DefaultModelCacheService
-from app.services.llm_service import LLMService
+from app.services.model_query_service import ModelQueryService
+from app.modules.llm.services.llm_service_enhanced import enhanced_llm_service
 from app.models.parameter_template import ParameterTemplate
 
 
@@ -14,8 +14,7 @@ class TopicTitleService:
     """话题标题生成服务"""
     
     def __init__(self):
-        self.llm_service = LLMService()
-        self.cache_service = DefaultModelCacheService()
+        pass
     
     def generate_title(
         self,
@@ -38,8 +37,8 @@ class TopicTitleService:
         """
         start_time = time.time()
         
-        # 1. 获取 topic_title 场景的默认模型
-        model = self.cache_service.get_default_model_for_scene('topic_title', db)
+        # 1. 获取默认模型（用于标题生成）
+        model = ModelQueryService.get_default_model(db, "chat")
         
         if not model:
             raise ValueError("未找到话题标题生成的默认模型")
@@ -75,18 +74,42 @@ class TopicTitleService:
             parameters['temperature'] = 0.4
             parameters['max_tokens'] = int(max_length * 1.5)
         
-        # 5. 调用 LLM 生成标题
+        # 5. 调用增强的 LLM 服务生成标题
         try:
-            response = self.llm_service.generate_response(
-                model_name=model.model_name,
-                prompt=prompt,
-                parameters=parameters
+            messages = [{"role": "user", "content": prompt}]
+            response = enhanced_llm_service.chat_completion(
+                messages=messages,
+                model_name=model.model_id,
+                max_tokens=parameters.get('max_tokens', 100),
+                temperature=parameters.get('temperature', 0.4),
+                db=db
             )
+            
+            # 处理流式响应（生成器）
+            if hasattr(response, '__iter__') and not isinstance(response, (list, dict)):
+                title_text = ""
+                for chunk in response:
+                    if isinstance(chunk, dict):
+                        if chunk.get("success", False):
+                            title_text += chunk.get("generated_text", "")
+                        elif chunk.get("type") == "content":
+                            title_text += chunk.get("content", "")
+                        elif "content" in chunk and chunk.get("type") != "thinking":
+                            title_text += chunk.get("content", "")
+                    elif isinstance(chunk, str):
+                        title_text += chunk
+            elif isinstance(response, dict) and response.get('success', False):
+                title_text = response.get('generated_text', '')
+                if not title_text and 'reasoning_content' in response:
+                    pass
+            else:
+                error_msg = response.get('error', '未知错误') if isinstance(response, dict) else '响应格式错误'
+                raise RuntimeError(f"LLM生成失败: {error_msg}")
         except Exception as e:
             raise RuntimeError(f"调用LLM生成标题失败: {str(e)}")
         
         # 6. 处理响应
-        title = self._extract_title(response)
+        title = self._extract_title(title_text)
         generation_time = time.time() - start_time
         
         # 7. 质量评估
@@ -129,10 +152,53 @@ class TopicTitleService:
         if not response:
             return ""
         
-        title = response.strip().strip('"').strip("'").strip('"').strip("'")
+        title = response.strip()
+        
+        thinking_keywords = [
+            '首先，任务是', '现在，分析对话内容', '让我分析', '我需要', 
+            '首先', '然后', '接下来', '根据', '分析如下', '思考过程',
+            '好的，用户', '用户要求', '我来看', '让我看看'
+        ]
+        
+        lines = title.split('\n')
+        title_lines = []
+        
+        for line in lines:
+            line_stripped = line.strip()
+            if not line_stripped:
+                continue
+            
+            is_thinking_line = False
+            for keyword in thinking_keywords:
+                if line_stripped.startswith(keyword) or keyword in line_stripped[:30]:
+                    is_thinking_line = True
+                    break
+            
+            if not is_thinking_line:
+                title_lines.append(line_stripped)
+        
+        if title_lines:
+            title = title_lines[-1]
+        else:
+            title = lines[-1].strip() if lines else ""
+        
+        title = title.strip('"').strip("'").strip('"').strip("'")
         
         if title.startswith('标题：') or title.startswith('标题:'):
             title = title[3:].strip()
+        
+        punctuation_to_remove = '。，、；：？！""''（）【】《》\n'
+        title = title.rstrip(punctuation_to_remove)
+        
+        if len(title) > 50:
+            last_period_pos = max(
+                title.rfind('。'),
+                title.rfind('，'),
+                title.rfind('：'),
+                title.rfind(':')
+            )
+            if last_period_pos > 0:
+                title = title[last_period_pos + 1:].strip()
         
         return title
     

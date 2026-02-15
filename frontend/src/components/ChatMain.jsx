@@ -41,6 +41,8 @@ const ChatMain = ({
   setEnableWebSearch,
   enableKnowledgeSearch,
   setEnableKnowledgeSearch,
+  enableStreaming,
+  setEnableStreaming,
   selectedModel,
   availableModels,
   onModelChange,
@@ -321,6 +323,7 @@ const ChatMain = ({
               setEnableKnowledgeSearch(false);
             }
           }}>📚</button>
+          <button type="button" className={`input-btn ${enableStreaming ? 'active' : ''}`} title="流式输出（开关按钮）" onClick={() => setEnableStreaming(!enableStreaming)}>💧</button>
           <button type="button" className={`input-btn ${enableThinkingChain ? 'active' : ''}`} title="思考模式（开关按钮）" onClick={() => setEnableThinkingChain(!enableThinkingChain)}>🧠</button>
           <button type="button" className="input-btn" title="翻译">🔤</button>
           <div className="input-divider"></div>

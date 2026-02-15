@@ -659,10 +659,3 @@ class AgentModelScheduler:
                 return balanced_result
         
         return scheduling_result
-                    total_estimated_time=scheduling_result.total_estimated_time,
-                    scheduling_strategy=scheduling_result.scheduling_strategy
-                )
-                
-                return balanced_result
-        
-        return scheduling_result

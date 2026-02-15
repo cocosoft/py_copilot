@@ -24,28 +24,23 @@ class ModelDataManager {
   /**
    * 加载模型数据
    * @param {string} scene - 使用场景
+   * @param {Object} options - 选项
+   * @param {AbortSignal} options.signal - 取消信号
    * @returns {Promise<Array>}
    */
-  static async loadModels(scene = 'all') {
-    // 如果已经有加载中的请求，返回同一个Promise
-    if (ModelDataManager.loadPromise) {
-      return ModelDataManager.loadPromise;
-    }
-
-    // 如果已经加载过数据，直接返回
+  static async loadModels(scene = 'all', options = {}) {
     if (ModelDataManager.isLoaded && ModelDataManager.models.length > 0) {
       return ModelDataManager.models;
     }
 
     try {
-      ModelDataManager.loadPromise = ModelDataManager.fetchModels(scene);
+      ModelDataManager.loadPromise = ModelDataManager.fetchModels(scene, options);
       const models = await ModelDataManager.loadPromise;
       ModelDataManager.models = models;
       ModelDataManager.isLoaded = true;
       return models;
     } catch (error) {
-      console.error('加载模型数据失败:', error);
-      return [];
+      throw error;
     } finally {
       ModelDataManager.loadPromise = null;
     }
@@ -54,22 +49,21 @@ class ModelDataManager {
   /**
    * 从API获取模型数据
    * @param {string} scene - 使用场景
+   * @param {Object} options - 选项
+   * @param {AbortSignal} options.signal - 取消信号
    * @returns {Promise<Array>}
    */
-  static async fetchModels(scene = 'all') {
-    try {
-      const response = await fetch(`${API_BASE_URL}/v1/model-management/models/select?scene=${encodeURIComponent(scene)}`);
+  static async fetchModels(scene = 'all', options = {}) {
+    const response = await fetch(`${API_BASE_URL}/v1/model-management/models/select?scene=${encodeURIComponent(scene)}`, {
+      signal: options.signal
+    });
 
-      if (!response.ok) {
-        throw new Error(`API请求失败: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data.data || [];
-    } catch (error) {
-      console.error('获取模型数据失败:', error);
-      return [];
+    if (!response.ok) {
+      throw new Error(`API请求失败: ${response.status}`);
     }
+
+    const data = await response.json();
+    return data.data || [];
   }
 
   /**

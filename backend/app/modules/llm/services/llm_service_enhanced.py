@@ -104,7 +104,8 @@ class EnhancedLLMService:
         presence_penalty: float = 0.0,
         db: Optional[Session] = None,
         fallback_models: Optional[List[str]] = None,
-        agent_id: Optional[int] = None
+        agent_id: Optional[int] = None,
+        enable_thinking_chain: bool = False
     ) -> Dict[str, Any]:
         """聊天补全功能 - 支持数据库配置的多种大模型和智能回退机制"""
         start_time = time.time()
@@ -115,6 +116,7 @@ class EnhancedLLMService:
         logger.info(f"使用数据库配置: {db is not None}")
         logger.info(f"回退模型列表: {fallback_models}")
         logger.info(f"代理ID: {agent_id}")
+        logger.info(f"启用思考链: {enable_thinking_chain}")
         
         # 如果没有提供回退模型列表，使用默认回退策略
         if fallback_models is None:
@@ -157,7 +159,8 @@ class EnhancedLLMService:
                         if db_config:
                             response = self._call_api_with_db_config(
                                 openai, messages, db_config, max_tokens, temperature, 
-                                top_p, n, stop, frequency_penalty, presence_penalty, start_time
+                                top_p, n, stop, frequency_penalty, presence_penalty, start_time,
+                                enable_thinking_chain
                             )
                             
                             # 检查是否是流式响应（生成器）
@@ -242,7 +245,8 @@ class EnhancedLLMService:
         return self._get_all_models_failed_response(models_to_try, start_time, attempt_history)
     
     def _call_api_with_db_config(self, openai, messages, db_config, max_tokens, temperature, 
-                                top_p, n, stop, frequency_penalty, presence_penalty, start_time):
+                                top_p, n, stop, frequency_penalty, presence_penalty, start_time,
+                                enable_thinking_chain=False):
         """使用数据库配置调用API"""
         model_name = db_config["model"]
         supplier_name = db_config["supplier_name"]
@@ -262,7 +266,8 @@ class EnhancedLLMService:
         
         # 对于其他API，使用直接HTTP请求绕过OpenAI客户端
         result = self._call_api_directly(messages, model_name, api_endpoint, api_key, 
-                                     max_tokens, temperature, supplier_display_name, start_time)
+                                     max_tokens, temperature, supplier_display_name, start_time,
+                                     enable_thinking_chain)
         
         # 如果是生成器（流式响应），直接实时返回流式数据
         if hasattr(result, '__iter__') and not isinstance(result, (list, dict)):
@@ -272,7 +277,8 @@ class EnhancedLLMService:
             return result
     
     def _call_api_directly(self, messages, model_name, api_endpoint, api_key, 
-                          max_tokens, temperature, supplier_display_name, start_time):
+                          max_tokens, temperature, supplier_display_name, start_time,
+                          enable_thinking_chain=False):
         """直接调用API（绕过OpenAI客户端）"""
         try:
             # 额外检查模型名称，确保正确识别硅基流动的DeepSeek模型
@@ -290,12 +296,14 @@ class EnhancedLLMService:
             if supplier_display_name == "硅基流动":
                 return self._call_siliconflow_api(
                     messages, model_name, api_endpoint, api_key, 
-                    max_tokens, temperature, start_time
+                    max_tokens, temperature, start_time,
+                    enable_thinking_chain=enable_thinking_chain
                 )
             elif supplier_display_name in ["DeepSeek", "深度求索"]:
                 return self._call_deepseek_api_directly(
                     messages, model_name, api_endpoint, api_key, 
-                    max_tokens, temperature, start_time
+                    max_tokens, temperature, start_time,
+                    enable_thinking_chain=enable_thinking_chain
                 )
             elif supplier_display_name == "OpenAI":
                 return self._call_openai_api_directly(
@@ -319,12 +327,13 @@ class EnhancedLLMService:
             return self._get_api_error_response(supplier_display_name, str(e), model_name, start_time)
     
     def _call_siliconflow_api(self, messages, model_name, api_endpoint, api_key, 
-                             max_tokens, temperature, start_time, retry_without_thinking=False):
+                             max_tokens, temperature, start_time, retry_without_thinking=False,
+                             enable_thinking_chain=False):
         """调用硅基流动API（支持流式响应）"""
         import requests
         import json
         
-        logger.info(f"调用硅基流动API: {model_name}，端点: {api_endpoint}")
+        logger.info(f"调用硅基流动API: {model_name}，端点: {api_endpoint}，启用思考链: {enable_thinking_chain}")
         
         # 准备请求数据（兼容OpenAI API格式）
         payload = {
@@ -335,9 +344,15 @@ class EnhancedLLMService:
             "stream": True
         }
         
-        # 检查是否需要开启思考模式（仅在首次调用时尝试）
+        # 检查是否需要开启思考模式
+        # 优先使用前端传递的 enable_thinking_chain 参数
         thinking_enabled = False
-        if not retry_without_thinking and (
+        if enable_thinking_chain:
+            # 如果前端明确启用了思考链，则启用
+            payload["enable_thinking"] = True
+            thinking_enabled = True
+            logger.info(f"为硅基流动模型 {model_name} 启用思考模式（前端请求）")
+        elif not retry_without_thinking and (
             "deepseek" in model_name.lower() or 
             ("moonshotai" in model_name.lower() and "kimi-k2-thinking" not in model_name.lower()) or 
             ("thinking" in model_name.lower() and "qwen" in model_name.lower())
@@ -345,7 +360,7 @@ class EnhancedLLMService:
             # 如果是支持思考模式的模型，添加思考模式参数
             payload["enable_thinking"] = True
             thinking_enabled = True
-            logger.info(f"为硅基流动模型 {model_name} 启用思考模式")
+            logger.info(f"为硅基流动模型 {model_name} 启用思考模式（自动检测）")
         
         # 设置请求头
         headers = {
@@ -514,12 +529,13 @@ class EnhancedLLMService:
             raise Exception(f"硅基流动API调用失败: {e}")
     
     def _call_deepseek_api_directly(self, messages, model_name, api_endpoint, api_key, 
-                                   max_tokens, temperature, start_time, retry_without_thinking=False):
+                                   max_tokens, temperature, start_time, retry_without_thinking=False,
+                                   enable_thinking_chain=False):
         """直接调用DeepSeek API（支持流式响应）"""
         import requests
         import json
         
-        logger.info(f"调用DeepSeek API: {model_name}，端点: {api_endpoint}")
+        logger.info(f"调用DeepSeek API: {model_name}，端点: {api_endpoint}，启用思考链: {enable_thinking_chain}")
         
         # 准备请求数据（兼容OpenAI API格式）
         payload = {
@@ -530,13 +546,19 @@ class EnhancedLLMService:
             "stream": True
         }
         
-        # 检查是否需要开启思考模式（仅在首次调用时尝试）
+        # 检查是否需要开启思考模式
+        # 优先使用前端传递的 enable_thinking_chain 参数
         thinking_enabled = False
-        if not retry_without_thinking and "deepseek" in model_name.lower():
+        if enable_thinking_chain:
+            # 如果前端明确启用了思考链，则启用
+            payload["enable_thinking"] = True
+            thinking_enabled = True
+            logger.info(f"为DeepSeek模型 {model_name} 启用思考模式（前端请求）")
+        elif not retry_without_thinking and "deepseek" in model_name.lower():
             # DeepSeek模型支持thinking参数
             payload["enable_thinking"] = True
             thinking_enabled = True
-            logger.info(f"为DeepSeek模型 {model_name} 启用思考模式")
+            logger.info(f"为DeepSeek模型 {model_name} 启用思考模式（自动检测）")
         
         # 设置请求头
         headers = {

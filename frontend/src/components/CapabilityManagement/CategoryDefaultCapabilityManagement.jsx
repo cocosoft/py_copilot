@@ -13,6 +13,8 @@ const CategoryDefaultCapabilityManagement = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [discovering, setDiscovering] = useState(false);
+  const [discoveryResult, setDiscoveryResult] = useState(null);
 
   // 加载分类和能力数据
   useEffect(() => {
@@ -160,6 +162,65 @@ const CategoryDefaultCapabilityManagement = () => {
     }
   };
 
+  /**
+   * 自动发现分类的能力
+   * 根据分类名称自动推断该分类应有的能力，并自动保存
+   */
+  const handleAutoDiscoverCapabilities = async () => {
+    if (!selectedCategory) return;
+    
+    try {
+      setDiscovering(true);
+      setError(null);
+      setDiscoveryResult(null);
+      
+      const result = await capabilityApi.discoverCapabilitiesByCategory(selectedCategory, {
+        auto_associate: true
+      });
+      
+      if (result && result.data) {
+        const discoveredCapabilities = result.data.discovered_capabilities || [];
+        const createdCapabilities = result.data.created_capabilities || [];
+        const associatedCapabilities = result.data.associated_capabilities || [];
+        
+        setDiscoveryResult({
+          discovered: discoveredCapabilities,
+          created: createdCapabilities,
+          associated: associatedCapabilities,
+          total: discoveredCapabilities.length + createdCapabilities.length + associatedCapabilities.length
+        });
+        
+        // 刷新默认能力列表
+        await handleCategorySelect(selectedCategory);
+        
+        // 更新能力列表，添加新创建的能力
+        if (createdCapabilities.length > 0) {
+          const existingCapabilityIds = capabilities.map(cap => cap.id);
+          const capabilitiesToAdd = createdCapabilities.filter(cap => !existingCapabilityIds.includes(cap.id));
+          if (capabilitiesToAdd.length > 0) {
+            setCapabilities(prev => [...prev, ...capabilitiesToAdd]);
+          }
+        }
+        
+        if (associatedCapabilities.length > 0) {
+          setSuccess(`自动发现并保存 ${associatedCapabilities.length} 个默认能力`);
+          setTimeout(() => setSuccess(null), 3000);
+        } else if (discoveredCapabilities.length > 0 || createdCapabilities.length > 0) {
+          setSuccess(`发现 ${discoveredCapabilities.length + createdCapabilities.length} 个能力`);
+          setTimeout(() => setSuccess(null), 3000);
+        } else {
+          setSuccess('未发现新的能力');
+          setTimeout(() => setSuccess(null), 3000);
+        }
+      }
+    } catch (err) {
+      console.error('自动发现能力失败:', err);
+      setError('自动发现能力失败，请重试');
+    } finally {
+      setDiscovering(false);
+    }
+  };
+
   if (loading && !categories.length && !capabilities.length) {
     return (
       <div className="category-default-capability-management">
@@ -230,19 +291,69 @@ const CategoryDefaultCapabilityManagement = () => {
                 当前已设置 {defaultCapabilities.length} 个默认能力
               </div>
             </div>
-            <button
-              className="btn btn-primary"
-              onClick={saveDefaultCapabilities}
-              disabled={loading || defaultCapabilities.length === 0}
-            >
-              {loading ? (
-                <>
-                  <div className="spinner-small"></div>
-                  保存中...
-                </>
-              ) : '💾 保存设置'}
-            </button>
+            <div className="config-actions">
+              <button
+                className="btn btn-secondary"
+                onClick={handleAutoDiscoverCapabilities}
+                disabled={discovering || loading}
+                title="根据分类名称自动推断该分类应有的能力"
+              >
+                {discovering ? (
+                  <>
+                    <div className="spinner-small"></div>
+                    发现中...
+                  </>
+                ) : '🔍 自动发现能力'}
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={saveDefaultCapabilities}
+                disabled={loading || discovering || defaultCapabilities.length === 0}
+              >
+                {loading ? (
+                  <>
+                    <div className="spinner-small"></div>
+                    保存中...
+                  </>
+                ) : '💾 保存设置'}
+              </button>
+            </div>
           </div>
+
+          {discoveryResult && discoveryResult.total > 0 && (
+            <div className="discovery-result-panel">
+              <div className="discovery-result-header">
+                <span className="discovery-icon">✨</span>
+                <span>发现结果</span>
+                <button 
+                  className="btn btn-small btn-link"
+                  onClick={() => setDiscoveryResult(null)}
+                >
+                  ×
+                </button>
+              </div>
+              <div className="discovery-result-content">
+                {discoveryResult.discovered.length > 0 && (
+                  <div className="discovery-section">
+                    <span className="discovery-label">已存在的能力:</span>
+                    <span className="discovery-count">{discoveryResult.discovered.length}</span>
+                  </div>
+                )}
+                {discoveryResult.created.length > 0 && (
+                  <div className="discovery-section">
+                    <span className="discovery-label">新创建的能力:</span>
+                    <span className="discovery-count">{discoveryResult.created.length}</span>
+                  </div>
+                )}
+                {discoveryResult.associated && discoveryResult.associated.length > 0 && (
+                  <div className="discovery-section">
+                    <span className="discovery-label">已保存为默认:</span>
+                    <span className="discovery-count">{discoveryResult.associated.length}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="config-content">
             {/* 可用能力列表 */}

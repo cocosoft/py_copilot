@@ -82,14 +82,10 @@ class MessageProcessingService:
             Message.topic_id == active_topic.id
         ).order_by(Message.created_at.asc()).all()
         
-        # 构建聊天消息列表
         chat_messages = [
             {"role": msg.role, "content": msg.content}
             for msg in conversation_history
         ]
-        
-        # 添加当前用户消息
-        chat_messages.append({"role": "user", "content": user_message.content})
 
         try:
             # 使用请求中的模型名称，如果没有则使用默认值
@@ -103,15 +99,36 @@ class MessageProcessingService:
                 agent_id=getattr(conversation, 'agent_id', None)
             )
             
+            # 检查是否是流式响应（生成器）
+            if hasattr(llm_response, '__iter__') and not isinstance(llm_response, (list, dict)):
+                # 处理流式响应，收集所有内容
+                ai_content = ""
+                try:
+                    for chunk in llm_response:
+                        if isinstance(chunk, dict):
+                            if chunk.get("success", False):
+                                ai_content += chunk.get("generated_text", "")
+                            elif "content" in chunk:
+                                ai_content += chunk.get("content", "")
+                        elif isinstance(chunk, str):
+                            ai_content += chunk
+                    
+                    if not ai_content:
+                        ai_content = "抱歉，流式响应未返回有效内容。"
+                except Exception as stream_error:
+                    ai_content = f"抱歉，处理流式响应时出错: {str(stream_error)}"
             # 检查LLM调用是否成功
-            if llm_response.get("success", True):
+            elif isinstance(llm_response, dict) and llm_response.get("success", True):
                 ai_content = llm_response.get("generated_text", "抱歉，我无法生成回复。")
             else:
                 # 如果调用失败，使用失败原因作为回复
-                ai_content = llm_response.get("generated_text", "抱歉，我无法生成回复。")
-                # 如果有详细的失败分析，也加入到回复中
-                if "failure_analysis" in llm_response:
-                    ai_content += f"\n\n详细分析: {llm_response['failure_analysis']}"
+                if isinstance(llm_response, dict):
+                    ai_content = llm_response.get("generated_text", "抱歉，我无法生成回复。")
+                    # 如果有详细的失败分析，也加入到回复中
+                    if "failure_analysis" in llm_response:
+                        ai_content += f"\n\n详细分析: {llm_response['failure_analysis']}"
+                else:
+                    ai_content = "抱歉，LLM服务返回了意外的响应格式。"
         except (AttributeError, TypeError) as e:
             # 使用错误信息作为回复
             ai_content = f"抱歉，LLM服务调用失败: {str(e)}"

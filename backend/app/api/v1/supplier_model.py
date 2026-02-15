@@ -970,30 +970,98 @@ async def fetch_models_from_api(supplier_id: int, api_config: dict, db: Session 
             "total": 0
         }
 
+# 场景与模型类型的映射关系
+SCENE_MODEL_TYPE_MAPPING = {
+    "chat": ["chat", "Multimodal", "Text Generation", "text_generation", "对话"],
+    "embedding": ["embedding", "Feature Extraction", "特征提取", "向量"],
+    "rerank": ["rerank", "Text Ranking", "文本重排序", "Sentence Similarity", "句子相似度"],
+    "image_generation": ["Text-to-Image", "图像生成", "Image Generation"],
+    "audio": ["Text-to-Speech", "Text-to-Audio", "Automatic Speech Recognition", "语音"],
+    "translation": ["Translation", "翻译"],
+    "summarization": ["Summarization", "文本摘要"],
+    "all": []  # 空数组表示不过滤
+}
+
+# 场景排除关键词（基于模型名称/ID识别）
+SCENE_EXCLUDE_KEYWORDS = {
+    "chat": ["embedding", "rerank", "embed", "vector", "tts", "asr", "speech", "whisper", "flux", "image-generation"],
+    "embedding": [],  # embedding场景不需要排除
+    "rerank": [],  # rerank场景不需要排除
+    "image_generation": ["embedding", "rerank", "embed", "chat", "llm"],
+    "audio": ["embedding", "rerank", "embed", "chat", "llm", "flux"],
+    "all": []  # 所有场景不排除
+}
+
+def _should_exclude_model(model_id: str, model_name: str, exclude_keywords: list) -> bool:
+    """
+    检查模型是否应该被排除
+    
+    Args:
+        model_id: 模型ID
+        model_name: 模型名称
+        exclude_keywords: 排除关键词列表
+        
+    Returns:
+        True表示应该排除，False表示不排除
+    """
+    if not exclude_keywords:
+        return False
+    
+    model_id_lower = (model_id or "").lower()
+    model_name_lower = (model_name or "").lower()
+    
+    for keyword in exclude_keywords:
+        if keyword.lower() in model_id_lower or keyword.lower() in model_name_lower:
+            return True
+    
+    return False
+
 # 模型选择视图相关路由
 @router.get("/model-management/models/select")
 def get_model_select_data(scene: str = Query("all", description="使用场景"), db: Session = Depends(get_db)):
     """
     获取模型选择数据（从视图）
-    支持场景筛选
+    支持场景筛选：
+    - chat: 聊天对话模型（排除embedding、rerank等专用模型）
+    - embedding: 向量嵌入模型
+    - rerank: 重排序模型
+    - image_generation: 图像生成模型
+    - all: 所有模型
     """
     try:
         from sqlalchemy import text
         
-        if scene == "all":
+        # 获取场景对应的模型类型列表和排除关键词
+        allowed_types = SCENE_MODEL_TYPE_MAPPING.get(scene, [])
+        exclude_keywords = SCENE_EXCLUDE_KEYWORDS.get(scene, [])
+        
+        if scene == "all" or not allowed_types:
             # 查询所有模型
             result = db.execute(text("SELECT * FROM model_select_view"))
         else:
-            # 查询所有模型（由于models表中没有scene字段，暂时不做场景筛选）
-            result = db.execute(text("SELECT * FROM model_select_view"))
+            # 根据场景过滤模型类型
+            # 只查询model_type_name在允许的类型列表中的模型
+            placeholders = ",".join([f"'{t}'" for t in allowed_types])
+            query = f"""
+                SELECT * FROM model_select_view 
+                WHERE model_type_name IN ({placeholders})
+            """
+            result = db.execute(text(query))
         
-        # 转换为字典列表
+        # 转换为字典列表，并应用关键词排除
         models = []
         for row in result.fetchall():
+            model_id = row[1]
+            model_name = row[2]
+            
+            # 检查是否应该排除该模型
+            if _should_exclude_model(model_id, model_name, exclude_keywords):
+                continue
+            
             model_data = {
                 "id": row[0],
-                "model_id": row[1],
-                "model_name": row[2],
+                "model_id": model_id,
+                "model_name": model_name,
                 "description": row[3],
                 "logo": row[4],
                 "supplier_id": row[5],
@@ -1001,6 +1069,8 @@ def get_model_select_data(scene: str = Query("all", description="使用场景"),
                 "supplier_display_name": row[7],
                 "supplier_logo": row[8],
                 "is_default": bool(row[9]),
+                "model_type_id": row[10],
+                "model_type_name": row[11],
                 "capabilities": []  # 固定返回空数组
             }
             models.append(model_data)
@@ -1038,6 +1108,8 @@ def get_model_select_item(model_id: int, db: Session = Depends(get_db)):
             "supplier_display_name": row[7],
             "supplier_logo": row[8],
             "is_default": bool(row[9]),
+            "model_type_id": row[10],
+            "model_type_name": row[11],
             "capabilities": []  # 固定返回空数组
         }
         
@@ -1053,25 +1125,41 @@ def get_model_select_item(model_id: int, db: Session = Depends(get_db)):
 def get_default_model(scene: str, db: Session = Depends(get_db)):
     """
     获取默认模型（从视图）
+    根据场景过滤模型类型
     """
     try:
         from sqlalchemy import text
         
+        # 获取场景对应的模型类型列表
+        allowed_types = SCENE_MODEL_TYPE_MAPPING.get(scene, [])
+        
+        # 构建基础查询条件
+        if scene == "all" or not allowed_types:
+            type_filter = ""
+        else:
+            placeholders = ",".join([f"'{t}'" for t in allowed_types])
+            type_filter = f"AND (model_type_name IN ({placeholders}) OR model_type_id IS NULL OR model_type_name = '')"
+        
         # 优先获取默认模型
-        result = db.execute(text("""
+        query = f"""
             SELECT * FROM model_select_view 
             WHERE is_default = 1
+            {type_filter}
             LIMIT 1
-        """))
+        """
+        result = db.execute(text(query))
         
         row = result.fetchone()
         
         if not row:
-            # 如果没有默认模型，返回第一个模型
-            result = db.execute(text("""
+            # 如果没有默认模型，返回第一个符合条件的模型
+            query = f"""
                 SELECT * FROM model_select_view 
+                WHERE 1=1
+                {type_filter.replace('AND', '')}
                 LIMIT 1
-            """))
+            """
+            result = db.execute(text(query))
             row = result.fetchone()
         
         if not row:
@@ -1088,6 +1176,8 @@ def get_default_model(scene: str, db: Session = Depends(get_db)):
             "supplier_display_name": row[7],
             "supplier_logo": row[8],
             "is_default": bool(row[9]),
+            "model_type_id": row[10],
+            "model_type_name": row[11],
             "capabilities": []  # 固定返回空数组
         }
         

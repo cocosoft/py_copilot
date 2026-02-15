@@ -275,15 +275,18 @@ export const conversationApi = {
   // 获取话题的消息列表
   getTopicMessages: async (conversationId, topicId, params = {}) => {
     try {
+      const options = params.signal ? { signal: params.signal } : {};
       const queryParams = new URLSearchParams(params).toString();
       const url = queryParams 
         ? `/v1/conversations/${conversationId}/topics/${topicId}/messages?${queryParams}` 
         : `/v1/conversations/${conversationId}/topics/${topicId}/messages`;
       
       return await request(url, {
-        method: 'GET'
+        method: 'GET',
+        signal: options.signal
       });
     } catch (error) {
+      if (error.name === 'AbortError' || error.isCancelled) throw error;
       console.error(`获取话题 ${topicId} 的消息列表失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }

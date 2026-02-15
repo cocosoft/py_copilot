@@ -26,6 +26,8 @@ from app.modules.capability_category.api.model_categories import router as model
 from app.modules.capability_category.api.category_templates import router as category_templates_router
 from app.api.v1.agents import router as agents_router
 from app.api.v1.agent_categories import router as agent_categories_router
+from app.api.v1.agent_parameters import router as agent_parameters_router
+from app.api.v1.agent_system import router as agent_system_router
 from app.modules.knowledge.api.knowledge import router as knowledge_router
 from app.modules.knowledge.api.knowledge_graph_api import router as knowledge_graph_router
 from app.modules.knowledge.api.entity_config_api import router as entity_config_router
@@ -64,7 +66,7 @@ api_router.include_router(system_parameters_router, tags=["system-parameters"])
 from app.api.v1.dimension_hierarchy import router as dimension_hierarchy_router
 api_router.include_router(dimension_hierarchy_router, prefix="/dimension-hierarchy", tags=["dimension-hierarchy"])
 api_router.include_router(model_capabilities_router, tags=["model_capabilities"])
-api_router.include_router(capability_router, tags=["model_capabilities"])
+api_router.include_router(capability_router, prefix="/capabilities", tags=["model_capabilities"])
 api_router.include_router(capability_types_router, tags=["capability_types"])
 api_router.include_router(capability_dimensions_router, tags=["capability_dimensions"])
 # 先注册支持文件上传的model_categories_router
@@ -75,6 +77,7 @@ api_router.include_router(category_templates_router, tags=["category_templates"]
 api_router.include_router(agents_router, prefix="/agents", tags=["agents"])
 api_router.include_router(agent_parameters_router, prefix="/agents", tags=["agent-parameters"])
 api_router.include_router(agent_categories_router, prefix="/agent-categories", tags=["agent-categories"])
+api_router.include_router(agent_system_router, prefix="/agent-system", tags=["agent-system"])
 api_router.include_router(knowledge_router, prefix="/knowledge", tags=["knowledge"])
 
 # 根据配置决定是否启用知识图谱功能

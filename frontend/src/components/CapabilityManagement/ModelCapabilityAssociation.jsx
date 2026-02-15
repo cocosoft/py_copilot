@@ -14,6 +14,8 @@ const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => 
   const [updateLoading, setUpdateLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [discovering, setDiscovering] = useState(false);
+  const [discoveryResult, setDiscoveryResult] = useState(null);
   
   // 判断是否为模态模式
   const isModalMode = isOpen !== undefined;
@@ -279,6 +281,58 @@ const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => 
     }
   };
 
+  /**
+   * 自动发现模型的能力
+   * 根据模型名称、描述、供应商等信息自动推断模型的能力
+   */
+  const handleAutoDiscoverCapabilities = async () => {
+    if (!selectedModel) return;
+    
+    try {
+      setDiscovering(true);
+      setError(null);
+      setDiscoveryResult(null);
+      
+      const result = await capabilityApi.discoverCapabilitiesForModel(selectedModel.id, {
+        auto_create: true,
+        auto_associate: true
+      });
+      
+      if (result && result.data) {
+        const discoveredCapabilities = result.data.discovered_capabilities || [];
+        const createdCapabilities = result.data.created_capabilities || [];
+        const associatedCapabilities = result.data.associated_capabilities || [];
+        
+        setDiscoveryResult({
+          discovered: discoveredCapabilities,
+          created: createdCapabilities,
+          associated: associatedCapabilities,
+          total: discoveredCapabilities.length + createdCapabilities.length + associatedCapabilities.length
+        });
+        
+        // 刷新模型能力关联数据
+        await fetchModelCapabilities(selectedModel.id, true);
+        await fetchCapabilities();
+        
+        if (associatedCapabilities.length > 0) {
+          setSuccess(`自动发现并关联 ${associatedCapabilities.length} 个能力`);
+          setTimeout(() => setSuccess(null), 3000);
+        } else if (discoveredCapabilities.length > 0 || createdCapabilities.length > 0) {
+          setSuccess(`发现 ${discoveredCapabilities.length + createdCapabilities.length} 个能力`);
+          setTimeout(() => setSuccess(null), 3000);
+        } else {
+          setSuccess('未发现新的能力');
+          setTimeout(() => setSuccess(null), 3000);
+        }
+      }
+    } catch (err) {
+      console.error('自动发现能力失败:', err);
+      setError('自动发现能力失败，请重试');
+    } finally {
+      setDiscovering(false);
+    }
+  };
+
   // 初始化加载数据
   useEffect(() => {
     // 在非模态模式或未提供预设模型时，获取完整模型列表
@@ -354,14 +408,59 @@ const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => 
           <div className="section-container">
             <div className="section-header">
               <h3 className="section-title">已关联的能力</h3>
-              <button
-                onClick={handleRefreshAll}
-                disabled={loading}
-                className="btn btn-secondary"
-              >
-                {loading ? '刷新中...' : '刷新'}
-              </button>
+              <div className="section-actions">
+                <button
+                  onClick={handleAutoDiscoverCapabilities}
+                  disabled={discovering || loading}
+                  className="btn btn-secondary"
+                  title="根据模型名称、描述、供应商等信息自动推断模型的能力"
+                >
+                  {discovering ? '发现中...' : '🔍 自动发现能力'}
+                </button>
+                <button
+                  onClick={handleRefreshAll}
+                  disabled={loading || discovering}
+                  className="btn btn-secondary"
+                >
+                  {loading ? '刷新中...' : '刷新'}
+                </button>
+              </div>
             </div>
+            
+            {discoveryResult && discoveryResult.total > 0 && (
+              <div className="discovery-result-panel">
+                <div className="discovery-result-header">
+                  <span className="discovery-icon">✨</span>
+                  <span>发现结果</span>
+                  <button 
+                    className="btn btn-small btn-link"
+                    onClick={() => setDiscoveryResult(null)}
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="discovery-result-content">
+                  {discoveryResult.discovered.length > 0 && (
+                    <div className="discovery-section">
+                      <span className="discovery-label">已存在的能力:</span>
+                      <span className="discovery-count">{discoveryResult.discovered.length}</span>
+                    </div>
+                  )}
+                  {discoveryResult.created.length > 0 && (
+                    <div className="discovery-section">
+                      <span className="discovery-label">新创建的能力:</span>
+                      <span className="discovery-count">{discoveryResult.created.length}</span>
+                    </div>
+                  )}
+                  {discoveryResult.associated.length > 0 && (
+                    <div className="discovery-section">
+                      <span className="discovery-label">已关联的能力:</span>
+                      <span className="discovery-count">{discoveryResult.associated.length}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             
             <div className="table-container">
               <table className="capability-table">
@@ -556,14 +655,59 @@ const ModelCapabilityAssociation = ({ isOpen, onClose, model: presetModel }) => 
               <div className="section-container">
                 <div className="section-header">
                   <h3 className="section-title">已关联的能力</h3>
-                  <button
-                    onClick={handleRefreshAll}
-                    disabled={loading}
-                    className="btn btn-secondary"
-                  >
-                    {loading ? '刷新中...' : '刷新'}
-                  </button>
+                  <div className="section-actions">
+                    <button
+                      onClick={handleAutoDiscoverCapabilities}
+                      disabled={discovering || loading}
+                      className="btn btn-secondary"
+                      title="根据模型名称、描述、供应商等信息自动推断模型的能力"
+                    >
+                      {discovering ? '发现中...' : '🔍 自动发现能力'}
+                    </button>
+                    <button
+                      onClick={handleRefreshAll}
+                      disabled={loading || discovering}
+                      className="btn btn-secondary"
+                    >
+                      {loading ? '刷新中...' : '刷新'}
+                    </button>
+                  </div>
                 </div>
+                
+                {discoveryResult && discoveryResult.total > 0 && (
+                  <div className="discovery-result-panel">
+                    <div className="discovery-result-header">
+                      <span className="discovery-icon">✨</span>
+                      <span>发现结果</span>
+                      <button 
+                        className="btn btn-small btn-link"
+                        onClick={() => setDiscoveryResult(null)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                    <div className="discovery-result-content">
+                      {discoveryResult.discovered.length > 0 && (
+                        <div className="discovery-section">
+                          <span className="discovery-label">已存在的能力:</span>
+                          <span className="discovery-count">{discoveryResult.discovered.length}</span>
+                        </div>
+                      )}
+                      {discoveryResult.created.length > 0 && (
+                        <div className="discovery-section">
+                          <span className="discovery-label">新创建的能力:</span>
+                          <span className="discovery-count">{discoveryResult.created.length}</span>
+                        </div>
+                      )}
+                      {discoveryResult.associated.length > 0 && (
+                        <div className="discovery-section">
+                          <span className="discovery-label">已关联的能力:</span>
+                          <span className="discovery-count">{discoveryResult.associated.length}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
                 
                 <div className="table-container">
                   <table className="capability-table">

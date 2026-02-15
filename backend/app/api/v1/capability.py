@@ -158,7 +158,7 @@ def get_capability_parameter_templates(
 # 分类默认能力相关API
 from app.modules.capability_category.services.model_category_service import model_category_service
 
-@router.get("/model-capability/categories/{category_id}/default-capabilities")
+@router.get("/categories/{category_id}/default-capabilities")
 def get_category_default_capabilities(
     category_id: int,
     db: Session = Depends(get_db),
@@ -166,7 +166,27 @@ def get_category_default_capabilities(
 ):
     """获取分类的默认能力"""
     try:
-        return model_category_service.get_default_capabilities_by_category(db, category_id)
+        capabilities = model_category_service.get_default_capabilities_by_category(db, category_id)
+        
+        result = []
+        for cap in capabilities:
+            result.append({
+                "id": cap.id,
+                "name": cap.name,
+                "display_name": cap.display_name,
+                "description": cap.description,
+                "capability_dimension": cap.capability_dimension,
+                "capability_type": cap.capability_type,
+                "domain": cap.domain,
+                "base_strength": cap.base_strength,
+                "max_strength": cap.max_strength,
+                "input_types": cap.input_types,
+                "output_types": cap.output_types,
+                "is_active": cap.is_active,
+                "is_system": cap.is_system
+            })
+        
+        return result
     except HTTPException:
         raise
     except Exception as e:
@@ -176,7 +196,7 @@ def get_category_default_capabilities(
             detail=f"获取分类默认能力失败: {str(e)}"
         )
 
-@router.post("/model-capability/categories/{category_id}/default-capabilities")
+@router.post("/categories/{category_id}/default-capabilities")
 def set_category_default_capabilities(
     category_id: int,
     capability_data: dict,

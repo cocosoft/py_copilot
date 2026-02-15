@@ -135,10 +135,16 @@ async def analyze_search_results(
         llm_service = LLMService()
         
         # 构建分析提示
+        newline = "\n"
+        search_results_text = newline.join([
+            f"标题: {result.get('title', '无标题')}{newline}内容: {result.get('description', '无内容')}{newline}链接: {result.get('url', '无链接')}{newline}" 
+            for result in search_results
+        ])
+        
         analysis_prompt = f"""请分析以下搜索结果，回答用户的问题：{query}
 
 搜索结果：
-{"\n".join([f"标题: {result.get('title', '无标题')}\n内容: {result.get('description', '无内容')}\n链接: {result.get('url', '无链接')}\n" for result in search_results])}
+{search_results_text}
 
 要求：
 1. 基于搜索结果提供详细、准确的回答

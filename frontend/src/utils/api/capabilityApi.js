@@ -4,9 +4,8 @@ import { request } from '../apiUtils';
 // 模型能力API实现
 export const capabilityApi = {
   // 获取所有能力
-  getAll: async (params = {}) => {
+  getAll: async (params = {}, options = {}) => {
     try {
-      // 构建查询参数
       const queryParams = new URLSearchParams();
       if (params.is_active !== undefined) {
         queryParams.append('is_active', params.is_active);
@@ -21,18 +20,18 @@ export const capabilityApi = {
         queryParams.append('limit', params.limit);
       }
       
-      // 构建完整URL
       const url = queryParams.toString() 
         ? `/v1/capabilities/?${queryParams.toString()}` 
         : '/v1/capabilities/';
       
       const response = await request(url, {
-        method: 'GET'
+        method: 'GET',
+        signal: options.signal
       });
       
-      // 统一处理API返回格式
       return response;
     } catch (error) {
+      if (error.name === 'AbortError' || error.isCancelled) throw error;
       console.error('获取能力列表失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
@@ -205,18 +204,19 @@ export const capabilityApi = {
   },
   
   // 获取模型的所有能力
-  getModelCapabilities: async (modelId) => {
+  getModelCapabilities: async (modelId, options = {}) => {
     try {
       const response = await request(`/v1/capabilities/model/${modelId}/capabilities`, {
-        method: 'GET'
+        method: 'GET',
+        signal: options.signal
       });
       
-      // 统一处理API返回格式
       if (response?.data && Array.isArray(response.data)) {
         return response.data;
       }
       return response;
     } catch (error) {
+      if (error.name === 'AbortError' || error.isCancelled) throw error;
       console.error(`获取模型 ${modelId} 的能力失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
@@ -460,27 +460,11 @@ export const capabilityApi = {
   // 获取分类的默认能力
   getDefaultCapabilitiesByCategory: async (categoryId) => {
     try {
-      // 尝试使用不同的API端点
-      const endpoints = [
-        { path: `/v1/model-capability/categories/${categoryId}/default-capabilities`, method: 'GET' },
-        { path: `/v1/categories/${categoryId}/default-capabilities`, method: 'GET' }
-      ];
-      
-      for (const endpoint of endpoints) {
-        try {
-          const response = await request(endpoint.path, { method: endpoint.method });
-          return response;
-        } catch (err) {
-          console.warn(`尝试端点 ${endpoint.path} 失败:`, err.message);
-          // 继续尝试下一个端点
-        }
-      }
-      
-      // 如果所有端点都失败，返回默认空数据结构
-      return [];
+      return await request(`/v1/capabilities/categories/${categoryId}/default-capabilities`, {
+        method: 'GET'
+      });
     } catch (error) {
       console.error(`获取分类 ${categoryId} 的默认能力失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
-      // 返回默认空数据结构，避免影响其他功能
       return [];
     }
   },
@@ -488,7 +472,7 @@ export const capabilityApi = {
   // 设置分类的默认能力
   setDefaultCapabilities: async (categoryId, capabilityIds) => {
     try {
-      return await request(`/v1/model-capability/categories/${categoryId}/default-capabilities`, {
+      return await request(`/v1/capabilities/categories/${categoryId}/default-capabilities`, {
         method: 'POST',
         body: JSON.stringify({ capability_ids: capabilityIds }),
         headers: {
@@ -574,6 +558,134 @@ export const capabilityApi = {
       });
     } catch (error) {
       console.error(`设置能力 ${capabilityId} 的稳定版本失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+      throw error;
+    }
+  },
+
+  // ============ 能力自动发现API ============
+  
+  /**
+   * 为单个模型发现能力
+   * @param {number} modelId - 模型ID
+   * @param {Object} options - 选项
+   * @param {boolean} options.auto_create - 是否自动创建不存在的能力
+   * @param {boolean} options.auto_associate - 是否自动关联发现的能力
+   * @returns {Promise<Object>} 发现结果
+   */
+  discoverCapabilitiesForModel: async (modelId, options = {}) => {
+    try {
+      const queryParams = new URLSearchParams();
+      if (options.auto_create !== undefined) {
+        queryParams.append('auto_create', options.auto_create);
+      }
+      if (options.auto_associate !== undefined) {
+        queryParams.append('auto_associate', options.auto_associate);
+      }
+      const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
+      
+      return await request(`/v1/capabilities/discovery/model/${modelId}${queryString}`, {
+        method: 'POST'
+      });
+    } catch (error) {
+      console.error(`为模型 ${modelId} 发现能力失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+      throw error;
+    }
+  },
+
+  /**
+   * 为所有模型发现能力
+   * @param {Object} options - 选项
+   * @param {boolean} options.auto_create - 是否自动创建不存在的能力
+   * @param {boolean} options.auto_associate - 是否自动关联发现的能力
+   * @param {boolean} options.force_update - 是否强制更新已有关联
+   * @returns {Promise<Object>} 批量发现结果
+   */
+  discoverCapabilitiesForAllModels: async (options = {}) => {
+    try {
+      const queryParams = new URLSearchParams();
+      if (options.auto_create !== undefined) {
+        queryParams.append('auto_create', options.auto_create);
+      }
+      if (options.auto_associate !== undefined) {
+        queryParams.append('auto_associate', options.auto_associate);
+      }
+      if (options.force_update !== undefined) {
+        queryParams.append('force_update', options.force_update);
+      }
+      const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
+      
+      return await request(`/v1/capabilities/discovery/all-models${queryString}`, {
+        method: 'POST'
+      });
+    } catch (error) {
+      console.error('批量发现能力失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+      throw error;
+    }
+  },
+
+  /**
+   * 根据模型分类发现能力
+   * @param {number} categoryId - 分类ID
+   * @param {Object} options - 选项
+   * @param {boolean} options.auto_associate - 是否自动关联发现的能力
+   * @returns {Promise<Object>} 发现结果
+   */
+  discoverCapabilitiesByCategory: async (categoryId, options = {}) => {
+    try {
+      const queryParams = new URLSearchParams();
+      if (options.auto_associate !== undefined) {
+        queryParams.append('auto_associate', options.auto_associate);
+      }
+      const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
+      
+      return await request(`/v1/capabilities/discovery/category/${categoryId}${queryString}`, {
+        method: 'POST'
+      });
+    } catch (error) {
+      console.error(`为分类 ${categoryId} 发现能力失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+      throw error;
+    }
+  },
+
+  /**
+   * 获取模型的能力建议
+   * @param {Object} params - 参数
+   * @param {string} params.model_name - 模型名称
+   * @param {string} params.model_description - 模型描述
+   * @param {string} params.supplier_name - 供应商名称
+   * @returns {Promise<Object>} 能力建议列表
+   */
+  getCapabilitySuggestions: async (params) => {
+    try {
+      const queryParams = new URLSearchParams();
+      queryParams.append('model_name', params.model_name);
+      if (params.model_description) {
+        queryParams.append('model_description', params.model_description);
+      }
+      if (params.supplier_name) {
+        queryParams.append('supplier_name', params.supplier_name);
+      }
+      
+      return await request(`/v1/capabilities/suggestions?${queryParams.toString()}`, {
+        method: 'GET'
+      });
+    } catch (error) {
+      console.error('获取能力建议失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+      throw error;
+    }
+  },
+
+  /**
+   * 获取能力发现关键词映射
+   * @returns {Promise<Object>} 关键词映射配置
+   */
+  getDiscoveryKeywords: async () => {
+    try {
+      return await request('/v1/capabilities/discovery/keywords', {
+        method: 'GET'
+      });
+    } catch (error) {
+      console.error('获取发现关键词失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
       throw error;
     }
   }

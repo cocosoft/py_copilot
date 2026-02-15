@@ -80,7 +80,6 @@ class ModelQueryService:
         """
         return db.query(Model).filter(
             Model.is_default == True,
-            Model.model_type == model_type,
             Model.is_active == True
         ).first()
     

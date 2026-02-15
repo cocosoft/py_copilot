@@ -799,6 +799,9 @@ class SkillExecutionEngine:
         """生成JavaScript artifact"""
         try:
             # 创建交互式JavaScript内容
+            backtick_escape = '\\`'
+            escaped_result = result.replace('`', backtick_escape)
+            
             js_content = f"""
 // {skill.name} 执行结果处理脚本
 const skillData = {{
@@ -806,7 +809,7 @@ const skillData = {{
     displayName: '{skill.display_name or skill.name}',
     version: '{skill.version}',
     executionId: {execution_log.id},
-    result: `{result.replace('`', '\\`')}`,
+    result: `{escaped_result}`,
     timestamp: '{datetime.now().isoformat()}'
 }};
 

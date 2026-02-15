@@ -73,22 +73,28 @@ export const request = async (endpoint, options = {}) => {
   }
   
   try {
-    // 设置请求超时（默认30秒）
     const timeout = options.timeout || 30000;
-    const controller = new AbortController();
-    const { signal } = controller;
     
-    // 设置超时定时器
-    const timeoutId = setTimeout(() => controller.abort(), timeout);
+    let signal;
+    let controller;
+    let timeoutId = null;
     
-    // 发送请求
+    if (options.signal) {
+      signal = options.signal;
+    } else {
+      controller = new AbortController();
+      signal = controller.signal;
+      timeoutId = setTimeout(() => controller.abort(), timeout);
+    }
+    
     const response = await fetch(url, {
       ...mergedOptions,
       signal
     });
     
-    // 清除超时定时器
-    clearTimeout(timeoutId);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
 
     // 检查响应状态
     if (!response.ok) {
@@ -207,15 +213,20 @@ export const request = async (endpoint, options = {}) => {
       return text;
     }
   } catch (error) {
-    console.error('❌ API请求异常:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
-    
-    // 处理超时错误
     if (error.name === 'AbortError') {
+      if (!timeoutId) {
+        const cancelError = new Error('请求已取消');
+        cancelError.name = 'AbortError';
+        cancelError.isCancelled = true;
+        throw cancelError;
+      }
       const timeoutError = new Error('API请求超时，请检查网络连接或端点响应时间。');
       timeoutError.originalError = error;
-      timeoutError.status = 408; // 408 Request Timeout
+      timeoutError.status = 408;
       throw timeoutError;
     }
+    
+    console.error('❌ API请求异常:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
     
     // 处理连接错误，提供更清晰的错误信息
     if (error.message && (error.message.includes('Failed to fetch') || error.message.includes('ERR_CONNECTION_REFUSED'))) {

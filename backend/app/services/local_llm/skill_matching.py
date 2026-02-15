@@ -88,13 +88,16 @@ class LocalSkillMatchingService:
             skill_names = [skill.name for skill in available_skills]
             
             # 构建识别Prompt
+            newline = "\n"
+            skill_list = newline.join([f"- {skill}" for skill in skill_names])
+            
             prompt = f"""
             请分析以下用户输入，识别其是否需要调用技能，以及需要调用哪个技能：
             
             用户输入：{user_input}
             
             可用技能列表：
-            {"\n".join([f"- {skill}" for skill in skill_names])}
+            {skill_list}
             
             请从以下几个方面进行分析：
             1. 需要调用技能：是/否
