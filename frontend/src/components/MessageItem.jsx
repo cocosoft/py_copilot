@@ -129,7 +129,7 @@ const MessageItem = memo(({
             <div className="thinking-chain-container">
               {message.isStreaming ? (
                 <div className="thinking-chain">
-                  {message.thinking}
+                  <MemoizedMarkdownRenderer content={message.thinking} />
                 </div>
               ) : (
                 <>
@@ -141,7 +141,7 @@ const MessageItem = memo(({
                   </div>
                   {expandedThinkingChains[message.id] && (
                     <div className="thinking-chain">
-                      {message.thinking}
+                      <MemoizedMarkdownRenderer content={message.thinking} />
                     </div>
                   )}
                 </>

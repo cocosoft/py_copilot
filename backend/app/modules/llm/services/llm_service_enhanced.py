@@ -345,22 +345,10 @@ class EnhancedLLMService:
         }
         
         # 检查是否需要开启思考模式
-        # 优先使用前端传递的 enable_thinking_chain 参数
+        # 注意：硅基流动的 API 不支持 enable_thinking 参数，即使模型名称包含 deepseek
+        # 硅基流动的 DeepSeek 模型与官方 DeepSeek API 不同，不支持 enable_thinking
+        # 所以这里完全禁用 enable_thinking 参数，避免 400 错误
         thinking_enabled = False
-        if enable_thinking_chain:
-            # 如果前端明确启用了思考链，则启用
-            payload["enable_thinking"] = True
-            thinking_enabled = True
-            logger.info(f"为硅基流动模型 {model_name} 启用思考模式（前端请求）")
-        elif not retry_without_thinking and (
-            "deepseek" in model_name.lower() or 
-            ("moonshotai" in model_name.lower() and "kimi-k2-thinking" not in model_name.lower()) or 
-            ("thinking" in model_name.lower() and "qwen" in model_name.lower())
-        ):
-            # 如果是支持思考模式的模型，添加思考模式参数
-            payload["enable_thinking"] = True
-            thinking_enabled = True
-            logger.info(f"为硅基流动模型 {model_name} 启用思考模式（自动检测）")
         
         # 设置请求头
         headers = {
@@ -547,18 +535,20 @@ class EnhancedLLMService:
         }
         
         # 检查是否需要开启思考模式
-        # 优先使用前端传递的 enable_thinking_chain 参数
+        # 如果是重试且禁用 thinking，则不启用
         thinking_enabled = False
-        if enable_thinking_chain:
-            # 如果前端明确启用了思考链，则启用
-            payload["enable_thinking"] = True
-            thinking_enabled = True
-            logger.info(f"为DeepSeek模型 {model_name} 启用思考模式（前端请求）")
-        elif not retry_without_thinking and "deepseek" in model_name.lower():
-            # DeepSeek模型支持thinking参数
-            payload["enable_thinking"] = True
-            thinking_enabled = True
-            logger.info(f"为DeepSeek模型 {model_name} 启用思考模式（自动检测）")
+        if not retry_without_thinking:
+            # 只有在非重试情况下才考虑启用思考模式
+            if enable_thinking_chain:
+                # 如果前端明确启用了思考链，则启用
+                payload["enable_thinking"] = True
+                thinking_enabled = True
+                logger.info(f"为DeepSeek模型 {model_name} 启用思考模式（前端请求）")
+            elif "deepseek" in model_name.lower():
+                # DeepSeek模型支持thinking参数
+                payload["enable_thinking"] = True
+                thinking_enabled = True
+                logger.info(f"为DeepSeek模型 {model_name} 启用思考模式（自动检测）")
         
         # 设置请求头
         headers = {

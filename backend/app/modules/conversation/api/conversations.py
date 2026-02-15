@@ -339,6 +339,11 @@ async def send_message_stream(
             full_reasoning = ""
             last_reasoning_len = 0  # 记录上次发送的思维链长度
             
+            # 缓冲区设置：合并小的数据块以提高性能
+            content_buffer = ""
+            thinking_buffer = ""
+            buffer_size = 20  # 缓冲区大小：累积20个字符后发送
+            
             if hasattr(llm_response, '__iter__') and not isinstance(llm_response, (list, dict)):
                 for chunk in llm_response:
                     if isinstance(chunk, dict):
@@ -347,13 +352,23 @@ async def send_message_stream(
                             thinking_content = chunk.get("content", "")
                             if thinking_content:
                                 full_reasoning += thinking_content
-                                yield f"data: {json.dumps({'status': 'streaming', 'thinking': thinking_content})}\n\n"
+                                thinking_buffer += thinking_content
+                                # 缓冲区满时发送
+                                if len(thinking_buffer) >= buffer_size:
+                                    yield f"data: {json.dumps({'status': 'streaming', 'thinking': thinking_buffer})}\n\n"
+                                    thinking_buffer = ""
+                        
                         # 处理 type: "content" 格式的内容数据
                         elif chunk.get("type") == "content":
                             content = chunk.get("content", "")
                             if content:
                                 full_response += content
-                                yield f"data: {json.dumps({'status': 'streaming', 'chunk': content})}\n\n"
+                                content_buffer += content
+                                # 缓冲区满时发送
+                                if len(content_buffer) >= buffer_size:
+                                    yield f"data: {json.dumps({'status': 'streaming', 'chunk': content_buffer})}\n\n"
+                                    content_buffer = ""
+                        
                         # 处理 success 格式的最终响应
                         elif chunk.get("success", False):
                             text = chunk.get("generated_text", "")
@@ -361,18 +376,22 @@ async def send_message_stream(
                             if text:
                                 full_response = text
                             if reasoning:
-                                # 发送增量部分
                                 new_reasoning = reasoning[last_reasoning_len:]
                                 if new_reasoning:
                                     full_reasoning = reasoning
                                     last_reasoning_len = len(reasoning)
-                                    yield f"data: {json.dumps({'status': 'streaming', 'thinking': new_reasoning})}\n\n"
+                                    thinking_buffer += new_reasoning
+                        
                         # 处理 content 字段格式
                         elif "content" in chunk and chunk.get("type") != "thinking":
                             content = chunk.get("content", "")
                             if content:
                                 full_response += content
-                                yield f"data: {json.dumps({'status': 'streaming', 'chunk': content})}\n\n"
+                                content_buffer += content
+                                # 缓冲区满时发送
+                                if len(content_buffer) >= buffer_size:
+                                    yield f"data: {json.dumps({'status': 'streaming', 'chunk': content_buffer})}\n\n"
+                                    content_buffer = ""
                         
                         # 处理 reasoning_content 字段（增量发送）
                         reasoning = chunk.get("reasoning_content", "")
@@ -380,12 +399,23 @@ async def send_message_stream(
                             new_reasoning = reasoning[last_reasoning_len:]
                             full_reasoning = reasoning
                             last_reasoning_len = len(reasoning)
-                            yield f"data: {json.dumps({'status': 'streaming', 'thinking': new_reasoning})}\n\n"
+                            thinking_buffer += new_reasoning
+                    
                     elif isinstance(chunk, str):
                         full_response += chunk
-                        yield f"data: {json.dumps({'status': 'streaming', 'chunk': chunk})}\n\n"
+                        content_buffer += chunk
+                        # 缓冲区满时发送
+                        if len(content_buffer) >= buffer_size:
+                            yield f"data: {json.dumps({'status': 'streaming', 'chunk': content_buffer})}\n\n"
+                            content_buffer = ""
                     
                     await asyncio.sleep(0)
+                
+                # 流结束时发送剩余缓冲区数据
+                if thinking_buffer:
+                    yield f"data: {json.dumps({'status': 'streaming', 'thinking': thinking_buffer})}\n\n"
+                if content_buffer:
+                    yield f"data: {json.dumps({'status': 'streaming', 'chunk': content_buffer})}\n\n"
             elif isinstance(llm_response, dict):
                 if llm_response.get("success", False):
                     full_response = llm_response.get("generated_text", "")
