@@ -605,6 +605,9 @@ const Chat = () => {
       if (enableStreaming) {
         // 流式响应已在handleStreamingResponse中记录日志
         console.log('使用流式响应发送消息');
+        // 清空输入框和已上传文件列表
+        setInputText('');
+        setUploadedFiles([]);
         await handleStreamingResponse(inputText.trim(), conversationId, activeTopic?.id, tempMessage);
       } else {
         // 普通响应
