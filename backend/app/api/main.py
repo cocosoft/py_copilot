@@ -105,6 +105,15 @@ app = FastAPI(
     redirect_slashes=False,  # Disable automatic trailing slash redirects to avoid CORS issues
 )
 
+# 配置CORS（必须在其他中间件之前添加）
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=CORS_CREDENTIALS,
+    allow_methods=CORS_METHODS,
+    allow_headers=CORS_HEADERS,
+)
+
 # 设置请求体大小限制为60MB，以支持50MB的文件上传
 from fastapi import Request
 from fastapi.exceptions import RequestValidationError
@@ -148,15 +157,6 @@ app.mount("/logos/models", StaticFiles(directory=MODELS_LOGOS_DIR), name="model_
 CAPABILITIES_LOGOS_DIR = os.path.join(BASE_DIR, "frontend", "public", "logos", "capabilities")
 os.makedirs(CAPABILITIES_LOGOS_DIR, exist_ok=True)
 app.mount("/logos/capabilities", StaticFiles(directory=CAPABILITIES_LOGOS_DIR), name="capability_logos")
-
-# 配置CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
-    allow_credentials=CORS_CREDENTIALS,
-    allow_methods=CORS_METHODS,
-    allow_headers=CORS_HEADERS,
-)
 
 # 添加错误上下文中间件 - 使用正确的middleware装饰器方式
 @app.middleware("http")

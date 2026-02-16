@@ -163,6 +163,17 @@ const Chat = () => {
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
+
+  // 计算消息列表的总tokens数量
+  const calculateTotalTokens = useCallback((messageList) => {
+    let total = 0;
+    messageList.forEach(msg => {
+      if (msg.metrics && msg.metrics.tokens_used) {
+        total += msg.metrics.tokens_used;
+      }
+    });
+    return total;
+  }, []);
   
   // 显示消息骨架屏
   const showMessageSkeletons = useCallback((count = 3) => {
@@ -207,18 +218,24 @@ const Chat = () => {
           text: msg.content
         }));
         setMessages(formattedMessages);
+        
+        // 计算总tokens数量
+        const total = calculateTotalTokens(formattedMessages);
+        setTotalTokens(total);
       } else {
         setMessages([]);
+        setTotalTokens(0);
       }
     } catch (error) {
       if (error.name === 'AbortError' || error.isCancelled) return;
       console.error('加载话题消息失败:', error);
       setMessages([]);
+      setTotalTokens(0);
     } finally {
       setMessageSkeletons([]);
       setIsLoadingMessages(false);
     }
-  }, [conversationId]);
+  }, [conversationId, calculateTotalTokens]);
 
   // 当活跃话题变化时，加载对应话题的消息
   useEffect(() => {
@@ -560,8 +577,13 @@ const Chat = () => {
       // 只记录关键步骤的日志
       console.log(`开始发送消息: ${inputText.substring(0, 50)}${inputText.length > 50 ? '...' : ''}`);
       
-      // 添加到消息列表
-      setMessages(prev => [...prev, tempMessage]);
+      // 添加到消息列表并更新总tokens数量
+      setMessages(prev => {
+        const newMessages = [...prev, tempMessage];
+        const newTotal = calculateTotalTokens(newMessages);
+        setTotalTokens(newTotal);
+        return newMessages;
+      });
       scrollToBottom();
       
       // 检查网络连接
@@ -634,7 +656,7 @@ const Chat = () => {
             : msg
         ));
         
-        // 添加AI回复消息
+        // 添加AI回复消息并更新总tokens数量
         const aiMessage = {
           id: result.assistant_message.id,
           sender: 'bot',
@@ -649,7 +671,12 @@ const Chat = () => {
           }
         };
         
-        setMessages(prev => [...prev, aiMessage]);
+        setMessages(prev => {
+          const newMessages = [...prev, aiMessage];
+          const newTotal = calculateTotalTokens(newMessages);
+          setTotalTokens(newTotal);
+          return newMessages;
+        });
         setConnectionStatus('connected');
         
         // 清空输入框和已上传文件列表
@@ -873,8 +900,8 @@ const Chat = () => {
               // 计算AI回复的tokens数量
               const aiTokens = calculateTokens(responseText);
               
-              setMessages(prevMessages => 
-                prevMessages.map(msg => 
+              setMessages(prevMessages => {
+                const updatedMessages = prevMessages.map(msg => 
                   msg.id === streamingMessage.id 
                     ? { 
                         ...msg, 
@@ -887,8 +914,14 @@ const Chat = () => {
                         }
                       } 
                     : msg
-                )
-              );
+                );
+                
+                // 更新总tokens数量
+                const newTotal = calculateTotalTokens(updatedMessages);
+                setTotalTokens(newTotal);
+                
+                return updatedMessages;
+              });
               // 如果有思考链内容，默认展开
               if (fullThinkingChain) {
                 setExpandedThinkingChains(prev => ({ ...prev, [streamingMessage.id]: true }));
@@ -983,8 +1016,8 @@ const Chat = () => {
                   // 检查是否有内容，如果没有，设置默认提示信息
                   const responseText = fullResponse || '抱歉，我暂时无法为您提供相关信息。请尝试提供更多上下文或换一种方式提问。';
                   
-                  setMessages(prevMessages => 
-                    prevMessages.map(msg => {
+                  setMessages(prevMessages => {
+                    const updatedMessages = prevMessages.map(msg => {
                       // 更新流式消息状态
                       if (msg.id === streamingMessage.id) {
                         return {
@@ -1006,8 +1039,14 @@ const Chat = () => {
                         };
                       }
                       return msg;
-                    })
-                  );
+                    });
+                    
+                    // 更新总tokens数量
+                    const newTotal = calculateTotalTokens(updatedMessages);
+                    setTotalTokens(newTotal);
+                    
+                    return updatedMessages;
+                  });
                   // 设置思维链默认收缩状态
                   setExpandedThinkingChains(prev => ({ ...prev, [streamingMessage.id]: false }));
                   setConnectionStatus('connected');
@@ -1069,8 +1108,8 @@ const Chat = () => {
         // 检查是否有内容，如果没有，设置默认提示信息
         const responseText = fullResponse || '抱歉，我暂时无法为您提供相关信息。请尝试提供更多上下文或换一种方式提问。';
         
-        setMessages(prevMessages => 
-          prevMessages.map(msg => 
+        setMessages(prevMessages => {
+          const updatedMessages = prevMessages.map(msg => 
             msg.id === streamingMessage.id 
               ? { 
                   ...msg, 
@@ -1079,8 +1118,14 @@ const Chat = () => {
                   isStreaming: false 
                 } 
               : msg
-          )
-        );
+          );
+          
+          // 更新总tokens数量
+          const newTotal = calculateTotalTokens(updatedMessages);
+          setTotalTokens(newTotal);
+          
+          return updatedMessages;
+        });
         // 设置思维链默认收缩状态
         setExpandedThinkingChains(prev => ({ ...prev, [streamingMessage.id]: false }));
         setConnectionStatus('connected');
@@ -1185,8 +1230,13 @@ const Chat = () => {
 
   // 删除消息
   const deleteMessage = useCallback((message) => {
-    setMessages(prev => prev.filter(m => m.id !== message.id));
-  }, []);
+    setMessages(prev => {
+      const newMessages = prev.filter(m => m.id !== message.id);
+      const newTotal = calculateTotalTokens(newMessages);
+      setTotalTokens(newTotal);
+      return newMessages;
+    });
+  }, [calculateTotalTokens]);
 
   // 保存消息
   const saveMessage = useCallback((message) => {

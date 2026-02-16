@@ -9,6 +9,7 @@ import Translate from '../pages/Translate';
 import Knowledge from '../pages/Knowledge';
 import Workflow from '../pages/Workflow';
 import Tool from '../pages/Tool';
+import Task from '../pages/Task';
 import Settings from '../pages/Settings';
 import PersonalCenter from '../pages/PersonalCenter';
 import HelpCenter from '../pages/HelpCenter';
@@ -27,6 +28,7 @@ const AppRoutes = () => {
       <Route path="knowledge" element={<Knowledge />} />
       <Route path="workflow" element={<Workflow />} />
       <Route path="tool" element={<Tool />} />
+      <Route path="task" element={<Task />} />
       <Route path="settings" element={<Settings />} />
       <Route path="personal/*" element={<PersonalCenter />} />
       <Route path="help/*" element={<HelpCenter />} />

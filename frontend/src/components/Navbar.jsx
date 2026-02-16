@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
   FaHome, FaComments, FaImage, FaVideo, FaMicrophoneAlt, 
-  FaLanguage, FaCog, FaAngleLeft, FaAngleRight 
+  FaLanguage, FaCog, FaAngleLeft, FaAngleRight, FaTasks
 } from 'react-icons/fa';
 
 // 简化的导航栏组件，确保图标能正确显示
@@ -28,6 +28,12 @@ const Navbar = () => {
       name: '聊天', 
       icon: <FaComments className="nav-svg" />,
       iconCollapsed: <FaComments className="nav-svg" />
+    },
+    { 
+      path: '/task', 
+      name: '任务', 
+      icon: <FaTasks className="nav-svg" />,
+      iconCollapsed: <FaTasks className="nav-svg" />
     },
     { 
       path: '/image', 
