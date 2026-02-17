@@ -199,8 +199,10 @@ async def send_message(
     # 使用清理后的内容
     sanitized_content = validation_result['sanitized_content']
     
-    # 处理附件文件
-    file_info = MessageProcessingService.process_attached_files(db, request)
+    # 处理附件文件，获取文件信息和上传数据
+    file_info, file_upload_data = MessageProcessingService.process_attached_files(
+        db, request, request.model_name
+    )
     if file_info:
         sanitized_content = sanitized_content + file_info
     
@@ -242,7 +244,7 @@ async def send_message(
     # 如果需要使用LLM生成回复
     if request.use_llm:
         assistant_message = MessageProcessingService.process_message_with_llm(
-            db, conversation, user_message, active_topic, request
+            db, conversation, user_message, active_topic, request, file_upload_data
         )
         
         # 将助手消息转换为可序列化的字典
@@ -294,7 +296,10 @@ async def send_message_stream(
         
         sanitized_content = validation_result['sanitized_content']
         
-        file_info = MessageProcessingService.process_attached_files(db, request)
+        # 处理附件文件，获取文件信息和上传数据
+        file_info, file_upload_data = MessageProcessingService.process_attached_files(
+            db, request, request.model_name
+        )
         if file_info:
             sanitized_content = sanitized_content + file_info
         
@@ -332,7 +337,8 @@ async def send_message_stream(
                 model_name=model_name,
                 db=db,
                 agent_id=getattr(conversation, 'agent_id', None),
-                enable_thinking_chain=request.enable_thinking_chain
+                enable_thinking_chain=request.enable_thinking_chain,
+                file_upload_data=file_upload_data
             )
             
             full_response = ""

@@ -808,3 +808,9 @@ API管理实施方案.md
 项目现有功能分析报告.md
 智能任务功能部署和使用指南.md
 智能任务功能开发总结.md
+代码优化实施方案.md
+backend/check_agents_columns.py
+backend/alembic/versions/002_add_file_upload_support.py
+backend/app/tests/api/test_agent_api.py
+backend/app/tests/services/test_agent_service.py
+backend/app/tests/utils/test_cache_decorators.py

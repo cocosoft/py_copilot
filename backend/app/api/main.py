@@ -201,6 +201,14 @@ async def startup_event():
     """应用启动事件"""
     logger.info("应用正在启动...")
     
+    # 预加载核心路由组
+    try:
+        from app.api.v1 import preload_core_routes
+        await preload_core_routes()
+        logger.info("核心路由组预加载完成")
+    except Exception as e:
+        logger.error(f"预加载核心路由组失败: {e}")
+    
     # 启动任务队列
     try:
         await start_task_queue()

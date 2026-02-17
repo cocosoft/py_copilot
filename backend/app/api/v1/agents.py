@@ -1,10 +1,13 @@
 """智能体管理API路由"""
-from typing import Any
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from typing import Any, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_db
+from app.core.dependencies import get_db, get_current_user
 from app.core.config import Settings
+from app.models.user import User
+from app.utils.cache_decorators import cache_result
 
 from app.schemas.agent import AgentCreate, AgentUpdate, AgentResponse, AgentListResponse
 from app.services.agent_service import (
@@ -14,7 +17,14 @@ from app.services.agent_service import (
     update_agent,
     delete_agent,
     get_public_agents,
-    get_recommended_agents
+    get_recommended_agents,
+    search_agents,
+    test_agent,
+    copy_agent,
+    restore_agent,
+    get_deleted_agents,
+    export_agent,
+    import_agent
 )
 
 router = APIRouter()
@@ -24,6 +34,7 @@ router = APIRouter()
 def create_agent_api(
     agent_in: AgentCreate,
     model_id: int = Query(None, description="关联的模型ID"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> Any:
     """
@@ -32,18 +43,20 @@ def create_agent_api(
     Args:
         agent_in: 智能体创建信息
         model_id: 关联的模型ID（可选）
+        current_user: 当前用户
         db: 数据库会话
     
     Returns:
         创建成功的智能体信息
     """
-    agent = create_agent(db=db, agent=agent_in, user_id=1, model_id=model_id)  # 使用固定用户ID 1
+    agent = create_agent(db=db, agent=agent_in, user_id=current_user.id, model_id=model_id)
     return agent
 
 
 @router.get("/{agent_id}", response_model=dict)
 def get_agent_api(
     agent_id: int,
+    request: Request,
     db: Session = Depends(get_db)
 ) -> Any:
     """
@@ -51,6 +64,7 @@ def get_agent_api(
     
     Args:
         agent_id: 智能体ID
+        request: FastAPI请求对象
         db: 数据库会话
     
     Returns:
@@ -66,16 +80,14 @@ def get_agent_api(
             detail="智能体不存在"
         )
     
-    # 将Agent模型转换为字典
     agent_dict = AgentResponse.from_orm(agent).dict()
     
-    # 手动添加avatar_url字段
-    settings = Settings()
     if agent.avatar:
         if agent.avatar.startswith(('http://', 'https://')):
             agent_dict['avatar_url'] = agent.avatar
         else:
-            agent_dict['avatar_url'] = f"http://localhost:{settings.server_port}/logos/agents/{agent.avatar}"
+            base_url = str(request.base_url).rstrip('/')
+            agent_dict['avatar_url'] = f"{base_url}/logos/agents/{agent.avatar}"
     else:
         agent_dict['avatar_url'] = None
     
@@ -83,47 +95,110 @@ def get_agent_api(
 
 
 @router.get("/", response_model=dict)
+@cache_result(ttl=300, cache_key_prefix="agents")
 def get_agents_api(
+    request: Request,
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=100),
-    category_id: int = Query(None, ge=1),
+    category_id: Optional[int] = Query(None, description="分类ID"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> Any:
     """
-    获取智能体列表接口
+    获取智能体列表接口（缓存5分钟）
     
     Args:
         skip: 跳过数量
         limit: 限制数量
         category_id: 分类ID（可选）
+        current_user: 当前用户
+        request: FastAPI请求对象
         db: 数据库会话
     
     Returns:
         智能体列表信息
     """
-    agents, total = get_agents(db=db, skip=skip, limit=limit, user_id=1, category_id=category_id)  # 使用固定用户ID 1
+    agents, total = get_agents(db=db, skip=skip, limit=limit, user_id=current_user.id, category_id=category_id)
     
-    # 转换智能体列表，并手动添加avatar_url字段和分类信息
+    base_url = str(request.base_url).rstrip('/')
+    
     agent_responses = []
     for agent in agents:
         agent_dict = AgentResponse.from_orm(agent).dict()
-        settings = Settings()
         if agent.avatar:
             if agent.avatar.startswith(('http://', 'https://')):
                 agent_dict['avatar_url'] = agent.avatar
             else:
-                agent_dict['avatar_url'] = f"http://localhost:{settings.server_port}/logos/agents/{agent.avatar}"
+                agent_dict['avatar_url'] = f"{base_url}/logos/agents/{agent.avatar}"
         else:
             agent_dict['avatar_url'] = None
         
-        # 添加分类信息
         if agent.category:
             agent_dict['category'] = {
                 'id': agent.category.id,
                 'name': agent.category.name,
                 'logo': agent.category.logo
             }
-        # 确保包含category_id字段
+        agent_dict['category_id'] = agent.category_id
+        
+        agent_responses.append(agent_dict)
+    
+    return {"agents": agent_responses, "total": total}
+
+
+@router.get("/search", response_model=dict)
+def search_agents_api(
+    request: Request,
+    keyword: str = Query(..., description="搜索关键词"),
+    category_id: Optional[int] = Query(None, description="分类ID"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(10, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> Any:
+    """
+    搜索智能体接口
+    
+    Args:
+        keyword: 搜索关键词
+        category_id: 分类ID（可选）
+        skip: 跳过数量
+        limit: 限制数量
+        current_user: 当前用户
+        request: FastAPI请求对象
+        db: 数据库会话
+    
+    Returns:
+        智能体搜索结果
+    """
+    agents, total = search_agents(
+        db=db,
+        keyword=keyword,
+        user_id=current_user.id,
+        category_id=category_id,
+        skip=skip,
+        limit=limit
+    )
+    
+    base_url = str(request.base_url).rstrip('/')
+    
+    agent_responses = []
+    for agent in agents:
+        agent_dict = AgentResponse.from_orm(agent).dict()
+        if agent.avatar:
+            if agent.avatar.startswith(('http://', 'https://')):
+                agent_dict['avatar_url'] = agent.avatar
+            else:
+                agent_dict['avatar_url'] = f"{base_url}/logos/agents/{agent.avatar}"
+        else:
+            agent_dict['avatar_url'] = None
+        
+        if agent.category:
+            agent_dict['category'] = {
+                'id': agent.category.id,
+                'name': agent.category.name,
+                'logo': agent.category.logo
+            }
         agent_dict['category_id'] = agent.category_id
         
         agent_responses.append(agent_dict)
@@ -133,6 +208,7 @@ def get_agents_api(
 
 @router.get("/public/list", response_model=dict)
 def get_public_agents_api(
+    request: Request,
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=100),
     db: Session = Depends(get_db)
@@ -143,6 +219,7 @@ def get_public_agents_api(
     Args:
         skip: 跳过数量
         limit: 限制数量
+        request: FastAPI请求对象
         db: 数据库会话
     
     Returns:
@@ -150,16 +227,16 @@ def get_public_agents_api(
     """
     agents, total = get_public_agents(db=db, skip=skip, limit=limit)
     
-    # 转换智能体列表，并手动添加avatar_url字段
+    base_url = str(request.base_url).rstrip('/')
+    
     agent_responses = []
     for agent in agents:
         agent_dict = AgentResponse.from_orm(agent).dict()
-        settings = Settings()
         if agent.avatar:
             if agent.avatar.startswith(('http://', 'https://')):
                 agent_dict['avatar_url'] = agent.avatar
             else:
-                agent_dict['avatar_url'] = f"http://localhost:{settings.server_port}/logos/agents/{agent.avatar}"
+                agent_dict['avatar_url'] = f"{base_url}/logos/agents/{agent.avatar}"
         else:
             agent_dict['avatar_url'] = None
         agent_responses.append(agent_dict)
@@ -169,6 +246,7 @@ def get_public_agents_api(
 
 @router.get("/recommended/list", response_model=dict)
 def get_recommended_agents_api(
+    request: Request,
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=100),
     db: Session = Depends(get_db)
@@ -179,6 +257,7 @@ def get_recommended_agents_api(
     Args:
         skip: 跳过数量
         limit: 限制数量
+        request: FastAPI请求对象
         db: 数据库会话
     
     Returns:
@@ -186,16 +265,16 @@ def get_recommended_agents_api(
     """
     agents, total = get_recommended_agents(db=db, skip=skip, limit=limit)
     
-    # 转换智能体列表，并手动添加avatar_url字段
+    base_url = str(request.base_url).rstrip('/')
+    
     agent_responses = []
     for agent in agents:
         agent_dict = AgentResponse.from_orm(agent).dict()
-        settings = Settings()
         if agent.avatar:
             if agent.avatar.startswith(('http://', 'https://')):
                 agent_dict['avatar_url'] = agent.avatar
             else:
-                agent_dict['avatar_url'] = f"http://localhost:{settings.server_port}/logos/agents/{agent.avatar}"
+                agent_dict['avatar_url'] = f"{base_url}/logos/agents/{agent.avatar}"
         else:
             agent_dict['avatar_url'] = None
         agent_responses.append(agent_dict)
@@ -205,8 +284,10 @@ def get_recommended_agents_api(
 
 @router.put("/{agent_id}", response_model=AgentResponse)
 def update_agent_api(
+    request: Request,
     agent_id: int,
     agent_in: AgentUpdate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> Any:
     """
@@ -215,6 +296,8 @@ def update_agent_api(
     Args:
         agent_id: 智能体ID
         agent_in: 智能体更新信息
+        current_user: 当前用户
+        request: FastAPI请求对象
         db: 数据库会话
     
     Returns:
@@ -223,30 +306,26 @@ def update_agent_api(
     Raises:
         HTTPException: 智能体不存在时抛出
     """
-    agent = update_agent(db=db, agent_id=agent_id, agent_update=agent_in, user_id=1)  # 使用固定用户ID 1
+    agent = update_agent(db=db, agent_id=agent_id, agent_update=agent_in, user_id=current_user.id)
     if not agent:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="智能体不存在"
         )
     
-    # 转换为响应模型，确保包含所有字段
     agent_dict = AgentResponse.from_orm(agent).dict()
     
-    # 添加头像URL
-    settings = Settings()
+    base_url = str(request.base_url).rstrip('/')
     if agent.avatar:
         if agent.avatar.startswith(('http://', 'https://')):
             agent_dict['avatar_url'] = agent.avatar
         else:
-            agent_dict['avatar_url'] = f"http://localhost:{settings.server_port}/logos/agents/{agent.avatar}"
+            agent_dict['avatar_url'] = f"{base_url}/logos/agents/{agent.avatar}"
     else:
         agent_dict['avatar_url'] = None
     
-    # 添加分类信息 - 确保包含category_id字段
     agent_dict['category_id'] = agent.category_id
     
-    # 添加分类详细信息
     if agent.category:
         agent_dict['category'] = {
             'id': agent.category.id,
@@ -260,6 +339,7 @@ def update_agent_api(
 @router.delete("/{agent_id}")
 def delete_agent_api(
     agent_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> dict:
     """
@@ -267,18 +347,245 @@ def delete_agent_api(
     
     Args:
         agent_id: 智能体ID
+        current_user: 当前用户
         db: 数据库会话
     
     Raises:
         HTTPException: 智能体不存在时抛出
     """
-    success = delete_agent(db=db, agent_id=agent_id, user_id=1)  # 使用固定用户ID 1
+    success = delete_agent(db=db, agent_id=agent_id, user_id=current_user.id)
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="智能体不存在"
         )
     return {"message": "智能体删除成功"}
+
+
+@router.post("/{agent_id}/restore")
+def restore_agent_api(
+    agent_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> dict:
+    """
+    恢复已删除的智能体接口
+    
+    Args:
+        agent_id: 智能体ID
+        current_user: 当前用户
+        db: 数据库会话
+    
+    Returns:
+        恢复结果
+    
+    Raises:
+        HTTPException: 智能体不存在时抛出
+    """
+    success = restore_agent(db=db, agent_id=agent_id, user_id=current_user.id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="智能体不存在或未删除"
+        )
+    return {"message": "智能体恢复成功"}
+
+
+@router.get("/deleted/list", response_model=dict)
+def get_deleted_agents_api(
+    request: Request,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(10, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> Any:
+    """
+    获取已删除智能体列表接口
+    
+    Args:
+        skip: 跳过数量
+        limit: 限制数量
+        current_user: 当前用户
+        request: FastAPI请求对象
+        db: 数据库会话
+    
+    Returns:
+        已删除智能体列表信息
+    """
+    agents, total = get_deleted_agents(db=db, skip=skip, limit=limit, user_id=current_user.id)
+    
+    base_url = str(request.base_url).rstrip('/')
+    
+    agent_responses = []
+    for agent in agents:
+        agent_dict = AgentResponse.from_orm(agent).dict()
+        if agent.avatar:
+            if agent.avatar.startswith(('http://', 'https://')):
+                agent_dict['avatar_url'] = agent.avatar
+            else:
+                agent_dict['avatar_url'] = f"{base_url}/logos/agents/{agent.avatar}"
+        else:
+            agent_dict['avatar_url'] = None
+        
+        if agent.category:
+            agent_dict['category'] = {
+                'id': agent.category.id,
+                'name': agent.category.name,
+                'logo': agent.category.logo
+            }
+        agent_dict['category_id'] = agent.category_id
+        
+        agent_responses.append(agent_dict)
+    
+    return {"agents": agent_responses, "total": total}
+
+
+@router.post("/{agent_id}/test")
+def test_agent_api(
+    agent_id: int,
+    test_message: str = Query("你好，请介绍一下你自己", description="测试消息"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> dict:
+    """
+    测试智能体接口
+    
+    Args:
+        agent_id: 智能体ID
+        test_message: 测试消息
+        current_user: 当前用户
+        db: 数据库会话
+    
+    Returns:
+        测试结果
+    
+    Raises:
+        HTTPException: 智能体不存在或测试失败时抛出
+    """
+    try:
+        result = test_agent(db=db, agent_id=agent_id, user_id=current_user.id, test_message=test_message)
+        
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"测试失败: {result.get('error', '未知错误')}"
+            )
+        
+        return {
+            "success": True,
+            "response": result.get("response"),
+            "model_used": result.get("model_used"),
+            "tokens_used": result.get("tokens_used")
+        }
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+
+
+@router.post("/{agent_id}/copy")
+def copy_agent_api(
+    agent_id: int,
+    new_name: str = Query(None, description="新智能体名称"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> dict:
+    """
+    复制智能体接口
+    
+    Args:
+        agent_id: 智能体ID
+        new_name: 新智能体名称（可选）
+        current_user: 当前用户
+        db: 数据库会话
+    
+    Returns:
+        复制后的智能体信息
+    
+    Raises:
+        HTTPException: 智能体不存在时抛出
+    """
+    try:
+        new_agent = copy_agent(db=db, agent_id=agent_id, user_id=current_user.id, new_name=new_name)
+        
+        agent_dict = AgentResponse.from_orm(new_agent).dict()
+        
+        return {
+            "message": "智能体复制成功",
+            "agent": agent_dict
+        }
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+
+
+@router.get("/{agent_id}/export")
+def export_agent_api(
+    agent_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> JSONResponse:
+    """
+    导出智能体配置接口
+    
+    Args:
+        agent_id: 智能体ID
+        current_user: 当前用户
+        db: 数据库会话
+    
+    Returns:
+        智能体配置JSON
+    
+    Raises:
+        HTTPException: 智能体不存在时抛出
+    """
+    try:
+        export_data = export_agent(db=db, agent_id=agent_id, user_id=current_user.id)
+        return JSONResponse(content=export_data)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+
+
+@router.post("/import")
+def import_agent_api(
+    import_data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> dict:
+    """
+    导入智能体配置接口
+    
+    Args:
+        import_data: 导入数据
+        current_user: 当前用户
+        db: 数据库会话
+    
+    Returns:
+        导入后的智能体信息
+    
+    Raises:
+        HTTPException: 数据格式错误时抛出
+    """
+    try:
+        new_agent = import_agent(db=db, import_data=import_data, user_id=current_user.id)
+        
+        agent_dict = AgentResponse.from_orm(new_agent).dict()
+        
+        return {
+            "message": "智能体导入成功",
+            "agent": agent_dict
+        }
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
 
 
 # 智能体技能相关接口

@@ -1,34 +1,60 @@
-import React from 'react';
+import React, { memo, useCallback, useMemo } from 'react';
 import SkillBadge from './SkillBadge';
 import './SkillManagement.css';
 
 function SkillCard({ skill, viewMode, onView, onToggleEnable, onEdit, onDelete, onExecute, onSelect, isSelected }) {
-  const statusLabels = {
+  const statusLabels = useMemo(() => ({
     enabled: '已启用',
     disabled: '已禁用',
     installed: '已安装',
     updating: '更新中',
-  };
+  }), []);
 
-  const statusColors = {
+  const statusColors = useMemo(() => ({
     enabled: 'success',
     disabled: 'default',
     installed: 'info',
     updating: 'warning',
-  };
+  }), []);
+
+  const handleCardClick = useCallback(() => {
+    onView();
+  }, [onView]);
+
+  const handleSelectChange = useCallback((e) => {
+    e.stopPropagation();
+    onSelect(skill.id, !isSelected);
+  }, [onSelect, skill.id, isSelected]);
+
+  const handleEditClick = useCallback((e) => {
+    e.stopPropagation();
+    onEdit();
+  }, [onEdit]);
+
+  const handleExecuteClick = useCallback((e) => {
+    e.stopPropagation();
+    onExecute();
+  }, [onExecute]);
+
+  const handleToggleEnableClick = useCallback((e) => {
+    e.stopPropagation();
+    onToggleEnable();
+  }, [onToggleEnable]);
+
+  const handleDeleteClick = useCallback((e) => {
+    e.stopPropagation();
+    onDelete();
+  }, [onDelete]);
 
   return (
-    <div className={`skill-card ${viewMode} ${isSelected ? 'selected' : ''}`} onClick={onView}>
+    <div className={`skill-card ${viewMode} ${isSelected ? 'selected' : ''}`} onClick={handleCardClick}>
       <div className="skill-card-header">
         {onSelect && (
           <div className="skill-select-checkbox">
             <input 
               type="checkbox" 
               checked={isSelected} 
-              onChange={(e) => {
-                e.stopPropagation();
-                onSelect(skill.id, !isSelected);
-              }}
+              onChange={handleSelectChange}
               onClick={(e) => e.stopPropagation()}
             />
           </div>
@@ -66,10 +92,7 @@ function SkillCard({ skill, viewMode, onView, onToggleEnable, onEdit, onDelete, 
           {onEdit && (
             <button
               className="skill-action-btn edit-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit();
-              }}
+              onClick={handleEditClick}
               title="编辑技能"
             >
               <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
@@ -81,10 +104,7 @@ function SkillCard({ skill, viewMode, onView, onToggleEnable, onEdit, onDelete, 
           {onExecute && skill.status === 'enabled' && (
             <button
               className="skill-action-btn execute-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                onExecute();
-              }}
+              onClick={handleExecuteClick}
               title="执行技能"
             >
               <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
@@ -95,10 +115,7 @@ function SkillCard({ skill, viewMode, onView, onToggleEnable, onEdit, onDelete, 
           
           <button
             className={`skill-action-btn status-btn ${skill.status === 'enabled' ? 'enabled' : 'disabled'}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleEnable();
-            }}
+            onClick={handleToggleEnableClick}
             title={skill.status === 'enabled' ? '禁用技能' : '启用技能'}
           >
             {skill.status === 'enabled' ? '禁用' : '启用'}
@@ -107,10 +124,7 @@ function SkillCard({ skill, viewMode, onView, onToggleEnable, onEdit, onDelete, 
           {onDelete && (
             <button
               className="skill-action-btn delete-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete();
-              }}
+              onClick={handleDeleteClick}
               title="删除技能"
             >
               <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
@@ -127,4 +141,4 @@ function SkillCard({ skill, viewMode, onView, onToggleEnable, onEdit, onDelete, 
   );
 }
 
-export default SkillCard;
+export default memo(SkillCard);

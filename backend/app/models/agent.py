@@ -18,11 +18,15 @@ class Agent(Base):
     knowledge_base = Column(String(100))
     
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    user = relationship("User", back_populates="agents")
+    user = relationship("User", back_populates="agents", foreign_keys=[user_id])
     
     is_public = Column(Boolean, default=False)
     is_recommended = Column(Boolean, default=False)
     is_favorite = Column(Boolean, default=False)
+    
+    is_deleted = Column(Boolean, default=False, index=True)
+    deleted_at = Column(DateTime, nullable=True)
+    deleted_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)

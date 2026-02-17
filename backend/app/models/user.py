@@ -30,7 +30,7 @@ class User(Base):
     # 关系定义 - 使用字符串引用避免循环导入
     conversations = relationship("Conversation", back_populates="user", cascade="all, delete-orphan")
     llm_requests = relationship("LLMRequestHistory", back_populates="user", cascade="all, delete-orphan")
-    agents = relationship("Agent", back_populates="user", cascade="all, delete-orphan")
+    agents = relationship("Agent", back_populates="user", cascade="all, delete-orphan", foreign_keys="Agent.user_id")
     skill_sessions = relationship("SkillSession", back_populates="user", cascade="all, delete-orphan")
     global_memories = relationship("GlobalMemory", back_populates="user", cascade="all, delete-orphan")
     memory_access_logs = relationship("MemoryAccessLog", back_populates="user", cascade="all, delete-orphan")

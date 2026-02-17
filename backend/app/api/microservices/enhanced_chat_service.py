@@ -17,6 +17,7 @@ from app.models.chat_enhancements import (
     ChainOfThought, UploadedFile, VoiceInput, SearchQuery
 )
 from app.core.database import get_db
+from app.modules.llm.services.llm_service_enhanced import EnhancedLLMService
 
 
 class EnhancedChatRequest(BaseModel):
@@ -52,6 +53,7 @@ class EnhancedChatService:
         self.message_queue: MessageQueue = get_message_queue()
         self.memory_service = MemoryService()
         self.connected_websockets: Dict[str, WebSocket] = {}
+        self.llm_service = EnhancedLLMService()
     
     async def process_enhanced_chat(self, chat_request: EnhancedChatRequest) -> StreamingResponse:
         """处理记忆增强的流式聊天"""
@@ -374,16 +376,36 @@ class EnhancedChatService:
     
     async def _generate_main_response(self, context: Dict[str, Any]) -> str:
         """生成主要响应内容"""
-        # 这里应该调用实际的LLM服务
-        # 现在返回一个模拟响应，包含记忆增强
-        
-        base_response = f"我理解您想讨论: {context.get('user_message', '')}"
-        
-        if context["enable_memory_enhancement"] and context["memory_count"] > 0:
-            memory_summary = "，并参考了您之前的对话内容。"
-            base_response += memory_summary
-        
-        return base_response + " 有什么我可以帮助您的吗？"
+        try:
+            # 获取数据库会话
+            db = next(get_db())
+            
+            # 构建消息列表
+            messages = [{"role": "user", "content": context.get('user_message', '')}]
+            
+            # 调用LLM服务生成响应
+            response = self.llm_service.chat_completion(
+                messages=messages,
+                model_name=None,  # 使用默认模型
+                max_tokens=4096,
+                temperature=0.7,
+                db=db
+            )
+            
+            db.close()
+            
+            # 检查响应是否成功
+            if response.get("success", False):
+                return response.get("generated_text", "")
+            else:
+                # 如果调用失败，返回错误信息
+                error_msg = response.get("error", "未知错误")
+                print(f"LLM调用失败: {error_msg}")
+                return f"抱歉，我暂时无法为您提供相关信息。错误: {error_msg}"
+                
+        except Exception as e:
+            print(f"生成主要响应时出错: {e}")
+            return f"抱歉，我暂时无法为您提供相关信息。错误: {str(e)}"
     
     async def _generate_reasoning_step(self, chunk: str, context: Dict[str, Any], 
                                      chunk_index: int, total_chunks: int) -> str:

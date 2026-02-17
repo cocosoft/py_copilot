@@ -11,6 +11,37 @@ export default defineConfig(({ mode }) => {
   
   return {
     plugins: [react()],
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            // React核心库
+            'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+            // UI库
+            'ui-vendor': ['framer-motion', 'reactflow'],
+            // 工具库
+            'utils-vendor': ['axios', 'classnames'],
+            // 图表和可视化
+            'charts-vendor': ['d3'],
+            // PDF处理
+            'pdf-vendor': ['pdfjs-dist'],
+            // Markdown渲染
+            'markdown-vendor': [
+              'react-markdown',
+              'remark-gfm',
+              'remark-math',
+              'rehype-katex',
+              'react-syntax-highlighter'
+            ],
+            // 状态管理
+            'state-vendor': ['zustand', '@tanstack/react-query'],
+            // 虚拟滚动
+            'virtual-vendor': ['@tanstack/react-virtual'],
+          }
+        }
+      },
+      chunkSizeWarningLimit: 1000
+    },
     server: {
       proxy: {
         '/api': {

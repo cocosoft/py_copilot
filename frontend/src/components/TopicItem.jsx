@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { memo, useCallback } from 'react';
 import './TopicItem.css';
 
-const TopicItem = ({ topic, isActive, onClick, onDelete }) => {
-  const formatDate = (dateString) => {
+const TopicItem = memo(({ topic, isActive, onClick, onDelete }) => {
+  const formatDate = useCallback((dateString) => {
     if (!dateString) return '';
     
     const date = new Date(dateString);
@@ -23,12 +23,21 @@ const TopicItem = ({ topic, isActive, onClick, onDelete }) => {
         day: '2-digit'
       });
     }
-  };
+  }, []);
+
+  const handleClick = useCallback(() => {
+    onClick();
+  }, [onClick]);
+
+  const handleDelete = useCallback((e) => {
+    e.stopPropagation();
+    onDelete();
+  }, [onDelete]);
 
   return (
     <div 
       className={`topic-item ${isActive ? 'topic-item-active' : ''}`}
-      onClick={onClick}
+      onClick={handleClick}
     >
       <div className="topic-item-content">
         <div className="topic-item-header">
@@ -54,16 +63,13 @@ const TopicItem = ({ topic, isActive, onClick, onDelete }) => {
       
       <button 
         className="topic-item-delete"
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete();
-        }}
+        onClick={handleDelete}
         title="删除话题"
       >
         ×
       </button>
     </div>
   );
-};
+});
 
 export default TopicItem;

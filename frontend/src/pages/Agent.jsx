@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './agent.css';
-import { createAgent, getAgents, deleteAgent, getPublicAgents, getRecommendedAgents, updateAgent } from '../services/agentService';
+import { createAgent, getAgents, deleteAgent, getPublicAgents, getRecommendedAgents, updateAgent, searchAgents, testAgent, copyAgent, restoreAgent, getDeletedAgents, exportAgent, importAgent } from '../services/agentService';
 import { createAgentCategory, getAgentCategories, updateAgentCategory, deleteAgentCategory, getAgentCategoryTree } from '../services/agentCategoryService';
 import { getKnowledgeBases } from '../utils/api/knowledgeApi';
 import defaultModelApi from '../utils/api/defaultModelApi';
@@ -64,6 +64,15 @@ const Agent = () => {
   const [skills, setSkills] = useState([]);
   const [loadingSkills, setLoadingSkills] = useState(false);
 
+  // 搜索相关状态
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+
+  // 软删除相关状态
+  const [showDeletedAgents, setShowDeletedAgents] = useState(false);
+  const [deletedAgents, setDeletedAgents] = useState([]);
+  const [totalDeletedAgents, setTotalDeletedAgents] = useState(0);
+
   const handleCreateAgent = () => {
     setShowCreateDialog(true);
   };
@@ -91,6 +100,48 @@ const Agent = () => {
       console.error('Error fetching agents:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 搜索智能体
+  const handleSearchAgents = async () => {
+    if (!searchKeyword.trim()) {
+      setIsSearching(false);
+      fetchAgents();
+      return;
+    }
+    
+    setIsSearching(true);
+    setLoading(true);
+    setError(null);
+    try {
+      const categoryId = typeof currentCategory === 'number' ? currentCategory : null;
+      const result = await searchAgents(searchKeyword, currentPage, pageSize, categoryId);
+      setAgents(result.agents);
+      setTotalAgents(result.total);
+    } catch (err) {
+      setError('搜索智能体失败，请重试');
+      console.error('Error searching agents:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 处理搜索输入变化
+  const handleSearchInputChange = (e) => {
+    setSearchKeyword(e.target.value);
+  };
+
+  // 处理搜索按钮点击
+  const handleSearchButtonClick = () => {
+    setCurrentPage(1);
+    handleSearchAgents();
+  };
+
+  // 处理搜索输入回车
+  const handleSearchKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSearchButtonClick();
     }
   };
 
@@ -220,7 +271,6 @@ const Agent = () => {
       setError(null);
       try {
         await deleteAgent(agentId);
-        // 重新获取智能体列表
         fetchAgents();
         alert('智能体删除成功！');
       } catch (err) {
@@ -232,9 +282,149 @@ const Agent = () => {
     }
   };
 
+  // 获取已删除智能体列表
+  const fetchDeletedAgents = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await getDeletedAgents(currentPage, pageSize);
+      setDeletedAgents(result.agents);
+      setTotalDeletedAgents(result.total);
+    } catch (err) {
+      setError('获取已删除智能体列表失败，请重试');
+      console.error('Error fetching deleted agents:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 恢复智能体
+  const handleRestoreAgent = async (agentId) => {
+    if (window.confirm('确定要恢复这个智能体吗？')) {
+      setLoading(true);
+      setError(null);
+      try {
+        await restoreAgent(agentId);
+        fetchDeletedAgents();
+        alert('智能体恢复成功！');
+      } catch (err) {
+        setError('恢复智能体失败，请重试');
+        console.error('Error restoring agent:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  // 切换显示已删除智能体
+  const handleToggleDeletedAgents = () => {
+    setShowDeletedAgents(!showDeletedAgents);
+    if (!showDeletedAgents) {
+      fetchDeletedAgents();
+    }
+  };
+
+  // 导出智能体
+  const handleExportAgent = async (agent) => {
+    try {
+      setLoading(true);
+      const exportData = await exportAgent(agent.id);
+      
+      const dataStr = JSON.stringify(exportData, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${agent.name}_config.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      
+      alert('智能体导出成功！');
+    } catch (err) {
+      alert(`导出失败：${err.message || '未知错误'}`);
+      console.error('Error exporting agent:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 导入智能体
+  const handleImportAgent = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json';
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      try {
+        setLoading(true);
+        const fileContent = await file.text();
+        const importData = JSON.parse(fileContent);
+        
+        const result = await importAgent(importData);
+        
+        alert(`智能体导入成功！新智能体名称：${result.agent.name}`);
+        
+        fetchAgents();
+      } catch (err) {
+        alert(`导入失败：${err.message || '未知错误'}`);
+        console.error('Error importing agent:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
+      } finally {
+        setLoading(false);
+      }
+    };
+    input.click();
+  };
+
+  // 复制智能体
+  const handleCopyAgent = async (agent) => {
+    const newName = prompt(`复制智能体 "${agent.name}"，请输入新名称：`, `${agent.name} (副本)`);
+    if (newName === null) {
+      return;
+    }
+    
+    const name = newName.trim() || `${agent.name} (副本)`;
+    
+    try {
+      setLoading(true);
+      const result = await copyAgent(agent.id, name);
+      
+      alert(`智能体复制成功！新智能体名称：${result.agent.name}`);
+      
+      fetchAgents();
+    } catch (err) {
+      alert(`复制失败：${err.message || '未知错误'}`);
+      console.error('Error copying agent:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // 测试智能体
   const handleTestAgent = async (agent) => {
-    alert(`测试智能体: ${agent.name}`);
+    const testMessage = prompt('请输入测试消息：', '你好，请介绍一下你自己');
+    if (testMessage === null) {
+      return;
+    }
+    
+    const message = testMessage.trim() || '你好，请介绍一下你自己';
+    
+    try {
+      setLoading(true);
+      const result = await testAgent(agent.id, message);
+      
+      if (result.success) {
+        alert(`测试成功！\n\n回复：${result.response}\n\n使用模型：${result.model_used}\n消耗Token：${result.tokens_used}`);
+      } else {
+        alert(`测试失败：${result.error || '未知错误'}`);
+      }
+    } catch (err) {
+      alert(`测试失败：${err.message || '未知错误'}`);
+      console.error('Error testing agent:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
+    } finally {
+      setLoading(false);
+    }
   };
 
   // 打开参数管理
@@ -349,8 +539,21 @@ const Agent = () => {
 
   // 加载智能体列表
   useEffect(() => {
-    fetchAgents();
+    if (isSearching) {
+      handleSearchAgents();
+    } else {
+      fetchAgents();
+    }
   }, [currentCategory, currentPage, pageSize]);
+
+  // 搜索关键词变化时触发搜索
+  useEffect(() => {
+    if (searchKeyword.trim()) {
+      setIsSearching(true);
+    } else {
+      setIsSearching(false);
+    }
+  }, [searchKeyword]);
 
   // 递归渲染分类树组件
   const CategoryTreeItem = ({ category, level = 0 }) => {
@@ -526,6 +729,10 @@ const Agent = () => {
             <span className="plus-icon">+</span>
             创建新智能体
           </button>
+          <button className="import-agent-btn" onClick={handleImportAgent}>
+            <span className="import-icon">📥</span>
+            导入智能体
+          </button>
           <button className="create-category-btn" onClick={() => {
             setEditingCategory(null);
             setNewCategory({
@@ -578,11 +785,22 @@ const Agent = () => {
                 type="text"
                 placeholder="搜索智能体..."
                 className="search-input"
+                value={searchKeyword}
+                onChange={handleSearchInputChange}
+                onKeyPress={handleSearchKeyPress}
               />
-              <button className="search-btn">🔍</button>
+              <button className="search-btn" onClick={handleSearchButtonClick}>🔍</button>
             </div>
 
             <div className="filter-options">
+              <button 
+                className="filter-btn"
+                onClick={handleToggleDeletedAgents}
+              >
+                {showDeletedAgents ? '返回列表' : '查看已删除'}
+                <span className="dropdown-icon">{showDeletedAgents ? '◀' : '🗑️'}</span>
+              </button>
+
               <button className="filter-btn">
                 筛选
                 <span className="dropdown-icon">▼</span>
@@ -599,59 +817,119 @@ const Agent = () => {
           {error && <div className="error">{error}</div>}
 
           <div className="agent-grid">
-            {agents.length === 0 && !loading ? (
-              <div className="empty-state">
-                <h3>暂无智能体</h3>
-                <p>点击"创建新智能体"按钮开始创建您的第一个智能助手</p>
-              </div>
-            ) : (
-              agents.map(agent => (
-                <div key={agent.id} className="agent-card">
-                  <div className="agent-avatar">
-                    {agent.avatar_url && agent.avatar_url.startsWith(('http://', 'https://')) ? (
-                      <img 
-                        src={agent.avatar_url} 
-                        alt={agent.name} 
-                        className="agent-avatar-image"
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                          e.target.nextSibling.style.display = 'inline';
-                        }}
-                      />
-                    ) : null}
-                    <span className="agent-avatar-fallback">{agent.avatar || '🤖'}</span>
+            {showDeletedAgents ? (
+              <>
+                {deletedAgents.length === 0 && !loading ? (
+                  <div className="empty-state">
+                    <h3>暂无已删除的智能体</h3>
+                    <p>点击"返回列表"查看正常智能体</p>
                   </div>
-                  <h3>{agent.name}</h3>
-                  <p>{agent.description}</p>
-                  {agent.category && (
-                    <div className="agent-category-tag">
-                      <span className="category-logo">{agent.category.logo || '📁'}</span>
-                      <span className="category-name">{agent.category.name}</span>
+                ) : (
+                  deletedAgents.map(agent => (
+                    <div key={agent.id} className="agent-card deleted-card">
+                      <div className="agent-avatar">
+                        {agent.avatar_url && agent.avatar_url.startsWith(('http://', 'https://')) ? (
+                          <img 
+                            src={agent.avatar_url} 
+                            alt={agent.name} 
+                            className="agent-avatar-image"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'inline';
+                            }}
+                          />
+                        ) : null}
+                        <span className="agent-avatar-fallback">{agent.avatar || '🤖'}</span>
+                      </div>
+                      <h3>{agent.name}</h3>
+                      <p>{agent.description}</p>
+                      {agent.category && (
+                        <div className="agent-category-tag">
+                          <span className="category-logo">{agent.category.logo || '📁'}</span>
+                          <span className="category-name">{agent.category.name}</span>
+                        </div>
+                      )}
+                      <div className="agent-actions">
+                        <button 
+                          className="restore-btn"
+                          onClick={() => handleRestoreAgent(agent.id)}
+                        >
+                          恢复
+                        </button>
+                      </div>
                     </div>
-                  )}
-                  <div className="agent-actions">
-                    <button className="chat-btn" onClick={() => handleTestAgent(agent)}>测试</button>
-                    <button
-                      className="edit-btn"
-                      onClick={() => handleEditAgent(agent)}
-                    >
-                      编辑
-                    </button>
-                    <button
-                      className="param-btn"
-                      onClick={() => handleManageParameters(agent)}
-                    >
-                      参数
-                    </button>
-                    <button
-                      className="del-btn"
-                      onClick={() => handleDeleteAgent(agent.id)}
-                    >
-                      删除
-                    </button>
+                  ))
+                )}
+              </>
+            ) : (
+              <>
+                {agents.length === 0 && !loading ? (
+                  <div className="empty-state">
+                    <h3>暂无智能体</h3>
+                    <p>点击"创建新智能体"按钮开始创建您的第一个智能助手</p>
                   </div>
-                </div>
-              ))
+                ) : (
+                  agents.map(agent => (
+                    <div key={agent.id} className="agent-card">
+                      <div className="agent-avatar">
+                        {agent.avatar_url && agent.avatar_url.startsWith(('http://', 'https://')) ? (
+                          <img 
+                            src={agent.avatar_url} 
+                            alt={agent.name} 
+                            className="agent-avatar-image"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'inline';
+                            }}
+                          />
+                        ) : null}
+                        <span className="agent-avatar-fallback">{agent.avatar || '🤖'}</span>
+                      </div>
+                      <h3>{agent.name}</h3>
+                      <p>{agent.description}</p>
+                      {agent.category && (
+                        <div className="agent-category-tag">
+                          <span className="category-logo">{agent.category.logo || '📁'}</span>
+                          <span className="category-name">{agent.category.name}</span>
+                        </div>
+                      )}
+                      <div className="agent-actions">
+                        <button className="chat-btn" onClick={() => handleTestAgent(agent)}>测试</button>
+                        <button
+                          className="edit-btn"
+                          onClick={() => handleEditAgent(agent)}
+                        >
+                          编辑
+                        </button>
+                        <button
+                          className="param-btn"
+                          onClick={() => handleManageParameters(agent)}
+                        >
+                          参数
+                        </button>
+                        <button
+                          className="copy-btn"
+                          onClick={() => handleCopyAgent(agent)}
+                        >
+                          复制
+                        </button>
+                        <button
+                          className="export-btn"
+                          onClick={() => handleExportAgent(agent)}
+                        >
+                          导出
+                        </button>
+                        <button
+                          className="del-btn"
+                          onClick={() => handleDeleteAgent(agent.id)}
+                        >
+                          删除
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </>
             )}
           </div>
 

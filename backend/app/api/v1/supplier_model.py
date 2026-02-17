@@ -8,6 +8,7 @@ import os
 import aiofiles
 
 from app.core.dependencies import get_db
+from app.utils.cache_decorators import cache_result, invalidate_cache
 from app.core.config import Settings
 from app.models.supplier_db import SupplierDB, ModelDB
 from app.schemas.supplier_model import (
@@ -126,8 +127,9 @@ async def create_supplier(
 
 # 供应商相关路由
 @router.get("/suppliers-list", response_model=List[SupplierResponse])
+@cache_result(ttl=600, cache_key_prefix="suppliers")
 def get_all_suppliers(db: Session = Depends(get_db)):
-    """获取所有供应商"""
+    """获取所有供应商（缓存10分钟）"""
     # 使用原始SQL查询避免ORM模型初始化问题
     from sqlalchemy import text
     import logging
@@ -432,10 +434,12 @@ def delete_supplier(supplier_id: int, db: Session = Depends(get_db)):
     return {"message": "供应商删除成功"}
 
 @router.get("/suppliers/{supplier_id}/models", response_model=ModelListResponse)
+@cache_result(ttl=300, cache_key_prefix="supplier_models")
 def get_supplier_models(supplier_id: int, db: Session = Depends(get_db)):
-    """获取指定供应商的模型列表"""
+    """获取指定供应商的模型列表（缓存5分钟）"""
     # 验证供应商是否存在
     from sqlalchemy import text, join, select
+    from sqlalchemy.orm import selectinload
     from app.models.supplier_db import ModelDB, SupplierDB
     from app.models.model_category import ModelCategoryAssociation, ModelCategory
     
@@ -444,8 +448,10 @@ def get_supplier_models(supplier_id: int, db: Session = Depends(get_db)):
     if not supplier:
         raise HTTPException(status_code=404, detail="供应商不存在")
     
-    # 使用ORM查询获取模型及其分类
-    models = db.query(ModelDB).filter(ModelDB.supplier_id == supplier_id).all()
+    # 使用ORM查询获取模型及其分类，使用selectinload预加载分类避免N+1查询
+    models = db.query(ModelDB).options(
+        selectinload(ModelDB.categories)
+    ).filter(ModelDB.supplier_id == supplier_id).all()
     
     if not models:
         return ModelListResponse(models=[], total=0)
@@ -453,10 +459,8 @@ def get_supplier_models(supplier_id: int, db: Session = Depends(get_db)):
     # 为每个模型获取分类
     model_responses = []
     for model in models:
-        # 获取模型关联的所有分类
-        categories = db.query(ModelCategory).join(ModelCategoryAssociation).filter(
-            ModelCategoryAssociation.model_id == model.id
-        ).all()
+        # 直接从预加载的分类中获取，避免额外查询
+        categories = model.categories
         
         # 转换为响应格式
         model_response = ModelWithSupplierResponse(
@@ -1018,9 +1022,10 @@ def _should_exclude_model(model_id: str, model_name: str, exclude_keywords: list
 
 # 模型选择视图相关路由
 @router.get("/model-management/models/select")
+@cache_result(ttl=600, cache_key_prefix="model_select")
 def get_model_select_data(scene: str = Query("all", description="使用场景"), db: Session = Depends(get_db)):
     """
-    获取模型选择数据（从视图）
+    获取模型选择数据（从视图，缓存10分钟）
     支持场景筛选：
     - chat: 聊天对话模型（排除embedding、rerank等专用模型）
     - embedding: 向量嵌入模型

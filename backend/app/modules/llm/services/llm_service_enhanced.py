@@ -105,7 +105,8 @@ class EnhancedLLMService:
         db: Optional[Session] = None,
         fallback_models: Optional[List[str]] = None,
         agent_id: Optional[int] = None,
-        enable_thinking_chain: bool = False
+        enable_thinking_chain: bool = False,
+        file_upload_data: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """聊天补全功能 - 支持数据库配置的多种大模型和智能回退机制"""
         start_time = time.time()
@@ -117,6 +118,7 @@ class EnhancedLLMService:
         logger.info(f"回退模型列表: {fallback_models}")
         logger.info(f"代理ID: {agent_id}")
         logger.info(f"启用思考链: {enable_thinking_chain}")
+        logger.info(f"文件上传数据: {file_upload_data is not None}")
         
         # 如果没有提供回退模型列表，使用默认回退策略
         if fallback_models is None:
@@ -160,7 +162,7 @@ class EnhancedLLMService:
                             response = self._call_api_with_db_config(
                                 openai, messages, db_config, max_tokens, temperature, 
                                 top_p, n, stop, frequency_penalty, presence_penalty, start_time,
-                                enable_thinking_chain
+                                enable_thinking_chain, file_upload_data
                             )
                             
                             # 检查是否是流式响应（生成器）
@@ -246,7 +248,7 @@ class EnhancedLLMService:
     
     def _call_api_with_db_config(self, openai, messages, db_config, max_tokens, temperature, 
                                 top_p, n, stop, frequency_penalty, presence_penalty, start_time,
-                                enable_thinking_chain=False):
+                                enable_thinking_chain=False, file_upload_data=None):
         """使用数据库配置调用API"""
         model_name = db_config["model"]
         supplier_name = db_config["supplier_name"]
@@ -267,7 +269,7 @@ class EnhancedLLMService:
         # 对于其他API，使用直接HTTP请求绕过OpenAI客户端
         result = self._call_api_directly(messages, model_name, api_endpoint, api_key, 
                                      max_tokens, temperature, supplier_display_name, start_time,
-                                     enable_thinking_chain)
+                                     enable_thinking_chain, file_upload_data)
         
         # 如果是生成器（流式响应），直接实时返回流式数据
         if hasattr(result, '__iter__') and not isinstance(result, (list, dict)):
@@ -278,7 +280,7 @@ class EnhancedLLMService:
     
     def _call_api_directly(self, messages, model_name, api_endpoint, api_key, 
                           max_tokens, temperature, supplier_display_name, start_time,
-                          enable_thinking_chain=False):
+                          enable_thinking_chain=False, file_upload_data=None):
         """直接调用API（绕过OpenAI客户端）"""
         try:
             # 额外检查模型名称，确保正确识别硅基流动的DeepSeek模型
@@ -291,6 +293,15 @@ class EnhancedLLMService:
             elif "siliconflow" in model_name.lower() and supplier_display_name != "硅基流动":
                 logger.error(f"配置错误：检测到硅基流动模型 {model_name}，但供应商显示名称为 {supplier_display_name}")
                 return self._get_api_error_response(supplier_display_name, f"模型 {model_name} 配置错误，硅基流动模型必须使用硅基流动供应商", model_name, start_time)
+            
+            # 如果有文件上传数据且供应商支持文件上传，使用文件上传方式
+            if file_upload_data and file_upload_data.get('use_upload') and file_upload_data.get('files'):
+                logger.info(f"使用文件上传方式处理 {len(file_upload_data['files'])} 个文件")
+                return self._call_api_with_file_upload(
+                    messages, model_name, api_endpoint, api_key,
+                    max_tokens, temperature, supplier_display_name, start_time,
+                    file_upload_data
+                )
             
             # 根据供应商选择API调用方式
             if supplier_display_name == "硅基流动":
@@ -313,6 +324,11 @@ class EnhancedLLMService:
             elif supplier_display_name == "Ollama":
                 return self._call_ollama_api_directly(
                     messages, model_name, api_endpoint, 
+                    max_tokens, temperature, supplier_display_name, start_time
+                )
+            elif "dashscope" in supplier_display_name.lower() or "阿里" in supplier_display_name or "aliyun" in supplier_display_name.lower():
+                return self._call_dashscope_api(
+                    messages, model_name, api_endpoint, api_key, 
                     max_tokens, temperature, supplier_display_name, start_time
                 )
             else:
@@ -987,6 +1003,147 @@ class EnhancedLLMService:
             logger.error(f"通用API调用失败: {e}")
             raise Exception(f"通用API调用失败: {e}")
     
+    def _call_dashscope_api(self, messages, model_name, api_endpoint, api_key, 
+                           max_tokens, temperature, supplier_display_name, start_time):
+        """调用阿里云百炼（DashScope）API（支持流式响应）"""
+        import requests
+        import json
+        
+        logger.info(f"调用阿里云百炼API: {model_name}，端点: {api_endpoint}")
+        
+        # 准备请求数据（阿里云百炼API格式）
+        payload = {
+            "model": model_name,
+            "input": {
+                "messages": messages
+            },
+            "parameters": {
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "result_format": "message"
+            }
+        }
+        
+        # 设置请求头
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}"
+        }
+        
+        # 发送请求，使用stream=True参数处理流式响应
+        timeout = 60
+        
+        try:
+            # 检查api_endpoint是否存在
+            if not api_endpoint:
+                logger.error("阿里云百炼API端点未配置")
+                raise Exception("阿里云百炼API端点未配置")
+            
+            # 构建正确的API端点URL
+            # 阿里云百炼使用 /compatible-mode/v1/chat/completions 端点
+            if api_endpoint.endswith('/v1'):
+                chat_endpoint = api_endpoint.rstrip('/') + "/compatible-mode/v1/chat/completions"
+            else:
+                chat_endpoint = api_endpoint.rstrip('/') + "/compatible-mode/v1/chat/completions"
+            
+            logger.info(f"发送阿里云百炼流式请求，端点: {chat_endpoint}，超时时间: {timeout}秒")
+            with requests.post(
+                chat_endpoint,
+                headers=headers,
+                json=payload,
+                stream=True,
+                timeout=timeout
+            ) as response:
+                
+                if response.status_code != 200:
+                    logger.error(f"阿里云百炼API调用失败，状态码: {response.status_code}，响应: {response.text[:200]}")
+                    raise Exception(f"阿里云百炼API调用失败，状态码: {response.status_code}, 响应: {response.text[:200]}")
+                
+                # 确保响应是流式的
+                if 'text/event-stream' not in response.headers.get('Content-Type', ''):
+                    logger.warning(f"阿里云百炼API未返回流式响应，Content-Type: {response.headers.get('Content-Type')}")
+                    # 尝试解析为普通JSON响应
+                    response_data = response.json()
+                    if "output" in response_data:
+                        output = response_data["output"]
+                        if "choices" in output and len(output["choices"]) > 0:
+                            message = output["choices"][0].get("message", {})
+                            response_text = message.get("content", "")
+                            
+                            result = {
+                                "generated_text": response_text.strip(),
+                                "model": model_name,
+                                "supplier": supplier_display_name,
+                                "tokens_used": response_data.get("usage", {}).get("total_tokens", 0),
+                                "execution_time_ms": round((time.time() - start_time) * 1000, 2),
+                                "success": True
+                            }
+                            return result
+                    raise Exception(f"阿里云百炼API响应格式不正确")
+                
+                # 处理流式响应
+                full_response = ""
+                
+                logger.info(f"开始处理阿里云百炼API流式响应")
+                for line in response.iter_lines():
+                    if line:
+                        # 解码行并移除前缀
+                        line = line.decode('utf-8')
+                        if line.startswith('data: '):
+                            line = line[6:]
+                            
+                            if line == '[DONE]':
+                                logger.info(f"阿里云百炼API流式响应结束")
+                                break
+                            
+                            try:
+                                chunk = json.loads(line)
+                                
+                                # 提取output部分
+                                output = chunk.get("output", {})
+                                choices = output.get("choices", [])
+                                if choices:
+                                    delta = choices[0].get("delta", {})
+                                    
+                                    # 提取内容信息
+                                    if "content" in delta:
+                                        content_chunk = delta["content"]
+                                        full_response += content_chunk
+                                        
+                                        logger.debug(f"获取到内容块: {content_chunk[:50]}...")
+                                        
+                                    # 检查是否完成
+                                    finish_reason = choices[0].get("finish_reason")
+                                    if finish_reason:
+                                        logger.info(f"阿里云百炼API响应完成，finish_reason: {finish_reason}")
+                                        break
+                                        
+                            except json.JSONDecodeError as e:
+                                logger.error(f"解析阿里云百炼API流式响应块失败: {e}，行内容: {line[:100]}...")
+                                continue
+                
+                # 构建最终响应
+                execution_time = round((time.time() - start_time) * 1000, 2)
+                logger.info(f"阿里云百炼API调用成功: {supplier_display_name} - {model_name}")
+                
+                return {
+                    "generated_text": full_response.strip(),
+                    "model": model_name,
+                    "supplier": supplier_display_name,
+                    "execution_time_ms": execution_time,
+                    "success": True
+                }
+                
+        except requests.exceptions.Timeout:
+            logger.error(f"阿里云百炼API调用超时（{timeout}秒）")
+            raise Exception(f"阿里云百炼API调用超时，请检查网络连接或尝试更简单的问题")
+        except requests.exceptions.RequestException as e:
+            logger.error(f"阿里云百炼API请求异常: {e}")
+            raise Exception(f"阿里云百炼API请求异常: {e}")
+        except Exception as e:
+            logger.error(f"阿里云百炼API调用失败: {e}")
+            raise Exception(f"阿里云百炼API调用失败: {e}")
+    
     def _call_ollama_api_directly(self, messages, model_name, api_endpoint, max_tokens, 
                                  temperature, supplier_display_name, start_time):
         """直接调用Ollama API（绕过OpenAI客户端）"""
@@ -1457,6 +1614,243 @@ class EnhancedLLMService:
             "attempt_history": attempt_history,
             "failure_analysis": error_summary
         }
+    
+    def _call_api_with_file_upload(self, messages, model_name, api_endpoint, api_key,
+                                  max_tokens, temperature, supplier_display_name, start_time,
+                                  file_upload_data):
+        """
+        使用文件上传方式调用API
+        
+        Args:
+            messages: 消息列表
+            model_name: 模型名称
+            api_endpoint: API端点
+            api_key: API密钥
+            max_tokens: 最大token数
+            temperature: 温度参数
+            supplier_display_name: 供应商显示名称
+            start_time: 开始时间
+            file_upload_data: 文件上传数据
+            
+        Returns:
+            API响应
+        """
+        import requests
+        import base64
+        import json
+        from pathlib import Path
+        
+        logger.info(f"使用文件上传方式调用API: {model_name}")
+        
+        try:
+            # 准备消息内容，添加文件信息
+            enhanced_messages = []
+            for msg in messages:
+                enhanced_messages.append(msg)
+            
+            # 添加文件信息到最后一条用户消息
+            if file_upload_data and file_upload_data.get('files'):
+                files_info = []
+                for file_info in file_upload_data['files']:
+                    file_path = Path(file_info['path'])
+                    if file_path.exists():
+                        # 读取文件内容并编码为base64
+                        with open(file_path, 'rb') as f:
+                            file_content = f.read()
+                            file_base64 = base64.b64encode(file_content).decode('utf-8')
+                        
+                        files_info.append({
+                            'name': file_info['name'],
+                            'type': file_info['mime_type'],
+                            'size': file_info['size'],
+                            'content': file_base64
+                        })
+                
+                # 将文件信息添加到消息中
+                if enhanced_messages and enhanced_messages[-1]['role'] == 'user':
+                    last_message = enhanced_messages[-1].copy()
+                    last_message['files'] = files_info
+                    enhanced_messages[-1] = last_message
+            
+            # 准备请求数据
+            payload = {
+                "model": model_name,
+                "messages": enhanced_messages,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "stream": True
+            }
+            
+            # 设置请求头
+            headers = {
+                "Content-Type": "application/json"
+            }
+            
+            if api_key and api_key != "dummy-key":
+                headers["Authorization"] = f"Bearer {api_key}"
+            
+            # 发送请求
+            timeout = 60
+            logger.info(f"发送带文件上传的流式请求，超时时间: {timeout}秒")
+            
+            with requests.post(
+                f"{api_endpoint}/chat/completions",
+                headers=headers,
+                json=payload,
+                stream=True,
+                timeout=timeout
+            ) as response:
+                
+                if response.status_code != 200:
+                    error_text = response.text[:200]
+                    logger.error(f"文件上传API调用失败，状态码: {response.status_code}，响应: {error_text}")
+                    raise Exception(f"API调用失败，状态码: {response.status_code}, 响应: {error_text}")
+                
+                # 确保响应是流式的
+                if 'text/event-stream' not in response.headers.get('Content-Type', ''):
+                    logger.warning("响应不是流式格式，尝试解析完整响应")
+                    full_response = response.json()
+                    return self._parse_non_streaming_response(full_response, model_name, start_time)
+                
+                # 处理流式响应
+                def stream_generator():
+                    for line in response.iter_lines():
+                        if line:
+                            line = line.decode('utf-8')
+                            if line.startswith('data: '):
+                                data_str = line[6:]
+                                if data_str.strip() == '[DONE]':
+                                    break
+                                
+                                try:
+                                    data = json.loads(data_str)
+                                    if 'choices' in data and len(data['choices']) > 0:
+                                        delta = data['choices'][0].get('delta', {})
+                                        content = delta.get('content', '')
+                                        if content:
+                                            yield {
+                                                'content': content,
+                                                'model': model_name,
+                                                'success': True
+                                            }
+                                except json.JSONDecodeError as e:
+                                    logger.warning(f"解析流式响应失败: {e}")
+                                    continue
+                
+                return stream_generator()
+                
+        except Exception as e:
+            logger.error(f"文件上传API调用异常: {str(e)}")
+            import traceback
+            logger.error(f"错误堆栈: {traceback.format_exc()}")
+            
+            # 如果文件上传失败，降级到文本解析方式
+            logger.info("文件上传失败，降级到文本解析方式")
+            return self._fallback_to_text_parsing(messages, model_name, api_endpoint, api_key,
+                                               max_tokens, temperature, supplier_display_name, start_time,
+                                               file_upload_data)
+    
+    def _fallback_to_text_parsing(self, messages, model_name, api_endpoint, api_key,
+                                 max_tokens, temperature, supplier_display_name, start_time,
+                                 file_upload_data):
+        """
+        降级到文本解析方式
+        
+        Args:
+            messages: 原始消息列表
+            model_name: 模型名称
+            api_endpoint: API端点
+            api_key: API密钥
+            max_tokens: 最大token数
+            temperature: 温度参数
+            supplier_display_name: 供应商显示名称
+            start_time: 开始时间
+            file_upload_data: 文件上传数据
+            
+        Returns:
+            API响应
+        """
+        from app.modules.file.services.file_processor import file_processor_service
+        from pathlib import Path
+        
+        logger.info("降级到文本解析方式")
+        
+        try:
+            # 处理文件内容
+            enhanced_messages = []
+            for msg in messages:
+                enhanced_messages.append(msg)
+            
+            # 如果有文件，解析文件内容并添加到消息中
+            if file_upload_data and file_upload_data.get('files'):
+                file_contents = []
+                for file_info in file_upload_data['files']:
+                    try:
+                        file_path = Path(file_info['path'])
+                        result = file_processor_service.process_file(
+                            file_path=file_path,
+                            file_name=file_info['name'],
+                            file_type=file_info['type']
+                        )
+                        file_contents.append(result)
+                    except Exception as e:
+                        logger.error(f"解析文件 {file_info['name']} 失败: {str(e)}")
+                
+                # 将文件内容添加到用户消息中
+                if file_contents and enhanced_messages and enhanced_messages[-1]['role'] == 'user':
+                    last_message = enhanced_messages[-1].copy()
+                    file_info_text = "\n\n[附件文件信息]\n"
+                    for fc in file_contents:
+                        file_info_text += f"\n文件名: {fc['filename']}\n"
+                        file_info_text += f"类型: {fc['type']}\n"
+                        if fc['type'] in ['text', 'pdf', 'word', 'excel', 'ppt']:
+                            content = fc['content']
+                            if len(content) > 5000:
+                                content = content[:5000] + "\n... (内容过长，已截断)"
+                            file_info_text += f"内容:\n{content}\n"
+                        else:
+                            file_info_text += f"说明: {fc['content']}\n"
+                    
+                    last_message['content'] += file_info_text
+                    enhanced_messages[-1] = last_message
+            
+            # 使用普通API调用
+            if supplier_display_name == "硅基流动":
+                return self._call_siliconflow_api(
+                    enhanced_messages, model_name, api_endpoint, api_key,
+                    max_tokens, temperature, start_time
+                )
+            elif supplier_display_name == "OpenAI":
+                return self._call_openai_api_directly(
+                    enhanced_messages, model_name, api_endpoint, api_key,
+                    max_tokens, temperature, start_time
+                )
+            else:
+                return self._call_generic_api(
+                    enhanced_messages, model_name, api_endpoint, api_key,
+                    max_tokens, temperature, supplier_display_name, start_time
+                )
+                
+        except Exception as e:
+            logger.error(f"降级到文本解析方式失败: {str(e)}")
+            return self._get_api_error_response(supplier_display_name, str(e), model_name, start_time)
+    
+    def _parse_non_streaming_response(self, response, model_name, start_time):
+        """解析非流式响应"""
+        try:
+            if 'choices' in response and len(response['choices']) > 0:
+                content = response['choices'][0].get('message', {}).get('content', '')
+                return {
+                    'generated_text': content,
+                    'model': model_name,
+                    'tokens_used': response.get('usage', {}).get('total_tokens', 0),
+                    'execution_time_ms': round((time.time() - start_time) * 1000, 2),
+                    'success': True
+                }
+            else:
+                return self._get_api_error_response(model_name, "响应格式错误", model_name, start_time)
+        except Exception as e:
+            return self._get_api_error_response(model_name, str(e), model_name, start_time)
     
     def _analyze_failures(self, attempt_history: List[Dict]) -> str:
         """分析失败原因"""

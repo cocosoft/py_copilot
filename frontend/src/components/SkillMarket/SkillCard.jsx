@@ -1,33 +1,30 @@
-import React from 'react';
+import React, { memo, useCallback, useMemo } from 'react';
 
 /**
  * 技能卡片组件
  * 显示单个技能的摘要信息和操作按钮
  */
-const SkillCard = ({ 
+const SkillCard = memo(({ 
   skill, 
   viewMode = 'grid', 
   onSelect, 
   onInstall, 
   onUninstall 
 }) => {
-  // 处理安装/卸载操作
-  const handleInstallClick = (e) => {
+  const handleInstallClick = useCallback((e) => {
     e.stopPropagation();
     if (skill.installed) {
       onUninstall(skill.id);
     } else {
       onInstall(skill.id);
     }
-  };
+  }, [skill.installed, skill.id, onInstall, onUninstall]);
 
-  // 处理卡片点击
-  const handleCardClick = () => {
+  const handleCardClick = useCallback(() => {
     onSelect(skill);
-  };
+  }, [onSelect, skill]);
 
-  // 渲染评分星星
-  const renderRatingStars = (rating) => {
+  const renderRatingStars = useCallback((rating) => {
     const stars = [];
     const fullStars = Math.floor(rating);
     const hasHalfStar = rating % 1 >= 0.5;
@@ -48,10 +45,9 @@ const SkillCard = ({
         <span className="skill-card__rating-value">{rating.toFixed(1)}</span>
       </div>
     );
-  };
+  }, []);
 
-  // 渲染标签
-  const renderTags = (tags, maxTags = 3) => {
+  const renderTags = useCallback((tags, maxTags = 3) => {
     if (!tags || tags.length === 0) return null;
 
     const displayedTags = tags.slice(0, maxTags);
@@ -71,35 +67,45 @@ const SkillCard = ({
         )}
       </div>
     );
-  };
+  }, []);
 
-  // 网格视图
+  const downloadsText = useMemo(() => {
+    if (!skill.downloads) return null;
+    return skill.downloads >= 1000 
+      ? `${(skill.downloads / 1000).toFixed(1)}k` 
+      : skill.downloads;
+  }, [skill.downloads]);
+
+  const lastUpdatedText = useMemo(() => {
+    if (!skill.lastUpdated) return null;
+    return `更新于 ${new Date(skill.lastUpdated).toLocaleDateString()}`;
+  }, [skill.lastUpdated]);
+
+  const iconPlaceholder = useMemo(() => skill.name.charAt(0).toUpperCase(), [skill.name]);
+
   if (viewMode === 'grid') {
     return (
       <div 
         className={`skill-card skill-card--grid ${skill.installed ? 'skill-card--installed' : ''}`}
         onClick={handleCardClick}
       >
-        {/* 技能图标 */}
         <div className="skill-card__header">
           <div className="skill-card__icon">
             {skill.icon ? (
               <img src={skill.icon} alt={skill.name} />
             ) : (
               <div className="skill-card__icon-placeholder">
-                {skill.name.charAt(0).toUpperCase()}
+                {iconPlaceholder}
               </div>
             )}
           </div>
           
-          {/* 安装状态徽章 */}
           {skill.installed && (
             <div className="skill-card__badge skill-card__badge--installed">
               已安装
             </div>
           )}
           
-          {/* 热门徽章 */}
           {skill.popular && (
             <div className="skill-card__badge skill-card__badge--popular">
               热门
@@ -107,7 +113,6 @@ const SkillCard = ({
           )}
         </div>
 
-        {/* 技能信息 */}
         <div className="skill-card__content">
           <h3 className="skill-card__title" title={skill.name}>
             {skill.name}
@@ -117,31 +122,24 @@ const SkillCard = ({
             {skill.description}
           </p>
           
-          {/* 技能分类 */}
           {skill.category && (
             <div className="skill-card__category">
               <span className="skill-card__category-label">{skill.category}</span>
             </div>
           )}
           
-          {/* 评分和下载量 */}
           <div className="skill-card__stats">
             {skill.rating && renderRatingStars(skill.rating)}
             {skill.downloads && (
               <span className="skill-card__downloads">
-                {skill.downloads >= 1000 
-                  ? `${(skill.downloads / 1000).toFixed(1)}k` 
-                  : skill.downloads
-                } 次下载
+                {downloadsText} 次下载
               </span>
             )}
           </div>
           
-          {/* 标签 */}
           {renderTags(skill.tags)}
         </div>
 
-        {/* 操作按钮 */}
         <div className="skill-card__actions">
           <button 
             className={`skill-card__install-button ${skill.installed ? 'skill-card__install-button--uninstall' : 'skill-card__install-button--install'}`}
@@ -161,21 +159,19 @@ const SkillCard = ({
     );
   }
 
-  // 列表视图
   return (
     <div 
       className={`skill-card skill-card--list ${skill.installed ? 'skill-card--installed' : ''}`}
       onClick={handleCardClick}
     >
       <div className="skill-card__list-content">
-        {/* 左侧：图标和基本信息 */}
         <div className="skill-card__list-left">
           <div className="skill-card__icon skill-card__icon--list">
             {skill.icon ? (
               <img src={skill.icon} alt={skill.name} />
             ) : (
               <div className="skill-card__icon-placeholder">
-                {skill.name.charAt(0).toUpperCase()}
+                {iconPlaceholder}
               </div>
             )}
           </div>
@@ -195,7 +191,6 @@ const SkillCard = ({
               {skill.description}
             </p>
             
-            {/* 分类和标签 */}
             <div className="skill-card__list-meta">
               {skill.category && (
                 <span className="skill-card__category">{skill.category}</span>
@@ -205,9 +200,7 @@ const SkillCard = ({
           </div>
         </div>
 
-        {/* 右侧：统计信息和操作 */}
         <div className="skill-card__list-right">
-          {/* 统计信息 */}
           <div className="skill-card__list-stats">
             {skill.rating && (
               <div className="skill-card__rating-container">
@@ -218,10 +211,7 @@ const SkillCard = ({
             {skill.downloads && (
               <div className="skill-card__downloads-container">
                 <span className="skill-card__downloads-count">
-                  {skill.downloads >= 1000 
-                    ? `${(skill.downloads / 1000).toFixed(1)}k` 
-                    : skill.downloads
-                  }
+                  {downloadsText}
                 </span>
                 <span className="skill-card__downloads-label">下载</span>
               </div>
@@ -230,13 +220,12 @@ const SkillCard = ({
             {skill.lastUpdated && (
               <div className="skill-card__update-container">
                 <span className="skill-card__update-label">
-                  更新于 {new Date(skill.lastUpdated).toLocaleDateString()}
+                  {lastUpdatedText}
                 </span>
               </div>
             )}
           </div>
 
-          {/* 操作按钮 */}
           <div className="skill-card__list-actions">
             <button 
               className={`skill-card__install-button ${skill.installed ? 'skill-card__install-button--uninstall' : 'skill-card__install-button--install'}`}
@@ -256,6 +245,6 @@ const SkillCard = ({
       </div>
     </div>
   );
-};
+});
 
 export default SkillCard;

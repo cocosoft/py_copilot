@@ -617,7 +617,8 @@ const Chat = () => {
           use_llm: true,
           model_name: selectedModel ? selectedModel.model_id : 'moonshotai/Kimi-K2-Thinking',
           enable_thinking_chain: enableThinkingChain,
-          attached_files: uploadedFiles.map(f => f.id)
+          attached_files: uploadedFiles.map(f => f.id),
+          use_file_upload: null  // null表示自动选择，true表示强制使用文件上传，false表示强制使用文本解析
         };
         
         // 只有在有活跃话题时才添加topic_id
@@ -723,7 +724,8 @@ const Chat = () => {
         use_llm: true,
         model_name: selectedModel ? selectedModel.model_id : 'moonshotai/Kimi-K2-Thinking',
         enable_thinking_chain: enableThinkingChain,
-        attached_files: uploadedFiles.map(f => f.id)
+        attached_files: uploadedFiles.map(f => f.id),
+        use_file_upload: null  // null表示自动选择，true表示强制使用文件上传，false表示强制使用文本解析
       };
       
       console.log('流式响应消息数据:', JSON.stringify(messageData, null, 2));

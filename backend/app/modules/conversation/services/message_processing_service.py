@@ -15,14 +15,44 @@ class MessageProcessingService:
     """消息处理服务类"""
     
     @staticmethod
-    def process_attached_files(db: Session, request: SendMessageRequest) -> str:
-        """处理附件文件"""
+    def process_attached_files(db: Session, request: SendMessageRequest, model_name: Optional[str] = None) -> tuple:
+        """
+        处理附件文件
+        
+        Returns:
+            tuple: (file_info: str, file_upload_data: Optional[dict])
+                   file_info: 文本形式的文件信息（用于不支持文件上传的模型）
+                   file_upload_data: 文件上传数据（用于支持文件上传的模型）
+        """
         file_contents = []
+        file_upload_data = None
         
         if request.attached_files and len(request.attached_files) > 0:
             from app.models.chat_enhancements import UploadedFile
+            from app.models.supplier_db import ModelDB
             from pathlib import Path
             
+            # 检查模型是否支持文件上传
+            supports_upload = False
+            if model_name:
+                model = db.query(ModelDB).filter(
+                    (ModelDB.model_id == model_name) | 
+                    (ModelDB.model_name == model_name)
+                ).first()
+                if model and hasattr(model, 'supports_file_upload'):
+                    supports_upload = model.supports_file_upload
+            
+            # 决定使用哪种方式
+            use_upload = False
+            if request.use_file_upload is not None:
+                # 用户明确指定
+                use_upload = request.use_file_upload
+            else:
+                # 自动选择：如果模型支持文件上传且有附件，则使用上传方式
+                use_upload = supports_upload
+            
+            # 收集文件信息
+            files_info = []
             for file_id in request.attached_files:
                 try:
                     uploaded_file = db.query(UploadedFile).filter(UploadedFile.id == file_id).first()
@@ -30,29 +60,56 @@ class MessageProcessingService:
                         # 确保文件路径是绝对路径
                         file_path = Path(uploaded_file.file_path)
                         if not file_path.is_absolute():
-                            # 如果是相对路径，转换为绝对路径
                             file_path = Path(__file__).parent.parent.parent.parent / uploaded_file.file_path
                         
                         if file_path.exists():
-                            # 使用文件处理器服务处理文件
-                            from app.modules.file.services.file_processor import file_processor_service
-                            try:
-                                file_result = file_processor_service.process_file(
-                                    file_path=file_path,
-                                    file_name=uploaded_file.file_name,
-                                    file_type=uploaded_file.file_type
-                                )
-                                file_contents.append(file_result)
-                            except Exception as e:
-                                file_contents.append({
-                                    'filename': uploaded_file.file_name,
-                                    'content': f"[文件内容读取失败: {str(e)}]",
-                                    'type': uploaded_file.file_type
-                                })
+                            files_info.append({
+                                'id': uploaded_file.id,
+                                'path': file_path,
+                                'name': uploaded_file.file_name,
+                                'type': uploaded_file.file_type,
+                                'mime_type': uploaded_file.mime_type,
+                                'size': uploaded_file.file_size
+                            })
+                        else:
+                            print(f"文件不存在: {file_path}")
                     else:
                         print(f"未找到文件ID: {file_id}")
                 except Exception as e:
                     print(f"处理文件 {file_id} 时出错: {str(e)}")
+            
+            # 如果使用文件上传方式
+            if use_upload and files_info:
+                file_upload_data = {
+                    'files': files_info,
+                    'use_upload': True
+                }
+                # 仍然生成简单的文本信息作为后备
+                file_info = "\n\n[附件文件]\n"
+                for fi in files_info:
+                    file_info += f"- {fi['name']} ({fi['type']})\n"
+                return file_info, file_upload_data
+            
+            # 否则使用文本解析方式
+            for fi in files_info:
+                try:
+                    # 使用文件处理器服务处理文件
+                    from app.modules.file.services.file_processor import file_processor_service
+                    try:
+                        file_result = file_processor_service.process_file(
+                            file_path=fi['path'],
+                            file_name=fi['name'],
+                            file_type=fi['type']
+                        )
+                        file_contents.append(file_result)
+                    except Exception as e:
+                        file_contents.append({
+                            'filename': fi['name'],
+                            'content': f"[文件内容读取失败: {str(e)}]",
+                            'type': fi['type']
+                        })
+                except Exception as e:
+                    print(f"处理文件 {fi['name']} 时出错: {str(e)}")
         
         # 如果有文件内容，将其附加到用户消息中
         if file_contents:
@@ -69,12 +126,14 @@ class MessageProcessingService:
                 else:
                     file_info += f"说明: {fc['content']}\n"
             
-            return file_info
-        return ""
+            return file_info, file_upload_data
+        
+        return "", file_upload_data
     
     @staticmethod
     def process_message_with_llm(db: Session, conversation: Conversation, user_message: Message, 
-                                 active_topic: Topic, request: SendMessageRequest) -> Optional[Message]:
+                                 active_topic: Topic, request: SendMessageRequest, 
+                                 file_upload_data: Optional[Dict[str, Any]] = None) -> Optional[Message]:
         """使用LLM处理消息"""
         # 获取当前活跃话题的消息作为上下文
         conversation_history = db.query(Message).filter(
@@ -91,12 +150,13 @@ class MessageProcessingService:
             # 使用请求中的模型名称，如果没有则使用默认值
             model_name = request.model_name or "gpt-3.5-turbo"
             
-            # 调用增强的LLM服务
+            # 调用增强的LLM服务，传递文件上传数据
             llm_response = enhanced_llm_service.chat_completion(
                 messages=chat_messages,
                 model_name=model_name,
                 db=db,
-                agent_id=getattr(conversation, 'agent_id', None)
+                agent_id=getattr(conversation, 'agent_id', None),
+                file_upload_data=file_upload_data
             )
             
             # 检查是否是流式响应（生成器）

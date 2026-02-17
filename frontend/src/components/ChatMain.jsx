@@ -164,11 +164,8 @@ const ChatMain = ({
         console.log('更新后的文件列表:', newFiles);
         return newFiles;
       });
-
-      alert('文件上传成功！');
     } catch (error) {
       console.error('文件上传错误:', error);
-      alert(`文件上传失败: ${error.message}`);
     } finally {
       setIsUploading(false);
       // 清空input，允许重复上传同一文件
@@ -190,10 +187,8 @@ const ChatMain = ({
       }
 
       setUploadedFiles(prev => prev.filter(f => f.id !== fileId));
-      alert('文件删除成功！');
     } catch (error) {
       console.error('删除文件错误:', error);
-      alert(`删除文件失败: ${error.message}`);
     }
   };
 

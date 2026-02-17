@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { memo, useCallback } from 'react';
 import './Button.css';
 
 /**
  * 统一按钮组件
  * 支持多种变体、大小、状态和图标
  */
-const Button = ({
+const Button = memo(({
   children,
   variant = 'primary', // primary, secondary, success, warning, danger, outline, ghost
   size = 'medium', // small, medium, large
@@ -33,11 +33,11 @@ const Button = ({
     className
   ].filter(Boolean).join(' ');
 
-  const handleClick = (e) => {
+  const handleClick = useCallback((e) => {
     if (!disabled && !loading && onClick) {
       onClick(e);
     }
-  };
+  }, [disabled, loading, onClick]);
 
   return (
     <button
@@ -72,6 +72,6 @@ const Button = ({
       )}
     </button>
   );
-};
+});
 
 export default Button;

@@ -58,29 +58,38 @@ class TextFileProcessor(FileProcessorInterface):
 
 class WordFileProcessor(FileProcessorInterface):
     """Word文件处理器"""
-    
+
     def can_process(self, file_path: Path, file_type: str) -> bool:
         return file_type == 'word' or file_path.suffix in ['.docx', '.doc']
-    
+
     def process(self, file_path: Path, file_name: str) -> Dict[str, Any]:
         """处理Word文件"""
         content = ""
         error_message = None
-        
+
         try:
             if file_path.suffix == '.docx':
-                from docx import Document
-                doc = Document(file_path)
-                content = '\n'.join([para.text for para in doc.paragraphs])
+                import zipfile
+                import xml.etree.ElementTree as ET
+
+                word_data = []
+                
+                with zipfile.ZipFile(file_path, 'r') as zip_ref:
+                    xml_content = zip_ref.read('word/document.xml')
+                    root = ET.fromstring(xml_content)
+
+                    for elem in root.iter():
+                        if elem.text:
+                            word_data.append(elem.text)
+
+                content = '\n'.join(word_data)
             elif file_path.suffix == '.doc':
-                content = "[.doc文件内容需要特殊处理]"
+                content = "[.doc文件格式较旧，建议转换为.docx格式后上传]"
             else:
                 content = f"[Word文件内容需要特殊处理: {file_path.suffix}]"
-        except ImportError:
-            error_message = "缺少python-docx库"
         except Exception as e:
             error_message = f"读取失败: {str(e)}"
-        
+
         if error_message:
             return {
                 'filename': file_name,
@@ -88,7 +97,7 @@ class WordFileProcessor(FileProcessorInterface):
                 'type': 'word',
                 'error': error_message
             }
-        
+
         return {
             'filename': file_name,
             'content': content,
@@ -98,29 +107,82 @@ class WordFileProcessor(FileProcessorInterface):
 
 class ExcelFileProcessor(FileProcessorInterface):
     """Excel文件处理器"""
-    
+
     def can_process(self, file_path: Path, file_type: str) -> bool:
         return file_type == 'excel' or file_path.suffix in ['.xlsx', '.xls']
-    
+
     def process(self, file_path: Path, file_name: str) -> Dict[str, Any]:
         """处理Excel文件"""
         content = ""
         error_message = None
-        
+
         try:
-            import pandas as pd
+            import zipfile
+            import xml.etree.ElementTree as ET
+            import csv
+            import io
+
             excel_data = []
-            xl_file = pd.ExcelFile(file_path)
-            for sheet_name in xl_file.sheet_names:
-                df = pd.read_excel(xl_file, sheet_name)
-                excel_data.append(f"=== Sheet: {sheet_name} ===")
-                excel_data.append(df.to_string())
+
+            if file_path.suffix == '.xlsx':
+                with zipfile.ZipFile(file_path, 'r') as zip_ref:
+                    workbook_xml = zip_ref.read('xl/workbook.xml')
+                    workbook_root = ET.fromstring(workbook_xml)
+
+                    sheets = []
+                    for sheet in workbook_root.findall('.//{http://schemas.openxmlformats.org/spreadsheetml/2006/main}sheet'):
+                        sheet_name = sheet.get('name')
+                        sheet_id = sheet.get('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id')
+                        sheets.append((sheet_name, sheet_id))
+
+                    for sheet_name, sheet_id in sheets:
+                        excel_data.append(f"=== Sheet: {sheet_name} ===")
+
+                        try:
+                            worksheet_path = f'xl/worksheets/sheet{int(sheet_id.split("sheet")[-1])}.xml'
+                            worksheet_xml = zip_ref.read(worksheet_path)
+                            worksheet_root = ET.fromstring(worksheet_xml)
+
+                            shared_strings = {}
+                            try:
+                                shared_strings_xml = zip_ref.read('xl/sharedStrings.xml')
+                                shared_strings_root = ET.fromstring(shared_strings_xml)
+                                for i, si in enumerate(shared_strings_root.findall('.//{http://schemas.openxmlformats.org/spreadsheetml/2006/main}si')):
+                                    t = si.find('.//{http://schemas.openxmlformats.org/spreadsheetml/2006/main}t')
+                                    if t is not None and t.text:
+                                        shared_strings[str(i)] = t.text
+                            except:
+                                pass
+
+                            rows = worksheet_root.findall('.//{http://schemas.openxmlformats.org/spreadsheetml/2006/main}row')
+                            for row in rows:
+                                row_data = []
+                                cells = row.findall('.//{http://schemas.openxmlformats.org/spreadsheetml/2006/main}c')
+                                for cell in cells:
+                                    cell_value = ""
+                                    v = cell.find('.//{http://schemas.openxmlformats.org/spreadsheetml/2006/main}v')
+                                    if v is not None and v.text:
+                                        cell_type = cell.get('t')
+                                        if cell_type == 's':
+                                            cell_value = shared_strings.get(v.text, v.text)
+                                        else:
+                                            cell_value = v.text
+                                    row_data.append(cell_value)
+                                if row_data:
+                                    excel_data.append('\t'.join(row_data))
+
+                        except Exception as e:
+                            excel_data.append(f"[读取Sheet失败: {str(e)}]")
+
+                        excel_data.append("")
+
+            elif file_path.suffix == '.xls':
+                excel_data.append("[.xls文件格式较旧，建议转换为.xlsx格式后上传]")
+
             content = '\n'.join(excel_data)
-        except ImportError:
-            error_message = "缺少pandas库"
         except Exception as e:
             error_message = f"读取失败: {str(e)}"
-        
+
         if error_message:
             return {
                 'filename': file_name,
@@ -128,7 +190,7 @@ class ExcelFileProcessor(FileProcessorInterface):
                 'type': 'excel',
                 'error': error_message
             }
-        
+
         return {
             'filename': file_name,
             'content': content,
@@ -138,38 +200,47 @@ class ExcelFileProcessor(FileProcessorInterface):
 
 class PptFileProcessor(FileProcessorInterface):
     """PPT文件处理器"""
-    
+
     def can_process(self, file_path: Path, file_type: str) -> bool:
         return file_type == 'ppt' or file_path.suffix in ['.pptx']
-    
+
     def process(self, file_path: Path, file_name: str) -> Dict[str, Any]:
         """处理PPT文件"""
         content = ""
         error_message = None
-        
+
         try:
-            from pptx import Presentation
+            import zipfile
+            import xml.etree.ElementTree as ET
+
             ppt_data = []
-            prs = Presentation(file_path)
-            
-            for i, slide in enumerate(prs.slides):
-                slide_content = []
-                slide_content.append(f"=== Slide {i+1} ===")
-                
-                for shape in slide.shapes:
-                    if hasattr(shape, 'text') and shape.text:
-                        slide_content.append(shape.text)
-                
-                if slide_content:
-                    ppt_data.extend(slide_content)
-                    ppt_data.append("")  # 添加空行分隔幻灯片
-            
+
+            with zipfile.ZipFile(file_path, 'r') as zip_ref:
+                slide_files = sorted([f for f in zip_ref.namelist() if f.startswith('ppt/slides/slide') and f.endswith('.xml')])
+
+                for slide_file in slide_files:
+                    slide_number = slide_file.split('/')[-1].replace('slide', '').replace('.xml', '')
+                    ppt_data.append(f"=== Slide {slide_number} ===")
+
+                    try:
+                        slide_xml = zip_ref.read(slide_file)
+                        slide_root = ET.fromstring(slide_xml)
+
+                        for elem in slide_root.iter():
+                            if elem.text and elem.text.strip():
+                                text = elem.text.strip()
+                                if text and len(text) > 1:
+                                    ppt_data.append(text)
+
+                    except Exception as e:
+                        ppt_data.append(f"[读取幻灯片失败: {str(e)}]")
+
+                    ppt_data.append("")
+
             content = '\n'.join(ppt_data)
-        except ImportError:
-            error_message = "缺少python-pptx库"
         except Exception as e:
             error_message = f"读取失败: {str(e)}"
-        
+
         if error_message:
             return {
                 'filename': file_name,
@@ -177,7 +248,7 @@ class PptFileProcessor(FileProcessorInterface):
                 'type': 'ppt',
                 'error': error_message
             }
-        
+
         return {
             'filename': file_name,
             'content': content,
@@ -187,27 +258,35 @@ class PptFileProcessor(FileProcessorInterface):
 
 class PdfFileProcessor(FileProcessorInterface):
     """PDF文件处理器"""
-    
+
     def can_process(self, file_path: Path, file_type: str) -> bool:
         return file_type == 'pdf' or file_path.suffix == '.pdf'
-    
+
     def process(self, file_path: Path, file_name: str) -> Dict[str, Any]:
         """处理PDF文件"""
         content = ""
         error_message = None
-        
+
         try:
-            import pdfplumber
-            with pdfplumber.open(file_path) as pdf:
-                for page in pdf.pages:
+            from PyPDF2 import PdfReader
+
+            pdf_reader = PdfReader(file_path)
+            pdf_data = []
+
+            for page_num, page in enumerate(pdf_reader.pages):
+                try:
                     page_text = page.extract_text()
                     if page_text:
-                        content += page_text + '\n'
-        except ImportError:
-            error_message = "缺少pdfplumber库"
+                        pdf_data.append(f"=== 第 {page_num + 1} 页 ===")
+                        pdf_data.append(page_text)
+                        pdf_data.append("")
+                except Exception as e:
+                    pdf_data.append(f"[读取第 {page_num + 1} 页失败: {str(e)}]")
+
+            content = '\n'.join(pdf_data)
         except Exception as e:
             error_message = f"读取失败: {str(e)}"
-        
+
         if error_message:
             return {
                 'filename': file_name,
@@ -215,7 +294,7 @@ class PdfFileProcessor(FileProcessorInterface):
                 'type': 'pdf',
                 'error': error_message
             }
-        
+
         return {
             'filename': file_name,
             'content': content,

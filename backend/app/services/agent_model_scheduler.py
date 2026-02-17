@@ -178,16 +178,17 @@ class AgentModelScheduler:
         if not model:
             raise ValueError(f"默认模型关联的模型不存在 (ID: {default_model.model_id})")
             
-        # 获取模型能力
-        capabilities = {}
-        associations = self.db.query(ModelCapabilityAssociation).filter(
+        # 获取模型能力，使用selectinload预加载避免N+1查询
+        from sqlalchemy.orm import selectinload
+        
+        associations = self.db.query(ModelCapabilityAssociation).options(
+            selectinload(ModelCapabilityAssociation.capability)
+        ).filter(
             ModelCapabilityAssociation.model_id == model.id
         ).all()
         
         for association in associations:
-            capability = self.db.query(ModelCapability).filter(
-                ModelCapability.id == association.capability_id
-            ).first()
+            capability = association.capability
             
             if capability:
                 capabilities[capability.name] = {
@@ -265,15 +266,15 @@ class AgentModelScheduler:
                 "estimated_response_time": self._estimate_response_time(model)
             }
             
-            # 获取模型的能力关联
-            associations = self.db.query(ModelCapabilityAssociation).filter(
+            # 获取模型的能力关联，使用selectinload预加载避免N+1查询
+            associations = self.db.query(ModelCapabilityAssociation).options(
+                selectinload(ModelCapabilityAssociation.capability)
+            ).filter(
                 ModelCapabilityAssociation.model_id == model.id
             ).all()
             
             for association in associations:
-                capability = self.db.query(ModelCapability).filter(
-                    ModelCapability.id == association.capability_id
-                ).first()
+                capability = association.capability
                 
                 if capability:
                     model_info["capabilities"][capability.name] = {
@@ -296,15 +297,15 @@ class AgentModelScheduler:
                 "estimated_response_time": self._estimate_response_time(model)
             }
             
-            # 获取模型的能力关联
-            associations = self.db.query(ModelCapabilityAssociation).filter(
+            # 获取模型的能力关联，使用selectinload预加载避免N+1查询
+            associations = self.db.query(ModelCapabilityAssociation).options(
+                selectinload(ModelCapabilityAssociation.capability)
+            ).filter(
                 ModelCapabilityAssociation.model_id == model.id
             ).all()
             
             for association in associations:
-                capability = self.db.query(ModelCapability).filter(
-                    ModelCapability.id == association.capability_id
-                ).first()
+                capability = association.capability
                 
                 if capability:
                     model_info["capabilities"][capability.name] = {

@@ -68,7 +68,43 @@
   font-weight: 300;
 }
 
-/* 智能体分类 */
+.import-icon {
+  font-size: 18px;
+  font-weight: 300;
+}
+
+.import-agent-btn {
+  width: 100%;
+  padding: 12px 16px;
+  background-color: #27ae60;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background-color 0.3s;
+  margin-bottom: 24px;
+}
+
+.import-agent-btn:hover {
+  background-color: #229954;
+}
+
+.export-btn {
+  background-color: #9b59b6 !important;
+}
+
+.export-btn:hover {
+  background-color: #8e44ad !important;
+  box-shadow: 0 2px 6px rgba(155, 89, 182, 0.3);
+}
+
+/* 创建分类按钮 */
 .agent-categories h3 {
   font-size: 14px;
   font-weight: 600;
@@ -784,7 +820,7 @@
   margin-top: 12px;
 }
 
-.chat-btn, .edit-btn, .del-btn, .param-btn {
+.chat-btn, .edit-btn, .del-btn, .param-btn, .copy-btn {
   flex: 1;
   padding: 8px 8px !important;
   color: white !important;
@@ -836,6 +872,15 @@
   box-shadow: 0 2px 6px rgba(139, 92, 246, 0.3);
 }
 
+.copy-btn {
+  background-color: #10b981 !important;
+}
+
+.copy-btn:hover {
+  background-color: #059669 !important;
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
+}
+
 .more-btn {
   background: none;
   border: 1px solid #e1e8ed;
@@ -853,6 +898,22 @@
 
 .more-btn:hover {
   background-color: #f8f9fa;
+}
+
+/* 已删除智能体卡片样式 */
+.agent-card.deleted-card {
+  opacity: 0.7;
+  background-color: #f8f9fa;
+  border: 1px dashed #ccc;
+}
+
+.restore-btn {
+  background-color: #10b981 !important;
+}
+
+.restore-btn:hover {
+  background-color: #059669 !important;
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
 }
 
 /* 滚动条样式 */

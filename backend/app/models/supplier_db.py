@@ -67,6 +67,7 @@ class ModelDB(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     logo = Column(String(255), nullable=True)  # 模型LOGO存储路径或URL
+    supports_file_upload = Column(Boolean, default=False)  # 是否支持文件上传功能
     
     # 添加关系定义，使用lazy='select'避免自动加载
     supplier = relationship("SupplierDB", back_populates="models", lazy='select')

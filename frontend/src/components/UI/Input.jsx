@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { memo, useCallback, useMemo } from 'react';
 import './Input.css';
 
 /**
  * 统一输入框组件
  * 支持多种类型、大小、状态和图标
  */
-const Input = ({
+const Input = memo(({
   type = 'text',
   size = 'medium', // small, medium, large
   disabled = false,
@@ -22,32 +22,34 @@ const Input = ({
   className = '',
   ...props
 }) => {
-  const baseClass = 'ui-input';
-  const sizeClass = `ui-input--${size}`;
-  const disabledClass = disabled ? 'ui-input--disabled' : '';
-  const errorClass = error ? 'ui-input--error' : '';
-  const successClass = success ? 'ui-input--success' : '';
-  const loadingClass = loading ? 'ui-input--loading' : '';
-  const hasIconClass = icon ? 'ui-input--has-icon' : '';
-  const iconPositionClass = `ui-input--icon-${iconPosition}`;
-  
-  const classes = [
-    baseClass,
-    sizeClass,
-    disabledClass,
-    errorClass,
-    successClass,
-    loadingClass,
-    hasIconClass,
-    iconPositionClass,
-    className
-  ].filter(Boolean).join(' ');
+  const classes = useMemo(() => {
+    const baseClass = 'ui-input';
+    const sizeClass = `ui-input--${size}`;
+    const disabledClass = disabled ? 'ui-input--disabled' : '';
+    const errorClass = error ? 'ui-input--error' : '';
+    const successClass = success ? 'ui-input--success' : '';
+    const loadingClass = loading ? 'ui-input--loading' : '';
+    const hasIconClass = icon ? 'ui-input--has-icon' : '';
+    const iconPositionClass = `ui-input--icon-${iconPosition}`;
+    
+    return [
+      baseClass,
+      sizeClass,
+      disabledClass,
+      errorClass,
+      successClass,
+      loadingClass,
+      hasIconClass,
+      iconPositionClass,
+      className
+    ].filter(Boolean).join(' ');
+  }, [size, disabled, error, success, loading, icon, iconPosition, className]);
 
-  const handleChange = (e) => {
+  const handleChange = useCallback((e) => {
     if (!disabled && !loading && onChange) {
       onChange(e);
     }
-  };
+  }, [disabled, loading, onChange]);
 
   return (
     <div className={classes}>
@@ -96,6 +98,6 @@ const Input = ({
       )}
     </div>
   );
-};
+});
 
 export default Input;
