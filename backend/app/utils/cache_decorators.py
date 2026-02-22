@@ -49,21 +49,27 @@ def cache_result(ttl: int = 300, cache_key_prefix: str = ""):
             import asyncio
             
             # 尝试从缓存获取
-            cached = asyncio.run(cache_service.get(cache_key))
-            if cached:
-                logger.info(f"从缓存获取: {cache_key}")
-                return cached.get("data")
+            try:
+                cached = asyncio.run(cache_service.get(cache_key))
+                if cached:
+                    logger.info(f"从缓存获取: {cache_key}")
+                    return cached.get("data")
+            except Exception as e:
+                logger.warning(f"缓存获取失败，直接执行函数: {str(e)}")
             
             # 缓存未命中，执行函数
             result = func(*args, **kwargs)
             
             # 设置缓存
-            asyncio.run(cache_service.set(
-                cache_key,
-                {"data": result},
-                timeout=timedelta(seconds=ttl)
-            ))
-            logger.info(f"设置缓存: {cache_key}, TTL: {ttl}秒")
+            try:
+                asyncio.run(cache_service.set(
+                    cache_key,
+                    {"data": result},
+                    timeout=timedelta(seconds=ttl)
+                ))
+                logger.info(f"设置缓存: {cache_key}, TTL: {ttl}秒")
+            except Exception as e:
+                logger.warning(f"缓存设置失败: {str(e)}")
             
             return result
         

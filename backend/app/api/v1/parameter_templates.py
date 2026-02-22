@@ -11,10 +11,7 @@ from app.schemas.parameter_template import (
     ParameterTemplateCreate,
     ParameterTemplateUpdate,
     ParameterTemplateResponse,
-    ParameterTemplateListResponse,
-    MergedParametersResponse,
-    ParameterTemplateLinkRequest,
-    ParameterTemplateLinkResponse
+    ParameterTemplateListResponse
 )
 
 from app.services.parameter_management.parameter_manager import ParameterManager
@@ -114,20 +111,29 @@ def get_parameter_templates(
     templates = TemplateManager.search_templates(
         db, 
         name=name, 
-        level=level, 
         dimension_id=dimension_id, 
         subdimension_id=subdimension_id, 
         capability_id=capability_id, 
         active_only=active_only
     )
     
+    # 如果指定了level，进行过滤
+    if level:
+        templates = [t for t in templates if t.level == level]
+    
     # 分页
     total = len(templates)
     paginated_templates = templates[skip : skip + limit]
+    pages = (total + limit - 1) // limit if limit > 0 else 0
+    page = skip // limit + 1 if limit > 0 else 1
+    size = limit
     
     return ParameterTemplateListResponse(
-        templates=paginated_templates,
-        total=total
+        items=paginated_templates,
+        total=total,
+        page=page,
+        size=size,
+        pages=pages
     )
 
 
@@ -392,63 +398,6 @@ def get_parameter_templates_by_level_and_id(
         templates=templates,
         total=total
     )
-
-
-@router.get("/parameter-templates/{template_id}/merged-parameters", response_model=MergedParametersResponse)
-def get_merged_parameters(
-    template_id: int,
-    db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
-) -> Any:
-    """
-    获取合并后的参数配置
-    
-    Args:
-        template_id: 参数模板ID
-        db: 数据库会话
-        current_user: 当前用户
-        
-    Returns:
-        合并后的参数配置
-    """
-    template = db.query(ParameterTemplate).filter(ParameterTemplate.id == template_id).first()
-    if not template:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="参数模板不存在"
-        )
-    
-    # 使用ParameterManager中的统一实现获取合并参数
-    merged_params = ParameterManager.get_merged_parameters(db, template_id)
-    
-    # 构建继承路径
-    inheritance_path = []
-    current_template = template
-    while current_template:
-        inheritance_path.insert(0, current_template.id)
-        if current_template.parent_id:
-            current_template = db.query(ParameterTemplate).filter(
-                ParameterTemplate.id == current_template.parent_id
-            ).first()
-        else:
-            # 检查是否有激活的系统模板
-            system_template = db.query(ParameterTemplate).filter(
-                ParameterTemplate.level == "system",
-                ParameterTemplate.is_active == True
-            ).first()
-            if system_template:
-                inheritance_path.insert(0, system_template.id)
-            break
-    
-    return MergedParametersResponse(
-        template_id=template_id,
-        level=template.level,
-        merged_parameters=merged_params,
-        inheritance_path=inheritance_path
-    )
-
-
-
 
 
 @router.post("/suppliers/{supplier_id}/models/{model_id}/parameters/convert", response_model=Dict[str, Any])

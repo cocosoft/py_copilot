@@ -1,14 +1,16 @@
 """对话管理相关API路由"""
 from datetime import datetime
-from typing import Optional, Dict, Any, AsyncGenerator
+from typing import Optional, Dict, Any, AsyncGenerator, Generator
 import json
 import asyncio
+import concurrent.futures
+import logging
 
 from fastapi import APIRouter, HTTPException, Query, status, Body, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from app.core.database import get_db
+from app.core.database import get_db, SessionLocal
 from app.core.security_utils import validate_message_content
 from app.modules.conversation.schemas.conversation import (
     SendMessageRequest, 
@@ -26,6 +28,7 @@ from app.modules.llm.services.llm_service_enhanced import enhanced_llm_service
 from app.models.conversation import Conversation, Message, Topic
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.post("/")
@@ -92,6 +95,27 @@ async def list_conversations(
         "page": page,
         "page_size": page_size
     }
+
+
+@router.get("/stream-test")
+async def test_stream():
+    """
+    测试流式响应是否工作
+    """
+    async def generate():
+        for i in range(5):
+            yield f"data: {json.dumps({'count': i})}\n\n"
+            await asyncio.sleep(0.1)
+        yield "data: [DONE]\n\n"
+    
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        }
+    )
 
 
 @router.get("/{conversation_id}")
@@ -193,7 +217,7 @@ async def send_message(
     if not validation_result['is_valid']:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=validation_result['message']
+            detail=validation_result['errors'][0] if validation_result['errors'] else "消息验证失败"
         )
     
     # 使用清理后的内容
@@ -273,205 +297,250 @@ async def send_message(
 @router.post("/{conversation_id}/messages/stream")
 async def send_message_stream(
     conversation_id: int,
-    request: SendMessageRequest = Body(...),
-    db: Session = Depends(get_db)
+    request: SendMessageRequest = Body(...)
 ):
     """
     在对话中发送消息（流式响应）
+    
+    注意：流式响应需要在生成器内部创建独立的数据库会话，
+    因为FastAPI的依赖注入会在路由函数返回后立即关闭数据库会话，
+    导致生成器内部无法继续使用该会话。
     """
+    logger.info(f"send_message_stream 路由函数被调用，conversation_id: {conversation_id}")
     
     async def generate_stream() -> AsyncGenerator[str, None]:
-        conversation = ConversationService.get_conversation(db, conversation_id)
-        
-        if not conversation:
-            user_id = 1
-            conversation = ConversationService.create_conversation(
-                db, user_id, f"对话 {conversation_id}", ""
-            )
-        
-        validation_result = validate_message_content(request.content)
-        if not validation_result['is_valid']:
-            yield f"data: {json.dumps({'status': 'error', 'error': validation_result['message']})}\n\n"
-            return
-        
-        sanitized_content = validation_result['sanitized_content']
-        
-        # 处理附件文件，获取文件信息和上传数据
-        file_info, file_upload_data = MessageProcessingService.process_attached_files(
-            db, request, request.model_name
-        )
-        if file_info:
-            sanitized_content = sanitized_content + file_info
-        
-        active_topic = TopicService.get_active_topic(db, conversation_id)
-        
-        if request.topic_id:
-            topic = TopicService.get_topic_by_id(db, request.topic_id)
-            if topic:
-                active_topic = topic
-                TopicService.set_active_topic(db, conversation_id, topic.id)
-        
-        if not active_topic:
-            topic_name = "新话题"
-            active_topic = TopicService.create_topic(db, conversation_id, topic_name)
-        
-        user_message = ConversationService.create_user_message(
-            db, conversation_id, sanitized_content, active_topic.id
-        )
-        
-        conversation_history = db.query(Message).filter(
-            Message.conversation_id == conversation.id,
-            Message.topic_id == active_topic.id
-        ).order_by(Message.created_at.asc()).all()
-        
-        chat_messages = [
-            {"role": msg.role, "content": msg.content}
-            for msg in conversation_history
-        ]
-        
-        model_name = request.model_name or "gpt-3.5-turbo"
-        
+        logger.info(f"generate_stream 开始执行，conversation_id: {conversation_id}")
+        db_stream = SessionLocal()
         try:
-            llm_response = enhanced_llm_service.chat_completion(
-                messages=chat_messages,
-                model_name=model_name,
-                db=db,
-                agent_id=getattr(conversation, 'agent_id', None),
-                enable_thinking_chain=request.enable_thinking_chain,
-                file_upload_data=file_upload_data
+            logger.info(f"开始处理流式响应，conversation_id: {conversation_id}")
+            conversation = ConversationService.get_conversation(db_stream, conversation_id)
+            
+            if not conversation:
+                user_id = 1
+                conversation = ConversationService.create_conversation(
+                    db_stream, user_id, f"对话 {conversation_id}", ""
+                )
+            
+            validation_result = validate_message_content(request.content)
+            if not validation_result['is_valid']:
+                yield f"data: {json.dumps({'status': 'error', 'error': validation_result['message']})}\n\n"
+                return
+            
+            sanitized_content = validation_result['sanitized_content']
+            
+            file_info, file_upload_data = MessageProcessingService.process_attached_files(
+                db_stream, request, request.model_name
+            )
+            if file_info:
+                sanitized_content = sanitized_content + file_info
+            
+            active_topic = TopicService.get_active_topic(db_stream, conversation_id)
+            
+            if request.topic_id:
+                topic = TopicService.get_topic_by_id(db_stream, request.topic_id)
+                if topic:
+                    active_topic = topic
+                    TopicService.set_active_topic(db_stream, conversation_id, topic.id)
+            
+            if not active_topic:
+                topic_name = "新话题"
+                active_topic = TopicService.create_topic(db_stream, conversation_id, topic_name)
+            
+            user_message = ConversationService.create_user_message(
+                db_stream, conversation_id, sanitized_content, active_topic.id
             )
             
-            full_response = ""
-            full_reasoning = ""
-            last_reasoning_len = 0  # 记录上次发送的思维链长度
+            conversation_history = db_stream.query(Message).filter(
+                Message.conversation_id == conversation.id,
+                Message.topic_id == active_topic.id
+            ).order_by(Message.created_at.asc()).all()
             
-            # 缓冲区设置：合并小的数据块以提高性能
-            content_buffer = ""
-            thinking_buffer = ""
-            buffer_size = 20  # 缓冲区大小：累积20个字符后发送
+            chat_messages = [
+                {"role": msg.role, "content": msg.content}
+                for msg in conversation_history
+            ]
             
-            if hasattr(llm_response, '__iter__') and not isinstance(llm_response, (list, dict)):
-                for chunk in llm_response:
-                    if isinstance(chunk, dict):
-                        # 处理 type: "thinking" 格式的思维链数据
-                        if chunk.get("type") == "thinking":
-                            thinking_content = chunk.get("content", "")
-                            if thinking_content:
-                                full_reasoning += thinking_content
-                                thinking_buffer += thinking_content
-                                # 缓冲区满时发送
-                                if len(thinking_buffer) >= buffer_size:
-                                    yield f"data: {json.dumps({'status': 'streaming', 'thinking': thinking_buffer})}\n\n"
-                                    thinking_buffer = ""
-                        
-                        # 处理 type: "content" 格式的内容数据
-                        elif chunk.get("type") == "content":
-                            content = chunk.get("content", "")
-                            if content:
-                                full_response += content
-                                content_buffer += content
-                                # 缓冲区满时发送
-                                if len(content_buffer) >= buffer_size:
-                                    yield f"data: {json.dumps({'status': 'streaming', 'chunk': content_buffer})}\n\n"
-                                    content_buffer = ""
-                        
-                        # 处理 success 格式的最终响应
-                        elif chunk.get("success", False):
-                            text = chunk.get("generated_text", "")
-                            reasoning = chunk.get("reasoning_content", "")
-                            if text:
-                                full_response = text
-                            if reasoning:
-                                new_reasoning = reasoning[last_reasoning_len:]
-                                if new_reasoning:
+            model_name = request.model_name or "gpt-3.5-turbo"
+            
+            try:
+                logger.info(f"调用 LLM 服务，模型: {model_name}")
+                llm_response = enhanced_llm_service.chat_completion(
+                    messages=chat_messages,
+                    model_name=model_name,
+                    db=db_stream,
+                    agent_id=getattr(conversation, 'agent_id', None),
+                    enable_thinking_chain=request.enable_thinking_chain,
+                    file_upload_data=file_upload_data
+                )
+                
+                logger.info(f"LLM 响应类型: {type(llm_response)}")
+                
+                full_response = ""
+                full_reasoning = ""
+                last_reasoning_len = 0
+                
+                content_buffer = ""
+                thinking_buffer = ""
+                buffer_size = 20
+                
+                if hasattr(llm_response, '__iter__') and not isinstance(llm_response, (list, dict)):
+                    logger.info("开始处理流式响应生成器")
+                    import queue
+                    import threading
+                    
+                    chunk_queue = queue.Queue()
+                    exception_holder = [None]
+                    
+                    def consume_generator():
+                        try:
+                            logger.info("consume_generator 线程开始")
+                            for chunk in llm_response:
+                                logger.debug(f"获取到 chunk: {type(chunk)}")
+                                chunk_queue.put(chunk)
+                            logger.info("consume_generator 线程完成")
+                        except Exception as e:
+                            logger.error(f"consume_generator 异常: {e}", exc_info=True)
+                            exception_holder[0] = e
+                        finally:
+                            chunk_queue.put(None)
+                    
+                    thread = threading.Thread(target=consume_generator)
+                    thread.start()
+                    
+                    while True:
+                        try:
+                            chunk = chunk_queue.get(timeout=60)
+                            if chunk is None:
+                                logger.info("生成器结束")
+                                break
+                            
+                            if isinstance(chunk, dict):
+                                if chunk.get("type") == "thinking":
+                                    thinking_content = chunk.get("content", "")
+                                    if thinking_content:
+                                        full_reasoning += thinking_content
+                                        thinking_buffer += thinking_content
+                                        if len(thinking_buffer) >= buffer_size:
+                                            yield f"data: {json.dumps({'status': 'streaming', 'thinking': thinking_buffer})}\n\n"
+                                            await asyncio.sleep(0.001)
+                                            thinking_buffer = ""
+                                
+                                elif chunk.get("type") == "content":
+                                    content = chunk.get("content", "")
+                                    if content:
+                                        full_response += content
+                                        content_buffer += content
+                                        if len(content_buffer) >= buffer_size:
+                                            yield f"data: {json.dumps({'status': 'streaming', 'chunk': content_buffer})}\n\n"
+                                            await asyncio.sleep(0.001)
+                                            content_buffer = ""
+                                
+                                elif chunk.get("success", False):
+                                    text = chunk.get("generated_text", "")
+                                    reasoning = chunk.get("reasoning_content", "")
+                                    if text:
+                                        full_response = text
+                                    if reasoning:
+                                        new_reasoning = reasoning[last_reasoning_len:]
+                                        if new_reasoning:
+                                            full_reasoning = reasoning
+                                            last_reasoning_len = len(reasoning)
+                                            thinking_buffer += new_reasoning
+                                
+                                elif "content" in chunk and chunk.get("type") != "thinking":
+                                    content = chunk.get("content", "")
+                                    if content:
+                                        full_response += content
+                                        content_buffer += content
+                                        if len(content_buffer) >= buffer_size:
+                                            yield f"data: {json.dumps({'status': 'streaming', 'chunk': content_buffer})}\n\n"
+                                            await asyncio.sleep(0.001)
+                                            content_buffer = ""
+                                
+                                reasoning = chunk.get("reasoning_content", "")
+                                if reasoning and len(reasoning) > last_reasoning_len:
+                                    new_reasoning = reasoning[last_reasoning_len:]
                                     full_reasoning = reasoning
                                     last_reasoning_len = len(reasoning)
                                     thinking_buffer += new_reasoning
-                        
-                        # 处理 content 字段格式
-                        elif "content" in chunk and chunk.get("type") != "thinking":
-                            content = chunk.get("content", "")
-                            if content:
-                                full_response += content
-                                content_buffer += content
-                                # 缓冲区满时发送
+                            
+                            elif isinstance(chunk, str):
+                                full_response += chunk
+                                content_buffer += chunk
                                 if len(content_buffer) >= buffer_size:
                                     yield f"data: {json.dumps({'status': 'streaming', 'chunk': content_buffer})}\n\n"
+                                    await asyncio.sleep(0.001)
                                     content_buffer = ""
                         
-                        # 处理 reasoning_content 字段（增量发送）
-                        reasoning = chunk.get("reasoning_content", "")
-                        if reasoning and len(reasoning) > last_reasoning_len:
-                            new_reasoning = reasoning[last_reasoning_len:]
-                            full_reasoning = reasoning
-                            last_reasoning_len = len(reasoning)
-                            thinking_buffer += new_reasoning
+                        except queue.Empty:
+                            logger.warning("等待生成器超时")
+                            break
                     
-                    elif isinstance(chunk, str):
-                        full_response += chunk
-                        content_buffer += chunk
-                        # 缓冲区满时发送
-                        if len(content_buffer) >= buffer_size:
-                            yield f"data: {json.dumps({'status': 'streaming', 'chunk': content_buffer})}\n\n"
-                            content_buffer = ""
+                    thread.join(timeout=5)
                     
-                    await asyncio.sleep(0)
-                
-                # 流结束时发送剩余缓冲区数据
-                if thinking_buffer:
-                    yield f"data: {json.dumps({'status': 'streaming', 'thinking': thinking_buffer})}\n\n"
-                if content_buffer:
-                    yield f"data: {json.dumps({'status': 'streaming', 'chunk': content_buffer})}\n\n"
-            elif isinstance(llm_response, dict):
-                if llm_response.get("success", False):
-                    full_response = llm_response.get("generated_text", "")
-                    reasoning = llm_response.get("reasoning_content", "")
+                    if exception_holder[0]:
+                        raise exception_holder[0]
                     
-                    if reasoning:
-                        yield f"data: {json.dumps({'status': 'streaming', 'thinking': reasoning})}\n\n"
-                    
-                    if full_response:
-                        chunk_size = 50
-                        for i in range(0, len(full_response), chunk_size):
-                            chunk = full_response[i:i+chunk_size]
-                            yield f"data: {json.dumps({'status': 'streaming', 'chunk': chunk})}\n\n"
-                            await asyncio.sleep(0.01)
+                    if thinking_buffer:
+                        yield f"data: {json.dumps({'status': 'streaming', 'thinking': thinking_buffer})}\n\n"
+                        await asyncio.sleep(0.001)
+                    if content_buffer:
+                        yield f"data: {json.dumps({'status': 'streaming', 'chunk': content_buffer})}\n\n"
+                        await asyncio.sleep(0.001)
+                elif isinstance(llm_response, dict):
+                    if llm_response.get("success", False):
+                        full_response = llm_response.get("generated_text", "")
+                        reasoning = llm_response.get("reasoning_content", "")
+                        
+                        if reasoning:
+                            yield f"data: {json.dumps({'status': 'streaming', 'thinking': reasoning})}\n\n"
+                        
+                        if full_response:
+                            chunk_size = 50
+                            for i in range(0, len(full_response), chunk_size):
+                                chunk = full_response[i:i+chunk_size]
+                                yield f"data: {json.dumps({'status': 'streaming', 'chunk': chunk})}\n\n"
+                                await asyncio.sleep(0.01)
+                    else:
+                        error_msg = llm_response.get("error", "LLM调用失败")
+                        yield f"data: {json.dumps({'status': 'error', 'error': error_msg})}\n\n"
+                        return
                 else:
-                    error_msg = llm_response.get("error", "LLM调用失败")
-                    yield f"data: {json.dumps({'status': 'error', 'error': error_msg})}\n\n"
-                    return
-            else:
-                full_response = str(llm_response) if llm_response else "抱歉，无法生成回复。"
-                yield f"data: {json.dumps({'status': 'streaming', 'chunk': full_response})}\n\n"
-            
-            assistant_message = Message(
-                conversation_id=conversation.id,
-                role="assistant",
-                content=full_response,
-                topic_id=active_topic.id,
-                created_at=datetime.utcnow()
-            )
-            db.add(assistant_message)
-            db.commit()
-            db.refresh(assistant_message)
-            
-            assistant_message_dict = {
-                "id": assistant_message.id,
-                "conversation_id": assistant_message.conversation_id,
-                "role": assistant_message.role,
-                "content": assistant_message.content,
-                "token_count": assistant_message.token_count,
-                "model_used": assistant_message.model_used,
-                "response_time": assistant_message.response_time,
-                "topic_id": assistant_message.topic_id,
-                "created_at": assistant_message.created_at.isoformat() if assistant_message.created_at else None
-            }
-            
-            yield f"data: {json.dumps({'status': 'completed', 'assistant_message': assistant_message_dict})}\n\n"
-            yield "data: [DONE]\n\n"
-            
-        except Exception as e:
-            yield f"data: {json.dumps({'status': 'error', 'error': str(e)})}\n\n"
+                    full_response = str(llm_response) if llm_response else "抱歉，无法生成回复。"
+                    yield f"data: {json.dumps({'status': 'streaming', 'chunk': full_response})}\n\n"
+                
+                assistant_message = Message(
+                    conversation_id=conversation.id,
+                    role="assistant",
+                    content=full_response,
+                    topic_id=active_topic.id,
+                    created_at=datetime.utcnow()
+                )
+                db_stream.add(assistant_message)
+                db_stream.commit()
+                db_stream.refresh(assistant_message)
+                
+                assistant_message_dict = {
+                    "id": assistant_message.id,
+                    "conversation_id": assistant_message.conversation_id,
+                    "role": assistant_message.role,
+                    "content": assistant_message.content,
+                    "token_count": assistant_message.token_count,
+                    "model_used": assistant_message.model_used,
+                    "response_time": assistant_message.response_time,
+                    "topic_id": assistant_message.topic_id,
+                    "created_at": assistant_message.created_at.isoformat() if assistant_message.created_at else None
+                }
+                
+                yield f"data: {json.dumps({'status': 'completed', 'assistant_message': assistant_message_dict})}\n\n"
+                yield "data: [DONE]\n\n"
+                
+            except Exception as e:
+                logger.error(f"流式响应处理异常: {e}", exc_info=True)
+                yield f"data: {json.dumps({'status': 'error', 'error': str(e)})}\n\n"
+        finally:
+            logger.info(f"流式响应结束，关闭数据库连接，conversation_id: {conversation_id}")
+            db_stream.close()
     
     return StreamingResponse(
         generate_stream(),

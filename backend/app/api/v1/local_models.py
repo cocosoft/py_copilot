@@ -86,7 +86,7 @@ async def get_local_models(
     return model_responses
 
 
-@router.get("/local-models/{model_id}", response_model=Optional[ModelWithSupplierResponse])
+@router.get("/local-models/{model_id:int}", response_model=Optional[ModelWithSupplierResponse])
 async def get_local_model(
     model_id: int,
     db: Session = Depends(get_db)

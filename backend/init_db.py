@@ -44,6 +44,7 @@ from app.models.supplier_db import SupplierDB, ModelDB, ModelParameter, Paramete
 # 模型分类和能力模型
 from app.models.model_category import ModelCategory
 from app.models.model_capability import ModelCapability, ModelCapabilityAssociation
+from app.models.capability_dimension import CapabilityDimension, CapabilitySubdimension
 
 # 参数模板模型
 from app.models.parameter_template import ParameterTemplate

@@ -207,7 +207,7 @@ async def startup_event():
         await preload_core_routes()
         logger.info("核心路由组预加载完成")
     except Exception as e:
-        logger.error(f"预加载核心路由组失败: {e}")
+        logger.error(f"预加载核心路由组失败: {e}", exc_info=True)
     
     # 启动任务队列
     try:
@@ -459,4 +459,30 @@ async def get_alert_statistics(duration: int = Query(3600, description="时间�
 # 导入路由 - 使用动态导入避免循环导入
 from app.api import api_router
 app.include_router(api_router, prefix="/api")
+
+# 手动包含供应商路由（确保路由被正确加载）
+from app.api.v1.supplier_model import router as supplier_router
+from app.api.v1.model_management import router as model_management_router
+app.include_router(supplier_router, prefix="/api/v1", tags=["supplier-model"])
+app.include_router(model_management_router, prefix="/api/v1", tags=["model-management"])
+
+# 手动包含分类和能力API路由（确保路由被正确加载）
+from app.modules.capability_category.api.model_categories import router as categories_router
+from app.api.v1.capability import router as capability_router
+from app.api.v1.model_capabilities import router as model_capabilities_router
+from app.api.v1.capability_dimensions import router as capability_dimensions_router
+from app.api.v1.parameter_templates import router as parameter_templates_router
+from app.api.v1.default_model import router as default_model_router
+from app.api.v1.local_models import router as local_models_router
+from app.api.v1.topic_title import router as topic_title_router
+from app.modules.conversation.api.conversations import router as conversations_router
+app.include_router(categories_router, prefix="/api/v1", tags=["model_categories"])
+app.include_router(capability_router, prefix="/api/v1/capabilities", tags=["model_capabilities"])
+app.include_router(model_capabilities_router, prefix="/api/v1/model-capabilities", tags=["model_capabilities"])
+app.include_router(capability_dimensions_router, prefix="/api/v1/capability-dimensions", tags=["capability_dimensions"])
+app.include_router(parameter_templates_router, prefix="/api/v1", tags=["parameter_templates"])
+app.include_router(default_model_router, prefix="/api/v1", tags=["default_models"])
+app.include_router(local_models_router, prefix="/api/v1", tags=["local_models"])
+app.include_router(topic_title_router, prefix="/api/v1", tags=["topic-title"])
+app.include_router(conversations_router, prefix="/api/v1/conversations", tags=["conversations"])
 

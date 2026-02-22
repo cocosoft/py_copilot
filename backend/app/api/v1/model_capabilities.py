@@ -36,7 +36,7 @@ from app.services.model_capability_service import model_capability_service
 from app.services.capability_assessment_service import capability_assessment_service
 
 # 创建路由器
-router = APIRouter(prefix="/capabilities", tags=["model_capabilities"])
+router = APIRouter(tags=["model_capabilities"])
 
 
 # 从api.deps导入实际的认证依赖

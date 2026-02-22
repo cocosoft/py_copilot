@@ -9,8 +9,7 @@ from app.models.parameter_template import ParameterTemplate
 from app.models.supplier_db import ModelDB
 from app.schemas.parameter_template import (
     ParameterTemplateCreate, 
-    ParameterTemplateUpdate, 
-    ParameterTemplateVersion
+    ParameterTemplateUpdate
 )
 
 
@@ -172,31 +171,6 @@ class TemplateManager:
             query = query.filter(ParameterTemplate.is_active == True)
         
         return query.order_by(ParameterTemplate.created_at.desc()).all()
-    
-    @staticmethod
-    def get_template_versions(db: Session, template_id: int) -> List[ParameterTemplateVersion]:
-        """
-        获取模板的所有版本历史
-        
-        Args:
-            db: 数据库会话
-            template_id: 模板ID
-            
-        Returns:
-            版本历史列表
-        """
-        # 在实际实现中，这里应该查询版本历史表
-        # 目前简化实现，返回当前模板信息
-        template = db.query(ParameterTemplate).filter(ParameterTemplate.id == template_id).first()
-        if not template:
-            return []
-        
-        return [ParameterTemplateVersion(
-            version=template.version,
-            parameters=template.parameters,
-            created_at=template.created_at,
-            updated_at=template.updated_at
-        )]
     
     @staticmethod
     def apply_template_to_model(

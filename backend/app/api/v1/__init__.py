@@ -28,17 +28,18 @@ ROUTE_GROUPS: Dict[str, List[Dict]] = {
     'models': [
         {'module': 'app.modules.supplier_model_management.api.model_management', 'prefix': '/model-management', 'tags': ['model-management']},
         {'module': 'app.modules.supplier_model_management.api.supplier_model', 'tags': ['supplier-model']},
-        {'module': 'app.api.v1.model_capabilities', 'tags': ['model_capabilities']},
+        {'module': 'app.api.v1.supplier_model', 'tags': ['supplier-model-v1']},
+        {'module': 'app.api.v1.model_capabilities', 'prefix': '/model-capabilities', 'tags': ['model_capabilities']},
         {'module': 'app.api.v1.model_management', 'prefix': '/model-management', 'tags': ['model-parameters']},
         {'module': 'app.api.v1.default_model', 'tags': ['default-model']},
         {'module': 'app.api.v1.local_models', 'tags': ['local-models']}
     ],
     'capabilities': [
         {'module': 'app.api.v1.capability', 'prefix': '/capabilities', 'tags': ['model_capabilities']},
-        {'module': 'app.api.v1.capability_types', 'tags': ['capability_types']},
-        {'module': 'app.api.v1.capability_dimensions', 'tags': ['capability_dimensions']},
-        {'module': 'app.modules.capability_category.api.model_categories', 'tags': ['model_categories']},
-        {'module': 'app.modules.capability_category.api.category_templates', 'tags': ['category_templates']}
+        {'module': 'app.api.v1.capability_types', 'prefix': '/capability-types', 'tags': ['capability_types']},
+        {'module': 'app.api.v1.capability_dimensions', 'prefix': '/capability-dimensions', 'tags': ['capability_dimensions']},
+        {'module': 'app.modules.capability_category.api.model_categories', 'prefix': '/categories', 'tags': ['model_categories']},
+        {'module': 'app.modules.capability_category.api.category_templates', 'prefix': '/category-templates', 'tags': ['category_templates']}
     ],
     'agents': [
         {'module': 'app.api.v1.agents', 'prefix': '/agents', 'tags': ['agents']},
@@ -97,6 +98,55 @@ ROUTE_GROUPS: Dict[str, List[Dict]] = {
 
 _loaded_groups = set()
 
+def _load_route_group_sync(group_name: str) -> bool:
+    """
+    同步加载路由组（模块加载时使用）
+    
+    Args:
+        group_name: 路由组名称
+        
+    Returns:
+        是否加载成功
+    """
+    logger.info(f"[同步] 开始加载路由组: {group_name}")
+    
+    if group_name in _loaded_groups:
+        logger.info(f"[同步] 路由组 {group_name} 已加载，跳过")
+        return True
+    
+    routes = ROUTE_GROUPS.get(group_name, [])
+    if not routes:
+        logger.warning(f"[同步] 路由组 {group_name} 不存在")
+        return False
+    
+    logger.info(f"[同步] 路由组 {group_name} 包含 {len(routes)} 个模块")
+    
+    for route_config in routes:
+        module_path = route_config['module']
+        prefix = route_config.get('prefix')
+        tags = route_config.get('tags')
+        
+        logger.info(f"[同步] 正在加载模块: {module_path}")
+        
+        try:
+            module = importlib.import_module(module_path)
+            logger.info(f"[同步] 模块导入成功: {module_path}")
+            if hasattr(module, 'router'):
+                if prefix:
+                    api_router.include_router(module.router, prefix=prefix, tags=tags)
+                else:
+                    api_router.include_router(module.router, tags=tags)
+                logger.info(f"[同步] 成功加载路由模块: {module_path}")
+            else:
+                logger.warning(f"[同步] 模块 {module_path} 没有router属性")
+        except Exception as e:
+            logger.error(f"[同步] 加载路由模块失败 {module_path}: {e}", exc_info=True)
+            return False
+    
+    _loaded_groups.add(group_name)
+    logger.info(f"[同步] 路由组 {group_name} 加载完成")
+    return True
+
 async def load_route_group(group_name: str) -> bool:
     """
     动态加载路由组
@@ -107,6 +157,8 @@ async def load_route_group(group_name: str) -> bool:
     Returns:
         是否加载成功
     """
+    logger.info(f"开始加载路由组: {group_name}")
+    
     if group_name in _loaded_groups:
         logger.info(f"路由组 {group_name} 已加载，跳过")
         return True
@@ -115,6 +167,8 @@ async def load_route_group(group_name: str) -> bool:
     if not routes:
         logger.warning(f"路由组 {group_name} 不存在")
         return False
+    
+    logger.info(f"路由组 {group_name} 包含 {len(routes)} 个模块")
     
     # 特殊处理知识图谱路由组
     if group_name == 'knowledge' and not settings.enable_knowledge_graph:
@@ -143,21 +197,27 @@ async def load_route_group(group_name: str) -> bool:
         prefix = route_config.get('prefix')
         tags = route_config.get('tags')
         
+        logger.info(f"正在加载模块: {module_path}")
+        
         # 如果知识图谱功能禁用，跳过相关路由
         if not settings.enable_knowledge_graph and ('knowledge_graph' in module_path or 'entity_config' in module_path):
             logger.info(f"知识图谱功能已禁用，跳过路由模块: {module_path}")
             continue
         
         try:
+            logger.info(f"开始导入模块: {module_path}")
             module = importlib.import_module(module_path)
+            logger.info(f"模块导入成功: {module_path}")
             if hasattr(module, 'router'):
                 if prefix:
                     api_router.include_router(module.router, prefix=prefix, tags=tags)
                 else:
                     api_router.include_router(module.router, tags=tags)
                 logger.info(f"成功加载路由模块: {module_path}")
-        except ImportError as e:
-            logger.error(f"加载路由模块失败 {module_path}: {e}")
+            else:
+                logger.warning(f"模块 {module_path} 没有router属性")
+        except Exception as e:
+            logger.error(f"加载路由模块失败 {module_path}: {e}", exc_info=True)
             return False
     
     _loaded_groups.add(group_name)
@@ -165,14 +225,39 @@ async def load_route_group(group_name: str) -> bool:
     return True
 
 # 预加载核心路由组（启动时加载）
-CORE_ROUTE_GROUPS = ['auth', 'conversation', 'llm', 'memory']
+CORE_ROUTE_GROUPS = ['auth', 'conversation', 'llm', 'memory', 'models', 'tasks', 'agents', 'skills', 'capabilities']
 
 async def preload_core_routes():
     """预加载核心路由组"""
     logger.info("开始预加载核心路由组...")
+    logger.info(f"核心路由组列表: {CORE_ROUTE_GROUPS}")
     for group_name in CORE_ROUTE_GROUPS:
-        await load_route_group(group_name)
+        logger.info(f"正在加载路由组: {group_name}")
+        try:
+            result = await load_route_group(group_name)
+            if not result:
+                logger.error(f"路由组 {group_name} 加载失败")
+        except Exception as e:
+            logger.error(f"加载路由组 {group_name} 时发生异常: {e}", exc_info=True)
     logger.info(f"核心路由组预加载完成，已加载: {_loaded_groups}")
+
+def preload_core_routes_sync():
+    """
+    同步预加载核心路由组（模块加载时调用）
+    确保路由在应用启动前就已经注册
+    """
+    logger.info("[同步] 开始预加载核心路由组...")
+    logger.info(f"[同步] 核心路由组列表: {CORE_ROUTE_GROUPS}")
+    for group_name in CORE_ROUTE_GROUPS:
+        try:
+            result = _load_route_group_sync(group_name)
+            if not result:
+                logger.error(f"[同步] 路由组 {group_name} 加载失败")
+        except Exception as e:
+            logger.error(f"[同步] 加载路由组 {group_name} 时发生异常: {e}", exc_info=True)
+    logger.info(f"[同步] 核心路由组预加载完成，已加载: {_loaded_groups}")
+
+preload_core_routes_sync()
 
 # 导出API路由对象和加载函数
 __all__ = ["api_router", "load_route_group", "preload_core_routes"]

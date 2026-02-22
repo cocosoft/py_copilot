@@ -400,3 +400,39 @@ def get_security_middleware() -> SecurityMiddleware:
 def get_security_validator() -> SecurityValidator:
     """获取安全验证器实例"""
     return SecurityValidator()
+
+
+def validate_message_content(content: str) -> Dict[str, Any]:
+    """
+    验证消息内容安全性
+    
+    Args:
+        content: 消息内容
+    
+    Returns:
+        验证结果字典，包含is_valid、errors和sanitized_content字段
+    """
+    validator = SecurityValidator()
+    errors = []
+    
+    if not content or not content.strip():
+        errors.append("消息内容不能为空")
+        return {"is_valid": False, "errors": errors, "sanitized_content": ""}
+    
+    if validator.validate_sql_injection(content):
+        errors.append("消息内容包含潜在的SQL注入攻击")
+    
+    if validator.validate_xss(content):
+        errors.append("消息内容包含潜在的XSS攻击")
+    
+    if validator.validate_path_traversal(content):
+        errors.append("消息内容包含潜在的路径遍历攻击")
+    
+    if validator.validate_command_injection(content):
+        errors.append("消息内容包含潜在的命令注入攻击")
+    
+    return {
+        "is_valid": len(errors) == 0,
+        "errors": errors,
+        "sanitized_content": content.strip() if len(errors) == 0 else ""
+    }
