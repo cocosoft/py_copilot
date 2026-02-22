@@ -10,7 +10,7 @@ const modelApi = {
    * @param {string} level - 参数级别 (model, agent)
    */
   async getParameters(supplierId, modelId, level) {
-    let endpoint = '/v1/model-management/parameters';
+    let endpoint = '/v1/parameters';
     
     // 根据级别构建不同的查询参数
     const params = new URLSearchParams();
@@ -337,7 +337,7 @@ const modelApi = {
    */
   async getAll() {
     try {
-      const response = await request('/v1/model-management/models', { method: 'GET' });
+      const response = await request('/v1/models', { method: 'GET' });
       return response;
     } catch (error) {
       console.error('获取模型列表失败:', error);

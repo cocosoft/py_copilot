@@ -72,13 +72,13 @@ export const request = async (endpoint, options = {}) => {
     };
   }
   
+  const timeout = options.timeout || 30000;
+  
+  let signal;
+  let controller;
+  let timeoutId = null;
+  
   try {
-    const timeout = options.timeout || 30000;
-    
-    let signal;
-    let controller;
-    let timeoutId = null;
-    
     if (options.signal) {
       signal = options.signal;
     } else {

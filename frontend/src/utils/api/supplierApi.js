@@ -333,7 +333,7 @@ export const supplierApi = {
   // 获取所有模型
   getModels: async () => {
     try {
-      const response = await request('/v1/model-management/models', {
+      const response = await request('/v1/models', {
         method: 'GET'
       });
       

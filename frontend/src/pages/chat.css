@@ -2940,17 +2940,241 @@ th {
 
 /* 思维链显示样式 */
 .thinking-chain {
-  background-color: #fff3cd;
-  border: 1px solid #ffeaa7;
-  border-radius: 8px;
-  padding: 8px 12px;
-  margin-top: 4px;
-  font-size: 12px;
-  color: #856404;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  background-color: #fff3cd !important;
+  border: 1px solid #ffeaa7 !important;
+  border-radius: 8px !important;
+  padding: 8px 12px !important;
+  margin-top: 4px !important;
+  font-size: 12px !important;
+  color: #856404 !important;
+  display: block !important;
+  line-height: 1.6 !important;
   animation: thinking-fade 0.5s ease-in-out;
+  position: relative;
+  z-index: 1;
+  overflow: visible !important;
+  box-sizing: border-box !important;
+  clear: both !important;
+}
+
+/* 确保思维链内的 Markdown 内容保持背景色 */
+.thinking-chain * {
+  background-color: transparent !important;
+  color: #856404 !important;
+  font-size: 12px !important;
+  line-height: 1.6 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.thinking-chain .markdown-renderer {
+  background-color: transparent !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  font-size: 12px !important;
+  line-height: 1.6 !important;
+  color: #856404 !important;
+}
+
+.thinking-chain .markdown-renderer p {
+  margin: 0.25rem 0 !important;
+  padding: 0 !important;
+  font-size: 12px !important;
+  line-height: 1.6 !important;
+  color: #856404 !important;
+}
+
+.thinking-chain .markdown-renderer p:first-child {
+  margin-top: 0 !important;
+}
+
+.thinking-chain .markdown-renderer p:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* 确保思维链不受消息气泡样式影响 */
+.message-bubble .thinking-chain {
+  background-color: #fff3cd !important;
+  border: 1px solid #ffeaa7 !important;
+  color: #856404 !important;
+}
+
+/* 确保思维链内的文本不受消息文本样式影响 */
+.message-bubble .thinking-chain * {
+  color: #856404 !important;
+  font-size: 12px !important;
+}
+
+/* 覆盖EnhancedMarkdownRenderer的默认样式 */
+.thinking-chain .enhanced-markdown {
+  background-color: transparent !important;
+  color: #856404 !important;
+  font-size: 12px !important;
+  line-height: 1.6 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* 覆盖EnhancedMarkdownRenderer的标题样式 */
+.thinking-chain .enhanced-markdown h1,
+.thinking-chain .enhanced-markdown h2,
+.thinking-chain .enhanced-markdown h3,
+.thinking-chain .enhanced-markdown h4,
+.thinking-chain .enhanced-markdown h5,
+.thinking-chain .enhanced-markdown h6 {
+  color: #856404 !important;
+  font-size: 12px !important;
+  margin: 8px 0 !important;
+  font-weight: 600 !important;
+  line-height: 1.25 !important;
+  border-bottom: none !important;
+  padding-bottom: 0 !important;
+}
+
+/* 覆盖EnhancedMarkdownRenderer的段落样式 */
+.thinking-chain .enhanced-markdown p {
+  color: #856404 !important;
+  font-size: 12px !important;
+  margin: 4px 0 !important;
+  padding: 0 !important;
+  line-height: 1.6 !important;
+}
+
+/* 覆盖EnhancedMarkdownRenderer的列表样式 */
+.thinking-chain .enhanced-markdown ul,
+.thinking-chain .enhanced-markdown ol {
+  color: #856404 !important;
+  font-size: 12px !important;
+  margin: 4px 0 !important;
+  padding-left: 16px !important;
+  line-height: 1.6 !important;
+}
+
+.thinking-chain .enhanced-markdown li {
+  color: #856404 !important;
+  font-size: 12px !important;
+  margin: 2px 0 !important;
+  line-height: 1.6 !important;
+}
+
+/* 覆盖EnhancedMarkdownRenderer的引用样式 */
+.thinking-chain .enhanced-markdown blockquote {
+  background-color: rgba(255, 243, 205, 0.5) !important;
+  border-left: 4px solid #ffeaa7 !important;
+  color: #856404 !important;
+  font-size: 12px !important;
+  margin: 8px 0 !important;
+  padding: 4px 8px !important;
+  line-height: 1.6 !important;
+}
+
+/* 覆盖EnhancedMarkdownRenderer的代码样式 */
+.thinking-chain .enhanced-markdown .inline-code {
+  background-color: rgba(255, 243, 205, 0.8) !important;
+  color: #856404 !important;
+  font-size: 11px !important;
+  padding: 1px 4px !important;
+  border-radius: 3px !important;
+}
+
+/* 覆盖EnhancedMarkdownRenderer的表格样式 */
+.thinking-chain .enhanced-markdown .table-container {
+  margin: 8px 0 !important;
+  overflow-x: auto !important;
+}
+
+.thinking-chain .enhanced-markdown .markdown-table {
+  font-size: 11px !important;
+  border-collapse: collapse !important;
+  width: 100% !important;
+}
+
+.thinking-chain .enhanced-markdown .markdown-table th,
+.thinking-chain .enhanced-markdown .markdown-table td {
+  border: 1px solid #ffeaa7 !important;
+  padding: 4px 8px !important;
+  text-align: left !important;
+  color: #856404 !important;
+  font-size: 11px !important;
+}
+
+.thinking-chain .enhanced-markdown .markdown-table th {
+  background-color: rgba(255, 243, 205, 0.8) !important;
+  font-weight: 600 !important;
+}
+
+/* 覆盖EnhancedMarkdownRenderer的KaTeX样式 */
+.thinking-chain .enhanced-markdown .katex {
+  color: #856404 !important;
+  font-size: 11px !important;
+  line-height: 1.6 !important;
+}
+
+.thinking-chain .enhanced-markdown .katex-display {
+  margin: 8px 0 !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+}
+
+/* 确保KaTeX公式颜色正确 */
+.thinking-chain .enhanced-markdown .katex * {
+  color: #856404 !important;
+}
+
+/* 覆盖任何可能的全局样式 */
+.thinking-chain {
+  background-color: #fff3cd !important;
+  border: 1px solid #ffeaa7 !important;
+  border-radius: 8px !important;
+  padding: 8px 12px !important;
+  margin-top: 4px !important;
+  font-size: 12px !important;
+  color: #856404 !important;
+  display: block !important;
+  line-height: 1.6 !important;
+  animation: thinking-fade 0.5s ease-in-out;
+  position: relative !important;
+  z-index: 1 !important;
+  overflow: visible !important;
+  box-sizing: border-box !important;
+  clear: both !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+}
+
+/* 思维链内的内容重置 */
+.thinking-chain > * {
+  background-color: transparent !important;
+  border: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 12px !important;
+  color: #856404 !important;
+  line-height: 1.6 !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+}
+
+/* 思维链内的段落 */
+.thinking-chain > p {
+  margin: 4px 0 !important;
+  padding: 0 !important;
+  font-size: 12px !important;
+  color: #856404 !important;
+  line-height: 1.6 !important;
+}
+
+/* 思维链内的标题 */
+.thinking-chain > h1,
+.thinking-chain > h2,
+.thinking-chain > h3,
+.thinking-chain > h4,
+.thinking-chain > h5,
+.thinking-chain > h6 {
+  margin: 8px 0 !important;
+  padding: 0 !important;
+  font-size: 12px !important;
+  color: #856404 !important;
+  font-weight: 600 !important;
+  line-height: 1.25 !important;
 }
 
 @keyframes thinking-fade {
@@ -2965,8 +3189,10 @@ th {
 }
 
 .thinking-chain::before {
-  content: "💭";
+  content: "💭 ";
   font-size: 14px;
+  display: inline-block;
+  margin-right: 4px;
 }
 
 /* 流式响应打字效果 */

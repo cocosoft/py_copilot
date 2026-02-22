@@ -21,8 +21,8 @@ export const capabilityApi = {
       }
       
       const url = queryParams.toString() 
-        ? `/v1/capabilities/?${queryParams.toString()}` 
-        : '/v1/capabilities/';
+        ? `/v1/model-capabilities/?${queryParams.toString()}` 
+        : '/v1/model-capabilities/';
       
       const response = await request(url, {
         method: 'GET',
@@ -206,7 +206,7 @@ export const capabilityApi = {
   // 获取模型的所有能力
   getModelCapabilities: async (modelId, options = {}) => {
     try {
-      const response = await request(`/v1/capabilities/model/${modelId}/capabilities`, {
+      const response = await request(`/v1/model-capabilities/model/${modelId}/capabilities`, {
         method: 'GET',
         signal: options.signal
       });
