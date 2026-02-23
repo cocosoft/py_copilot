@@ -234,6 +234,14 @@ async def startup_event():
         logger.info("系统指标收集器已启动")
     except Exception as e:
         logger.error(f"启动系统指标收集器失败: {e}")
+    
+    # 初始化Function Calling工具
+    try:
+        from app.modules.function_calling import initialize_tools
+        await initialize_tools()
+        logger.info("Function Calling工具初始化完成")
+    except Exception as e:
+        logger.error(f"初始化Function Calling工具失败: {e}")
 
 # 应用关闭事件
 @app.on_event("shutdown")
@@ -476,6 +484,8 @@ from app.api.v1.default_model import router as default_model_router
 from app.api.v1.local_models import router as local_models_router
 from app.api.v1.topic_title import router as topic_title_router
 from app.modules.conversation.api.conversations import router as conversations_router
+from app.api.v1.tools_api import router as tools_router
+from app.api.v1.function_calling_api import router as function_calling_router
 app.include_router(categories_router, prefix="/api/v1", tags=["model_categories"])
 app.include_router(capability_router, prefix="/api/v1/capabilities", tags=["model_capabilities"])
 app.include_router(model_capabilities_router, prefix="/api/v1/model-capabilities", tags=["model_capabilities"])
@@ -485,4 +495,6 @@ app.include_router(default_model_router, prefix="/api/v1", tags=["default_models
 app.include_router(local_models_router, prefix="/api/v1", tags=["local_models"])
 app.include_router(topic_title_router, prefix="/api/v1", tags=["topic-title"])
 app.include_router(conversations_router, prefix="/api/v1/conversations", tags=["conversations"])
+app.include_router(tools_router, prefix="/api/v1", tags=["tools"])
+app.include_router(function_calling_router, prefix="/api/v1", tags=["function_calling"])
 

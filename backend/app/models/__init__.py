@@ -17,6 +17,7 @@ from app.models.memory import GlobalMemory, ConversationMemoryMapping, Knowledge
 from app.models.translation_history import TranslationHistory
 from app.models.platform_config import PlatformConfig
 from app.models.api_favorite import ApiFavorite
+from app.models.function_calling import Tool, ToolExecution, ToolUsageStats
 
 __all__ = [
     "User",
@@ -52,5 +53,8 @@ __all__ = [
     "UserMemoryConfig",
     "TranslationHistory",
     "PlatformConfig",
-    "ApiFavorite"
+    "ApiFavorite",
+    "Tool",
+    "ToolExecution",
+    "ToolUsageStats"
 ]

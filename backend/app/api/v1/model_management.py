@@ -17,14 +17,13 @@ from app.services.parameter_management.parameter_manager import ParameterManager
 
 # 从core导入数据库依赖
 from app.core.dependencies import get_db
-from app.modules.supplier_model_management.schemas.model_management import (
-    ModelCreate, ModelUpdate, ModelResponse, ModelWithSupplierResponse,
-    ModelListResponse,
-    SetDefaultModelRequest
+from app.modules.supplier_model_management.schemas.supplier_model import (
+    ModelCreate, ModelResponse, ModelWithSupplierResponse,
+    ModelListResponse, ModelSupplierResponse
 )
 from app.schemas.model_management import (
     ModelParameterCreate, ModelParameterUpdate, ModelParameterResponse,
-    ModelParameterListResponse, ModelSupplierResponse
+    ModelParameterListResponse
 )
 
 # 创建上传目录
@@ -165,33 +164,22 @@ async def get_all_models(
         # 创建ModelWithSupplierResponse对象
         model_response = ModelWithSupplierResponse(
             id=model.id,
-            model_id=model.model_id or "",
-            model_name=model.model_name or model.model_id or "",
+            name=model.model_name or model.model_id or "Unknown Model",
+            display_name=model.model_name or model.model_id or "Unknown Model",
             description=model.description,
             supplier_id=model.supplier_id,
-            type="chat",
             context_window=model.context_window or 8000,
-            default_temperature=0.7,
-            default_max_tokens=model.max_tokens or 1000,
-            default_top_p=1.0,
-            default_frequency_penalty=0.0,
-            default_presence_penalty=0.0,
-            custom_params=None,
-            is_active=model.is_active,
+            max_tokens=model.max_tokens or 1000,
             is_default=model.is_default,
+            is_active=model.is_active,
             logo=logo,
-            created_at=model.created_at,
-            updated_at=model.updated_at,
-            categories=[],
             supplier=ModelSupplierResponse(
                 id=model.supplier.id,
-                name=model.supplier.name,
-                display_name=model.supplier.display_name,
+                name=model.supplier.name or "Unknown Supplier",
+                display_name=model.supplier.display_name or model.supplier.name or "Unknown Supplier",
                 description=model.supplier.description,
                 logo=model.supplier.logo,
                 is_active=model.supplier.is_active,
-                created_at=model.supplier.created_at,
-                updated_at=model.supplier.updated_at,
                 api_endpoint=model.supplier.api_endpoint,
                 api_key_required=model.supplier.api_key_required,
                 category=model.supplier.category,
@@ -202,6 +190,10 @@ async def get_all_models(
         model_responses.append(model_response)
     
     print(f"返回 {len(model_responses)} 个模型，总计 {total} 个模型")
+    
+    # 调试：打印第一个模型响应
+    if model_responses:
+        print(f"第一个模型响应: {model_responses[0].model_dump()}")
     
     # 返回转换后的模型列表
     return ModelListResponse(

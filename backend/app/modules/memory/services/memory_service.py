@@ -16,9 +16,6 @@ import app.log_system.structured_logger
 memory_logger = app.log_system.structured_logger.memory_logger
 from app.monitoring.alert_system import alert_manager, MetricType
 
-# 初始化Chroma服务
-chroma_service = ChromaService(default_collection="memories")
-
 
 class MemoryService:
     """记忆服务类"""
@@ -27,6 +24,16 @@ class MemoryService:
     _cache = {}
     _cache_expiry = {}
     _cache_ttl = 300  # 缓存过期时间（秒），默认5分钟
+    
+    # Chroma服务实例（延迟初始化）
+    _chroma_service = None
+    
+    @classmethod
+    def get_chroma_service(cls):
+        """获取Chroma服务实例（延迟初始化）"""
+        if cls._chroma_service is None:
+            cls._chroma_service = ChromaService(default_collection="memories")
+        return cls._chroma_service
     
     # 本地记忆分析服务实例
     _local_memory_analysis_service = None
@@ -135,7 +142,7 @@ class MemoryService:
             
             # 将记忆添加到Chroma向量数据库
             try:
-                chroma_service.add_document(
+                MemoryService.get_chroma_service().add_document(
                     document_id=str(db_memory.id),
                     text=db_memory.content,
                     metadata={
@@ -306,8 +313,7 @@ class MemoryService:
                 db_memory.embedding = json.dumps(embedding_result['embedding']) if embedding_result.get('embedding') else None
                 
                 # 更新向量数据库
-                from app.services.vector_store_service import chroma_service
-                chroma_service.update_document(
+                MemoryService.get_chroma_service().update_document(
                     document_id=str(db_memory.id),
                     document=db_memory.content,
                     metadata={
@@ -371,7 +377,7 @@ class MemoryService:
         db.commit()
         
         # 从Chroma向量数据库中删除记忆
-        chroma_service.delete_document(document_id=str(db_memory.id))
+        MemoryService.get_chroma_service().delete_document(document_id=str(db_memory.id))
         
         return True
     
@@ -389,7 +395,7 @@ class MemoryService:
         # 遍历所有记忆并删除
         for memory in user_memories:
             # 从Chroma向量数据库中删除记忆
-            chroma_service.delete_document(document_id=str(memory.id))
+            MemoryService.get_chroma_service().delete_document(document_id=str(memory.id))
             deleted_count += 1
         
         # 批量删除数据库中的记忆
@@ -448,7 +454,7 @@ class MemoryService:
             }, exc_info=e)
         
         # 3. 使用Chroma进行向量相似性搜索
-        search_results = chroma_service.search_similar(
+        search_results = MemoryService.get_chroma_service().search_similar(
             query=enhanced_query,
             n_results=limit * 2,  # 获取更多结果以便过滤和排序
             where_filter=chroma_filter
@@ -607,7 +613,7 @@ class MemoryService:
             else:
                 try:
                     # 使用Chroma向量数据库进行语义搜索
-                    search_results = chroma_service.search_similar(
+                    search_results = MemoryService.get_chroma_service().search_similar(
                         query=enhanced_query,
                         where_filter={"user_id": user_id},
                         n_results=limit * 2  # 获取更多结果用于后续排序
@@ -1056,7 +1062,7 @@ class MemoryService:
             memory.updated_at = datetime.now()
             
             # 从向量数据库中删除
-            chroma_service.delete_document(document_id=str(memory.id), collection_name="memories")
+            MemoryService.get_chroma_service().delete_document(document_id=str(memory.id), collection_name="memories")
             
             deleted_count += 1
         
@@ -1089,7 +1095,7 @@ class MemoryService:
                 continue
             
             # 搜索相似记忆
-            similar_results = chroma_service.search_similar(
+            similar_results = MemoryService.get_chroma_service().search_similar(
                 query=memory.content,
                 n_results=5,  # 最多查找5个相似记忆
                 where_filter={"user_id": user_id, "memory_type": "SHORT_TERM"},
@@ -1164,7 +1170,7 @@ class MemoryService:
             for m in similar_memories + [memory]:
                 m.is_active = False
                 m.updated_at = datetime.now()
-                chroma_service.delete_document(document_id=str(m.id), collection_name="memories")
+                MemoryService.get_chroma_service().delete_document(document_id=str(m.id), collection_name="memories")
                 compressed_count += 1
         
         db.commit()
@@ -1224,7 +1230,7 @@ class MemoryService:
             if "SEMANTIC" in association_types:
                 try:
                     # 搜索相似记忆
-                    similar_results = chroma_service.search_similar(
+                    similar_results = MemoryService.get_chroma_service().search_similar(
                         query=source_memory.content,
                         n_results=10,
                         where_filter={"user_id": user_id, "memory_type": ["SHORT_TERM", "LONG_TERM", "SEMANTIC"]},
@@ -1774,7 +1780,7 @@ class MemoryService:
                         # 计算相似度
                         try:
                             # 使用Chroma计算相似度
-                            results = chroma_service.search_similar(
+                            results = MemoryService.get_chroma_service().search_similar(
                                 query=mem1.content,
                                 n_results=1,
                                 where_filter={"user_id": user_id, "memory_id": mem2.id},
@@ -1909,7 +1915,7 @@ class MemoryService:
         
         # 更新向量数据库中的记忆信息
         try:
-            chroma_service.update_document(
+            MemoryService.get_chroma_service().update_document(
                 document_id=str(memory.id),
                 text=memory.content,
                 metadata={

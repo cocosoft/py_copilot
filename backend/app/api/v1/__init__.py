@@ -37,7 +37,7 @@ ROUTE_GROUPS: Dict[str, List[Dict]] = {
     'capabilities': [
         {'module': 'app.api.v1.capability', 'prefix': '/capabilities', 'tags': ['model_capabilities']},
         {'module': 'app.api.v1.capability_types', 'prefix': '/capability-types', 'tags': ['capability_types']},
-        {'module': 'app.api.v1.capability_dimensions', 'prefix': '/capability-dimensions', 'tags': ['capability_dimensions']},
+        {'module': 'app.api.v1.capability_dimensions', 'prefix': '/model-capability/dimensions', 'tags': ['capability_dimensions']},
         {'module': 'app.modules.capability_category.api.model_categories', 'prefix': '/categories', 'tags': ['model_categories']},
         {'module': 'app.modules.capability_category.api.category_templates', 'prefix': '/category-templates', 'tags': ['category_templates']}
     ],
@@ -67,6 +67,9 @@ ROUTE_GROUPS: Dict[str, List[Dict]] = {
     ],
     'tasks': [
         {'module': 'app.api.v1.tasks', 'prefix': '/tasks', 'tags': ['tasks']}
+    ],
+    'tools': [
+        {'module': 'app.api.v1.tools', 'prefix': '/tools', 'tags': ['tools']}
     ],
     'parameters': [
         {'module': 'app.api.v1.parameter_template', 'tags': ['parameter-template']},
@@ -170,28 +173,6 @@ async def load_route_group(group_name: str) -> bool:
     
     logger.info(f"路由组 {group_name} 包含 {len(routes)} 个模块")
     
-    # 特殊处理知识图谱路由组
-    if group_name == 'knowledge' and not settings.enable_knowledge_graph:
-        from fastapi import HTTPException
-        
-        @api_router.get("/knowledge-graph/{path:path}")
-        @api_router.post("/knowledge-graph/{path:path}")
-        @api_router.put("/knowledge-graph/{path:path}")
-        @api_router.delete("/knowledge-graph/{path:path}")
-        async def knowledge_graph_disabled():
-            raise HTTPException(status_code=503, detail="知识图谱功能暂时禁用，正在优化中")
-        
-        @api_router.get("/entity-config/{path:path}")
-        @api_router.post("/entity-config/{path:path}")
-        @api_router.put("/entity-config/{path:path}")
-        @api_router.delete("/entity-config/{path:path}")
-        async def entity_config_disabled():
-            raise HTTPException(status_code=503, detail="实体配置功能暂时禁用，正在优化中")
-        
-        logger.info("知识图谱功能已禁用，跳过相关路由")
-        _loaded_groups.add(group_name)
-        return True
-    
     for route_config in routes:
         module_path = route_config['module']
         prefix = route_config.get('prefix')
@@ -225,7 +206,7 @@ async def load_route_group(group_name: str) -> bool:
     return True
 
 # 预加载核心路由组（启动时加载）
-CORE_ROUTE_GROUPS = ['auth', 'conversation', 'llm', 'memory', 'models', 'tasks', 'agents', 'skills', 'capabilities']
+CORE_ROUTE_GROUPS = ['auth', 'conversation', 'llm', 'memory', 'models', 'tasks', 'agents', 'skills', 'capabilities', 'knowledge', 'tools']
 
 async def preload_core_routes():
     """预加载核心路由组"""

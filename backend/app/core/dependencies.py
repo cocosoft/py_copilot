@@ -32,9 +32,11 @@ def get_db() -> Generator:
 
 # 从api.deps导入实际的认证依赖
 from app.api.deps import get_current_user as get_current_user_real
+from app.api.deps import get_current_active_user as get_current_active_user_real
 
 # 为了向后兼容，保留这个名称，但使用实际的实现
 get_current_user = get_current_user_real
+get_current_active_user = get_current_active_user_real
 
 # 导入服务类
 from app.services.skill_service import (

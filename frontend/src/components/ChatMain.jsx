@@ -43,6 +43,14 @@ const ChatMain = ({
   setEnableKnowledgeSearch,
   enableStreaming,
   setEnableStreaming,
+  enableFunctionCalling,
+  setEnableFunctionCalling,
+  availableTools,
+  activeToolCalls,
+  toolCallHistory,
+  showToolPanel,
+  setShowToolPanel,
+  onExecuteTool,
   selectedModel,
   availableModels,
   onModelChange,
@@ -320,6 +328,7 @@ const ChatMain = ({
           }}>📚</button>
           <button type="button" className={`input-btn ${enableStreaming ? 'active' : ''}`} title="流式输出（开关按钮）" onClick={() => setEnableStreaming(!enableStreaming)}>💧</button>
           <button type="button" className={`input-btn ${enableThinkingChain ? 'active' : ''}`} title="思考模式（开关按钮）" onClick={() => setEnableThinkingChain(!enableThinkingChain)}>🧠</button>
+          <button type="button" className={`input-btn ${enableFunctionCalling ? 'active' : ''}`} title="工具调用（开关按钮）" onClick={() => setEnableFunctionCalling(!enableFunctionCalling)}>🔧</button>
           <button type="button" className="input-btn" title="翻译">🔤</button>
           <div className="input-divider"></div>
           <button type="button" className="input-btn" title="录音">🎤</button>
@@ -434,6 +443,76 @@ const ChatMain = ({
           </button>
         </div>
       </form>
+      
+      {/* 工具面板 */}
+      {showToolPanel && (
+        <div className="tool-panel">
+          <div className="tool-panel-header">
+            <h3>工具面板</h3>
+            <button 
+              type="button"
+              className="tool-panel-close"
+              onClick={() => setShowToolPanel(false)}
+            >
+              ✕
+            </button>
+          </div>
+          
+          <div className="tool-panel-content">
+            {/* 可用工具列表 */}
+            <div className="tool-section">
+              <h4>可用工具</h4>
+              <div className="tool-list">
+                {availableTools.length > 0 ? (
+                  availableTools.map(tool => (
+                    <div key={tool.name} className="tool-item">
+                      <div className="tool-item-header">
+                        <span className="tool-icon">{tool.icon}</span>
+                        <span className="tool-name">{tool.display_name}</span>
+                      </div>
+                      <p className="tool-description">{tool.description}</p>
+                      <button
+                        type="button"
+                        className="tool-execute-btn"
+                        onClick={() => onExecuteTool(tool.name, {})}
+                      >
+                        执行
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <p className="no-tools">暂无可用工具</p>
+                )}
+              </div>
+            </div>
+            
+            {/* 工具调用历史 */}
+            {toolCallHistory.length > 0 && (
+              <div className="tool-section">
+                <h4>调用历史</h4>
+                <div className="tool-history-list">
+                  {toolCallHistory.slice(-10).map((call, index) => (
+                    <div key={call.id} className="tool-history-item">
+                      <div className="tool-history-header">
+                        <span className="tool-name">{call.toolName}</span>
+                        <span className="tool-time">
+                          {new Date(call.timestamp).toLocaleTimeString()}
+                        </span>
+                      </div>
+                      <p className="tool-result">
+                        {typeof call.result === 'object' 
+                          ? JSON.stringify(call.result, null, 2).substring(0, 100)
+                          : String(call.result).substring(0, 100)}
+                        ...
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

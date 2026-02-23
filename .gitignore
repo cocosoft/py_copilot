@@ -20,6 +20,27 @@ __pycache__/
 frontend/dist/
 node_modules/
 
+# 测试文件
+**/__tests__/
+**/*.test.*
+**/*.spec.*
+**/test_*.py
+**/test_*.js
+**/test_*.jsx
+**/test_*.html
+**/test_*.json
+**/test_*.md
+**/*_test.py
+**/*_test.js
+**/*_test.jsx
+**/pytest.ini
+**/performance_test_*.json
+**/performance_test_report.md
+**/simple_api_test.html
+**/test_api_*.html
+**/test-knowledge-graph*.html
+**/test-model-modal.html
+
 # 备份和临时文件
 backend/backup_unused_files/
 localStorage.json
@@ -814,3 +835,6 @@ backend/alembic/versions/002_add_file_upload_support.py
 backend/app/tests/api/test_agent_api.py
 backend/app/tests/services/test_agent_service.py
 backend/app/tests/utils/test_cache_decorators.py
+function_calling_design.md
+function_calling_implementation.md
+web_search_feature_design.md

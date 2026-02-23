@@ -159,6 +159,13 @@ const Chat = () => {
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false); // emoji选择器是否打开
   const [selectedEmojiCategory, setSelectedEmojiCategory] = useState(0); // 当前选中的emoji分类
   
+  // Function Calling工具调用相关状态
+  const [enableFunctionCalling, setEnableFunctionCalling] = useState(true); // 是否启用Function Calling
+  const [availableTools, setAvailableTools] = useState([]); // 可用工具列表
+  const [activeToolCalls, setActiveToolCalls] = useState({}); // 当前活跃的工具调用
+  const [toolCallHistory, setToolCallHistory] = useState([]); // 工具调用历史
+  const [showToolPanel, setShowToolPanel] = useState(false); // 是否显示工具面板
+  
   // 滚动到底部
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -198,6 +205,118 @@ const Chat = () => {
       }));
     } catch (error) {
       console.error('预加载消息失败:', error);
+    }
+  }, []);
+
+  // 加载可用工具列表
+  const loadAvailableTools = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/v1/tools`);
+      const data = await response.json();
+      if (data.success) {
+        setAvailableTools(data.data);
+      }
+    } catch (error) {
+      console.error('加载工具列表失败:', error);
+    }
+  }, []);
+
+  // 组件加载时加载工具列表
+  useEffect(() => {
+    loadAvailableTools();
+  }, [loadAvailableTools]);
+
+  // 执行工具调用
+  const executeToolCall = useCallback(async (toolName, parameters) => {
+    try {
+      const toolCallId = Date.now();
+      
+      // 创建工具调用消息
+      const toolCallMessage = {
+        id: toolCallId,
+        sender: 'system',
+        text: `正在调用工具: ${toolName}`,
+        timestamp: new Date(),
+        status: 'executing',
+        type: 'tool_call',
+        toolName: toolName,
+        toolParameters: parameters
+      };
+      
+      setMessages(prev => [...prev, toolCallMessage]);
+      setActiveToolCalls(prev => ({
+        ...prev,
+        [toolCallId]: { toolName, parameters, status: 'executing' }
+      }));
+      
+      // 执行工具调用
+      const response = await fetch(`${API_BASE_URL}/v1/tools/${toolName}/execute`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(parameters)
+      });
+      
+      const data = await response.json();
+      
+      // 更新工具调用状态
+      if (data.success) {
+        setMessages(prev => prev.map(msg => 
+          msg.id === toolCallId 
+            ? { 
+                ...msg, 
+                text: `工具 ${toolName} 执行成功`,
+                status: 'success',
+                toolResult: data.data.result,
+                executionTime: data.data.execution_time
+              }
+            : msg
+        ));
+        
+        setActiveToolCalls(prev => ({
+          ...prev,
+          [toolCallId]: { toolName, parameters, status: 'success', result: data.data.result }
+        }));
+        
+        // 添加到工具调用历史
+        setToolCallHistory(prev => [...prev, {
+          id: toolCallId,
+          toolName,
+          parameters,
+          result: data.data.result,
+          executionTime: data.data.execution_time,
+          timestamp: new Date()
+        }]);
+      } else {
+        setMessages(prev => prev.map(msg => 
+          msg.id === toolCallId 
+            ? { 
+                ...msg, 
+                text: `工具 ${toolName} 执行失败: ${data.error}`,
+                status: 'error',
+                error: data.error
+              }
+            : msg
+        ));
+        
+        setActiveToolCalls(prev => ({
+          ...prev,
+          [toolCallId]: { toolName, parameters, status: 'error', error: data.error }
+        }));
+      }
+    } catch (error) {
+      console.error('工具调用失败:', error);
+      setMessages(prev => prev.map(msg => 
+        msg.id === toolCallId 
+          ? { 
+              ...msg, 
+              text: `工具调用失败: ${error.message}`,
+              status: 'error',
+              error: error.message
+            }
+          : msg
+      ));
     }
   }, []);
 
@@ -725,7 +844,8 @@ const Chat = () => {
         model_name: selectedModel ? selectedModel.model_id : 'moonshotai/Kimi-K2-Thinking',
         enable_thinking_chain: enableThinkingChain,
         attached_files: uploadedFiles.map(f => f.id),
-        use_file_upload: null  // null表示自动选择，true表示强制使用文件上传，false表示强制使用文本解析
+        use_file_upload: null,  // null表示自动选择，true表示强制使用文件上传，false表示强制使用文本解析
+        enable_function_calling: enableFunctionCalling  // 启用Function Calling
       };
       
       console.log('流式响应消息数据:', JSON.stringify(messageData, null, 2));
@@ -959,6 +1079,84 @@ const Chat = () => {
             } else if (data.type) {
               // 处理前端期望的格式（兼容旧格式）
               switch (data.type) {
+                case 'tool_call':
+                  // 处理工具调用请求
+                  const toolCallData = data.tool_call;
+                  if (toolCallData) {
+                    const { name, parameters } = toolCallData;
+                    
+                    // 创建工具调用消息
+                    const toolCallMessage = {
+                      id: Date.now(),
+                      sender: 'system',
+                      text: `正在调用工具: ${name}`,
+                      timestamp: new Date(),
+                      status: 'executing',
+                      type: 'tool_call',
+                      toolName: name,
+                      toolParameters: parameters
+                    };
+                    
+                    setMessages(prev => [...prev, toolCallMessage]);
+                    setActiveToolCalls(prev => ({
+                      ...prev,
+                      [toolCallMessage.id]: { name, parameters, status: 'executing' }
+                    }));
+                    
+                    // 执行工具调用
+                    executeToolCall(name, parameters);
+                  }
+                  break;
+                  
+                case 'tool_result':
+                  // 处理工具调用结果
+                  const toolResultData = data.tool_result;
+                  if (toolResultData) {
+                    const { tool_name, result, error } = toolResultData;
+                    
+                    // 更新工具调用消息
+                    setMessages(prev => prev.map(msg => 
+                      (msg.type === 'tool_call' && msg.toolName === tool_name && msg.status === 'executing')
+                        ? { 
+                            ...msg, 
+                            text: error ? `工具 ${tool_name} 执行失败: ${error}` : `工具 ${tool_name} 执行成功`,
+                            status: error ? 'error' : 'success',
+                            toolResult: result,
+                            error: error
+                          }
+                        : msg
+                    ));
+                    
+                    // 更新活跃工具调用状态
+                    const toolCallId = Object.keys(activeToolCalls).find(
+                      id => activeToolCalls[id].name === tool_name && activeToolCalls[id].status === 'executing'
+                    );
+                    if (toolCallId) {
+                      setActiveToolCalls(prev => ({
+                        ...prev,
+                        [toolCallId]: { 
+                          name: tool_name, 
+                          parameters: activeToolCalls[toolCallId].parameters, 
+                          status: error ? 'error' : 'success', 
+                          result: result,
+                          error: error
+                        }
+                      }));
+                    }
+                    
+                    // 添加到工具调用历史
+                    if (!error) {
+                      setToolCallHistory(prev => [...prev, {
+                        id: Date.now(),
+                        toolName: tool_name,
+                        parameters: activeToolCalls[toolCallId]?.parameters || {},
+                        result: result,
+                        timestamp: new Date()
+                      }]);
+                    }
+                  }
+                  break;
+                  
                 case 'thinking':
                   // 累积完整的思维链内容
                   fullThinkingChain += data.content;
@@ -1390,6 +1588,14 @@ const Chat = () => {
           setEnableKnowledgeSearch={setEnableKnowledgeSearch}
           enableStreaming={enableStreaming}
           setEnableStreaming={setEnableStreaming}
+          enableFunctionCalling={enableFunctionCalling}
+          setEnableFunctionCalling={setEnableFunctionCalling}
+          availableTools={availableTools}
+          activeToolCalls={activeToolCalls}
+          toolCallHistory={toolCallHistory}
+          showToolPanel={showToolPanel}
+          setShowToolPanel={setShowToolPanel}
+          onExecuteTool={executeToolCall}
           selectedModel={selectedModel}
           availableModels={availableModels}
           onModelChange={setSelectedModel}

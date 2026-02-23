@@ -64,6 +64,12 @@ class Settings(BaseSettings):
     ollama_api_endpoint: str = Field(default="http://localhost:11434/v1", env="OLLAMA_API_ENDPOINT")
     ollama_port: int = Field(default=11434, env="OLLAMA_PORT")
     
+    # 搜索引擎API配置
+    google_search_api_key: Optional[str] = Field(default=None, env="GOOGLE_SEARCH_API_KEY")
+    google_custom_search_engine_id: Optional[str] = Field(default=None, env="GOOGLE_CUSTOM_SEARCH_ENGINE_ID")
+    bing_search_api_key: Optional[str] = Field(default=None, env="BING_SEARCH_API_KEY")
+    baidu_search_api_key: Optional[str] = Field(default=None, env="BAIDU_SEARCH_API_KEY")
+    
     # 微服务端口配置
     gateway_port: int = Field(default=8000, env="GATEWAY_PORT")
     chat_service_port: int = Field(default=8001, env="CHAT_SERVICE_PORT")
