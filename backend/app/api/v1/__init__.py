@@ -96,6 +96,9 @@ ROUTE_GROUPS: Dict[str, List[Dict]] = {
     ],
     'docs': [
         {'module': 'app.api.v1.api_docs', 'prefix': '/api-docs', 'tags': ['api-docs']}
+    ],
+    'settings': [
+        {'module': 'app.api.v1.settings', 'prefix': '/settings', 'tags': ['settings']}
     ]
 }
 
@@ -206,7 +209,7 @@ async def load_route_group(group_name: str) -> bool:
     return True
 
 # 预加载核心路由组（启动时加载）
-CORE_ROUTE_GROUPS = ['auth', 'conversation', 'llm', 'memory', 'models', 'tasks', 'agents', 'skills', 'capabilities', 'knowledge', 'tools']
+CORE_ROUTE_GROUPS = ['auth', 'conversation', 'llm', 'memory', 'models', 'tasks', 'agents', 'skills', 'capabilities', 'knowledge', 'tools', 'settings']
 
 async def preload_core_routes():
     """预加载核心路由组"""

@@ -486,6 +486,7 @@ from app.api.v1.topic_title import router as topic_title_router
 from app.modules.conversation.api.conversations import router as conversations_router
 from app.api.v1.tools_api import router as tools_router
 from app.api.v1.function_calling_api import router as function_calling_router
+from app.api.v1.settings import router as settings_router
 app.include_router(categories_router, prefix="/api/v1", tags=["model_categories"])
 app.include_router(capability_router, prefix="/api/v1/capabilities", tags=["model_capabilities"])
 app.include_router(model_capabilities_router, prefix="/api/v1/model-capabilities", tags=["model_capabilities"])
@@ -497,4 +498,5 @@ app.include_router(topic_title_router, prefix="/api/v1", tags=["topic-title"])
 app.include_router(conversations_router, prefix="/api/v1/conversations", tags=["conversations"])
 app.include_router(tools_router, prefix="/api/v1", tags=["tools"])
 app.include_router(function_calling_router, prefix="/api/v1", tags=["function_calling"])
+app.include_router(settings_router, prefix="/api/v1/settings", tags=["settings"])
 

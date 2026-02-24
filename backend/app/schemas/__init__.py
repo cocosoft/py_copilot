@@ -19,6 +19,7 @@ from app.schemas.model_capability import (
     CapabilityWithModelsResponse
 )
 from app.schemas.model_management import ModelSupplierBase, ModelSupplierCreate, ModelSupplierUpdate, ModelSupplierResponse, ModelSupplierListResponse, ModelBase, ModelCreate, ModelUpdate, ModelResponse, ModelListResponse, ModelWithSupplierResponse
+from app.schemas.setting import SettingBase, SettingCreate, SettingUpdate, SettingResponse, SettingsResponse
 
 __all__ = [
     # Auth
@@ -39,4 +40,6 @@ __all__ = [
     "ModelSupplierBase", "ModelSupplierCreate", "ModelSupplierUpdate", "ModelSupplierResponse", "ModelSupplierListResponse", "ModelBase", "ModelCreate", "ModelUpdate", "ModelResponse", "ModelListResponse", "ModelWithSupplierResponse", "SetDefaultModelRequest",
     # Model Parameter
     "ModelParameterBase", "ModelParameterCreate", "ModelParameterUpdate", "ModelParameterResponse", "ModelParameterListResponse",
+    # Setting
+    "SettingBase", "SettingCreate", "SettingUpdate", "SettingResponse", "SettingsResponse",
 ]

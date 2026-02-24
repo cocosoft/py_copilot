@@ -7,7 +7,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   
   // 使用环境变量中的API地址，如果没有则使用默认值
-  const apiBaseUrl = env.VITE_API_BASE_URL || 'http://127.0.0.1:8007';
+  const apiBaseUrl = env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
   
   return {
     plugins: [react()],
@@ -52,7 +52,7 @@ export default defineConfig(({ mode }) => {
             configure: (proxy, options) => {
               // 禁用代理缓冲，确保流式响应能正确传递
               options.onProxyReq = (proxyReq, req, res) => {
-                console.log('📤 Sending Request to Target:', req.method, req.url, '→', 'http://localhost:8007' + req.url);
+                console.log('📤 Sending Request to Target:', req.method, req.url, '→', apiBaseUrl + req.url);
                 // 添加调试头
                 proxyReq.setHeader('X-Proxy-Request', 'true');
               };
@@ -78,7 +78,7 @@ export default defineConfig(({ mode }) => {
                 if (err.code === 'ECONNRESET') {
                   console.error('🚨 Connection reset by peer - check if backend server is running and accessible');
                 } else if (err.code === 'ECONNREFUSED') {
-                  console.error('🚨 Connection refused - check if backend server is running on port:', 'http://localhost:8007');
+                  console.error('🚨 Connection refused - check if backend server is running on port:', apiBaseUrl);
                 }
                 // 确保响应被发送，避免客户端等待超时
                 res.writeHead(500, { 'Content-Type': 'application/json' });

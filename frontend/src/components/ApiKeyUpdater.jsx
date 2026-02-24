@@ -21,6 +21,47 @@ const ApiKeyUpdater = () => {
       } catch (error) {
         console.error('❌ 获取供应商数据失败:', error.message);
         console.error('请检查后端服务是否正常运行');
+        
+        // 如果API调用失败，尝试使用默认供应商数据
+        const STORAGE_PREFIX = 'model_management_';
+        const suppliersKey = `${STORAGE_PREFIX}suppliers`;
+        const cachedSuppliers = localStorage.getItem(suppliersKey);
+        
+        if (cachedSuppliers) {
+          console.log('✅ 使用localStorage中的缓存供应商数据');
+        } else {
+          console.log('✅ 使用默认供应商数据');
+          const defaultSuppliers = [
+            {
+              id: 1,
+              name: 'OpenAI',
+              display_name: 'OpenAI',
+              description: 'OpenAI提供强大的GPT系列模型',
+              logo: '/logos/providers/openai.png',
+              website: 'https://openai.com',
+              is_active: true
+            },
+            {
+              id: 2,
+              name: 'Anthropic',
+              display_name: 'Anthropic',
+              description: 'Anthropic提供Claude系列模型',
+              logo: '/logos/providers/anthropic.png',
+              website: 'https://anthropic.com',
+              is_active: true
+            },
+            {
+              id: 3,
+              name: 'DeepSeek',
+              display_name: 'DeepSeek',
+              description: 'DeepSeek提供高性能的中文模型',
+              logo: '/logos/providers/deepseek.png',
+              website: 'https://deepseek.com',
+              is_active: true
+            }
+          ];
+          localStorage.setItem(suppliersKey, JSON.stringify(defaultSuppliers));
+        }
       }
     };
     

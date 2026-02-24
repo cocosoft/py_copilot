@@ -24,7 +24,6 @@ const SupplierProvider = ({ children }) => {
           is_active: supplier.is_active ?? true
         })) : [];
         
-      
       // 确保只返回有效的供应商数据
       const finalSuppliers = processedSuppliers.filter(supplier => supplier.id && supplier.name);
       setSuppliers(finalSuppliers);
@@ -32,9 +31,55 @@ const SupplierProvider = ({ children }) => {
       return finalSuppliers;
     } catch (err) {
       console.error('❌ 加载供应商失败:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
-      setError('加载供应商失败');
-      setSuppliers([]);
-      return [];
+      
+      // 尝试从localStorage加载供应商数据作为回退
+      try {
+        const cachedSuppliers = localStorage.getItem('suppliers');
+        if (cachedSuppliers) {
+          const suppliers = JSON.parse(cachedSuppliers);
+          console.log('✅ 从localStorage加载供应商数据作为回退');
+          setSuppliers(suppliers);
+          setError('无法连接到服务器，使用本地缓存数据');
+          return suppliers;
+        }
+      } catch (cacheError) {
+        console.error('❌ 从localStorage加载供应商数据失败:', cacheError);
+      }
+      
+      // 如果没有缓存数据，使用默认供应商数据
+      console.log('✅ 使用默认供应商数据');
+      const defaultSuppliers = [
+        {
+          id: 1,
+          name: 'OpenAI',
+          display_name: 'OpenAI',
+          description: 'OpenAI提供强大的GPT系列模型',
+          logo: '/logos/providers/openai.png',
+          website: 'https://openai.com',
+          is_active: true
+        },
+        {
+          id: 2,
+          name: 'Anthropic',
+          display_name: 'Anthropic',
+          description: 'Anthropic提供Claude系列模型',
+          logo: '/logos/providers/anthropic.png',
+          website: 'https://anthropic.com',
+          is_active: true
+        },
+        {
+          id: 3,
+          name: 'DeepSeek',
+          display_name: 'DeepSeek',
+          description: 'DeepSeek提供高性能的中文模型',
+          logo: '/logos/providers/deepseek.png',
+          website: 'https://deepseek.com',
+          is_active: true
+        }
+      ];
+      setSuppliers(defaultSuppliers);
+      setError('无法连接到服务器，使用默认供应商数据');
+      return defaultSuppliers;
     } finally {
       setLoading(false);
     }

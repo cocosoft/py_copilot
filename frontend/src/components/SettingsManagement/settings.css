@@ -1,0 +1,377 @@
+/* 设置管理样式 */
+.settings-manager {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: #f5f5f5;
+}
+
+.settings-header {
+  padding: 16px;
+  border-bottom: 1px solid #e0e0e0;
+  background-color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.settings-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.settings-action-btn {
+  padding: 8px 16px;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  background-color: #f8f9fa;
+  color: #333;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.settings-action-btn:hover {
+  background-color: #e9ecef;
+  border-color: #adb5bd;
+}
+
+.export-btn {
+  background-color: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+.export-btn:hover {
+  background-color: #0069d9;
+  border-color: #0062cc;
+}
+
+.import-btn {
+  background-color: #28a745;
+  color: white;
+  border-color: #28a745;
+}
+
+.import-btn:hover {
+  background-color: #218838;
+  border-color: #1e7e34;
+}
+
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  background-color: white;
+  border-bottom: 1px solid #e0e0e0;
+  overflow-y: auto;
+}
+
+.settings-nav-item {
+  padding: 12px 16px;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 14px;
+  color: #666;
+  border-left: 3px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.settings-nav-item:hover {
+  background-color: #f0f0f0;
+  color: #333;
+}
+
+.settings-nav-item.active {
+  background-color: #f0f8ff;
+  color: #1890ff;
+  border-left-color: #1890ff;
+  font-weight: 500;
+}
+
+.settings-content {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  background-color: #f5f5f5;
+}
+
+.settings-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  font-size: 14px;
+  color: #666;
+}
+
+/* 通用设置样式 */
+.setting-group {
+  margin-bottom: 24px;
+  background-color: white;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.setting-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.setting-input,
+.setting-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.setting-input:focus,
+.setting-select:focus {
+  outline: none;
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+/* 个性化设置样式 */
+.traits-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.trait-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.trait-name {
+  width: 80px;
+  font-size: 14px;
+  color: #666;
+}
+
+.trait-slider {
+  flex: 1;
+}
+
+.trait-value {
+  width: 40px;
+  font-size: 14px;
+  color: #666;
+  text-align: right;
+}
+
+/* 选项样式 */
+.style-options,
+.speed-options,
+.theme-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.style-option,
+.speed-option,
+.theme-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #666;
+  cursor: pointer;
+}
+
+/* 情感和学习设置样式 */
+.toggle-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 24px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+  border-radius: 24px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+  background-color: #1890ff;
+}
+
+input:focus + .toggle-slider {
+  box-shadow: 0 0 1px #1890ff;
+}
+
+input:checked + .toggle-slider:before {
+  transform: translateX(24px);
+}
+
+.toggle-label {
+  font-size: 14px;
+  color: #666;
+}
+
+/* 操作按钮样式 */
+.setting-actions {
+  margin-top: 32px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.save-button {
+  padding: 8px 24px;
+  background-color: #1890ff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.save-button:hover {
+  background-color: #40a9ff;
+}
+
+.save-button:disabled {
+  background-color: #d9d9d9;
+  cursor: not-allowed;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .settings-nav {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+  
+  .settings-nav-item {
+    white-space: nowrap;
+    border-left: none;
+    border-bottom: 3px solid transparent;
+  }
+  
+  .settings-nav-item.active {
+    border-left: none;
+    border-bottom-color: #1890ff;
+  }
+  
+  .trait-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  
+  .trait-name {
+    width: 100%;
+  }
+  
+  .trait-slider {
+    width: 100%;
+  }
+  
+  .trait-value {
+    align-self: flex-end;
+  }
+}
+
+/* 滚动条样式 */
+.settings-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.settings-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.settings-content::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.settings-content::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.setting-group {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+/* 加载动画 */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.settings-loading:before {
+  content: "";
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  margin-right: 10px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #1890ff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}

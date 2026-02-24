@@ -18,6 +18,7 @@ from app.models.translation_history import TranslationHistory
 from app.models.platform_config import PlatformConfig
 from app.models.api_favorite import ApiFavorite
 from app.models.function_calling import Tool, ToolExecution, ToolUsageStats
+from app.models.setting import UserSetting
 
 __all__ = [
     "User",
@@ -56,5 +57,6 @@ __all__ = [
     "ApiFavorite",
     "Tool",
     "ToolExecution",
-    "ToolUsageStats"
+    "ToolUsageStats",
+    "UserSetting"
 ]

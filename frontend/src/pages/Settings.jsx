@@ -9,6 +9,7 @@ import Workflow from './Workflow';
 import Tool from './Tool';
 import ModelSelectDropdown from '../components/ModelManagement/ModelSelectDropdown';
 import SkillManagement from '../components/SkillManagement/SkillManagement';
+import SettingsManager from '../components/SettingsManagement/SettingsManager';
 
 // 防抖函数
 const debounce = (func, wait) => {
@@ -26,7 +27,7 @@ const debounce = (func, wait) => {
 
 const Settings = () => {
   // 状态管理当前选中的二级菜单
-  const [activeSection, setActiveSection] = useState('model');
+  const [activeSection, setActiveSection] = useState('general');
   
   // 新增：控制侧边栏是否展开的状态
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
@@ -951,6 +952,20 @@ const Settings = () => {
   // 根据选中的二级菜单渲染对应内容
   const renderContent = () => {
     switch (activeSection) {
+      case 'general':
+        return (
+          <div className="settings-content">
+            <div className="content-header">
+              <h2>应用配置</h2>
+              <p>管理智能个人助手的基本配置和个性化选项</p>
+            </div>
+            
+            <div className="general-settings-container">
+              <SettingsManager />
+            </div>
+          </div>
+        );
+        
       case 'model':
         return (
           <div className="settings-content">
@@ -1233,136 +1248,8 @@ const Settings = () => {
           </div>
         );
         
-      case 'system':
-        return (
-          <div className="settings-content">
-            <div className="content-header">
-              <h2>系统功能管理</h2>
-              <p>管理系统功能和模块的启用状态</p>
-            </div>
-            
-            <div className="system-management-container">
-              <div className="setting-card">
-                <div className="setting-header">
-                  <h3>功能模块管理</h3>
-                  <p>查看和管理系统中的功能模块</p>
-                </div>
-                
-                <div className="feature-modules-grid">
-                  {/* 聊天核心功能 */}
-                  <div className="feature-module-card">
-                    <div className="module-icon">💬</div>
-                    <h4>聊天核心功能</h4>
-                    <p>基础的聊天对话功能，包括流式响应和思维链</p>
-                    <div className="module-status">
-                      <span className="status-indicator active"></span>
-                      <span>已启用</span>
-                    </div>
-                  </div>
-                  
-                  {/* 记忆增强功能 */}
-                  <div className="feature-module-card">
-                    <div className="module-icon">🧠</div>
-                    <h4>记忆增强功能</h4>
-                    <p>全局记忆和上下文管理，支持记忆检索和更新</p>
-                    <div className="module-status">
-                      <span className="status-indicator active"></span>
-                      <span>已启用</span>
-                    </div>
-                  </div>
-                  
-                  {/* 知识库功能 */}
-                  <div className="feature-module-card">
-                    <div className="module-icon">📚</div>
-                    <h4>知识库功能</h4>
-                    <p>知识库管理和语义搜索，支持文档上传和分析</p>
-                    <div className="module-status">
-                      <span className="status-indicator active"></span>
-                      <span>已启用</span>
-                    </div>
-                  </div>
-                  
-                  {/* Web搜索功能 */}
-                  <div className="feature-module-card">
-                    <div className="module-icon">🌐</div>
-                    <h4>Web搜索功能</h4>
-                    <p>集成Google、Bing、百度等搜索引擎，支持结果优化</p>
-                    <div className="module-status">
-                      <span className="status-indicator active"></span>
-                      <span>已启用</span>
-                    </div>
-                  </div>
-                  
-                  {/* 文件服务 */}
-                  <div className="feature-module-card">
-                    <div className="module-icon">📁</div>
-                    <h4>文件服务</h4>
-                    <p>文件上传、处理和管理，支持多种文件类型</p>
-                    <div className="module-status">
-                      <span className="status-indicator active"></span>
-                      <span>已启用</span>
-                    </div>
-                  </div>
-                  
-                  {/* 语音服务 */}
-                  <div className="feature-module-card">
-                    <div className="module-icon">🎤</div>
-                    <h4>语音服务</h4>
-                    <p>语音识别和语音合成，支持多种语言</p>
-                    <div className="module-status">
-                      <span className="status-indicator active"></span>
-                      <span>已启用</span>
-                    </div>
-                  </div>
-                  
-                  {/* 图像服务 */}
-                  <div className="feature-module-card">
-                    <div className="module-icon">🖼️</div>
-                    <h4>图像服务</h4>
-                    <p>图像识别和OCR功能，支持图片内容分析</p>
-                    <div className="module-status">
-                      <span className="status-indicator inactive"></span>
-                      <span>开发中</span>
-                    </div>
-                  </div>
-                  
-                  {/* 视频聊天 */}
-                  <div className="feature-module-card">
-                    <div className="module-icon">📹</div>
-                    <h4>视频聊天</h4>
-                    <p>实时视频通话和视频分析功能</p>
-                    <div className="module-status">
-                      <span className="status-indicator inactive"></span>
-                      <span>规划中</span>
-                    </div>
-                  </div>
-                  
-                  {/* 语音唤醒 */}
-                  <div className="feature-module-card">
-                    <div className="module-icon">🔊</div>
-                    <h4>语音唤醒</h4>
-                    <p>通过语音指令唤醒和控制系统</p>
-                    <div className="module-status">
-                      <span className="status-indicator inactive"></span>
-                      <span>规划中</span>
-                    </div>
-                  </div>
-                  
-                  {/* Emoji图标 */}
-                  <div className="feature-module-card">
-                    <div className="module-icon">😊</div>
-                    <h4>Emoji图标</h4>
-                    <p>支持Emoji表情和符号输入</p>
-                    <div className="module-status">
-                      <span className="status-indicator inactive"></span>
-                      <span>开发中</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
+
+
         
       case 'globalMemory':
         return (
@@ -1901,6 +1788,14 @@ const Settings = () => {
         <div className={`settings-sidebar ${sidebarExpanded ? 'expanded' : 'collapsed'}`}>
           <nav className="settings-nav">
             <button 
+              className={`nav-item ${activeSection === 'general' ? 'active' : ''}`}
+              onClick={() => setActiveSection('general')}
+            >
+              <span className="nav-icon">⚙️</span>
+              <span className="nav-text">应用配置</span>
+            </button>
+            
+            <button 
               className={`nav-item ${activeSection === 'model' ? 'active' : ''}`}
               onClick={() => setActiveSection('model')}
             >
@@ -1956,13 +1851,7 @@ const Settings = () => {
               <span className="nav-text">搜索管理</span>
             </button>
             
-            <button 
-              className={`nav-item ${activeSection === 'system' ? 'active' : ''}`}
-              onClick={() => setActiveSection('system')}
-            >
-              <span className="nav-icon">⚙️</span>
-              <span className="nav-text">系统功能管理</span>
-            </button>
+
             
             <button 
               className={`nav-item ${activeSection === 'globalMemory' ? 'active' : ''}`}
