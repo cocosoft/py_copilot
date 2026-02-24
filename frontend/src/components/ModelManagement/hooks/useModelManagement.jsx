@@ -262,8 +262,8 @@ const useModelManagement = () => {
 
       // 加载所有模型列表
       const allModelsResponse = await supplierApi.getModels().catch(() => []);
-      // 处理API返回格式：可能是直接数组或包含items属性的对象
-      const allModels = Array.isArray(allModelsResponse) ? allModelsResponse : (allModelsResponse?.items || []);
+      // 处理API返回格式：可能是直接数组或包含items/models属性的对象
+      const allModels = Array.isArray(allModelsResponse) ? allModelsResponse : (allModelsResponse?.models || allModelsResponse?.items || []);
       setModels(allModels);
 
       // 为所有场景加载特定模型

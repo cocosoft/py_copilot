@@ -153,7 +153,7 @@ async def get_all_models(
     models = db.query(ModelDB).options(joinedload(ModelDB.supplier)).offset(skip).limit(limit).all()
     total = db.query(ModelDB).count()
     
-    # 转换为ModelWithSupplierResponse格式，确保logo字段被正确序列化
+    # 转换为前端友好的格式，包含完整的供应商信息
     model_responses = []
     for model in models:
         # 确保logo字段包含完整路径
@@ -161,32 +161,43 @@ async def get_all_models(
         if logo and not logo.startswith("/logos/models/"):
             logo = f"/logos/models/{logo}"
         
-        # 创建ModelWithSupplierResponse对象
-        model_response = ModelWithSupplierResponse(
-            id=model.id,
-            name=model.model_name or model.model_id or "Unknown Model",
-            display_name=model.model_name or model.model_id or "Unknown Model",
-            description=model.description,
-            supplier_id=model.supplier_id,
-            context_window=model.context_window or 8000,
-            max_tokens=model.max_tokens or 1000,
-            is_default=model.is_default,
-            is_active=model.is_active,
-            logo=logo,
-            supplier=ModelSupplierResponse(
-                id=model.supplier.id,
-                name=model.supplier.name or "Unknown Supplier",
-                display_name=model.supplier.display_name or model.supplier.name or "Unknown Supplier",
-                description=model.supplier.description,
-                logo=model.supplier.logo,
-                is_active=model.supplier.is_active,
-                api_endpoint=model.supplier.api_endpoint,
-                api_key_required=model.supplier.api_key_required,
-                category=model.supplier.category,
-                website=model.supplier.website,
-                api_docs=model.supplier.api_docs
-            )
-        )
+        # 直接返回字典格式，包含供应商信息的顶层字段
+        model_response = {
+            "id": model.id,
+            "model_id": model.model_id or str(model.id),
+            "model_name": model.model_name or model.model_id or "Unknown Model",
+            "description": model.description,
+            "type": "chat",
+            "supplier_id": model.supplier_id,
+            "context_window": model.context_window or 8000,
+            "default_temperature": 0.7,
+            "default_max_tokens": model.max_tokens or 1000,
+            "default_top_p": 1.0,
+            "default_frequency_penalty": 0.0,
+            "default_presence_penalty": 0.0,
+            "custom_params": None,
+            "is_default": model.is_default,
+            "is_active": model.is_active,
+            "logo": logo,
+            # 直接在顶层包含供应商信息字段
+            "supplier_name": model.supplier.name or "Unknown Supplier",
+            "supplier_display_name": model.supplier.display_name or model.supplier.name or "Unknown Supplier",
+            "supplier_logo": model.supplier.logo,
+            # 保留嵌套的supplier对象以兼容其他使用场景
+            "supplier": {
+                "id": model.supplier.id,
+                "name": model.supplier.name or "Unknown Supplier",
+                "display_name": model.supplier.display_name or model.supplier.name or "Unknown Supplier",
+                "description": model.supplier.description,
+                "logo": model.supplier.logo,
+                "is_active": model.supplier.is_active,
+                "api_endpoint": model.supplier.api_endpoint,
+                "api_key_required": model.supplier.api_key_required,
+                "category": model.supplier.category,
+                "website": model.supplier.website,
+                "api_docs": model.supplier.api_docs
+            }
+        }
         model_responses.append(model_response)
     
     print(f"返回 {len(model_responses)} 个模型，总计 {total} 个模型")

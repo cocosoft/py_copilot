@@ -838,3 +838,10 @@ backend/app/tests/utils/test_cache_decorators.py
 function_calling_design.md
 function_calling_implementation.md
 web_search_feature_design.md
+OpenClaw分析.md
+Py Copilot 项目分析报告.md
+Py Copilot 优化建议（基于 OpenClaw 分析）.md
+Py Copilot 优化建议（基于项目实际情况）.md
+Py Copilot Gateway架构优化实施计划.md
+Py Copilot Gateway架构优化影响评估报告.md
+SERVICE_MANAGEMENT.md
