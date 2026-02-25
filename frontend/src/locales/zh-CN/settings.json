@@ -1,0 +1,55 @@
+{
+  "title": "设置",
+  "general": {
+    "title": "通用设置",
+    "assistantName": "助手名称",
+    "language": "语言",
+    "theme": "主题",
+    "themeLight": "浅色",
+    "themeDark": "深色",
+    "themeSystem": "跟随系统"
+  },
+  "personalization": {
+    "title": "个性化设置",
+    "personalityTraits": "人格特质",
+    "communicationStyle": "沟通风格",
+    "responseSpeed": "响应速度",
+    "customPrompt": "个性化需求"
+  },
+  "emotion": {
+    "title": "情感设置",
+    "emotionRecognition": "情感识别",
+    "emotionResponse": "情感回应",
+    "emotionMemory": "情感记忆"
+  },
+  "learning": {
+    "title": "学习设置",
+    "adaptiveLearning": "自适应学习",
+    "patternRecognition": "模式识别",
+    "predictiveSuggestions": "预测建议"
+  },
+  "relationship": {
+    "title": "关系设置",
+    "relationshipMemory": "关系记忆",
+    "milestoneReminders": "里程碑提醒",
+    "relationshipInsights": "关系洞察"
+  },
+  "search": {
+    "title": "搜索管理",
+    "defaultEngine": "默认搜索引擎",
+    "safeSearch": "安全搜索"
+  },
+  "defaultModel": {
+    "title": "默认模型",
+    "global": "全局默认模型",
+    "scene": "场景默认模型"
+  },
+  "memory": {
+    "title": "全局记忆",
+    "config": "记忆配置",
+    "stats": "记忆统计"
+  },
+  "mcp": {
+    "title": "MCP服务"
+  }
+}

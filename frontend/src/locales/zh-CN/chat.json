@@ -1,0 +1,10 @@
+{
+  "placeholder": "请输入您的问题...",
+  "send": "发送",
+  "clear": "清空对话",
+  "export": "导出对话",
+  "newChat": "新建对话",
+  "chatHistory": "对话历史",
+  "copy": "复制",
+  "retry": "重试"
+}

@@ -1,0 +1,55 @@
+{
+  "title": "Settings",
+  "general": {
+    "title": "General Settings",
+    "assistantName": "Assistant Name",
+    "language": "Language",
+    "theme": "Theme",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeSystem": "System"
+  },
+  "personalization": {
+    "title": "Personalization",
+    "personalityTraits": "Personality Traits",
+    "communicationStyle": "Communication Style",
+    "responseSpeed": "Response Speed",
+    "customPrompt": "Custom Prompt"
+  },
+  "emotion": {
+    "title": "Emotion",
+    "emotionRecognition": "Emotion Recognition",
+    "emotionResponse": "Emotion Response",
+    "emotionMemory": "Emotion Memory"
+  },
+  "learning": {
+    "title": "Learning",
+    "adaptiveLearning": "Adaptive Learning",
+    "patternRecognition": "Pattern Recognition",
+    "predictiveSuggestions": "Predictive Suggestions"
+  },
+  "relationship": {
+    "title": "Relationship",
+    "relationshipMemory": "Relationship Memory",
+    "milestoneReminders": "Milestone Reminders",
+    "relationshipInsights": "Relationship Insights"
+  },
+  "search": {
+    "title": "Search Management",
+    "defaultEngine": "Default Search Engine",
+    "safeSearch": "Safe Search"
+  },
+  "defaultModel": {
+    "title": "Default Model",
+    "global": "Global Default Model",
+    "scene": "Scene Default Model"
+  },
+  "memory": {
+    "title": "Global Memory",
+    "config": "Memory Config",
+    "stats": "Memory Stats"
+  },
+  "mcp": {
+    "title": "MCP Services"
+  }
+}

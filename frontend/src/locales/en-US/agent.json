@@ -1,0 +1,10 @@
+{
+  "title": "Agent Management",
+  "create": "Create Agent",
+  "configure": "Configure Agent",
+  "execute": "Execute",
+  "agentList": "Agent List",
+  "agentName": "Agent Name",
+  "agentType": "Agent Type",
+  "agentStatus": "Status"
+}

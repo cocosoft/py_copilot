@@ -4,9 +4,12 @@ import EmotionSettings from './EmotionSettings';
 import LearningSettings from './LearningSettings';
 import RelationshipSettings from './RelationshipSettings';
 import GeneralSettings from './GeneralSettings';
+import { useI18n } from '../../hooks/useI18n';
+import { request } from '../../utils/api';
 import './settings.css';
 
 const SettingsManager = () => {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState('general');
   const [isLoading, setIsLoading] = useState(false);
   const [settings, setSettings] = useState({
@@ -24,7 +27,8 @@ const SettingsManager = () => {
         creative: 0.6
       },
       communicationStyle: 'balanced',
-      responseSpeed: 'medium'
+      responseSpeed: 'medium',
+      customPrompt: ''
     },
     emotion: {
       emotionRecognition: true,
@@ -260,26 +264,111 @@ ${JSON.stringify(settings, null, 2)}
     }
   };
 
+  // 导出配置到JSON文件
+  const exportConfigToFile = async () => {
+    try {
+      const result = await request('/v1/config/export', {
+        method: 'GET'
+      });
+
+      if (result.success) {
+        alert(`配置导出成功！\n文件路径: ${result.file_path}\n导出类型: ${result.exported_types.join(', ')}`);
+      } else {
+        alert(`配置导出失败: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('导出配置失败:', error);
+      alert('导出配置失败，请重试。');
+    }
+  };
+
+  // 从JSON文件导入配置
+  const importConfigFromFile = async () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const configData = JSON.parse(text);
+
+        const result = await request('/v1/config/import', {
+          method: 'POST',
+          data: {
+            config_data: configData,
+            mode: 'merge'
+          }
+        });
+
+        if (result.success) {
+          alert(`配置导入成功！\n导入类型: ${result.imported_types.join(', ')}`);
+          loadSettings();
+        } else {
+          alert(`配置导入失败: ${result.message}`);
+        }
+      } catch (error) {
+        console.error('导入配置失败:', error);
+        alert('导入配置失败，请检查文件格式是否正确。');
+      }
+    };
+    input.click();
+  };
+
+  // 获取配置状态
+  const [configStatus, setConfigStatus] = useState(null);
+
+  const loadConfigStatus = async () => {
+    try {
+      const result = await request('/v1/config/status', {
+        method: 'GET'
+      });
+      setConfigStatus(result);
+    } catch (error) {
+      console.error('获取配置状态失败:', error);
+    }
+  };
+
+  useEffect(() => {
+    loadConfigStatus();
+  }, []);
+
   return (
     <div className="settings-manager">
       <div className="settings-header">
-        <h2>设置</h2>
+        <h2>{t('settings.title')}</h2>
         <div className="settings-actions">
-          <button 
+          <button
+            className="settings-action-btn"
+            onClick={exportConfigToFile}
+            title="导出配置到JSON文件"
+          >
+            {t('common.export')}JSON
+          </button>
+          <button
+            className="settings-action-btn"
+            onClick={importConfigFromFile}
+            title="从JSON文件导入配置"
+          >
+            {t('common.import')}JSON
+          </button>
+          <button
             className="settings-action-btn export-btn"
             onClick={exportSettings}
             title="导出设置为MD文件"
           >
-            导出设置
+            {t('common.export')}MD
           </button>
-          <label 
+          <label
             className="settings-action-btn import-btn"
             title="从MD文件导入设置"
           >
-            导入设置
-            <input 
-              type="file" 
-              accept=".md,.markdown" 
+            {t('common.import')}MD
+            <input
+              type="file"
+              accept=".md,.markdown"
               onChange={importSettings}
               style={{ display: 'none' }}
             />
@@ -288,35 +377,35 @@ ${JSON.stringify(settings, null, 2)}
       </div>
       
       <div className="settings-nav">
-        <button 
+        <button
           className={`settings-nav-item ${activeTab === 'general' ? 'active' : ''}`}
           onClick={() => setActiveTab('general')}
         >
-          常规
+          {t('settings.general.title')}
         </button>
-        <button 
+        <button
           className={`settings-nav-item ${activeTab === 'personalization' ? 'active' : ''}`}
           onClick={() => setActiveTab('personalization')}
         >
-          个性化
+          {t('settings.personalization.title')}
         </button>
-        <button 
+        <button
           className={`settings-nav-item ${activeTab === 'emotion' ? 'active' : ''}`}
           onClick={() => setActiveTab('emotion')}
         >
-          情感
+          {t('settings.emotion.title')}
         </button>
-        <button 
+        <button
           className={`settings-nav-item ${activeTab === 'learning' ? 'active' : ''}`}
           onClick={() => setActiveTab('learning')}
         >
-          学习
+          {t('settings.learning.title')}
         </button>
-        <button 
+        <button
           className={`settings-nav-item ${activeTab === 'relationship' ? 'active' : ''}`}
           onClick={() => setActiveTab('relationship')}
         >
-          关系
+          {t('settings.relationship.title')}
         </button>
       </div>
       

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { useI18n } from '../../hooks/useI18n';
 
 const EmotionSettings = ({ settings, saveSettings, isLoading }) => {
+  const { t } = useI18n();
   const [localSettings, setLocalSettings] = useState(settings);
 
   const handleToggle = (setting) => {
@@ -13,18 +15,18 @@ const EmotionSettings = ({ settings, saveSettings, isLoading }) => {
   const handleSave = async () => {
     const success = await saveSettings(localSettings);
     if (success) {
-      alert('情感设置保存成功！');
+      alert(t('common.success'));
     } else {
-      alert('保存失败，请重试。');
+      alert(t('common.error'));
     }
   };
 
   return (
     <div className="emotion-settings">
-      <h3>情感</h3>
-      
+      <h3>{t('settings.emotion.title')}</h3>
+
       <div className="setting-group">
-        <label className="setting-label">情感识别</label>
+        <label className="setting-label">{t('settings.emotion.emotionRecognition')}</label>
         <div className="toggle-option">
           <label className="toggle-switch">
             <input
@@ -39,7 +41,7 @@ const EmotionSettings = ({ settings, saveSettings, isLoading }) => {
       </div>
 
       <div className="setting-group">
-        <label className="setting-label">情感回应</label>
+        <label className="setting-label">{t('settings.emotion.emotionResponse')}</label>
         <div className="toggle-option">
           <label className="toggle-switch">
             <input
@@ -54,7 +56,7 @@ const EmotionSettings = ({ settings, saveSettings, isLoading }) => {
       </div>
 
       <div className="setting-group">
-        <label className="setting-label">情感记忆</label>
+        <label className="setting-label">{t('settings.emotion.emotionMemory')}</label>
         <div className="toggle-option">
           <label className="toggle-switch">
             <input
@@ -64,17 +66,17 @@ const EmotionSettings = ({ settings, saveSettings, isLoading }) => {
             />
             <span className="toggle-slider"></span>
           </label>
-          <span className="toggle-label">允许助手记住您的情绪模式</span>
+          <span className="toggle-label">允许助手记住您的情绪偏好</span>
         </div>
       </div>
 
       <div className="setting-actions">
-        <button 
+        <button
           className="save-button"
           onClick={handleSave}
           disabled={isLoading}
         >
-          保存设置
+          {t('common.save')}
         </button>
       </div>
     </div>

@@ -1,0 +1,10 @@
+{
+  "title": "技能管理",
+  "market": "技能市场",
+  "install": "安装技能",
+  "configure": "配置技能",
+  "skillList": "技能列表",
+  "skillName": "技能名称",
+  "skillCategory": "技能分类",
+  "uninstall": "卸载"
+}

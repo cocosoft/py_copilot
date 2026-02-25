@@ -1,0 +1,11 @@
+{
+  "title": "工作流管理",
+  "create": "创建工作流",
+  "edit": "编辑工作流",
+  "execute": "执行工作流",
+  "workflowList": "工作流列表",
+  "workflowName": "工作流名称",
+  "nodes": "节点",
+  "edges": "连接",
+  "save": "保存工作流"
+}

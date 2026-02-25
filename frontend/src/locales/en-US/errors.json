@@ -1,0 +1,9 @@
+{
+  "networkError": "Network error, please check your connection",
+  "serverError": "Server error, please try again later",
+  "authError": "Authentication failed, please login again",
+  "notFound": "Resource not found",
+  "unknown": "Unknown error",
+  "timeout": "Request timeout",
+  "permissionDenied": "Permission denied"
+}

@@ -200,7 +200,25 @@ _system_metrics_collector = None
 async def startup_event():
     """应用启动事件"""
     logger.info("应用正在启动...")
-    
+
+    # 加载应用配置文件
+    try:
+        from app.services.config_export_service import ConfigExportService
+        from app.core.database import SessionLocal
+
+        db = SessionLocal()
+        try:
+            config_service = ConfigExportService(db)
+            result = config_service.load_config_on_startup()
+            if result.get("success"):
+                logger.info(f"配置文件加载成功: {result.get('message')}")
+            else:
+                logger.warning(f"配置文件加载结果: {result.get('message')}")
+        finally:
+            db.close()
+    except Exception as e:
+        logger.warning(f"配置文件加载失败（不影响启动）: {e}")
+
     # 预加载核心路由组
     try:
         from app.api.v1 import preload_core_routes

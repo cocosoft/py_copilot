@@ -1,0 +1,11 @@
+{
+  "title": "Workflow Management",
+  "create": "Create Workflow",
+  "edit": "Edit Workflow",
+  "execute": "Execute Workflow",
+  "workflowList": "Workflow List",
+  "workflowName": "Workflow Name",
+  "nodes": "Nodes",
+  "edges": "Edges",
+  "save": "Save Workflow"
+}

@@ -1,0 +1,9 @@
+{
+  "networkError": "网络错误，请检查网络连接",
+  "serverError": "服务器错误，请稍后重试",
+  "authError": "认证失败，请重新登录",
+  "notFound": "请求的资源不存在",
+  "unknown": "未知错误",
+  "timeout": "请求超时",
+  "permissionDenied": "权限不足"
+}

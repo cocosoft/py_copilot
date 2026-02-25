@@ -1,0 +1,22 @@
+{
+  "home": "Home",
+  "chat": "Chat",
+  "agents": "Agents",
+  "knowledge": "Knowledge",
+  "workflow": "Workflow",
+  "tools": "Tools",
+  "skills": "Skills",
+  "search": "Search",
+  "memory": "Memory",
+  "mcp": "MCP Services",
+  "settings": "Settings",
+  "model": "Model Management",
+  "translate": "Translate",
+  "voice": "Voice",
+  "image": "Image",
+  "video": "Video",
+  "about": "About",
+  "help": "Help",
+  "personal": "Personal",
+  "api": "API Management"
+}

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { useI18n } from '../../hooks/useI18n';
 
 const GeneralSettings = ({ settings, saveSettings, isLoading }) => {
+  const { t, i18n, changeLanguage } = useI18n();
   const [localSettings, setLocalSettings] = useState(settings);
 
   const handleAssistantNameChange = (e) => {
@@ -11,10 +13,12 @@ const GeneralSettings = ({ settings, saveSettings, isLoading }) => {
   };
 
   const handleLanguageChange = (e) => {
+    const newLang = e.target.value;
     setLocalSettings(prev => ({
       ...prev,
-      language: e.target.value
+      language: newLang
     }));
+    changeLanguage(newLang);
   };
 
   const handleThemeChange = (theme) => {
@@ -27,29 +31,29 @@ const GeneralSettings = ({ settings, saveSettings, isLoading }) => {
   const handleSave = async () => {
     const success = await saveSettings(localSettings);
     if (success) {
-      alert('通用设置保存成功！');
+      alert(t('common.success'));
     } else {
-      alert('保存失败，请重试。');
+      alert(t('common.error'));
     }
   };
 
   return (
     <div className="general-settings">
-      <h3>常规</h3>
-      
+      <h3>{t('settings.general.title')}</h3>
+
       <div className="setting-group">
-        <label className="setting-label">助手名称</label>
+        <label className="setting-label">{t('settings.general.assistantName')}</label>
         <input
           type="text"
           className="setting-input"
           value={localSettings.assistantName || 'Py Copilot'}
           onChange={handleAssistantNameChange}
-          placeholder="输入助手名称"
+          placeholder={t('settings.general.assistantName')}
         />
       </div>
-      
+
       <div className="setting-group">
-        <label className="setting-label">语言</label>
+        <label className="setting-label">{t('settings.general.language')}</label>
         <select
           className="setting-select"
           value={localSettings.language}
@@ -63,13 +67,13 @@ const GeneralSettings = ({ settings, saveSettings, isLoading }) => {
       </div>
 
       <div className="setting-group">
-        <label className="setting-label">主题</label>
+        <label className="setting-label">{t('settings.general.theme')}</label>
         <div className="theme-options">
           {
             [
-              { value: 'light', label: '浅色' },
-              { value: 'dark', label: '深色' },
-              { value: 'system', label: '跟随系统' }
+              { value: 'light', label: t('settings.general.themeLight') },
+              { value: 'dark', label: t('settings.general.themeDark') },
+              { value: 'system', label: t('settings.general.themeSystem') }
             ].map(theme => (
               <label key={theme.value} className="theme-option">
                 <input
@@ -87,12 +91,12 @@ const GeneralSettings = ({ settings, saveSettings, isLoading }) => {
       </div>
 
       <div className="setting-actions">
-        <button 
+        <button
           className="save-button"
           onClick={handleSave}
           disabled={isLoading}
         >
-          保存设置
+          {t('common.save')}
         </button>
       </div>
     </div>

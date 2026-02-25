@@ -1,0 +1,10 @@
+{
+  "placeholder": "Enter your question...",
+  "send": "Send",
+  "clear": "Clear",
+  "export": "Export Chat",
+  "newChat": "New Chat",
+  "chatHistory": "History",
+  "copy": "Copy",
+  "retry": "Retry"
+}

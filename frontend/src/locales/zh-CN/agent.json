@@ -1,0 +1,10 @@
+{
+  "title": "智能体管理",
+  "create": "创建智能体",
+  "configure": "配置智能体",
+  "execute": "执行",
+  "agentList": "智能体列表",
+  "agentName": "智能体名称",
+  "agentType": "智能体类型",
+  "agentStatus": "状态"
+}

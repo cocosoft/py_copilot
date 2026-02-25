@@ -265,6 +265,43 @@ input:checked + .toggle-slider:before {
   justify-content: flex-end;
 }
 
+/* 个性化需求文本框样式 */
+.custom-prompt-textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 14px;
+  line-height: 1.6;
+  resize: vertical;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.custom-prompt-textarea:focus {
+  outline: none;
+  border-color: #40a9ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.custom-prompt-textarea::placeholder {
+  color: #bfbfbf;
+}
+
+.setting-description {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  color: #666;
+  line-height: 1.5;
+}
+
+.setting-hint {
+  margin: 8px 0 0 0;
+  font-size: 12px;
+  color: #999;
+  font-style: italic;
+}
+
 .save-button {
   padding: 8px 24px;
   background-color: #1890ff;

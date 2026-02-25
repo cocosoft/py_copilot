@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { useI18n } from '../../hooks/useI18n';
 
 const RelationshipSettings = ({ settings, saveSettings, isLoading }) => {
+  const { t } = useI18n();
   const [localSettings, setLocalSettings] = useState(settings);
 
   const handleToggle = (setting) => {
@@ -13,68 +15,62 @@ const RelationshipSettings = ({ settings, saveSettings, isLoading }) => {
   const handleSave = async () => {
     const success = await saveSettings(localSettings);
     if (success) {
-      alert('关系设置保存成功！');
+      alert(t('common.success'));
     } else {
-      alert('保存失败，请重试。');
+      alert(t('common.error'));
     }
   };
 
   return (
     <div className="relationship-settings">
-      <h3>关系</h3>
-      
+      <h3>{t('settings.relationship.title')}</h3>
+
       <div className="setting-group">
-        <label className="setting-label">关系记忆</label>
-        <div className="toggle-option">
-          <label className="toggle-switch">
-            <input
-              type="checkbox"
-              checked={localSettings.relationshipMemory}
-              onChange={() => handleToggle('relationshipMemory')}
-            />
-            <span className="toggle-slider"></span>
-          </label>
-          <span className="toggle-label">允许助手记住重要的人际关系</span>
-        </div>
+        <label className="setting-label">{t('settings.relationship.relationshipMemory')}</label>
+        <label className="toggle-switch">
+          <input
+            type="checkbox"
+            checked={localSettings.relationshipMemory}
+            onChange={() => handleToggle('relationshipMemory')}
+          />
+          <span className="toggle-slider"></span>
+        </label>
+        <span className="toggle-label">允许助手记住重要的人际关系</span>
       </div>
 
       <div className="setting-group">
-        <label className="setting-label">里程碑提醒</label>
-        <div className="toggle-option">
-          <label className="toggle-switch">
-            <input
-              type="checkbox"
-              checked={localSettings.milestoneReminders}
-              onChange={() => handleToggle('milestoneReminders')}
-            />
-            <span className="toggle-slider"></span>
-          </label>
-          <span className="toggle-label">允许助手提醒重要的关系里程碑</span>
-        </div>
+        <label className="setting-label">{t('settings.relationship.milestoneReminders')}</label>
+        <label className="toggle-switch">
+          <input
+            type="checkbox"
+            checked={localSettings.milestoneReminders}
+            onChange={() => handleToggle('milestoneReminders')}
+          />
+          <span className="toggle-slider"></span>
+        </label>
+        <span className="toggle-label">允许助手提醒重要的关系里程碑</span>
       </div>
 
       <div className="setting-group">
-        <label className="setting-label">关系洞察</label>
-        <div className="toggle-option">
-          <label className="toggle-switch">
-            <input
-              type="checkbox"
-              checked={localSettings.relationshipInsights}
-              onChange={() => handleToggle('relationshipInsights')}
-            />
-            <span className="toggle-slider"></span>
-          </label>
-          <span className="toggle-label">允许助手提供关系管理的洞察</span>
-        </div>
+        <label className="setting-label">{t('settings.relationship.relationshipInsights')}</label>
+        <label className="toggle-switch">
+          <input
+            type="checkbox"
+            checked={localSettings.relationshipInsights}
+            onChange={() => handleToggle('relationshipInsights')}
+          />
+          <span className="toggle-slider"></span>
+        </label>
+        <span className="toggle-label">允许助手提供关系管理的洞察</span>
       </div>
 
       <div className="setting-actions">
-        <button 
+        <button
           className="save-button"
           onClick={handleSave}
           disabled={isLoading}
         >
-          保存设置
+          {t('common.save')}
         </button>
       </div>
     </div>

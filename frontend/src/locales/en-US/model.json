@@ -1,0 +1,14 @@
+{
+  "title": "Model Management",
+  "supplier": "Supplier",
+  "capability": "Capability",
+  "category": "Category",
+  "addModel": "Add Model",
+  "editModel": "Edit Model",
+  "deleteModel": "Delete Model",
+  "modelList": "Model List",
+  "modelName": "Model Name",
+  "modelType": "Model Type",
+  "modelStatus": "Status",
+  "testModel": "Test Model"
+}
