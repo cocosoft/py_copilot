@@ -2,36 +2,15 @@
  * 工作空间选择器组件
  *
  * 提供工作空间的切换、创建、编辑、删除功能
- * 支持下拉选择和弹窗管理两种模式
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-    Dropdown,
-    Menu,
-    Modal,
-    Form,
-    Input,
-    Button,
-    Space,
-    Typography,
-    Tooltip,
-    Progress,
-    message,
-    Popconfirm,
-    List,
-    Badge
-} from 'antd';
-import {
-    DownOutlined,
-    PlusOutlined,
-    EditOutlined,
-    DeleteOutlined,
-    CheckOutlined,
-    SettingOutlined,
-    DatabaseOutlined
-} from '@ant-design/icons';
+import { FiChevronDown, FiPlus, FiEdit2, FiTrash2, FiCheck, FiSettings, FiDatabase } from 'react-icons/fi';
 import useAuthStore from '../../stores/authStore';
+import Button from '../UI/Button';
+import Input from '../UI/Input';
+import Modal from '../UI/Modal';
+import Badge from '../UI/Badge';
 import {
     getWorkspaces,
     getCurrentWorkspace,
@@ -43,24 +22,21 @@ import {
 } from '../../utils/api/workspaceApi';
 import './WorkspaceSelector.css';
 
-const { Text, Title } = Typography;
-
 /**
  * 工作空间选择器组件
  *
  * @param {Object} props - 组件属性
  * @param {boolean} [props.showStorage=true] - 是否显示存储使用情况
- * @param {string} [props.mode='dropdown'] - 显示模式：'dropdown' | 'modal'
  */
-const WorkspaceSelector = ({ showStorage = true, mode = 'dropdown' }) => {
+const WorkspaceSelector = ({ showStorage = true }) => {
     const [loading, setLoading] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const [createModalVisible, setCreateModalVisible] = useState(false);
     const [editModalVisible, setEditModalVisible] = useState(false);
     const [editingWorkspace, setEditingWorkspace] = useState(null);
     const [storageInfo, setStorageInfo] = useState(null);
-    const [form] = Form.useForm();
-    const [editForm] = Form.useForm();
+    const [formData, setFormData] = useState({ name: '', description: '' });
+    const [dropdownOpen, setDropdownOpen] = useState(false);
 
     // 从全局状态获取工作空间信息
     const {
@@ -81,7 +57,6 @@ const WorkspaceSelector = ({ showStorage = true, mode = 'dropdown' }) => {
             }
         } catch (error) {
             console.error('加载工作空间失败:', error);
-            message.error('加载工作空间失败');
         }
     }, [setWorkspaces]);
 
@@ -100,16 +75,15 @@ const WorkspaceSelector = ({ showStorage = true, mode = 'dropdown' }) => {
     /**
      * 加载存储使用情况
      */
-    const loadStorageUsage = useCallback(async () => {
-        if (!currentWorkspace?.id || !showStorage) return;
-
+    const loadStorageInfo = useCallback(async (workspaceId) => {
+        if (!showStorage || !workspaceId) return;
         try {
-            const usage = await getStorageUsage(currentWorkspace.id);
-            setStorageInfo(usage);
+            const info = await getStorageUsage(workspaceId);
+            setStorageInfo(info);
         } catch (error) {
-            console.error('加载存储使用情况失败:', error);
+            console.error('加载存储信息失败:', error);
         }
-    }, [currentWorkspace, showStorage]);
+    }, [showStorage]);
 
     // 组件挂载时加载数据
     useEffect(() => {
@@ -119,27 +93,30 @@ const WorkspaceSelector = ({ showStorage = true, mode = 'dropdown' }) => {
 
     // 当前工作空间变化时加载存储信息
     useEffect(() => {
-        loadStorageUsage();
-    }, [loadStorageUsage]);
+        if (currentWorkspace?.id) {
+            loadStorageInfo(currentWorkspace.id);
+        }
+    }, [currentWorkspace, loadStorageInfo]);
 
     /**
-     * 处理工作空间切换
-     *
-     * @param {number} workspaceId - 目标工作空间ID
+     * 处理切换工作空间
      */
     const handleSwitchWorkspace = async (workspaceId) => {
-        if (workspaceId === currentWorkspace?.id) return;
+        if (workspaceId === currentWorkspace?.id) {
+            setDropdownOpen(false);
+            return;
+        }
 
         setLoading(true);
         try {
             const workspace = await switchWorkspace(workspaceId);
             setCurrentWorkspace(workspace);
-            message.success(`已切换到工作空间: ${workspace.name}`);
-            // 刷新页面以应用新的工作空间上下文
+            setDropdownOpen(false);
+            // 刷新页面以加载新工作空间的数据
             window.location.reload();
         } catch (error) {
             console.error('切换工作空间失败:', error);
-            message.error('切换工作空间失败');
+            alert('切换工作空间失败: ' + (error.message || '未知错误'));
         } finally {
             setLoading(false);
         }
@@ -147,20 +124,22 @@ const WorkspaceSelector = ({ showStorage = true, mode = 'dropdown' }) => {
 
     /**
      * 处理创建工作空间
-     *
-     * @param {Object} values - 表单数据
      */
-    const handleCreateWorkspace = async (values) => {
+    const handleCreateWorkspace = async () => {
+        if (!formData.name.trim()) {
+            alert('请输入工作空间名称');
+            return;
+        }
+
         setLoading(true);
         try {
-            const workspace = await createWorkspace(values);
-            setWorkspaces([...workspaces, workspace]);
+            await createWorkspace(formData);
             setCreateModalVisible(false);
-            form.resetFields();
-            message.success('工作空间创建成功');
+            setFormData({ name: '', description: '' });
+            await loadWorkspaces();
         } catch (error) {
             console.error('创建工作空间失败:', error);
-            message.error(error.response?.data?.detail || '创建工作空间失败');
+            alert('创建工作空间失败: ' + (error.message || '未知错误'));
         } finally {
             setLoading(false);
         }
@@ -168,28 +147,26 @@ const WorkspaceSelector = ({ showStorage = true, mode = 'dropdown' }) => {
 
     /**
      * 处理编辑工作空间
-     *
-     * @param {Object} values - 表单数据
      */
-    const handleEditWorkspace = async (values) => {
-        if (!editingWorkspace) return;
+    const handleEditWorkspace = async () => {
+        if (!formData.name.trim()) {
+            alert('请输入工作空间名称');
+            return;
+        }
 
         setLoading(true);
         try {
-            const workspace = await updateWorkspace(editingWorkspace.id, values);
-            setWorkspaces(workspaces.map(w =>
-                w.id === workspace.id ? workspace : w
-            ));
-            if (currentWorkspace?.id === workspace.id) {
-                setCurrentWorkspace(workspace);
-            }
+            await updateWorkspace(editingWorkspace.id, formData);
             setEditModalVisible(false);
             setEditingWorkspace(null);
-            editForm.resetFields();
-            message.success('工作空间更新成功');
+            setFormData({ name: '', description: '' });
+            await loadWorkspaces();
+            if (currentWorkspace?.id === editingWorkspace.id) {
+                await loadCurrentWorkspace();
+            }
         } catch (error) {
             console.error('更新工作空间失败:', error);
-            message.error(error.response?.data?.detail || '更新工作空间失败');
+            alert('更新工作空间失败: ' + (error.message || '未知错误'));
         } finally {
             setLoading(false);
         }
@@ -197,18 +174,27 @@ const WorkspaceSelector = ({ showStorage = true, mode = 'dropdown' }) => {
 
     /**
      * 处理删除工作空间
-     *
-     * @param {number} workspaceId - 工作空间ID
      */
-    const handleDeleteWorkspace = async (workspaceId) => {
+    const handleDeleteWorkspace = async (workspace) => {
+        if (workspace.is_default) {
+            alert('不能删除默认工作空间');
+            return;
+        }
+
+        if (!confirm(`确定要删除工作空间 "${workspace.name}" 吗？此操作不可恢复。`)) {
+            return;
+        }
+
         setLoading(true);
         try {
-            await deleteWorkspace(workspaceId);
-            setWorkspaces(workspaces.filter(w => w.id !== workspaceId));
-            message.success('工作空间删除成功');
+            await deleteWorkspace(workspace.id);
+            await loadWorkspaces();
+            if (currentWorkspace?.id === workspace.id) {
+                await loadCurrentWorkspace();
+            }
         } catch (error) {
             console.error('删除工作空间失败:', error);
-            message.error(error.response?.data?.detail || '删除工作空间失败');
+            alert('删除工作空间失败: ' + (error.message || '未知错误'));
         } finally {
             setLoading(false);
         }
@@ -216,12 +202,10 @@ const WorkspaceSelector = ({ showStorage = true, mode = 'dropdown' }) => {
 
     /**
      * 打开编辑弹窗
-     *
-     * @param {Object} workspace - 工作空间对象
      */
     const openEditModal = (workspace) => {
         setEditingWorkspace(workspace);
-        editForm.setFieldsValue({
+        setFormData({
             name: workspace.name,
             description: workspace.description || ''
         });
@@ -229,255 +213,228 @@ const WorkspaceSelector = ({ showStorage = true, mode = 'dropdown' }) => {
     };
 
     /**
-     * 渲染工作空间下拉菜单
+     * 打开创建弹窗
      */
-    const renderWorkspaceMenu = () => (
-        <Menu className="workspace-menu">
-            <Menu.ItemGroup title="我的工作空间">
-                {workspaces.map(workspace => (
-                    <Menu.Item
-                        key={workspace.id}
-                        onClick={() => handleSwitchWorkspace(workspace.id)}
-                        className={workspace.id === currentWorkspace?.id ? 'active' : ''}
-                    >
-                        <Space>
-                            {workspace.id === currentWorkspace?.id && (
-                                <CheckOutlined style={{ color: '#52c41a' }} />
-                            )}
-                            <span>{workspace.name}</span>
-                            {workspace.is_default && (
-                                <Badge count="默认" style={{ backgroundColor: '#1890ff' }} />
-                            )}
-                        </Space>
-                    </Menu.Item>
-                ))}
-            </Menu.ItemGroup>
-            <Menu.Divider />
-            <Menu.Item
-                key="create"
-                icon={<PlusOutlined />}
-                onClick={() => setCreateModalVisible(true)}
-            >
-                新建工作空间
-            </Menu.Item>
-            <Menu.Item
-                key="manage"
-                icon={<SettingOutlined />}
-                onClick={() => setModalVisible(true)}
-            >
-                管理工作空间
-            </Menu.Item>
-        </Menu>
-    );
+    const openCreateModal = () => {
+        setFormData({ name: '', description: '' });
+        setCreateModalVisible(true);
+    };
 
     /**
-     * 渲染存储使用进度条
+     * 格式化存储大小
      */
-    const renderStorageProgress = () => {
-        if (!storageInfo || !showStorage) return null;
+    const formatStorageSize = (bytes) => {
+        if (!bytes) return '0 B';
+        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        let size = bytes;
+        let unitIndex = 0;
+        while (size >= 1024 && unitIndex < units.length - 1) {
+            size /= 1024;
+            unitIndex++;
+        }
+        return `${size.toFixed(2)} ${units[unitIndex]}`;
+    };
 
-        const percent = storageInfo.usage_percentage || 0;
-        const status = percent > 90 ? 'exception' : percent > 70 ? 'warning' : 'normal';
+    /**
+     * 渲染下拉菜单
+     */
+    const renderDropdown = () => {
+        if (!dropdownOpen) return null;
 
         return (
-            <div className="workspace-storage">
-                <Tooltip title={`已用 ${storageInfo.used_storage_bytes} / 总计 ${storageInfo.max_storage_bytes} 字节`}>
-                    <Progress
-                        percent={Math.round(percent)}
+            <div className="workspace-dropdown">
+                <div className="workspace-dropdown-header">
+                    <span className="workspace-dropdown-title">工作空间</span>
+                    <Button
+                        variant="ghost"
                         size="small"
-                        status={status}
-                        showInfo={false}
-                        strokeWidth={4}
+                        icon={<FiPlus />}
+                        onClick={openCreateModal}
+                    >
+                        新建
+                    </Button>
+                </div>
+                <div className="workspace-dropdown-list">
+                    {workspaces.map(workspace => (
+                        <div
+                            key={workspace.id}
+                            className={`workspace-dropdown-item ${workspace.id === currentWorkspace?.id ? 'active' : ''}`}
+                            onClick={() => handleSwitchWorkspace(workspace.id)}
+                        >
+                            <div className="workspace-item-info">
+                                <div className="workspace-item-name">
+                                    {workspace.name}
+                                    {workspace.is_default && (
+                                        <Badge variant="secondary" className="workspace-default-badge">默认</Badge>
+                                    )}
+                                </div>
+                                {workspace.description && (
+                                    <div className="workspace-item-desc">{workspace.description}</div>
+                                )}
+                            </div>
+                            <div className="workspace-item-actions">
+                                {workspace.id === currentWorkspace?.id && (
+                                    <FiCheck className="workspace-check-icon" />
+                                )}
+                                <Button
+                                    variant="ghost"
+                                    size="small"
+                                    icon={<FiEdit2 />}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        openEditModal(workspace);
+                                    }}
+                                />
+                                {!workspace.is_default && (
+                                    <Button
+                                        variant="ghost"
+                                        size="small"
+                                        icon={<FiTrash2 />}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteWorkspace(workspace);
+                                        }}
+                                    />
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    };
+
+    /**
+     * 渲染存储使用情况
+     */
+    const renderStorageInfo = () => {
+        if (!showStorage || !storageInfo) return null;
+
+        const usagePercent = storageInfo.usage_percentage || 0;
+
+        return (
+            <div className="workspace-storage-info">
+                <div className="storage-info-header">
+                    <FiDatabase className="storage-icon" />
+                    <span className="storage-text">
+                        {formatStorageSize(storageInfo.used_storage_bytes)} / {formatStorageSize(storageInfo.max_storage_bytes)}
+                    </span>
+                </div>
+                <div className="storage-progress-bar">
+                    <div
+                        className="storage-progress-fill"
+                        style={{ width: `${Math.min(usagePercent, 100)}%` }}
                     />
-                </Tooltip>
+                </div>
             </div>
         );
     };
 
     return (
         <div className="workspace-selector">
-            {mode === 'dropdown' ? (
-                <Dropdown
-                    overlay={renderWorkspaceMenu()}
-                    trigger={['click']}
-                    placement="bottomLeft"
-                >
-                    <Button loading={loading} className="workspace-dropdown-btn">
-                        <Space>
-                            <DatabaseOutlined />
-                            <span className="workspace-name">
-                                {currentWorkspace?.name || '选择工作空间'}
-                            </span>
-                            <DownOutlined />
-                        </Space>
-                    </Button>
-                </Dropdown>
-            ) : null}
-
-            {renderStorageProgress()}
-
-            {/* 管理工作空间弹窗 */}
-            <Modal
-                title="管理工作空间"
-                visible={modalVisible}
-                onCancel={() => setModalVisible(false)}
-                footer={null}
-                width={600}
+            {/* 当前工作空间显示 */}
+            <div
+                className="workspace-current"
+                onClick={() => setDropdownOpen(!dropdownOpen)}
             >
-                <List
-                    dataSource={workspaces}
-                    renderItem={workspace => (
-                        <List.Item
-                            actions={[
-                                <Button
-                                    type="text"
-                                    icon={<EditOutlined />}
-                                    onClick={() => openEditModal(workspace)}
-                                />,
-                                !workspace.is_default && (
-                                    <Popconfirm
-                                        title="确定要删除此工作空间吗？"
-                                        description="删除后工作空间内的数据将无法恢复"
-                                        onConfirm={() => handleDeleteWorkspace(workspace.id)}
-                                        okText="删除"
-                                        cancelText="取消"
-                                        okButtonProps={{ danger: true }}
-                                    >
-                                        <Button
-                                            type="text"
-                                            danger
-                                            icon={<DeleteOutlined />}
-                                        />
-                                    </Popconfirm>
-                                )
-                            ]}
-                        >
-                            <List.Item.Meta
-                                title={
-                                    <Space>
-                                        <span>{workspace.name}</span>
-                                        {workspace.is_default && (
-                                            <Badge count="默认" style={{ backgroundColor: '#1890ff' }} />
-                                        )}
-                                        {workspace.id === currentWorkspace?.id && (
-                                            <Badge count="当前" style={{ backgroundColor: '#52c41a' }} />
-                                        )}
-                                    </Space>
-                                }
-                                description={workspace.description || '暂无描述'}
-                            />
-                        </List.Item>
+                <div className="workspace-current-info">
+                    <FiDatabase className="workspace-icon" />
+                    <span className="workspace-name">
+                        {currentWorkspace?.name || '加载中...'}
+                    </span>
+                    {currentWorkspace?.is_default && (
+                        <Badge variant="secondary" className="workspace-default-badge">默认</Badge>
                     )}
-                />
-                <Button
-                    type="dashed"
-                    block
-                    icon={<PlusOutlined />}
-                    onClick={() => {
-                        setModalVisible(false);
-                        setCreateModalVisible(true);
-                    }}
-                    style={{ marginTop: 16 }}
-                >
-                    新建工作空间
-                </Button>
-            </Modal>
+                </div>
+                <FiChevronDown className={`workspace-chevron ${dropdownOpen ? 'open' : ''}`} />
+            </div>
 
-            {/* 创建工作空间弹窗 */}
+            {/* 下拉菜单 */}
+            {renderDropdown()}
+
+            {/* 存储使用情况 */}
+            {renderStorageInfo()}
+
+            {/* 创建弹窗 */}
             <Modal
-                title="新建工作空间"
-                visible={createModalVisible}
-                onCancel={() => setCreateModalVisible(false)}
-                footer={null}
+                isOpen={createModalVisible}
+                onClose={() => setCreateModalVisible(false)}
+                title="创建工作空间"
             >
-                <Form
-                    form={form}
-                    layout="vertical"
-                    onFinish={handleCreateWorkspace}
-                >
-                    <Form.Item
-                        name="name"
-                        label="工作空间名称"
-                        rules={[
-                            { required: true, message: '请输入工作空间名称' },
-                            { max: 100, message: '名称不能超过100个字符' }
-                        ]}
-                    >
-                        <Input placeholder="例如：项目A、个人笔记" />
-                    </Form.Item>
-
-                    <Form.Item
-                        name="description"
-                        label="描述"
-                        rules={[{ max: 500, message: '描述不能超过500个字符' }]}
-                    >
-                        <Input.TextArea
-                            rows={3}
-                            placeholder="工作空间的描述（可选）"
+                <div className="workspace-form">
+                    <div className="form-field">
+                        <label>工作空间名称 *</label>
+                        <Input
+                            value={formData.name}
+                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            placeholder="请输入工作空间名称"
+                            maxLength={100}
                         />
-                    </Form.Item>
-
-                    <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-                        <Space>
-                            <Button onClick={() => setCreateModalVisible(false)}>
-                                取消
-                            </Button>
-                            <Button type="primary" htmlType="submit" loading={loading}>
-                                创建
-                            </Button>
-                        </Space>
-                    </Form.Item>
-                </Form>
+                    </div>
+                    <div className="form-field">
+                        <label>描述</label>
+                        <Input
+                            value={formData.description}
+                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                            placeholder="请输入工作空间描述（可选）"
+                            maxLength={500}
+                        />
+                    </div>
+                    <div className="form-actions">
+                        <Button variant="secondary" onClick={() => setCreateModalVisible(false)}>
+                            取消
+                        </Button>
+                        <Button
+                            variant="primary"
+                            onClick={handleCreateWorkspace}
+                            loading={loading}
+                            disabled={!formData.name.trim()}
+                        >
+                            创建
+                        </Button>
+                    </div>
+                </div>
             </Modal>
 
-            {/* 编辑工作空间弹窗 */}
+            {/* 编辑弹窗 */}
             <Modal
+                isOpen={editModalVisible}
+                onClose={() => setEditModalVisible(false)}
                 title="编辑工作空间"
-                visible={editModalVisible}
-                onCancel={() => {
-                    setEditModalVisible(false);
-                    setEditingWorkspace(null);
-                }}
-                footer={null}
             >
-                <Form
-                    form={editForm}
-                    layout="vertical"
-                    onFinish={handleEditWorkspace}
-                >
-                    <Form.Item
-                        name="name"
-                        label="工作空间名称"
-                        rules={[
-                            { required: true, message: '请输入工作空间名称' },
-                            { max: 100, message: '名称不能超过100个字符' }
-                        ]}
-                    >
-                        <Input />
-                    </Form.Item>
-
-                    <Form.Item
-                        name="description"
-                        label="描述"
-                        rules={[{ max: 500, message: '描述不能超过500个字符' }]}
-                    >
-                        <Input.TextArea rows={3} />
-                    </Form.Item>
-
-                    <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-                        <Space>
-                            <Button onClick={() => {
-                                setEditModalVisible(false);
-                                setEditingWorkspace(null);
-                            }}>
-                                取消
-                            </Button>
-                            <Button type="primary" htmlType="submit" loading={loading}>
-                                保存
-                            </Button>
-                        </Space>
-                    </Form.Item>
-                </Form>
+                <div className="workspace-form">
+                    <div className="form-field">
+                        <label>工作空间名称 *</label>
+                        <Input
+                            value={formData.name}
+                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            placeholder="请输入工作空间名称"
+                            maxLength={100}
+                        />
+                    </div>
+                    <div className="form-field">
+                        <label>描述</label>
+                        <Input
+                            value={formData.description}
+                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                            placeholder="请输入工作空间描述（可选）"
+                            maxLength={500}
+                        />
+                    </div>
+                    <div className="form-actions">
+                        <Button variant="secondary" onClick={() => setEditModalVisible(false)}>
+                            取消
+                        </Button>
+                        <Button
+                            variant="primary"
+                            onClick={handleEditWorkspace}
+                            loading={loading}
+                            disabled={!formData.name.trim()}
+                        >
+                            保存
+                        </Button>
+                    </div>
+                </div>
             </Modal>
         </div>
     );
