@@ -106,11 +106,12 @@ const WorkspaceSelector = ({ showStorage = true }) => {
         };
 
         if (dropdownOpen) {
-            document.addEventListener('mousedown', handleClickOutside);
+            // 使用 click 事件而不是 mousedown，避免与工作空间项的点击事件冲突
+            document.addEventListener('click', handleClickOutside);
         }
 
         return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('click', handleClickOutside);
         };
     }, [dropdownOpen]);
 
@@ -118,14 +119,18 @@ const WorkspaceSelector = ({ showStorage = true }) => {
      * 处理切换工作空间
      */
     const handleSwitchWorkspace = async (workspaceId) => {
+        console.log('尝试切换工作空间:', workspaceId, '当前工作空间:', currentWorkspace?.id);
         if (workspaceId === currentWorkspace?.id) {
+            console.log('已经是当前工作空间，无需切换');
             setDropdownOpen(false);
             return;
         }
 
         setLoading(true);
         try {
+            console.log('调用switchWorkspace API');
             const workspace = await switchWorkspace(workspaceId);
+            console.log('切换成功:', workspace);
             setCurrentWorkspace(workspace);
             setDropdownOpen(false);
             window.location.reload();
@@ -293,7 +298,10 @@ const WorkspaceSelector = ({ showStorage = true }) => {
                             <div
                                 key={workspace.id}
                                 className={`workspace-dropdown-item ${workspace.id === currentWorkspace?.id ? 'active' : ''}`}
-                                onClick={() => handleSwitchWorkspace(workspace.id)}
+                                onClick={(e) => {
+                                    console.log('点击工作空间项:', workspace.id, workspace.name);
+                                    handleSwitchWorkspace(workspace.id);
+                                }}
                             >
                                 <div className="workspace-item-info">
                                     <div className="workspace-item-name">

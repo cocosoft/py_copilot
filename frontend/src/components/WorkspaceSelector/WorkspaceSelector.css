@@ -153,6 +153,15 @@
     display: flex;
     align-items: center;
     gap: 4px;
+    position: relative;
+    z-index: 2;
+}
+
+.workspace-item-info {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+    z-index: 1;
 }
 
 .workspace-check-icon {
