@@ -1,19 +1,20 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { 
-  FaHome, FaComments, FaImage, FaVideo, FaMicrophoneAlt, 
+import {
+  FaHome, FaComments, FaImage, FaVideo, FaMicrophoneAlt,
   FaLanguage, FaCog, FaAngleLeft, FaAngleRight, FaTasks
 } from 'react-icons/fa';
+import WorkspaceSelector from './WorkspaceSelector';
 
 // 简化的导航栏组件，确保图标能正确显示
 const Navbar = () => {
   // 使用 i18n 翻译
   const { t } = useTranslation();
-  
+
   // 添加导航栏收缩/展开状态
   const [collapsed, setCollapsed] = useState(false);
-  
+
   // 切换导航栏状态
   const toggleCollapse = () => {
     setCollapsed(!collapsed);
@@ -99,6 +100,12 @@ const Navbar = () => {
         </ul>
         
 
+        {/* 工作空间选择器 */}
+        {!collapsed && (
+          <div className="workspace-section">
+            <WorkspaceSelector />
+          </div>
+        )}
       </div>
     </nav>
   );

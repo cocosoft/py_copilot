@@ -11,18 +11,39 @@ const useAuthStore = create(
       isLoading: false,
       permissions: [],
 
+      // Workspace state
+      currentWorkspace: null,
+      workspaces: [],
+
       // Auth actions
       setUser: (user) => set({ user, isAuthenticated: !!user }),
       setToken: (token) => set({ token }),
       setLoading: (isLoading) => set({ isLoading }),
       setPermissions: (permissions) => set({ permissions }),
-      
+
+      // Workspace actions
+      setCurrentWorkspace: (workspace) => set({ currentWorkspace: workspace }),
+      setWorkspaces: (workspaces) => set({ workspaces }),
+      addWorkspace: (workspace) => set((state) => ({
+        workspaces: [...state.workspaces, workspace]
+      })),
+      updateWorkspaceInList: (workspaceId, updates) => set((state) => ({
+        workspaces: state.workspaces.map(w =>
+          w.id === workspaceId ? { ...w, ...updates } : w
+        )
+      })),
+      removeWorkspace: (workspaceId) => set((state) => ({
+        workspaces: state.workspaces.filter(w => w.id !== workspaceId)
+      })),
+
       // Logout action
-      logout: () => set({ 
-        user: null, 
-        token: null, 
-        isAuthenticated: false, 
-        permissions: [] 
+      logout: () => set({
+        user: null,
+        token: null,
+        isAuthenticated: false,
+        permissions: [],
+        currentWorkspace: null,
+        workspaces: []
       }),
 
       // Initialize auth store
@@ -50,6 +71,11 @@ const useAuthStore = create(
         const permissions = get().permissions;
         return permissions.includes(permission) || permissions.includes('admin');
       },
+
+      // Check if user is in a specific workspace
+      isInWorkspace: (workspaceId) => {
+        return get().currentWorkspace?.id === workspaceId;
+      },
     }),
     {
       name: 'auth-storage',
@@ -58,6 +84,8 @@ const useAuthStore = create(
         token: state.token,
         isAuthenticated: state.isAuthenticated,
         permissions: state.permissions,
+        currentWorkspace: state.currentWorkspace,
+        workspaces: state.workspaces,
       }),
     }
   )

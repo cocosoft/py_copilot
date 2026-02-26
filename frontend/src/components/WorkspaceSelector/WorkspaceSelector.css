@@ -1,0 +1,90 @@
+/**
+ * 工作空间选择器样式
+ */
+
+.workspace-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.workspace-dropdown-btn {
+    display: flex;
+    align-items: center;
+    min-width: 180px;
+    justify-content: space-between;
+}
+
+.workspace-name {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.workspace-storage {
+    width: 100%;
+    padding: 0 4px;
+}
+
+/* 下拉菜单样式 */
+.workspace-menu {
+    min-width: 220px;
+}
+
+.workspace-menu .ant-dropdown-menu-item-group-title {
+    font-weight: 500;
+    color: rgba(0, 0, 0, 0.45);
+}
+
+.workspace-menu .ant-dropdown-menu-item.active {
+    background-color: #e6f7ff;
+}
+
+.workspace-menu .ant-dropdown-menu-item.active:hover {
+    background-color: #bae7ff;
+}
+
+/* 工作空间列表样式 */
+.workspace-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.workspace-list-item:last-child {
+    border-bottom: none;
+}
+
+.workspace-list-item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.workspace-list-item-name {
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.workspace-list-item-desc {
+    color: rgba(0, 0, 0, 0.45);
+    font-size: 12px;
+}
+
+.workspace-list-item-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* 响应式适配 */
+@media (max-width: 768px) {
+    .workspace-dropdown-btn {
+        min-width: 140px;
+    }
+
+    .workspace-name {
+        max-width: 100px;
+    }
+}
