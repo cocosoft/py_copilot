@@ -203,7 +203,12 @@ const WorkspaceSelector = ({ showStorage = true }) => {
     /**
      * 打开编辑弹窗
      */
-    const openEditModal = (workspace) => {
+    const openEditModal = (workspace, e) => {
+        if (e) {
+            e.stopPropagation();
+            e.preventDefault();
+        }
+        setDropdownOpen(false);
         setEditingWorkspace(workspace);
         setFormData({
             name: workspace.name,
@@ -215,7 +220,12 @@ const WorkspaceSelector = ({ showStorage = true }) => {
     /**
      * 打开创建弹窗
      */
-    const openCreateModal = () => {
+    const openCreateModal = (e) => {
+        if (e) {
+            e.stopPropagation();
+            e.preventDefault();
+        }
+        setDropdownOpen(false);
         setFormData({ name: '', description: '' });
         setCreateModalVisible(true);
     };
@@ -249,7 +259,7 @@ const WorkspaceSelector = ({ showStorage = true }) => {
                         variant="ghost"
                         size="small"
                         icon={<FiPlus />}
-                        onClick={openCreateModal}
+                        onClick={(e) => openCreateModal(e)}
                     >
                         新建
                     </Button>
@@ -280,10 +290,7 @@ const WorkspaceSelector = ({ showStorage = true }) => {
                                     variant="ghost"
                                     size="small"
                                     icon={<FiEdit2 />}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        openEditModal(workspace);
-                                    }}
+                                    onClick={(e) => openEditModal(workspace, e)}
                                 />
                                 {!workspace.is_default && (
                                     <Button
