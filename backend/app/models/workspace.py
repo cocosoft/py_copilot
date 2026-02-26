@@ -35,7 +35,11 @@ class Workspace(Base):
         index=True,
         comment="所属用户ID"
     )
-    user = relationship("User", back_populates="workspaces")
+    user = relationship(
+        "User",
+        back_populates="workspaces",
+        foreign_keys=[user_id]
+    )
 
     # 工作空间配置
     is_default = Column(

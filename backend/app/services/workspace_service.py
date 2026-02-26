@@ -261,16 +261,22 @@ class WorkspaceService:
         Returns:
             dict: 存储使用情况统计
         """
-        from app.models.file_record import FileRecord
+        from sqlalchemy.exc import OperationalError
 
         workspace = self.get_workspace(workspace_id, user_id)
 
         # 计算已用存储
-        total_used = self.db.query(
-            func.sum(FileRecord.file_size)
-        ).filter(
-            FileRecord.workspace_id == workspace_id
-        ).scalar() or 0
+        total_used = 0
+        try:
+            from app.models.file_record import FileRecord
+            total_used = self.db.query(
+                func.sum(FileRecord.file_size)
+            ).filter(
+                FileRecord.workspace_id == workspace_id
+            ).scalar() or 0
+        except OperationalError:
+            # file_records表不存在，返回0
+            total_used = 0
 
         return {
             "workspace_id": workspace_id,

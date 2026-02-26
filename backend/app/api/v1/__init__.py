@@ -214,7 +214,7 @@ async def load_route_group(group_name: str) -> bool:
     return True
 
 # 预加载核心路由组（启动时加载）
-CORE_ROUTE_GROUPS = ['auth', 'conversation', 'llm', 'memory', 'models', 'tasks', 'agents', 'skills', 'capabilities', 'knowledge', 'tools', 'settings', 'workflow', 'search']
+CORE_ROUTE_GROUPS = ['auth', 'conversation', 'llm', 'memory', 'models', 'tasks', 'agents', 'skills', 'capabilities', 'knowledge', 'tools', 'settings', 'workflow', 'search', 'workspaces']
 
 async def preload_core_routes():
     """预加载核心路由组"""

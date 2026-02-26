@@ -55,7 +55,8 @@ class User(Base):
         "Workspace",
         back_populates="user",
         cascade="all, delete-orphan",
-        foreign_keys="Workspace.user_id"
+        foreign_keys="Workspace.user_id",
+        lazy="dynamic"
     )
 
     def __repr__(self):
