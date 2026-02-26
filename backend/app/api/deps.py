@@ -36,14 +36,18 @@ def get_current_user(
     """
     # 如果未启用认证，从请求头获取用户ID或返回第一个用户
     if not settings.enable_auth:
+        print(f"[DEBUG] enable_auth=False, x_user_id={x_user_id}")
         # 如果请求头中提供了用户ID，使用它
         if x_user_id:
             user = db.query(User).filter(User.id == x_user_id).first()
+            print(f"[DEBUG] 查询用户ID={x_user_id}, 结果={user}")
             if user:
+                print(f"[DEBUG] 返回用户: {user.username} (id={user.id})")
                 return user
 
         # 否则返回第一个用户
         user = db.query(User).first()
+        print(f"[DEBUG] 未提供用户ID，返回第一个用户: {user.username if user else 'None'} (id={user.id if user else 'None'})")
         if user:
             return user
 

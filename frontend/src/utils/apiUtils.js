@@ -71,6 +71,9 @@ export const request = async (endpoint, options = {}) => {
   const userId = getCurrentUserId();
   if (userId) {
     defaultHeaders['X-User-Id'] = userId.toString();
+    console.log(`[API] 添加用户ID到请求头: ${userId}`);
+  } else {
+    console.log('[API] 未找到用户ID，请求头未添加');
   }
   
   const defaultOptions = {

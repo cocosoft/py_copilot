@@ -215,6 +215,7 @@ async def get_current_workspace(
     Returns:
         WorkspaceResponse: 当前工作空间信息
     """
+    print(f"[DEBUG] get_current_workspace called: user={current_user.username} (id={current_user.id}), current_workspace_id={current_user.current_workspace_id}")
     service = WorkspaceService(db)
 
     # 首先尝试获取用户设置的当前工作空间
@@ -224,12 +225,15 @@ async def get_current_workspace(
                 current_user.current_workspace_id,
                 current_user.id
             )
+            print(f"[DEBUG] returning current workspace: {workspace.name} (id={workspace.id})")
             return workspace
-        except HTTPException:
+        except HTTPException as e:
+            print(f"[DEBUG] failed to get current workspace: {e.detail}")
             pass
 
     # 否则获取默认工作空间
     workspace = service.get_default_workspace(current_user.id)
+    print(f"[DEBUG] returning default workspace: {workspace.name if workspace else 'None'} (id={workspace.id if workspace else 'None'})")
 
     if not workspace:
         # 如果没有默认工作空间，创建一个
@@ -263,13 +267,17 @@ async def switch_workspace(
     Returns:
         WorkspaceResponse: 切换后的工作空间信息
     """
+    print(f"[DEBUG] switch_workspace called: workspace_id={workspace_id}, current_user={current_user.username} (id={current_user.id})")
     service = WorkspaceService(db)
 
     # 验证工作空间存在且属于当前用户
     workspace = service.get_workspace(workspace_id, current_user.id)
+    print(f"[DEBUG] workspace found: {workspace.name} (id={workspace.id})")
 
     # 更新用户当前工作空间
+    old_workspace_id = current_user.current_workspace_id
     current_user.current_workspace_id = workspace_id
     db.commit()
+    print(f"[DEBUG] updated current_workspace_id: {old_workspace_id} -> {workspace_id}")
 
     return workspace
