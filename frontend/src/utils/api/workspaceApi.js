@@ -4,7 +4,7 @@
  * 提供工作空间的增删改查和切换功能
  */
 
-import api from '../api';
+import { request } from '../apiUtils';
 
 /**
  * 获取用户的工作空间列表
@@ -12,8 +12,10 @@ import api from '../api';
  * @returns {Promise<Object>} 工作空间列表
  */
 export const getWorkspaces = async () => {
-    const response = await api.get('/api/v1/workspaces');
-    return response.data;
+    const response = await request('/v1/workspaces', {
+        method: 'GET'
+    });
+    return response;
 };
 
 /**
@@ -22,8 +24,10 @@ export const getWorkspaces = async () => {
  * @returns {Promise<Object>} 当前工作空间信息
  */
 export const getCurrentWorkspace = async () => {
-    const response = await api.get('/api/v1/workspaces/current/default');
-    return response.data;
+    const response = await request('/v1/workspaces/current/default', {
+        method: 'GET'
+    });
+    return response;
 };
 
 /**
@@ -36,8 +40,11 @@ export const getCurrentWorkspace = async () => {
  * @returns {Promise<Object>} 创建的工作空间
  */
 export const createWorkspace = async (data) => {
-    const response = await api.post('/api/v1/workspaces', data);
-    return response.data;
+    const response = await request('/v1/workspaces', {
+        method: 'POST',
+        data
+    });
+    return response;
 };
 
 /**
@@ -48,8 +55,11 @@ export const createWorkspace = async (data) => {
  * @returns {Promise<Object>} 更新后的工作空间
  */
 export const updateWorkspace = async (workspaceId, data) => {
-    const response = await api.put(`/api/v1/workspaces/${workspaceId}`, data);
-    return response.data;
+    const response = await request(`/v1/workspaces/${workspaceId}`, {
+        method: 'PUT',
+        data
+    });
+    return response;
 };
 
 /**
@@ -59,7 +69,9 @@ export const updateWorkspace = async (workspaceId, data) => {
  * @returns {Promise<void>}
  */
 export const deleteWorkspace = async (workspaceId) => {
-    await api.delete(`/api/v1/workspaces/${workspaceId}`);
+    await request(`/v1/workspaces/${workspaceId}`, {
+        method: 'DELETE'
+    });
 };
 
 /**
@@ -69,8 +81,10 @@ export const deleteWorkspace = async (workspaceId) => {
  * @returns {Promise<Object>} 新的默认工作空间
  */
 export const setDefaultWorkspace = async (workspaceId) => {
-    const response = await api.post(`/api/v1/workspaces/${workspaceId}/set-default`);
-    return response.data;
+    const response = await request(`/v1/workspaces/${workspaceId}/set-default`, {
+        method: 'POST'
+    });
+    return response;
 };
 
 /**
@@ -80,8 +94,10 @@ export const setDefaultWorkspace = async (workspaceId) => {
  * @returns {Promise<Object>} 切换后的工作空间
  */
 export const switchWorkspace = async (workspaceId) => {
-    const response = await api.post(`/api/v1/workspaces/switch/${workspaceId}`);
-    return response.data;
+    const response = await request(`/v1/workspaces/switch/${workspaceId}`, {
+        method: 'POST'
+    });
+    return response;
 };
 
 /**
@@ -91,8 +107,10 @@ export const switchWorkspace = async (workspaceId) => {
  * @returns {Promise<Object>} 存储使用情况
  */
 export const getStorageUsage = async (workspaceId) => {
-    const response = await api.get(`/api/v1/workspaces/${workspaceId}/storage`);
-    return response.data;
+    const response = await request(`/v1/workspaces/${workspaceId}/storage`, {
+        method: 'GET'
+    });
+    return response;
 };
 
 export default {

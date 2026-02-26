@@ -265,7 +265,7 @@ const WorkspaceSelector = ({ showStorage = true }) => {
                                 <div className="workspace-item-name">
                                     {workspace.name}
                                     {workspace.is_default && (
-                                        <Badge variant="secondary" className="workspace-default-badge">默认</Badge>
+                                        <Badge variant="default" className="workspace-default-badge">默认</Badge>
                                     )}
                                 </div>
                                 {workspace.description && (
@@ -343,7 +343,7 @@ const WorkspaceSelector = ({ showStorage = true }) => {
                         {currentWorkspace?.name || '加载中...'}
                     </span>
                     {currentWorkspace?.is_default && (
-                        <Badge variant="secondary" className="workspace-default-badge">默认</Badge>
+                        <Badge variant="default" className="workspace-default-badge">默认</Badge>
                     )}
                 </div>
                 <FiChevronDown className={`workspace-chevron ${dropdownOpen ? 'open' : ''}`} />

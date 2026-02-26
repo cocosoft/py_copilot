@@ -91,6 +91,16 @@ body {
   font-size: 13px;
 }
 
+/* 顶部导航栏工作空间选择器容器 */
+.header-workspace-selector {
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  border-left: 1px solid #e1e8ed;
+  border-right: 1px solid #e1e8ed;
+  margin: 0 4px;
+}
+
 /* 应用主体内容，包含导航栏和主内容区域 */
 .app-body {
   display: flex;

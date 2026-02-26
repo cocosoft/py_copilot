@@ -3,88 +3,239 @@
  */
 
 .workspace-selector {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 4px;
 }
 
-.workspace-dropdown-btn {
+/* 当前工作空间显示 */
+.workspace-current {
     display: flex;
     align-items: center;
-    min-width: 180px;
+    gap: 8px;
+    padding: 6px 12px;
+    background-color: transparent;
+    border: 1px solid #e1e8ed;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 160px;
     justify-content: space-between;
 }
 
+.workspace-current:hover {
+    background-color: rgba(52, 152, 219, 0.05);
+    border-color: #3498db;
+}
+
+.workspace-current-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+}
+
+.workspace-icon {
+    font-size: 16px;
+    color: #3498db;
+    flex-shrink: 0;
+}
+
 .workspace-name {
-    max-width: 150px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #2c3e50;
+    max-width: 120px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.workspace-storage {
-    width: 100%;
-    padding: 0 4px;
+.workspace-chevron {
+    font-size: 14px;
+    color: #657786;
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+}
+
+.workspace-chevron.open {
+    transform: rotate(180deg);
+}
+
+.workspace-default-badge {
+    margin-left: 6px;
+    font-size: 10px;
+    padding: 2px 6px;
 }
 
 /* 下拉菜单样式 */
-.workspace-menu {
-    min-width: 220px;
+.workspace-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    min-width: 280px;
+    background-color: #ffffff;
+    border: 1px solid #e1e8ed;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    overflow: hidden;
 }
 
-.workspace-menu .ant-dropdown-menu-item-group-title {
-    font-weight: 500;
-    color: rgba(0, 0, 0, 0.45);
-}
-
-.workspace-menu .ant-dropdown-menu-item.active {
-    background-color: #e6f7ff;
-}
-
-.workspace-menu .ant-dropdown-menu-item.active:hover {
-    background-color: #bae7ff;
-}
-
-/* 工作空间列表样式 */
-.workspace-list-item {
+.workspace-dropdown-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 0;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e1e8ed;
+    background-color: #f8f9fa;
+}
+
+.workspace-dropdown-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.workspace-dropdown-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.workspace-dropdown-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
     border-bottom: 1px solid #f0f0f0;
 }
 
-.workspace-list-item:last-child {
+.workspace-dropdown-item:last-child {
     border-bottom: none;
 }
 
-.workspace-list-item-info {
+.workspace-dropdown-item:hover {
+    background-color: #f8f9fa;
+}
+
+.workspace-dropdown-item.active {
+    background-color: rgba(52, 152, 219, 0.1);
+}
+
+.workspace-item-info {
     flex: 1;
     min-width: 0;
 }
 
-.workspace-list-item-name {
+.workspace-item-name {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
     font-weight: 500;
+    color: #2c3e50;
     margin-bottom: 4px;
 }
 
-.workspace-list-item-desc {
-    color: rgba(0, 0, 0, 0.45);
+.workspace-item-desc {
     font-size: 12px;
+    color: #657786;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.workspace-list-item-actions {
+.workspace-item-actions {
     display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.workspace-check-icon {
+    font-size: 16px;
+    color: #3498db;
+    margin-right: 8px;
+}
+
+/* 存储使用情况样式 */
+.workspace-storage-info {
+    padding: 8px 12px;
+    background-color: #f8f9fa;
+    border-top: 1px solid #e1e8ed;
+}
+
+.storage-info-header {
+    display: flex;
+    align-items: center;
     gap: 8px;
+    margin-bottom: 6px;
+}
+
+.storage-icon {
+    font-size: 14px;
+    color: #3498db;
+}
+
+.storage-text {
+    font-size: 12px;
+    color: #657786;
+}
+
+.storage-progress-bar {
+    height: 4px;
+    background-color: #e1e8ed;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.storage-progress-fill {
+    height: 100%;
+    background-color: #3498db;
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+/* 表单样式 */
+.workspace-form {
+    padding: 16px;
+}
+
+.form-field {
+    margin-bottom: 16px;
+}
+
+.form-field label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: #2c3e50;
+    margin-bottom: 8px;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
 }
 
 /* 响应式适配 */
 @media (max-width: 768px) {
-    .workspace-dropdown-btn {
-        min-width: 140px;
+    .workspace-current {
+        min-width: 120px;
     }
 
     .workspace-name {
-        max-width: 100px;
+        max-width: 80px;
+    }
+
+    .workspace-dropdown {
+        min-width: 240px;
+        left: auto;
+        right: 0;
     }
 }

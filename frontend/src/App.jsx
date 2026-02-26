@@ -11,6 +11,7 @@ import { StoreProvider, StoreMonitor, useStateManager } from './utils/storeManag
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import GlobalErrorBoundary from './components/UI/GlobalErrorBoundary';
 import { request } from './utils/apiUtils';
+import WorkspaceSelector from './components/WorkspaceSelector';
 
 // 创建React Query客户端实例
 const queryClient = new QueryClient({
@@ -117,24 +118,28 @@ function MainApp() {
           </a>
         </div>
         <div className="app-header-right">
-          <NavLink 
-            to="/personal" 
+          <NavLink
+            to="/personal"
             className="header-user-button"
             title={t('nav.personal')}
           >
             <span className="user-icon">👤</span>
             <span className="user-text">{t('nav.personal')}</span>
           </NavLink>
-          <NavLink 
-            to="/settings" 
+          {/* 工作空间选择器 */}
+          <div className="header-workspace-selector">
+            <WorkspaceSelector showStorage={false} />
+          </div>
+          <NavLink
+            to="/settings"
             className="header-user-button"
             title={t('nav.settings')}
           >
             <span className="user-icon">⚙️</span>
             <span className="user-text">{t('nav.settings')}</span>
           </NavLink>
-          <NavLink 
-            to="/help" 
+          <NavLink
+            to="/help"
             className="header-user-button"
             title={t('nav.help')}
           >

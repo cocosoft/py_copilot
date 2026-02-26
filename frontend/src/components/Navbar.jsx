@@ -5,7 +5,6 @@ import {
   FaHome, FaComments, FaImage, FaVideo, FaMicrophoneAlt,
   FaLanguage, FaCog, FaAngleLeft, FaAngleRight, FaTasks
 } from 'react-icons/fa';
-import WorkspaceSelector from './WorkspaceSelector';
 
 // 简化的导航栏组件，确保图标能正确显示
 const Navbar = () => {
@@ -100,12 +99,7 @@ const Navbar = () => {
         </ul>
         
 
-        {/* 工作空间选择器 */}
-        {!collapsed && (
-          <div className="workspace-section">
-            <WorkspaceSelector />
-          </div>
-        )}
+
       </div>
     </nav>
   );
