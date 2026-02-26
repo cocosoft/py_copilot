@@ -64,11 +64,20 @@ class FileRecord(Base):
     
     # 用户隔离
     user_id = Column(
-        Integer, 
-        ForeignKey("users.id", ondelete="CASCADE"), 
-        nullable=False, 
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
         index=True,
         comment="上传用户ID"
+    )
+
+    # 工作空间隔离
+    workspace_id = Column(
+        Integer,
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+        comment="所属工作空间ID"
     )
     
     # 文件基本信息
@@ -166,6 +175,7 @@ class FileRecord(Base):
     user = relationship("User", back_populates="file_records")
     conversation = relationship("Conversation", back_populates="file_records")
     blob = relationship("FileBlob", back_populates="file_record", uselist=False, cascade="all, delete-orphan")
+    workspace = relationship("Workspace", back_populates="file_records")
     
     def __repr__(self):
         return f"<FileRecord(id={self.id}, name='{self.original_name}', category='{self.category}')>"

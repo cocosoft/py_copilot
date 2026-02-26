@@ -1,5 +1,5 @@
 """用户模型"""
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, func
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, func, ForeignKey
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -10,23 +10,31 @@ from app.models.chat_enhancements import UploadedFile, VoiceInput, SearchQuery, 
 class User(Base):
     """用户表模型"""
     __tablename__ = "users"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, nullable=False, index=True)
     email = Column(String(100), unique=True, nullable=False, index=True)
     hashed_password = Column(String(255), nullable=False)
     full_name = Column(String(100), nullable=True)
-    
+
     # 用户状态
     is_active = Column(Boolean, default=True)
     is_superuser = Column(Boolean, default=False)
     is_verified = Column(Boolean, default=False)
-    
+
     # 时间戳
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     last_login = Column(DateTime(timezone=True), nullable=True)
-    
+
+    # 当前工作空间
+    current_workspace_id = Column(
+        Integer,
+        ForeignKey("workspaces.id"),
+        nullable=True,
+        comment="当前工作空间ID"
+    )
+
     # 关系定义 - 使用字符串引用避免循环导入
     conversations = relationship("Conversation", back_populates="user", cascade="all, delete-orphan")
     llm_requests = relationship("LLMRequestHistory", back_populates="user", cascade="all, delete-orphan")
@@ -41,6 +49,14 @@ class User(Base):
     analyzed_images = relationship("AnalyzedImage", back_populates="user", cascade="all, delete-orphan")
     translation_history = relationship("TranslationHistory", back_populates="user", cascade="all, delete-orphan")
     file_records = relationship("FileRecord", back_populates="user", cascade="all, delete-orphan")
+
+    # 工作空间关联
+    workspaces = relationship(
+        "Workspace",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        foreign_keys="Workspace.user_id"
+    )
 
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}', email='{self.email}')>"

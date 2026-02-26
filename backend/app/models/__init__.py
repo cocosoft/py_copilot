@@ -1,6 +1,7 @@
 """Database models module"""
 # 先导入 user 模型，因为其他模型可能引用它
 from app.models.user import User
+from app.models.workspace import Workspace
 from app.models.setting import UserSetting
 from app.models.conversation import Conversation, Message
 from app.models.llm import LLMRequestHistory, ModelConfiguration
@@ -24,6 +25,7 @@ from app.models.file_record import FileRecord, FileBlob, FileCategory, FileStatu
 
 __all__ = [
     "User",
+    "Workspace",
     "Conversation",
     "Message",
     "LLMRequestHistory",

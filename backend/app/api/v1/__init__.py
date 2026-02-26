@@ -101,6 +101,9 @@ ROUTE_GROUPS: Dict[str, List[Dict]] = {
     'settings': [
         {'module': 'app.api.v1.settings', 'prefix': '/settings', 'tags': ['settings']},
         {'module': 'app.api.v1.config_management', 'tags': ['config-management']}
+    ],
+    'workspaces': [
+        {'module': 'app.api.v1.workspaces', 'prefix': '/workspaces', 'tags': ['workspaces']}
     ]
 }
 
