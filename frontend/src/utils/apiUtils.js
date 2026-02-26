@@ -10,24 +10,23 @@ import { getAuthToken } from './authUtils';
 /**
  * 获取当前用户ID
  * 从localStorage中的auth-storage读取
+ * 优先从user对象获取，如果user为null则从currentWorkspace获取
  *
  * @returns {number|null} 用户ID
  */
 const getCurrentUserId = () => {
   try {
     const authStorage = localStorage.getItem('auth-storage');
-    console.log('[DEBUG] auth-storage raw:', authStorage ? authStorage.substring(0, 200) : 'null');
     if (authStorage) {
       const parsed = JSON.parse(authStorage);
-      console.log('[DEBUG] auth-storage parsed keys:', Object.keys(parsed));
-      console.log('[DEBUG] has state:', 'state' in parsed);
       if (parsed.state) {
-        console.log('[DEBUG] state keys:', Object.keys(parsed.state));
-        console.log('[DEBUG] has user:', 'user' in parsed.state);
-        if (parsed.state.user) {
-          console.log('[DEBUG] user keys:', Object.keys(parsed.state.user));
-          console.log('[DEBUG] user ID:', parsed.state.user.id);
+        // 优先从user对象获取用户ID
+        if (parsed.state.user && parsed.state.user.id) {
           return parsed.state.user.id;
+        }
+        // 如果user为null，从currentWorkspace获取user_id
+        if (parsed.state.currentWorkspace && parsed.state.currentWorkspace.user_id) {
+          return parsed.state.currentWorkspace.user_id;
         }
       }
     }
