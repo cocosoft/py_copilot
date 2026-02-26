@@ -1,55 +1,778 @@
 {
   "title": "设置",
   "general": {
-    "title": "通用设置",
+    "title": "应用配置",
+    "description": "管理智能个人助手的基本配置和个性化选项",
     "assistantName": "助手名称",
     "language": "语言",
     "theme": "主题",
     "themeLight": "浅色",
     "themeDark": "深色",
-    "themeSystem": "跟随系统"
+    "themeSystem": "跟随系统",
+    "languages": {
+      "zh-CN": "简体中文",
+      "en-US": "English",
+      "ja-JP": "日本語",
+      "ko-KR": "한국어"
+    }
   },
   "personalization": {
     "title": "个性化设置",
+    "description": "配置助手的人格特质和沟通风格",
     "personalityTraits": "人格特质",
     "communicationStyle": "沟通风格",
     "responseSpeed": "响应速度",
-    "customPrompt": "个性化需求"
+    "customPrompt": "个性化需求",
+    "customPromptDescription": "为您的智能助手编写个性化的提示词，用于定义助手的行为方式、回答风格，专业领域等",
+    "customPromptPlaceholder": "例如：你是一位专业的技术顾问，擅长用通俗易懂的语言解释复杂的技术概念...",
+    "customPromptHint": "提示：这里的内容将作为系统提示词的一部分，影响助手的回答方式",
+    "traits": {
+      "friendly": "友好",
+      "professional": "专业",
+      "humorous": "幽默",
+      "empathetic": "共情",
+      "creative": "创意"
+    },
+    "styles": {
+      "formal": "正式",
+      "balanced": "平衡",
+      "casual": "随意",
+      "friendly": "友好"
+    },
+    "speeds": {
+      "fast": "快速",
+      "medium": "中等",
+      "slow": "缓慢"
+    }
   },
   "emotion": {
     "title": "情感设置",
+    "description": "配置助手的情感识别和回应能力",
     "emotionRecognition": "情感识别",
     "emotionResponse": "情感回应",
-    "emotionMemory": "情感记忆"
+    "emotionMemory": "情感记忆",
+    "emotionRecognitionDesc": "允许助手识别您的情绪状态",
+    "emotionResponseDesc": "允许助手根据您的情绪调整回应方式",
+    "emotionMemoryDesc": "允许助手记住您的情绪偏好"
   },
   "learning": {
     "title": "学习设置",
+    "description": "配置助手的自适应学习能力",
     "adaptiveLearning": "自适应学习",
     "patternRecognition": "模式识别",
-    "predictiveSuggestions": "预测建议"
+    "predictiveSuggestions": "预测建议",
+    "adaptiveLearningDesc": "允许助手从您的交互中学习",
+    "patternRecognitionDesc": "允许助手识别您的行为模式",
+    "predictiveSuggestionsDesc": "允许助手主动提供预测性建议"
   },
   "relationship": {
     "title": "关系设置",
+    "description": "配置助手的人际关系管理能力",
     "relationshipMemory": "关系记忆",
     "milestoneReminders": "里程碑提醒",
-    "relationshipInsights": "关系洞察"
+    "relationshipInsights": "关系洞察",
+    "relationshipMemoryDesc": "允许助手记住重要的人际关系",
+    "milestoneRemindersDesc": "允许助手提醒重要的关系里程碑",
+    "relationshipInsightsDesc": "允许助手提供关系管理的洞察"
   },
   "search": {
     "title": "搜索管理",
+    "description": "配置联网搜索的基础选项",
     "defaultEngine": "默认搜索引擎",
-    "safeSearch": "安全搜索"
+    "safeSearch": "启用安全搜索",
+    "engines": {
+      "google": "Google",
+      "baidu": "百度",
+      "bing": "Bing"
+    }
   },
   "defaultModel": {
     "title": "默认模型",
+    "description": "为特定业务场景设置专属默认模型",
     "global": "全局默认模型",
-    "scene": "场景默认模型"
+    "globalDescription": "系统级别的默认AI模型，作为所有场景的基础默认值",
+    "scene": "场景默认模型",
+    "sceneDescription": "为特定业务场景设置专属默认模型",
+    "scenes": {
+      "chat": "聊天场景",
+      "image": "图像场景",
+      "video": "视频场景",
+      "voice": "语音场景",
+      "translate": "翻译场景",
+      "knowledge": "知识库场景",
+      "workflow": "工作流场景",
+      "tool": "工具调用场景",
+      "search": "搜索场景",
+      "mcp": "MCP场景"
+    },
+    "placeholder": "请选择模型",
+    "selectLabel": "选择全局默认模型",
+    "saving": "保存中...",
+    "saveSettings": "保存设置"
   },
   "memory": {
     "title": "全局记忆",
+    "description": "管理系统全局记忆和上下文信息",
     "config": "记忆配置",
-    "stats": "记忆统计"
+    "configDescription": "配置全局记忆的存储和管理参数",
+    "stats": "记忆统计与分析",
+    "statsDescription": "查看记忆的统计信息和模式分析",
+    "shortTermRetention": "短期记忆保留天数",
+    "privacyLevel": "隐私级别",
+    "privacyLevels": {
+      "low": "低（基本保护）",
+      "medium": "中（标准保护）",
+      "high": "高（严格保护）"
+    },
+    "autoPurge": "自动清理过期记忆",
+    "retrievalThreshold": "检索相似度阈值",
+    "maxRetrievalResults": "最大检索结果数",
+    "statLabels": {
+      "total": "总记忆数",
+      "shortTerm": "短期记忆",
+      "longTerm": "长期记忆",
+      "vector": "向量存储数",
+      "importance": "平均重要性",
+      "storage": "存储大小"
+    },
+    "typeDistribution": "记忆类型分布",
+    "importanceDistribution": "记忆重要性分布",
+    "patternAnalysis": "记忆模式分析",
+    "loading": "加载中...",
+    "noData": "暂无统计数据",
+    "noPatternData": "暂无模式数据",
+    "saving": "保存中...",
+    "saveConfig": "保存配置",
+    "lifecycle": {
+      "title": "记忆生命周期管理",
+      "description": "管理记忆的自动清理和压缩",
+      "cleanup": "清理过期记忆",
+      "compress": "压缩相似记忆",
+      "cleaning": "清理中...",
+      "compressing": "压缩中...",
+      "cleanupDesc": "移除超过保留天数的短期记忆",
+      "compressDesc": "将相似度超过阈值的短期记忆合并为长期记忆"
+    },
+    "knowledgeGraph": {
+      "title": "知识图谱",
+      "description": "可视化展示记忆之间的关联关系",
+      "maxNodes": "最大节点数",
+      "refresh": "刷新图谱",
+      "refreshing": "加载中...",
+      "recentMemories": "近期记忆",
+      "refreshList": "刷新",
+      "nodes": "节点数",
+      "edges": "边数",
+      "noData": "暂无知识图谱数据",
+      "loadHint": "点击「刷新图谱」按钮加载知识图谱"
+    },
+    "memoryList": {
+      "title": "记忆列表",
+      "description": "查看和管理系统中的全局记忆",
+      "searchPlaceholder": "搜索记忆内容...",
+      "search": "搜索",
+      "importMD": "导入MD",
+      "clearAll": "清空所有",
+      "processing": "处理中...",
+      "id": "ID",
+      "type": "类型",
+      "category": "分类",
+      "uncategorized": "未分类",
+      "content": "内容",
+      "importance": "重要性",
+      "createdAt": "创建时间",
+      "actions": "操作",
+      "view": "查看",
+      "edit": "编辑",
+      "export": "导出",
+      "delete": "删除",
+      "previous": "上一页",
+      "next": "下一页",
+      "page": "页",
+      "total": "共",
+      "pageInfo": "第 {current} 页，共 {total} 页",
+      "perPage": "每页显示：",
+      "items": "条"
+    },
+    "patterns": {
+      "topTopics": "高频主题",
+      "associationPatterns": "关联模式",
+      "frequency": "次",
+      "similarity": "相似度"
+    }
   },
   "mcp": {
-    "title": "MCP服务"
+    "title": "MCP服务",
+    "description": "管理和配置MCP服务"
+  },
+  "modelManagement": {
+    "title": "模型管理",
+    "description": "管理和配置AI模型",
+    "sections": {
+      "modelCards": "模型卡片",
+      "parameterManagement": "参数管理"
+    },
+    "buttons": {
+      "addModel": "添加模型",
+      "fetchModels": "获取模型",
+      "addParameter": "添加参数",
+      "backToList": "返回模型列表",
+      "edit": "编辑",
+      "delete": "删除",
+      "setDefault": "设为默认",
+      "manageCapabilities": "管理能力",
+      "view": "查看",
+      "save": "保存",
+      "cancel": "取消",
+      "confirm": "确定",
+      "search": "搜索",
+      "refresh": "刷新",
+      "expand": "显示更多",
+      "collapse": "收起"
+    },
+    "table": {
+      "parameterName": "参数名称",
+      "parameterValue": "参数值",
+      "type": "类型",
+      "defaultValue": "默认值",
+      "description": "描述",
+      "required": "必填",
+      "actions": "操作",
+      "inherited": "继承",
+      "yes": "是",
+      "no": "否",
+      "uncategorized": "未分类",
+      "default": "默认"
+    },
+    "loading": {
+      "models": "加载模型中...",
+      "parameters": "加载参数中...",
+      "saving": "保存中...",
+      "deleting": "删除中..."
+    },
+    "empty": {
+      "noModels": "暂无模型，请添加模型",
+      "noParameters": "暂无参数，请添加参数",
+      "noData": "暂无数据"
+    },
+    "messages": {
+      "addSuccess": "模型添加成功",
+      "updateSuccess": "模型更新成功",
+      "deleteSuccess": "模型删除成功",
+      "setDefaultSuccess": "默认模型设置成功",
+      "saveSuccess": "成功保存 {count} 个模型",
+      "allModelsSaved": "所有模型都已保存，没有新的模型可添加",
+      "fetchSuccess": "成功获取 {count} 个新模型（已过滤掉 {filtered} 个已保存的模型）",
+      "confirmDelete": "确定要删除这个模型吗？",
+      "confirmDeleteParameter": "确定要删除这个参数吗？",
+      "selectGlobalModel": "请选择全局默认模型",
+      "selectSceneModel": "请选择{scene}场景的默认模型",
+      "localConfigSaved": "本地模型配置已保存",
+      "localConfigSaveFailed": "保存本地模型配置失败，请重试",
+      "defaultModelSaved": "默认模型设置已保存",
+      "defaultModelSaveFailed": "保存默认模型设置失败，请重试"
+    },
+    "validation": {
+      "selectGlobalModel": "请选择全局默认模型",
+      "selectSceneModel": "请选择{scene}场景的默认模型"
+    },
+    "errors": {
+      "loadModels": "加载模型失败",
+      "loadParameters": "加载参数失败",
+      "saveModel": "保存模型失败",
+      "deleteModel": "删除模型失败",
+      "setDefault": "设置默认模型失败",
+      "fetchModels": "获取模型列表失败",
+      "noModelsFetched": "未获取到模型列表，请检查API配置是否正确",
+      "partialSave": "保存完成：成功 {saved} 个，失败 {error} 个",
+      "generic": "操作失败"
+    },
+    "model": {
+      "name": "模型名称",
+      "id": "模型ID",
+      "type": "模型类型",
+      "contextWindow": "上下文窗口",
+      "maxTokens": "最大令牌数",
+      "status": "状态",
+      "active": "启用",
+      "inactive": "禁用"
+    }
+  },
+  "supplierManagement": {
+    "title": "供应商管理",
+    "description": "管理和配置AI服务供应商",
+    "selectPrompt": "请从左侧选择一个供应商",
+    "officialWebsite": "官网",
+    "buttons": {
+      "expand": "展开详情",
+      "collapse": "收缩详情",
+      "edit": "编辑供应商信息",
+      "delete": "删除供应商",
+      "parameterManagement": "参数管理",
+      "save": "保存配置",
+      "test": "测试连接",
+      "copy": "复制",
+      "add": "添加供应商",
+      "refresh": "刷新列表"
+    },
+    "labels": {
+      "apiEndpoint": "API地址",
+      "apiKey": "API密钥",
+      "description": "描述",
+      "status": "状态",
+      "enabled": "已启用",
+      "disabled": "已停用",
+      "enableHint": "当前已停用，点击启用",
+      "disableHint": "当前已启用，点击停用"
+    },
+    "placeholders": {
+      "apiEndpoint": "请输入API地址",
+      "apiKey": "请输入API密钥",
+      "clickToInput": "点击输入API密钥"
+    },
+    "messages": {
+      "addSuccess": "添加供应商成功",
+      "updateSuccess": "更新供应商成功",
+      "deleteSuccess": "供应商删除成功",
+      "saveSuccess": "API配置保存成功",
+      "testSuccess": "API测试成功！",
+      "confirmDelete": "确定要删除供应商 \"{name}\" 吗？删除后将无法恢复。",
+      "confirmEnable": "确定要启用供应商 \"{name}\" 吗？",
+      "confirmDisable": "确定要停用供应商 \"{name}\" 吗？",
+      "noDescription": "未提供描述"
+    },
+    "errors": {
+      "deleteFailed": "删除供应商失败，请稍后重试",
+      "saveFailed": "保存失败，请稍后重试",
+      "testFailed": "API测试失败",
+      "emptyEndpoint": "API端点不能为空",
+      "invalidEndpoint": "API端点格式不正确，必须包含http://或https://",
+      "emptyKey": "API密钥不能为空",
+      "connectionFailed": "无法连接到API"
+    },
+    "loading": {
+      "saving": "保存中...",
+      "testing": "测试中...",
+      "loading": "加载中..."
+    }
+  },
+  "capability": {
+    "title": "能力管理",
+    "description": "管理和配置AI模型能力",
+    "tabs": {
+      "management": "能力管理",
+      "types": "能力类型",
+      "association": "模型能力关联",
+      "dimensions": "能力维度",
+      "templates": "参数模板",
+      "categoryDefaults": "分类默认能力"
+    },
+    "types": {
+      "title": "能力类型统计",
+      "loading": "加载中...",
+      "empty": "暂无能力类型数据",
+      "count": "{count} 个能力",
+      "more": "+ 还有 {count} 个能力",
+      "status": {
+        "active": "启用",
+        "inactive": "禁用"
+      }
+    },
+    "buttons": {
+      "add": "添加能力",
+      "edit": "编辑",
+      "delete": "删除",
+      "save": "保存",
+      "cancel": "取消",
+      "confirm": "确定",
+      "search": "搜索",
+      "refresh": "刷新",
+      "associate": "关联",
+      "dissociate": "解除关联"
+    },
+    "table": {
+      "name": "名称",
+      "displayName": "显示名称",
+      "type": "类型",
+      "description": "描述",
+      "status": "状态",
+      "actions": "操作",
+      "version": "版本",
+      "model": "模型",
+      "category": "分类"
+    },
+    "messages": {
+      "addSuccess": "能力添加成功",
+      "updateSuccess": "能力更新成功",
+      "deleteSuccess": "能力删除成功",
+      "associateSuccess": "能力关联成功",
+      "dissociateSuccess": "能力解除关联成功",
+      "confirmDelete": "确定要删除这个能力吗？",
+      "noData": "暂无数据"
+    },
+    "errors": {
+      "loadFailed": "加载能力列表失败",
+      "saveFailed": "保存能力失败",
+      "deleteFailed": "删除能力失败",
+      "associateFailed": "能力关联失败",
+      "generic": "操作失败"
+    }
+  },
+  "settingsManager": {
+    "export": {
+      "title": "智能个人助手设置",
+      "exportTime": "导出时间",
+      "general": "通用设置",
+      "assistantName": "助手名称",
+      "language": "语言",
+      "theme": "主题",
+      "personalization": "个性化设置",
+      "personalityTraits": "个性特质",
+      "friendly": "友好度",
+      "professional": "专业度",
+      "humorous": "幽默感",
+      "empathetic": "同理心",
+      "creative": "创造力",
+      "communicationStyle": "沟通风格",
+      "balanced": "平衡",
+      "formal": "正式",
+      "informal": "非正式",
+      "responseSpeed": "响应速度",
+      "fast": "快速",
+      "medium": "中等",
+      "slow": "慢速",
+      "emotion": "情感设置",
+      "emotionRecognition": "情感识别",
+      "emotionResponse": "情感回应",
+      "emotionMemory": "情感记忆",
+      "learning": "学习设置",
+      "adaptiveLearning": "自适应学习",
+      "patternRecognition": "模式识别",
+      "predictiveSuggestions": "预测建议",
+      "relationship": "关系设置",
+      "relationshipMemory": "关系记忆",
+      "milestoneReminders": "里程碑提醒",
+      "relationshipInsights": "关系洞察",
+      "jsonData": "设置数据（JSON格式，用于导入）",
+      "enabled": "启用",
+      "disabled": "禁用",
+      "zhCN": "简体中文",
+      "enUS": "English",
+      "light": "浅色",
+      "dark": "深色"
+    },
+    "messages": {
+      "importSuccess": "设置导入成功！",
+      "importError": "无法从文件中提取设置数据，请确保文件格式正确。",
+      "importFailed": "导入设置失败，请检查文件格式是否正确。",
+      "readFileFailed": "读取文件失败，请重试。",
+      "exportFailed": "导出配置失败，请重试。",
+      "configImportFailed": "导入配置失败，请检查文件格式是否正确。"
+    }
+  },
+  "fileUpload": {
+    "buttonText": "选择文件",
+    "uploading": "上传中...",
+    "upload": "上传",
+    "uploadCount": "上传 ({count})",
+    "clear": "清空",
+    "confirmDelete": "确定要删除这个文件吗？",
+    "deleteFailed": "删除失败",
+    "downloadFailed": "下载失败"
+  },
+  "chat": {
+    "fileSizeLimit": "文件大小超过50MB限制",
+    "uploadFailed": "文件上传失败",
+    "deleteFileFailed": "删除文件失败"
+  },
+  "topic": {
+    "title": "话题列表",
+    "newTopic": "新建话题",
+    "newTopicTooltip": "新建话题",
+    "expandTooltip": "展开",
+    "collapseTooltip": "收缩",
+    "searchPlaceholder": "搜索话题...",
+    "loading": "加载中...",
+    "empty": "暂无话题",
+    "createFailed": "创建话题失败，请重试",
+    "deleteFailed": "删除话题失败，请重试",
+    "deleteConfirm": "确定要删除话题「{topicName}」吗？",
+    "deleteConfirmWithMessages": "确定要删除话题「{topicName}」吗？该话题包含 {messageCount} 条消息，删除后将无法恢复。",
+    "deleteConfirmTitle": "删除确认",
+    "deleteConfirmMessage": "确定要删除话题「{topicName}」吗？",
+    "deleteConfirmMessageWithCount": "确定要删除话题「{topicName}」吗？该话题包含 {messageCount} 条消息，删除后将无法恢复。"
+  },
+  "terminology": {
+    "title": "术语库管理",
+    "tabs": {
+      "search": "搜索术语",
+      "browse": "浏览术语",
+      "add": "添加术语"
+    },
+    "search": {
+      "placeholder": "输入术语进行搜索...",
+      "button": "搜索",
+      "searching": "搜索中...",
+      "results": "搜索结果 ({count})",
+      "noResults": "未找到相关术语",
+      "use": "使用"
+    },
+    "browse": {
+      "usageCount": "使用次数: {count}",
+      "noTerms": "暂无术语数据",
+      "use": "使用"
+    },
+    "add": {
+      "sourceTerm": "源术语 *",
+      "sourcePlaceholder": "输入源语言术语",
+      "targetTerm": "目标术语 *",
+      "targetPlaceholder": "输入目标语言术语",
+      "domain": "领域",
+      "description": "描述",
+      "descriptionPlaceholder": "术语描述（可选）",
+      "tags": "标签",
+      "tagsPlaceholder": "用逗号分隔的标签（可选）",
+      "save": "保存术语",
+      "saving": "保存中..."
+    },
+    "messages": {
+      "saveSuccess": "术语保存成功！",
+      "saveFailed": "保存术语失败，请重试",
+      "fillRequired": "请填写源术语和目标术语"
+    }
+  },
+  "chartExample": {
+    "title": "数据可视化示例",
+    "description": "使用图表配置器创建和自定义各种图表",
+    "tabs": {
+      "configurator": "图表配置器",
+      "saved": "已保存配置",
+      "examples": "示例图表"
+    },
+    "sampleData": {
+      "jan": "一月",
+      "feb": "二月",
+      "mar": "三月",
+      "apr": "四月",
+      "may": "五月",
+      "jun": "六月"
+    },
+    "chartTitle": "销售数据图表",
+    "chartDescription": "展示月度销售数据",
+    "messages": {
+      "saveSuccess": "配置已保存！",
+      "renderError": "图表渲染失败"
+    },
+    "savedConfigs": {
+      "empty": "暂无保存的配置",
+      "hint": "请在配置器页面创建并保存图表配置",
+      "unnamed": "未命名图表",
+      "type": "图表类型",
+      "savedAt": "保存时间"
+    }
+  },
+  "modelParameterModal": {
+    "title": {
+      "add": "添加模型参数",
+      "edit": "编辑模型参数"
+    },
+    "form": {
+      "parameterName": "参数名称 *",
+      "parameterValue": "参数值",
+      "parameterValueRequired": "参数值 *",
+      "parameterType": "参数类型",
+      "defaultValue": "默认值",
+      "description": "描述",
+      "descriptionPlaceholder": "参数的详细描述",
+      "isRequired": "必填参数",
+      "validationRules": "验证规则",
+      "min": "最小值",
+      "minPlaceholder": "例如: 0.1",
+      "max": "最大值",
+      "maxPlaceholder": "例如: 1.0",
+      "regex": "正则表达式",
+      "regexPlaceholder": "例如: ^[a-zA-Z0-9]+$",
+      "minLength": "最小长度",
+      "minLengthPlaceholder": "例如: 3",
+      "maxLength": "最大长度",
+      "maxLengthPlaceholder": "例如: 20",
+      "enumValues": "枚举值 (JSON数组)",
+      "enumValuesPlaceholder": "例如: [\"option1\", \"option2\"]",
+      "customMessage": "自定义错误信息",
+      "customMessagePlaceholder": "例如: 请输入有效的值"
+    },
+    "types": {
+      "string": "字符串",
+      "number": "数字",
+      "boolean": "布尔值",
+      "array": "数组",
+      "object": "对象"
+    },
+    "booleanOptions": {
+      "placeholder": "请选择",
+      "true": "True",
+      "false": "False"
+    },
+    "placeholders": {
+      "number": "例如: 0.7",
+      "string": "例如: value",
+      "array": "例如: [\"value1\", \"value2\"]",
+      "object": "例如: {\"key\": \"value\"}"
+    },
+    "validation": {
+      "nameRequired": "参数名称不能为空",
+      "nameFormat": "参数名称只能包含字母、数字和下划线，且必须以字母或下划线开头",
+      "valueRequired": "必填参数不能为空",
+      "invalidNumber": "请输入有效的数字",
+      "minValue": "值不能小于 {min}",
+      "maxValue": "值不能大于 {max}",
+      "invalidBoolean": "布尔值只能是 true 或 false",
+      "regexError": "值不符合正则表达式: {regex}",
+      "minLength": "字符串长度不能小于 {minLength}",
+      "maxLength": "字符串长度不能大于 {maxLength}",
+      "enumError": "值必须是 {values} 之一",
+      "invalidType": "请输入有效的{type}格式",
+      "enumFormatError": "枚举值格式错误，请使用 JSON 数组格式",
+      "invalidValue": "请输入有效的值",
+      "invalidMin": "请输入有效的数字",
+      "invalidMax": "请输入有效的数字",
+      "invalidRegex": "正则表达式格式错误",
+      "enumArrayError": "枚举值必须是 JSON 数组格式"
+    },
+    "buttons": {
+      "cancel": "取消",
+      "add": "添加",
+      "save": "保存"
+    }
+  },
+  "modelModalV2": {
+    "title": {
+      "add": "添加模型（多维度配置）",
+      "edit": "编辑模型（多维度配置）"
+    },
+    "tabs": {
+      "basic": "基础信息",
+      "dimension": "维度配置",
+      "capability": "能力发现",
+      "category": "分类配置",
+      "template": "参数模板"
+    },
+    "form": {
+      "modelId": "模型ID",
+      "modelName": "模型名称",
+      "description": "描述",
+      "contextWindow": "上下文窗口",
+      "maxTokens": "最大Token数",
+      "isDefault": "设为默认模型",
+      "isActive": "激活模型",
+      "logo": "模型LOGO",
+      "logoPreview": "LOGO预览",
+      "remove": "移除",
+      "selectImage": "请选择图片文件",
+      "imageSizeError": "图片大小不能超过2MB",
+      "required": "必填",
+      "simplifiedSelector": "使用简化分类选择器",
+      "dimensionConfig": "维度配置",
+      "selectCategories": "选择分类",
+      "categoryCount": "{count} 个分类",
+      "multiselectHint": "按住 Ctrl (Windows) 或 Command (Mac) 键可选择多个分类",
+      "noCategories": "该维度下暂无可用分类",
+      "selectedCount": "✓ 已选择 {count} 个分类",
+      "parameterTemplate": "参数模板",
+      "noTemplates": "暂无模板",
+      "selectTemplate": "请选择模板",
+      "preview": "预览",
+      "parameterConfig": "参数配置",
+      "parameterValue": "参数值",
+      "status": {
+        "category": "分类",
+        "template": "模板",
+        "parameters": "参数",
+        "notSelected": "未选择",
+        "unknown": "未知",
+        "count": "{count} 个"
+      }
+    },
+    "dimensions": {
+      "tasks": "任务维度",
+      "languages": "语言维度",
+      "licenses": "协议维度",
+      "technologies": "技术维度"
+    },
+    "status": {
+      "enabled": "已启用",
+      "disabled": "已禁用"
+    },
+    "validation": {
+      "fillRequired": "请填写模型ID和模型名称",
+      "selectDimension": "请至少配置一个维度的分类"
+    },
+    "messages": {
+      "loading": "加载中...",
+      "saving": "保存中...",
+      "saveFailed": "保存失败",
+      "unknownError": "未知错误",
+      "templateApplied": "模板已成功应用到维度 {dimension}",
+      "templateApplyFailed": "应用模板失败",
+      "selectDimensionFirst": "请先选择维度",
+      "templateValidationFailed": "模板参数验证失败"
+    },
+    "capability": {
+      "title": "能力发现",
+      "placeholder": "能力发现功能正在开发中...",
+      "description": "此功能将帮助您自动发现和配置模型的各项能力。"
+    },
+    "buttons": {
+      "cancel": "取消",
+      "save": "保存"
+    }
+  },
+  "skillManagement": {
+    "title": "技能管理",
+    "description": "管理系统中的技能和发现新技能",
+    "tabs": {
+      "installed": "已安装技能",
+      "market": "技能市场"
+    }
+  },
+  "skillMarket": {
+    "title": "技能市场",
+    "subtitle": "发现和安装强大的AI技能来扩展你的助手能力",
+    "loading": "正在加载技能市场...",
+    "error": {
+      "title": "加载技能市场失败",
+      "retry": "重试"
+    },
+    "buttons": {
+      "refresh": "刷新技能",
+      "refreshing": "刷新中...",
+      "gridView": "网格视图",
+      "listView": "列表视图",
+      "resetFilters": "重置所有筛选条件",
+      "previous": "上一页",
+      "next": "下一页"
+    },
+    "search": {
+      "placeholder": "搜索技能名称、描述或标签..."
+    },
+    "empty": {
+      "title": "未找到匹配的技能",
+      "description": "尝试调整搜索条件或筛选器"
+    },
+    "stats": {
+      "total": "总技能数",
+      "installed": "已安装",
+      "matched": "匹配结果"
+    }
+  },
+  "navigation": {
+    "general": "应用配置",
+    "modelManagement": "模型管理",
+    "search": "搜索管理",
+    "defaultModel": "默认模型",
+    "memory": "全局记忆",
+    "mcp": "MCP服务",
+    "personal": "个人中心",
+    "help": "帮助中心"
   }
 }

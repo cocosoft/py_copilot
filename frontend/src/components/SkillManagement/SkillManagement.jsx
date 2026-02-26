@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import SkillList from './SkillList';
 import SkillMarket from '../SkillMarket/SkillMarket';
+import { useI18n } from '../../hooks/useI18n';
 import './SkillManagement.css';
 
 /**
@@ -8,33 +9,34 @@ import './SkillManagement.css';
  * 包含已安装技能管理和技能市场发现功能
  */
 function SkillManagement() {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState('installed'); // 'installed' | 'market'
 
   return (
     <div className="skill-management">
       <div className="skill-management-header">
-        <h2>技能管理</h2>
-        <p>管理系统中的技能和发现新技能</p>
+        <h2>{t('settings.skillManagement.title')}</h2>
+        <p>{t('settings.skillManagement.description')}</p>
       </div>
-      
+
       {/* 标签页导航 */}
       <div className="skill-management-tabs">
-        <button 
+        <button
           className={`skill-management-tab ${activeTab === 'installed' ? 'active' : ''}`}
           onClick={() => setActiveTab('installed')}
         >
           <span className="tab-icon">📋</span>
-          <span className="tab-text">已安装技能</span>
+          <span className="tab-text">{t('settings.skillManagement.tabs.installed')}</span>
         </button>
-        <button 
+        <button
           className={`skill-management-tab ${activeTab === 'market' ? 'active' : ''}`}
           onClick={() => setActiveTab('market')}
         >
           <span className="tab-icon">🛒</span>
-          <span className="tab-text">技能市场</span>
+          <span className="tab-text">{t('settings.skillManagement.tabs.market')}</span>
         </button>
       </div>
-      
+
       <div className="skill-management-content">
         {activeTab === 'installed' ? <SkillList /> : <SkillMarket />}
       </div>

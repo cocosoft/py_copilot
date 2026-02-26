@@ -9,13 +9,13 @@ import { request } from '../../utils/api';
 import './settings.css';
 
 const SettingsManager = () => {
-  const { t } = useI18n();
+  const { t, changeLanguage } = useI18n();
   const [activeTab, setActiveTab] = useState('general');
   const [isLoading, setIsLoading] = useState(false);
   const [settings, setSettings] = useState({
     general: {
       assistantName: 'Py Copilot',
-      language: 'zh-CN',
+      language: localStorage.getItem('app-language') || 'zh-CN',
       theme: 'light'
     },
     personalization: {
@@ -55,12 +55,36 @@ const SettingsManager = () => {
   const loadSettings = async () => {
     setIsLoading(true);
     try {
-      // 使用本地默认设置，避免API调用
-      console.log('使用本地默认设置');
-      // 模拟加载延迟
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // 从后端 API 加载设置
+      const result = await request('/v1/settings', {
+        method: 'GET'
+      });
+
+      if (result.success && result.data) {
+        setSettings(prev => ({
+          ...prev,
+          ...result.data
+        }));
+
+        // 同步语言设置到 i18n
+        if (result.data.general?.language) {
+          changeLanguage(result.data.general.language);
+        }
+      }
     } catch (error) {
       console.error('加载设置失败:', error);
+      // 如果 API 调用失败，使用 localStorage 作为备选
+      const savedLanguage = localStorage.getItem('app-language');
+      if (savedLanguage) {
+        setSettings(prev => ({
+          ...prev,
+          general: {
+            ...prev.general,
+            language: savedLanguage
+          }
+        }));
+        changeLanguage(savedLanguage);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -69,19 +93,47 @@ const SettingsManager = () => {
   const saveSettings = async (settingType, settingData) => {
     setIsLoading(true);
     try {
-      // 只更新本地设置，避免API调用
-      console.log('保存设置到本地:', settingType, settingData);
-      // 模拟保存延迟
-      await new Promise(resolve => setTimeout(resolve, 300));
-      // 更新本地设置
+      // 调用后端 API 保存设置
+      const result = await request('/v1/settings', {
+        method: 'POST',
+        data: {
+          type: settingType,
+          data: settingData
+        }
+      });
+
+      if (result.success) {
+        // 更新本地设置
+        setSettings(prev => ({
+          ...prev,
+          [settingType]: settingData
+        }));
+
+        // 如果是通用设置且语言发生变化，同步更新 i18n 语言和 localStorage
+        if (settingType === 'general' && settingData.language) {
+          changeLanguage(settingData.language);
+          localStorage.setItem('app-language', settingData.language);
+        }
+
+        return true;
+      } else {
+        console.error('保存设置失败:', result.message);
+        return false;
+      }
+    } catch (error) {
+      console.error('保存设置失败:', error);
+      // API 调用失败时，仍然更新本地状态和 localStorage
       setSettings(prev => ({
         ...prev,
         [settingType]: settingData
       }));
-      return true;
-    } catch (error) {
-      console.error('保存设置失败:', error);
-      return false;
+
+      if (settingType === 'general' && settingData.language) {
+        changeLanguage(settingData.language);
+        localStorage.setItem('app-language', settingData.language);
+      }
+
+      return true; // 本地保存成功
     } finally {
       setIsLoading(false);
     }
@@ -90,86 +142,94 @@ const SettingsManager = () => {
   // 导出设置为MD文件
   const exportSettings = () => {
     // 构建MD内容
-    let mdContent = `# 智能个人助手设置
+    let mdContent = `# ${t('settings.settingsManager.export.title')}
 
-## 导出时间
+## ${t('settings.settingsManager.export.exportTime')}
 ${new Date().toLocaleString()}
 
 `;
 
     // 通用设置
-    mdContent += `## 通用设置
+    mdContent += `## ${t('settings.settingsManager.export.general')}
 
 `;
-    mdContent += `- 助手名称: ${settings.general.assistantName}
+    mdContent += `- ${t('settings.settingsManager.export.assistantName')}: ${settings.general.assistantName}
 `;
-    mdContent += `- 语言: ${settings.general.language === 'zh-CN' ? '简体中文' : 'English'}
+    mdContent += `- ${t('settings.settingsManager.export.language')}: ${settings.general.language === 'zh-CN' ? t('settings.settingsManager.export.zhCN') : t('settings.settingsManager.export.enUS')}
 `;
-    mdContent += `- 主题: ${settings.general.theme === 'light' ? '浅色' : '深色'}
+    mdContent += `- ${t('settings.settingsManager.export.theme')}: ${settings.general.theme === 'light' ? t('settings.settingsManager.export.light') : t('settings.settingsManager.export.dark')}
 
 `;
 
     // 个性化设置
-    mdContent += `## 个性化设置
+    mdContent += `## ${t('settings.settingsManager.export.personalization')}
 
 `;
-    mdContent += `### 个性特质
+    mdContent += `### ${t('settings.settingsManager.export.personalityTraits')}
 `;
-    mdContent += `- 友好度: ${(settings.personalization.personalityTraits.friendly * 100).toFixed(0)}%
+    mdContent += `- ${t('settings.settingsManager.export.friendly')}: ${(settings.personalization.personalityTraits.friendly * 100).toFixed(0)}%
 `;
-    mdContent += `- 专业度: ${(settings.personalization.personalityTraits.professional * 100).toFixed(0)}%
+    mdContent += `- ${t('settings.settingsManager.export.professional')}: ${(settings.personalization.personalityTraits.professional * 100).toFixed(0)}%
 `;
-    mdContent += `- 幽默感: ${(settings.personalization.personalityTraits.humorous * 100).toFixed(0)}%
+    mdContent += `- ${t('settings.settingsManager.export.humorous')}: ${(settings.personalization.personalityTraits.humorous * 100).toFixed(0)}%
 `;
-    mdContent += `- 同理心: ${(settings.personalization.personalityTraits.empathetic * 100).toFixed(0)}%
+    mdContent += `- ${t('settings.settingsManager.export.empathetic')}: ${(settings.personalization.personalityTraits.empathetic * 100).toFixed(0)}%
 `;
-    mdContent += `- 创造力: ${(settings.personalization.personalityTraits.creative * 100).toFixed(0)}%
+    mdContent += `- ${t('settings.settingsManager.export.creative')}: ${(settings.personalization.personalityTraits.creative * 100).toFixed(0)}%
 
 `;
-    mdContent += `- 沟通风格: ${settings.personalization.communicationStyle === 'balanced' ? '平衡' : settings.personalization.communicationStyle === 'formal' ? '正式' : '非正式'}
+    const communicationStyle = settings.personalization.communicationStyle;
+    let styleText = t('settings.settingsManager.export.balanced');
+    if (communicationStyle === 'formal') styleText = t('settings.settingsManager.export.formal');
+    else if (communicationStyle === 'informal') styleText = t('settings.settingsManager.export.informal');
+    mdContent += `- ${t('settings.settingsManager.export.communicationStyle')}: ${styleText}
 `;
-    mdContent += `- 响应速度: ${settings.personalization.responseSpeed === 'fast' ? '快速' : settings.personalization.responseSpeed === 'medium' ? '中等' : '慢速'}
+    const responseSpeed = settings.personalization.responseSpeed;
+    let speedText = t('settings.settingsManager.export.medium');
+    if (responseSpeed === 'fast') speedText = t('settings.settingsManager.export.fast');
+    else if (responseSpeed === 'slow') speedText = t('settings.settingsManager.export.slow');
+    mdContent += `- ${t('settings.settingsManager.export.responseSpeed')}: ${speedText}
 
 `;
 
     // 情感设置
-    mdContent += `## 情感设置
+    mdContent += `## ${t('settings.settingsManager.export.emotion')}
 
 `;
-    mdContent += `- 情感识别: ${settings.emotion.emotionRecognition ? '启用' : '禁用'}
+    mdContent += `- ${t('settings.settingsManager.export.emotionRecognition')}: ${settings.emotion.emotionRecognition ? t('settings.settingsManager.export.enabled') : t('settings.settingsManager.export.disabled')}
 `;
-    mdContent += `- 情感回应: ${settings.emotion.emotionResponse ? '启用' : '禁用'}
+    mdContent += `- ${t('settings.settingsManager.export.emotionResponse')}: ${settings.emotion.emotionResponse ? t('settings.settingsManager.export.enabled') : t('settings.settingsManager.export.disabled')}
 `;
-    mdContent += `- 情感记忆: ${settings.emotion.emotionMemory ? '启用' : '禁用'}
+    mdContent += `- ${t('settings.settingsManager.export.emotionMemory')}: ${settings.emotion.emotionMemory ? t('settings.settingsManager.export.enabled') : t('settings.settingsManager.export.disabled')}
 
 `;
 
     // 学习设置
-    mdContent += `## 学习设置
+    mdContent += `## ${t('settings.settingsManager.export.learning')}
 
 `;
-    mdContent += `- 自适应学习: ${settings.learning.adaptiveLearning ? '启用' : '禁用'}
+    mdContent += `- ${t('settings.settingsManager.export.adaptiveLearning')}: ${settings.learning.adaptiveLearning ? t('settings.settingsManager.export.enabled') : t('settings.settingsManager.export.disabled')}
 `;
-    mdContent += `- 模式识别: ${settings.learning.patternRecognition ? '启用' : '禁用'}
+    mdContent += `- ${t('settings.settingsManager.export.patternRecognition')}: ${settings.learning.patternRecognition ? t('settings.settingsManager.export.enabled') : t('settings.settingsManager.export.disabled')}
 `;
-    mdContent += `- 预测建议: ${settings.learning.predictiveSuggestions ? '启用' : '禁用'}
+    mdContent += `- ${t('settings.settingsManager.export.predictiveSuggestions')}: ${settings.learning.predictiveSuggestions ? t('settings.settingsManager.export.enabled') : t('settings.settingsManager.export.disabled')}
 
 `;
 
     // 关系设置
-    mdContent += `## 关系设置
+    mdContent += `## ${t('settings.settingsManager.export.relationship')}
 
 `;
-    mdContent += `- 关系记忆: ${settings.relationship.relationshipMemory ? '启用' : '禁用'}
+    mdContent += `- ${t('settings.settingsManager.export.relationshipMemory')}: ${settings.relationship.relationshipMemory ? t('settings.settingsManager.export.enabled') : t('settings.settingsManager.export.disabled')}
 `;
-    mdContent += `- 里程碑提醒: ${settings.relationship.milestoneReminders ? '启用' : '禁用'}
+    mdContent += `- ${t('settings.settingsManager.export.milestoneReminders')}: ${settings.relationship.milestoneReminders ? t('settings.settingsManager.export.enabled') : t('settings.settingsManager.export.disabled')}
 `;
-    mdContent += `- 关系洞察: ${settings.relationship.relationshipInsights ? '启用' : '禁用'}
+    mdContent += `- ${t('settings.settingsManager.export.relationshipInsights')}: ${settings.relationship.relationshipInsights ? t('settings.settingsManager.export.enabled') : t('settings.settingsManager.export.disabled')}
 
 `;
 
     // 添加JSON格式的设置数据（用于导入）
-    mdContent += `## 设置数据（JSON格式，用于导入）
+    mdContent += `## ${t('settings.settingsManager.export.jsonData')}
 
 json
 ${JSON.stringify(settings, null, 2)}
@@ -208,17 +268,17 @@ ${JSON.stringify(settings, null, 2)}
           Object.keys(importedSettings).forEach(type => {
             saveSettings(type, importedSettings[type]);
           });
-          alert('设置导入成功！');
+          alert(t('settings.settingsManager.messages.importSuccess'));
         } else {
-          alert('无法从文件中提取设置数据，请确保文件格式正确。');
+          alert(t('settings.settingsManager.messages.importError'));
         }
       } catch (error) {
         console.error('导入设置失败:', error);
-        alert('导入设置失败，请检查文件格式是否正确。');
+        alert(t('settings.settingsManager.messages.importFailed'));
       }
     };
     reader.onerror = () => {
-      alert('读取文件失败，请重试。');
+      alert(t('settings.settingsManager.messages.readFileFailed'));
     };
     reader.readAsText(file);
   };
@@ -278,7 +338,7 @@ ${JSON.stringify(settings, null, 2)}
       }
     } catch (error) {
       console.error('导出配置失败:', error);
-      alert('导出配置失败，请重试。');
+      alert(t('settings.settingsManager.messages.exportFailed'));
     }
   };
 
@@ -311,7 +371,7 @@ ${JSON.stringify(settings, null, 2)}
         }
       } catch (error) {
         console.error('导入配置失败:', error);
-        alert('导入配置失败，请检查文件格式是否正确。');
+        alert(t('settings.settingsManager.messages.configImportFailed'));
       }
     };
     input.click();

@@ -40,6 +40,7 @@ class User(Base):
     search_queries = relationship("SearchQuery", back_populates="user", cascade="all, delete-orphan")
     analyzed_images = relationship("AnalyzedImage", back_populates="user", cascade="all, delete-orphan")
     translation_history = relationship("TranslationHistory", back_populates="user", cascade="all, delete-orphan")
-    
+    file_records = relationship("FileRecord", back_populates="user", cascade="all, delete-orphan")
+
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}', email='{self.email}')>"

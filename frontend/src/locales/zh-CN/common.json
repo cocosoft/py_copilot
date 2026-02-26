@@ -28,5 +28,41 @@
   "exportJSON": "导出JSON",
   "importJSON": "导入JSON",
   "exportMD": "导出MD",
-  "importMD": "导入MD"
+  "importMD": "导入MD",
+  "home": {
+    "welcome": "欢迎使用 Py Copilot",
+    "subtitle": "智能助手中心",
+    "description1": "Py Copilot 是您的私人智能助手，提供多种AI功能，帮助您提高工作效率。",
+    "description2": "请从左侧菜单选择您需要的功能。",
+    "features": {
+      "chat": {
+        "title": "聊天",
+        "description": "与智能体进行自然语言对话"
+      },
+      "agents": {
+        "title": "智能体",
+        "description": "管理和使用不同的AI智能体"
+      },
+      "image": {
+        "title": "图像",
+        "description": "生成和处理图像内容"
+      },
+      "video": {
+        "title": "视频",
+        "description": "视频生成和编辑功能"
+      },
+      "voice": {
+        "title": "语音",
+        "description": "语音识别和合成功能"
+      },
+      "translate": {
+        "title": "翻译",
+        "description": "多语言翻译和语言识别"
+      },
+      "settings": {
+        "title": "设置",
+        "description": "个性化设置和模型管理"
+      }
+    }
+  }
 }

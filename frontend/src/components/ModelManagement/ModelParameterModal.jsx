@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useI18n } from '../../hooks/useI18n';
 import '../../styles/ModelModal.css';
 
 const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
+  const { t } = useI18n();
   const [formData, setFormData] = useState({
     parameter_name: '',
     parameter_value: '',
@@ -74,9 +76,9 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
     // 参数名称验证
     if (name === 'parameter_name') {
       if (!value.trim()) {
-        newErrors.parameter_name = '参数名称不能为空';
+        newErrors.parameter_name = t('settings.modelParameterModal.validation.nameRequired');
       } else if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(value)) {
-        newErrors.parameter_name = '参数名称只能包含字母、数字和下划线，且必须以字母或下划线开头';
+        newErrors.parameter_name = t('settings.modelParameterModal.validation.nameFormat');
       } else {
         delete newErrors.parameter_name;
       }
@@ -85,7 +87,7 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
     // 参数值验证
     if (name === 'parameter_value' || name === 'default_value') {
       if (formData.is_required && name === 'parameter_value' && !value.trim()) {
-        newErrors.parameter_value = '必填参数不能为空';
+        newErrors.parameter_value = t('settings.modelParameterModal.validation.valueRequired');
       } else {
         try {
           // 根据参数类型进行验证
@@ -94,15 +96,15 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
               case 'number':
                 const numValue = Number(value);
                 if (isNaN(numValue)) {
-                  newErrors[name] = '请输入有效的数字';
+                  newErrors[name] = t('settings.modelParameterModal.validation.invalidNumber');
                 } else {
                   // 验证最小值
                   if (formData.validation_rules.min !== '' && numValue < Number(formData.validation_rules.min)) {
-                    newErrors[name] = `值不能小于 ${formData.validation_rules.min}`;
-                  } 
+                    newErrors[name] = t('settings.modelParameterModal.validation.minValue', { min: formData.validation_rules.min });
+                  }
                   // 验证最大值
                   else if (formData.validation_rules.max !== '' && numValue > Number(formData.validation_rules.max)) {
-                    newErrors[name] = `值不能大于 ${formData.validation_rules.max}`;
+                    newErrors[name] = t('settings.modelParameterModal.validation.maxValue', { max: formData.validation_rules.max });
                   }
                   else {
                     delete newErrors[name];
@@ -111,7 +113,7 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
                 break;
               case 'boolean':
                 if (value.toLowerCase() !== 'true' && value.toLowerCase() !== 'false') {
-                  newErrors[name] = '布尔值只能是 true 或 false';
+                  newErrors[name] = t('settings.modelParameterModal.validation.invalidBoolean');
                 } else {
                   delete newErrors[name];
                 }
@@ -127,20 +129,20 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
               case 'string':
                 // 验证正则表达式
                 if (formData.validation_rules.regex !== '' && !new RegExp(formData.validation_rules.regex).test(value)) {
-                  newErrors[name] = `值不符合正则表达式: ${formData.validation_rules.regex}`;
+                  newErrors[name] = t('settings.modelParameterModal.validation.regexError', { regex: formData.validation_rules.regex });
                 }
                 // 验证字符串长度
                 else if (formData.validation_rules.min_length !== '' && value.length < Number(formData.validation_rules.min_length)) {
-                  newErrors[name] = `字符串长度不能小于 ${formData.validation_rules.min_length}`;
+                  newErrors[name] = t('settings.modelParameterModal.validation.minLength', { minLength: formData.validation_rules.min_length });
                 }
                 else if (formData.validation_rules.max_length !== '' && value.length > Number(formData.validation_rules.max_length)) {
-                  newErrors[name] = `字符串长度不能大于 ${formData.validation_rules.max_length}`;
+                  newErrors[name] = t('settings.modelParameterModal.validation.maxLength', { maxLength: formData.validation_rules.max_length });
                 }
                 // 验证枚举值
                 else if (formData.validation_rules.enum_values !== '') {
                   const enumValues = JSON.parse(formData.validation_rules.enum_values);
                   if (!enumValues.includes(value)) {
-                    newErrors[name] = `值必须是 ${enumValues.join(', ')} 之一`;
+                    newErrors[name] = t('settings.modelParameterModal.validation.enumError', { values: enumValues.join(', ') });
                   } else {
                     delete newErrors[name];
                   }
@@ -157,11 +159,11 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
           }
         } catch (e) {
           if (e instanceof SyntaxError && (formData.parameter_type === 'array' || formData.parameter_type === 'object')) {
-            newErrors[name] = `请输入有效的${formData.parameter_type}格式`;
+            newErrors[name] = t('settings.modelParameterModal.validation.invalidType', { type: formData.parameter_type });
           } else if (e instanceof SyntaxError && formData.validation_rules.enum_values) {
-            newErrors.enum_values = '枚举值格式错误，请使用 JSON 数组格式';
+            newErrors.enum_values = t('settings.modelParameterModal.validation.enumFormatError');
           } else {
-            newErrors[name] = formData.validation_rules.custom_message || `请输入有效的值`;
+            newErrors[name] = formData.validation_rules.custom_message || t('settings.modelParameterModal.validation.invalidValue');
           }
         }
       }
@@ -176,7 +178,7 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
         case 'min_length':
         case 'max_length':
           if (value !== '' && isNaN(Number(value))) {
-            newErrors[name] = '请输入有效的数字';
+            newErrors[name] = t('settings.modelParameterModal.validation.invalidMin');
           } else {
             delete newErrors[name];
           }
@@ -188,7 +190,7 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
             }
             delete newErrors[name];
           } catch (e) {
-            newErrors[name] = '正则表达式格式错误';
+            newErrors[name] = t('settings.modelParameterModal.validation.invalidRegex');
           }
           break;
         case 'enum_values':
@@ -196,7 +198,7 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
             if (value !== '') {
               const parsed = JSON.parse(value);
               if (!Array.isArray(parsed)) {
-                newErrors[name] = '枚举值必须是 JSON 数组格式';
+                newErrors[name] = t('settings.modelParameterModal.validation.enumArrayError');
               } else {
                 delete newErrors[name];
               }
@@ -204,7 +206,7 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
               delete newErrors[name];
             }
           } catch (e) {
-            newErrors[name] = '枚举值格式错误，请使用 JSON 数组格式';
+            newErrors[name] = t('settings.modelParameterModal.validation.enumFormatError');
           }
           break;
       }
@@ -264,7 +266,7 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
   // 根据参数类型渲染不同的输入组件
   const renderInputComponent = (fieldName, value, onChange) => {
     const fieldValue = value || '';
-    
+
     switch (formData.parameter_type) {
       case 'number':
         return (
@@ -274,7 +276,7 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
             name={fieldName}
             value={fieldValue === '' ? '' : Number(fieldValue)}
             onChange={onChange}
-            placeholder={fieldName === 'parameter_value' ? '例如: 0.7' : '例如: 0.7'}
+            placeholder={t('settings.modelParameterModal.placeholders.number')}
             step="any"
           />
         );
@@ -286,9 +288,9 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
             value={fieldValue}
             onChange={onChange}
           >
-            <option value="">请选择</option>
-            <option value="true">True</option>
-            <option value="false">False</option>
+            <option value="">{t('settings.modelParameterModal.booleanOptions.placeholder')}</option>
+            <option value="true">{t('settings.modelParameterModal.booleanOptions.true')}</option>
+            <option value="false">{t('settings.modelParameterModal.booleanOptions.false')}</option>
           </select>
         );
       case 'array':
@@ -299,9 +301,9 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
             name={fieldName}
             value={fieldValue}
             onChange={onChange}
-            placeholder={fieldName === 'parameter_value' ? 
-              formData.parameter_type === 'array' ? '例如: ["value1", "value2"]' : '例如: {"key": "value"}' : 
-              formData.parameter_type === 'array' ? '例如: ["value1", "value2"]' : '例如: {"key": "value"}'
+            placeholder={formData.parameter_type === 'array'
+              ? t('settings.modelParameterModal.placeholders.array')
+              : t('settings.modelParameterModal.placeholders.object')
             }
             rows="4"
             className="json-editor"
@@ -315,7 +317,7 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
             name={fieldName}
             value={fieldValue}
             onChange={onChange}
-            placeholder={fieldName === 'parameter_value' ? '例如: value' : '例如: value'}
+            placeholder={t('settings.modelParameterModal.placeholders.string')}
           />
         );
     }
@@ -325,13 +327,13 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
     <div className="modal-overlay">
       <div className="modal-content">
         <div className="modal-header">
-          <h2>{mode === 'add' ? '添加模型参数' : '编辑模型参数'}</h2>
+          <h2>{mode === 'add' ? t('settings.modelParameterModal.title.add') : t('settings.modelParameterModal.title.edit')}</h2>
           <button className="modal-close" onClick={onClose}>&times;</button>
         </div>
         <form onSubmit={handleSubmit} className="modal-form">
           <div className="modal-body">
             <div className="form-group">
-              <label htmlFor="parameter_name">参数名称 *</label>
+              <label htmlFor="parameter_name">{t('settings.modelParameterModal.form.parameterName')}</label>
               {renderInputComponent('parameter_name', formData.parameter_name, handleChange)}
               {showValidation && errors.parameter_name && (
                 <div className="error-message">{errors.parameter_name}</div>
@@ -339,7 +341,12 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
             </div>
 
             <div className="form-group">
-              <label htmlFor="parameter_value">参数值 {formData.is_required ? '*' : ''}</label>
+              <label htmlFor="parameter_value">
+                {formData.is_required
+                  ? t('settings.modelParameterModal.form.parameterValueRequired')
+                  : t('settings.modelParameterModal.form.parameterValue')
+                }
+              </label>
               {renderInputComponent('parameter_value', formData.parameter_value, handleChange)}
               {showValidation && errors.parameter_value && (
                 <div className="error-message">{errors.parameter_value}</div>
@@ -347,23 +354,23 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
             </div>
 
             <div className="form-group">
-              <label htmlFor="parameter_type">参数类型</label>
+              <label htmlFor="parameter_type">{t('settings.modelParameterModal.form.parameterType')}</label>
               <select
                 id="parameter_type"
                 name="parameter_type"
                 value={formData.parameter_type}
                 onChange={handleChange}
               >
-                <option value="string">字符串</option>
-                <option value="number">数字</option>
-                <option value="boolean">布尔值</option>
-                <option value="array">数组</option>
-                <option value="object">对象</option>
+                <option value="string">{t('settings.modelParameterModal.types.string')}</option>
+                <option value="number">{t('settings.modelParameterModal.types.number')}</option>
+                <option value="boolean">{t('settings.modelParameterModal.types.boolean')}</option>
+                <option value="array">{t('settings.modelParameterModal.types.array')}</option>
+                <option value="object">{t('settings.modelParameterModal.types.object')}</option>
               </select>
             </div>
 
             <div className="form-group">
-              <label htmlFor="default_value">默认值</label>
+              <label htmlFor="default_value">{t('settings.modelParameterModal.form.defaultValue')}</label>
               {renderInputComponent('default_value', formData.default_value, handleChange)}
               {showValidation && errors.default_value && (
                 <div className="error-message">{errors.default_value}</div>
@@ -371,13 +378,13 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
             </div>
 
             <div className="form-group">
-              <label htmlFor="description">描述</label>
+              <label htmlFor="description">{t('settings.modelParameterModal.form.description')}</label>
               <textarea
                 id="description"
                 name="description"
                 value={formData.description}
                 onChange={handleChange}
-                placeholder="参数的详细描述"
+                placeholder={t('settings.modelParameterModal.form.descriptionPlaceholder')}
                 rows="3"
               ></textarea>
             </div>
@@ -390,41 +397,41 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
                 checked={formData.is_required}
                 onChange={handleChange}
               />
-              <label htmlFor="is_required">必填参数</label>
+              <label htmlFor="is_required">{t('settings.modelParameterModal.form.isRequired')}</label>
             </div>
 
             <div className="form-section">
-              <h3>验证规则</h3>
-              
+              <h3>{t('settings.modelParameterModal.form.validationRules')}</h3>
+
               {/* 数字类型验证规则 */}
               {formData.parameter_type === 'number' && (
                 <>
                   <div className="form-row">
                     <div className="form-group half-width">
-                      <label htmlFor="validation_rules.min">最小值</label>
+                      <label htmlFor="validation_rules.min">{t('settings.modelParameterModal.form.min')}</label>
                       <input
                         type="number"
                         id="validation_rules.min"
                         name="validation_rules.min"
                         value={formData.validation_rules.min}
                         onChange={handleChange}
-                        placeholder="例如: 0.1"
+                        placeholder={t('settings.modelParameterModal.form.minPlaceholder')}
                         step="any"
                       />
                       {showValidation && errors['validation_rules.min'] && (
                         <div className="error-message">{errors['validation_rules.min']}</div>
                       )}
                     </div>
-                    
+
                     <div className="form-group half-width">
-                      <label htmlFor="validation_rules.max">最大值</label>
+                      <label htmlFor="validation_rules.max">{t('settings.modelParameterModal.form.max')}</label>
                       <input
                         type="number"
                         id="validation_rules.max"
                         name="validation_rules.max"
                         value={formData.validation_rules.max}
                         onChange={handleChange}
-                        placeholder="例如: 1.0"
+                        placeholder={t('settings.modelParameterModal.form.maxPlaceholder')}
                         step="any"
                       />
                       {showValidation && errors['validation_rules.max'] && (
@@ -439,61 +446,61 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
               {formData.parameter_type === 'string' && (
                 <>
                   <div className="form-group">
-                    <label htmlFor="validation_rules.regex">正则表达式</label>
+                    <label htmlFor="validation_rules.regex">{t('settings.modelParameterModal.form.regex')}</label>
                     <input
                       type="text"
                       id="validation_rules.regex"
                       name="validation_rules.regex"
                       value={formData.validation_rules.regex}
                       onChange={handleChange}
-                      placeholder="例如: ^[a-zA-Z0-9]+$"
+                      placeholder={t('settings.modelParameterModal.form.regexPlaceholder')}
                     />
                     {showValidation && errors['validation_rules.regex'] && (
                       <div className="error-message">{errors['validation_rules.regex']}</div>
                     )}
                   </div>
-                  
+
                   <div className="form-row">
                     <div className="form-group half-width">
-                      <label htmlFor="validation_rules.min_length">最小长度</label>
+                      <label htmlFor="validation_rules.min_length">{t('settings.modelParameterModal.form.minLength')}</label>
                       <input
                         type="number"
                         id="validation_rules.min_length"
                         name="validation_rules.min_length"
                         value={formData.validation_rules.min_length}
                         onChange={handleChange}
-                        placeholder="例如: 3"
+                        placeholder={t('settings.modelParameterModal.form.minLengthPlaceholder')}
                       />
                       {showValidation && errors['validation_rules.min_length'] && (
                         <div className="error-message">{errors['validation_rules.min_length']}</div>
                       )}
                     </div>
-                    
+
                     <div className="form-group half-width">
-                      <label htmlFor="validation_rules.max_length">最大长度</label>
+                      <label htmlFor="validation_rules.max_length">{t('settings.modelParameterModal.form.maxLength')}</label>
                       <input
                         type="number"
                         id="validation_rules.max_length"
                         name="validation_rules.max_length"
                         value={formData.validation_rules.max_length}
                         onChange={handleChange}
-                        placeholder="例如: 20"
+                        placeholder={t('settings.modelParameterModal.form.maxLengthPlaceholder')}
                       />
                       {showValidation && errors['validation_rules.max_length'] && (
                         <div className="error-message">{errors['validation_rules.max_length']}</div>
                       )}
                     </div>
                   </div>
-                  
+
                   <div className="form-group">
-                    <label htmlFor="validation_rules.enum_values">枚举值 (JSON数组)</label>
+                    <label htmlFor="validation_rules.enum_values">{t('settings.modelParameterModal.form.enumValues')}</label>
                     <input
                       type="text"
                       id="validation_rules.enum_values"
                       name="validation_rules.enum_values"
                       value={formData.validation_rules.enum_values}
                       onChange={handleChange}
-                      placeholder='例如: ["option1", "option2"]'
+                      placeholder={t('settings.modelParameterModal.form.enumValuesPlaceholder')}
                     />
                     {showValidation && errors['validation_rules.enum_values'] && (
                       <div className="error-message">{errors['validation_rules.enum_values']}</div>
@@ -501,17 +508,17 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
                   </div>
                 </>
               )}
-              
+
               {/* 通用验证规则 */}
               <div className="form-group">
-                <label htmlFor="validation_rules.custom_message">自定义错误信息</label>
+                <label htmlFor="validation_rules.custom_message">{t('settings.modelParameterModal.form.customMessage')}</label>
                 <input
                   type="text"
                   id="validation_rules.custom_message"
                   name="validation_rules.custom_message"
                   value={formData.validation_rules.custom_message}
                   onChange={handleChange}
-                  placeholder="例如: 请输入有效的值"
+                  placeholder={t('settings.modelParameterModal.form.customMessagePlaceholder')}
                 />
               </div>
             </div>
@@ -519,10 +526,10 @@ const ModelParameterModal = ({ isOpen, onClose, onSave, parameter, mode }) => {
 
           <div className="modal-footer">
             <button type="button" className="btn btn-secondary" onClick={onClose}>
-              取消
+              {t('settings.modelParameterModal.buttons.cancel')}
             </button>
             <button type="submit" className="btn btn-primary">
-              {mode === 'add' ? '添加' : '保存'}
+              {mode === 'add' ? t('settings.modelParameterModal.buttons.add') : t('settings.modelParameterModal.buttons.save')}
             </button>
           </div>
         </form>

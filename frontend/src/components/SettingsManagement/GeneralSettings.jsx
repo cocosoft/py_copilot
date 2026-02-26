@@ -59,10 +59,10 @@ const GeneralSettings = ({ settings, saveSettings, isLoading }) => {
           value={localSettings.language}
           onChange={handleLanguageChange}
         >
-          <option value="zh-CN">简体中文</option>
-          <option value="en-US">English</option>
-          <option value="ja-JP">日本語</option>
-          <option value="ko-KR">한국어</option>
+          <option value="zh-CN">{t('settings.general.languages.zh-CN')}</option>
+          <option value="en-US">{t('settings.general.languages.en-US')}</option>
+          <option value="ja-JP">{t('settings.general.languages.ja-JP')}</option>
+          <option value="ko-KR">{t('settings.general.languages.ko-KR')}</option>
         </select>
       </div>
 

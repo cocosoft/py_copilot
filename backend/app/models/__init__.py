@@ -1,5 +1,7 @@
 """Database models module"""
+# 先导入 user 模型，因为其他模型可能引用它
 from app.models.user import User
+from app.models.setting import UserSetting
 from app.models.conversation import Conversation, Message
 from app.models.llm import LLMRequestHistory, ModelConfiguration
 from app.models.model_capability import ModelCapability, ModelCapabilityAssociation
@@ -18,7 +20,7 @@ from app.models.translation_history import TranslationHistory
 from app.models.platform_config import PlatformConfig
 from app.models.api_favorite import ApiFavorite
 from app.models.function_calling import Tool, ToolExecution, ToolUsageStats
-from app.models.setting import UserSetting
+from app.models.file_record import FileRecord, FileBlob, FileCategory, FileStatus, StorageType
 
 __all__ = [
     "User",
@@ -58,5 +60,10 @@ __all__ = [
     "Tool",
     "ToolExecution",
     "ToolUsageStats",
-    "UserSetting"
+    "UserSetting",
+    "FileRecord",
+    "FileBlob",
+    "FileCategory",
+    "FileStatus",
+    "StorageType"
 ]

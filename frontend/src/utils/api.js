@@ -42,6 +42,10 @@ export { dimensionHierarchyApi };
 import parameterTemplatesApi from './api/parameterTemplatesApi';
 export { parameterTemplatesApi };
 
+// 从文件API模块导入
+import fileApi from './api/fileApi';
+export { fileApi };
+
 // 添加调试日志包装函数
 const withDebugLog = (apiModule, moduleName) => {
   const wrapped = {};
@@ -85,6 +89,7 @@ export default {
   conversationApi: withDebugLog(conversationApi, 'conversationApi'),
   dimensionHierarchyApi: withDebugLog(dimensionHierarchyApi, 'dimensionHierarchyApi'),
   parameterTemplatesApi: withDebugLog(parameterTemplatesApi, 'parameterTemplatesApi'),
+  fileApi: withDebugLog(fileApi, 'fileApi'),
   getDefaultModel
 };
 

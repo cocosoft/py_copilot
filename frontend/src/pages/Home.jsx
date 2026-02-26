@@ -1,59 +1,62 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import './home.css';
 
 const Home = () => {
+  const { t } = useTranslation();
+  
   return (
     <div className="home-container">
-      <h1 className="page-title">欢迎使用 Py Copilot</h1>
+      <h1 className="page-title">{t('common.home.welcome')}</h1>
       <div className="home-content">
         <div className="welcome-section">
-          <h2>智能助手中心</h2>
-          <p>Py Copilot 是您的私人智能助手，提供多种AI功能，帮助您提高工作效率。</p>
-          <p>请从左侧菜单选择您需要的功能。</p>
+          <h2>{t('common.home.subtitle')}</h2>
+          <p>{t('common.home.description1')}</p>
+          <p>{t('common.home.description2')}</p>
         </div>
         
         <div className="features-grid">
           <FeatureCard 
             icon="💬" 
-            title="聊天"
-            description="与智能体进行自然语言对话"
+            title={t('common.home.features.chat.title')}
+            description={t('common.home.features.chat.description')}
             link="/chat"
           />
           <FeatureCard 
             icon="🤖" 
-            title="智能体"
-            description="管理和使用不同的AI智能体"
+            title={t('common.home.features.agents.title')}
+            description={t('common.home.features.agents.description')}
             link="/agents"
           />
           <FeatureCard 
             icon="🖼️" 
-            title="图像"
-            description="生成和处理图像内容"
+            title={t('common.home.features.image.title')}
+            description={t('common.home.features.image.description')}
             link="/image"
           />
           <FeatureCard 
             icon="🎬" 
-            title="视频"
-            description="视频生成和编辑功能"
+            title={t('common.home.features.video.title')}
+            description={t('common.home.features.video.description')}
             link="/video"
           />
           <FeatureCard 
             icon="🎤" 
-            title="语音"
-            description="语音识别和合成功能"
+            title={t('common.home.features.voice.title')}
+            description={t('common.home.features.voice.description')}
             link="/voice"
           />
           <FeatureCard 
             icon="🌐" 
-            title="翻译"
-            description="多语言翻译和语言识别"
+            title={t('common.home.features.translate.title')}
+            description={t('common.home.features.translate.description')}
             link="/translate"
           />
           <FeatureCard 
             icon="⚙️" 
-            title="设置"
-            description="个性化设置和模型管理"
+            title={t('common.home.features.settings.title')}
+            description={t('common.home.features.settings.description')}
             link="/settings"
           />
         </div>

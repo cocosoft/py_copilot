@@ -37,7 +37,6 @@ const SupplierProvider = ({ children }) => {
         const cachedSuppliers = localStorage.getItem('suppliers');
         if (cachedSuppliers) {
           const suppliers = JSON.parse(cachedSuppliers);
-          console.log('✅ 从localStorage加载供应商数据作为回退');
           setSuppliers(suppliers);
           setError('无法连接到服务器，使用本地缓存数据');
           return suppliers;
@@ -47,7 +46,6 @@ const SupplierProvider = ({ children }) => {
       }
       
       // 如果没有缓存数据，使用默认供应商数据
-      console.log('✅ 使用默认供应商数据');
       const defaultSuppliers = [
         {
           id: 1,

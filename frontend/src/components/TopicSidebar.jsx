@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import conversationApi from '../utils/api/conversationApi';
 import TopicItem from './TopicItem';
+import { useI18n } from '../hooks/useI18n';
 import './TopicSidebar.css';
 
 const TopicSidebar = ({ 
@@ -12,6 +13,7 @@ const TopicSidebar = ({
   collapsed, 
   setCollapsed 
 }) => {
+  const { t } = useI18n();
   const [topics, setTopics] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
@@ -72,9 +74,9 @@ const TopicSidebar = ({
       // 移除对未定义参数的引用
     }
   } catch (error) {
-    console.error('创建话题失败:', error);
-    alert('创建话题失败，请重试');
-  }
+      console.error('创建话题失败:', error);
+      alert(t('settings.topic.createFailed'));
+    }
   };
 
   const handleDeleteTopic = async (topicId) => {
@@ -82,9 +84,9 @@ const TopicSidebar = ({
     
     if (!topic) return;
 
-    const message = topic.message_count > 0
-      ? `确定要删除话题"${topic.topic_name}"吗？\n该话题包含 ${topic.message_count} 条消息，删除后将无法恢复。`
-      : `确定要删除话题"${topic.topic_name}"吗？`;
+    const confirmMessage = topic.message_count > 0
+      ? t('settings.topic.deleteConfirmMessageWithCount', { topicName: topic.topic_name, messageCount: topic.message_count })
+      : t('settings.topic.deleteConfirmMessage', { topicName: topic.topic_name });
 
     if (!confirm(message)) {
       return;
@@ -98,7 +100,7 @@ const TopicSidebar = ({
       // 移除对未定义参数的引用
     } catch (error) {
       console.error('删除话题失败:', error);
-      alert('删除话题失败，请重试');
+      alert(t('settings.topic.deleteFailed'));
     }
   };
 
@@ -111,21 +113,21 @@ const TopicSidebar = ({
   return (
     <div className={`topic-sidebar ${collapsed ? 'collapsed' : ''}`}>
       <div className="topic-sidebar-header">
-        {!collapsed && <h3>话题列表</h3>}
+        {!collapsed && <h3>{t('settings.topic.title')}</h3>}
         <div className="topic-sidebar-actions">
           {!collapsed && (
             <button 
               className="create-topic-button"
               onClick={handleCreateTopic}
-              title="新建话题"
+              title={t('settings.topic.newTopicTooltip')}
             >
-              + 新建话题
+              + {t('settings.topic.newTopic')}
             </button>
           )}
           <button 
             className="collapse-button"
             onClick={() => setCollapsed && setCollapsed(!collapsed)}
-            title={collapsed ? '展开' : '收缩'}
+            title={collapsed ? t('settings.topic.expandTooltip') : t('settings.topic.collapseTooltip')}
           >
             {collapsed ? '▶' : '◀'}
           </button>
@@ -137,7 +139,7 @@ const TopicSidebar = ({
           <div className="topic-search">
             <input
               type="text"
-              placeholder="搜索话题..."
+              placeholder={t('settings.topic.searchPlaceholder')}
               value={searchKeyword}
               onChange={(e) => handleSearch(e.target.value)}
               className="topic-search-input"
@@ -146,9 +148,9 @@ const TopicSidebar = ({
 
           <div className="topic-list">
             {loading ? (
-              <div className="topic-loading">加载中...</div>
+              <div className="topic-loading">{t('settings.topic.loading')}</div>
             ) : topics.length === 0 ? (
-              <div className="topic-empty">暂无话题</div>
+              <div className="topic-empty">{t('settings.topic.empty')}</div>
             ) : (
               topics.map(topic => (
                 <TopicItem

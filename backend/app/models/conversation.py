@@ -32,6 +32,7 @@ class Conversation(Base):
     voice_inputs = relationship("VoiceInput", back_populates="conversation", cascade="all, delete-orphan")
     search_queries = relationship("SearchQuery", back_populates="conversation", cascade="all, delete-orphan")
     analyzed_images = relationship("AnalyzedImage", back_populates="conversation", cascade="all, delete-orphan")
+    file_records = relationship("FileRecord", back_populates="conversation")
     
     def __repr__(self):
         return f"<Conversation(id={self.id}, title='{self.title}', user_id={self.user_id})>"

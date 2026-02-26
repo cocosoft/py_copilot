@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { API_BASE_URL } from '../utils/api';
 import emojis from '../utils/emojis';
 import ModelSelectDropdown from './ModelManagement/ModelSelectDropdown';
+import { useI18n } from '../hooks/useI18n';
 import './ChatMain.css';
 
 const ChatMain = ({ 
@@ -58,6 +59,7 @@ const ChatMain = ({
   uploadedFiles,
   setUploadedFiles
 }) => {
+  const { t } = useI18n();
   const messagesEndRef = useRef(null);
   const chatMessagesRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -127,7 +129,7 @@ const ChatMain = ({
     // 检查文件大小（50MB限制）
     const maxSize = 50 * 1024 * 1024;
     if (file.size > maxSize) {
-      alert('文件大小超过50MB限制');
+      alert(t('settings.chat.fileSizeLimit'));
       return;
     }
 
@@ -149,7 +151,7 @@ const ChatMain = ({
       if (!response.ok) {
         const errorData = await response.json();
         console.error('上传失败响应:', errorData);
-        throw new Error(errorData.detail || '文件上传失败');
+        throw new Error(errorData.detail || t('settings.chat.uploadFailed'));
       }
 
       const result = await response.json();
@@ -191,7 +193,7 @@ const ChatMain = ({
       });
 
       if (!response.ok) {
-        throw new Error('删除文件失败');
+        throw new Error(t('settings.chat.deleteFileFailed'));
       }
 
       setUploadedFiles(prev => prev.filter(f => f.id !== fileId));

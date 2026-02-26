@@ -35,7 +35,7 @@ const LearningSettings = ({ settings, saveSettings, isLoading }) => {
           />
           <span className="toggle-slider"></span>
         </label>
-        <span className="toggle-label">允许助手从您的交互中学习</span>
+        <span className="toggle-label">{t('settings.learning.adaptiveLearningDesc')}</span>
       </div>
 
       <div className="setting-group">
@@ -48,7 +48,7 @@ const LearningSettings = ({ settings, saveSettings, isLoading }) => {
           />
           <span className="toggle-slider"></span>
         </label>
-        <span className="toggle-label">允许助手识别您的行为模式</span>
+        <span className="toggle-label">{t('settings.learning.patternRecognitionDesc')}</span>
       </div>
 
       <div className="setting-group">
@@ -61,7 +61,7 @@ const LearningSettings = ({ settings, saveSettings, isLoading }) => {
           />
           <span className="toggle-slider"></span>
         </label>
-        <span className="toggle-label">允许助手主动提供预测性建议</span>
+        <span className="toggle-label">{t('settings.learning.predictiveSuggestionsDesc')}</span>
       </div>
 
       <div className="setting-actions">

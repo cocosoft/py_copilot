@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { 
   FaHome, FaComments, FaImage, FaVideo, FaMicrophoneAlt, 
   FaLanguage, FaCog, FaAngleLeft, FaAngleRight, FaTasks
@@ -7,6 +8,9 @@ import {
 
 // 简化的导航栏组件，确保图标能正确显示
 const Navbar = () => {
+  // 使用 i18n 翻译
+  const { t } = useTranslation();
+  
   // 添加导航栏收缩/展开状态
   const [collapsed, setCollapsed] = useState(false);
   
@@ -19,43 +23,43 @@ const Navbar = () => {
   const mainNavItems = [
     { 
       path: '/', 
-      name: '首页', 
+      name: t('nav.home'), 
       icon: <FaHome className="nav-svg" />,
       iconCollapsed: <FaHome className="nav-svg" />
     },
     { 
       path: '/chat', 
-      name: '聊天', 
+      name: t('nav.chat'), 
       icon: <FaComments className="nav-svg" />,
       iconCollapsed: <FaComments className="nav-svg" />
     },
     { 
       path: '/task', 
-      name: '任务', 
+      name: t('nav.tasks'), 
       icon: <FaTasks className="nav-svg" />,
       iconCollapsed: <FaTasks className="nav-svg" />
     },
     { 
       path: '/image', 
-      name: '图像', 
+      name: t('nav.image'), 
       icon: <FaImage className="nav-svg" />,
       iconCollapsed: <FaImage className="nav-svg" />
     },
     { 
       path: '/video', 
-      name: '视频', 
+      name: t('nav.video'), 
       icon: <FaVideo className="nav-svg" />,
       iconCollapsed: <FaVideo className="nav-svg" />
     },
     { 
       path: '/voice', 
-      name: '语音', 
+      name: t('nav.voice'), 
       icon: <FaMicrophoneAlt className="nav-svg" />,
       iconCollapsed: <FaMicrophoneAlt className="nav-svg" />
     },
     { 
       path: '/translate', 
-      name: '翻译', 
+      name: t('nav.translate'), 
       icon: <FaLanguage className="nav-svg" />,
       iconCollapsed: <FaLanguage className="nav-svg" />
     }
@@ -69,7 +73,7 @@ const Navbar = () => {
         <button 
           className="collapse-toggle" 
           onClick={toggleCollapse}
-          title={collapsed ? '展开导航栏' : '收缩导航栏'}
+          title={collapsed ? t('nav.expand') : t('nav.collapse')}
         >
           {collapsed ? (
             <FaAngleRight className="nav-svg" />

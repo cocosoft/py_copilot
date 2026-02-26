@@ -110,13 +110,6 @@ const Chat = () => {
   }, [loadModels]);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   
-  // 添加日志来追踪 uploadedFiles 的变化
-  useEffect(() => {
-    console.log('========== uploadedFiles 状态变化 ==========');
-    console.log('当前文件数量:', uploadedFiles.length);
-    console.log('当前文件列表:', uploadedFiles);
-    console.log('================================');
-  }, [uploadedFiles]);
    
   const [connectionStatus, setConnectionStatus] = useState('connected');
   const [lastResponseTime, setLastResponseTime] = useState(null);

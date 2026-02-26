@@ -83,7 +83,8 @@ ROUTE_GROUPS: Dict[str, List[Dict]] = {
         {'module': 'app.api.v1.search_management', 'tags': ['search']}
     ],
     'file': [
-        {'module': 'app.api.v1.file_upload', 'prefix': '/file-upload', 'tags': ['file-upload']}
+        {'module': 'app.api.v1.file_upload', 'prefix': '/file-upload', 'tags': ['file-upload']},
+        {'module': 'app.api.v1.files', 'prefix': '/files', 'tags': ['files']}
     ],
     'terminology': [
         {'module': 'app.api.v1.terminology', 'tags': ['terminology']}

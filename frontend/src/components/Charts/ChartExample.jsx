@@ -2,24 +2,26 @@ import React, { useState } from 'react';
 import ChartConfigurator from './ChartConfigurator';
 import BaseChart from './BaseChart';
 import AdvancedCharts from './AdvancedCharts';
+import { useI18n } from '../../hooks/useI18n';
 import './ChartExample.css';
 
 /**
  * 图表示例组件
  */
 const ChartExample = () => {
+  const { t } = useI18n();
   const [currentConfig, setCurrentConfig] = useState(null);
   const [savedConfigs, setSavedConfigs] = useState([]);
   const [activeTab, setActiveTab] = useState('configurator');
 
   // 示例数据
   const sampleData = [
-    { id: 1, label: '一月', value: 120, category: 'A' },
-    { id: 2, label: '二月', value: 200, category: 'A' },
-    { id: 3, label: '三月', value: 150, category: 'B' },
-    { id: 4, label: '四月', value: 80, category: 'B' },
-    { id: 5, label: '五月', value: 300, category: 'C' },
-    { id: 6, label: '六月', value: 250, category: 'C' }
+    { id: 1, label: t('settings.chartExample.sampleData.jan'), value: 120, category: 'A' },
+    { id: 2, label: t('settings.chartExample.sampleData.feb'), value: 200, category: 'A' },
+    { id: 3, label: t('settings.chartExample.sampleData.mar'), value: 150, category: 'B' },
+    { id: 4, label: t('settings.chartExample.sampleData.apr'), value: 80, category: 'B' },
+    { id: 5, label: t('settings.chartExample.sampleData.may'), value: 300, category: 'C' },
+    { id: 6, label: t('settings.chartExample.sampleData.jun'), value: 250, category: 'C' }
   ];
 
   // 处理配置变化
@@ -36,9 +38,9 @@ const ChartExample = () => {
     };
     
     setSavedConfigs(prev => [...prev, newConfig]);
-    
+
     // 显示保存成功的消息
-    alert('配置已保存！');
+    alert(t('settings.chartExample.messages.saveSuccess'));
   };
 
   // 加载已保存的配置
@@ -100,7 +102,7 @@ const ChartExample = () => {
       console.error('图表渲染错误:', error);
       return (
         <div className="chart-example__error">
-          <p>图表渲染失败</p>
+          <p>{t('settings.chartExample.messages.renderError')}</p>
           <p>{error.message}</p>
         </div>
       );
@@ -110,28 +112,28 @@ const ChartExample = () => {
   return (
     <div className="chart-example">
       <div className="chart-example__header">
-        <h1>数据可视化示例</h1>
-        <p>使用图表配置器创建和自定义各种图表</p>
+        <h1>{t('settings.chartExample.title')}</h1>
+        <p>{t('settings.chartExample.description')}</p>
       </div>
 
       <div className="chart-example__tabs">
-        <button 
+        <button
           className={`chart-example__tab ${activeTab === 'configurator' ? 'chart-example__tab--active' : ''}`}
           onClick={() => setActiveTab('configurator')}
         >
-          图表配置器
+          {t('settings.chartExample.tabs.configurator')}
         </button>
-        <button 
+        <button
           className={`chart-example__tab ${activeTab === 'saved' ? 'chart-example__tab--active' : ''}`}
           onClick={() => setActiveTab('saved')}
         >
-          已保存配置
+          {t('settings.chartExample.tabs.saved')}
         </button>
-        <button 
+        <button
           className={`chart-example__tab ${activeTab === 'examples' ? 'chart-example__tab--active' : ''}`}
           onClick={() => setActiveTab('examples')}
         >
-          示例图表
+          {t('settings.chartExample.tabs.examples')}
         </button>
       </div>
 
@@ -142,8 +144,8 @@ const ChartExample = () => {
               <ChartConfigurator
                 initialConfig={currentConfig || {
                   chartType: 'bar',
-                  title: '销售数据图表',
-                  description: '展示月度销售数据',
+                  title: t('settings.chartExample.chartTitle'),
+                  description: t('settings.chartExample.chartDescription'),
                   width: 600,
                   height: 400,
                   dataBinding: {
@@ -173,17 +175,17 @@ const ChartExample = () => {
           <div className="chart-example__saved-section">
             {savedConfigs.length === 0 ? (
               <div className="chart-example__empty">
-                <p>暂无保存的配置</p>
-                <p>请在配置器页面创建并保存图表配置</p>
+                <p>{t('settings.chartExample.savedConfigs.empty')}</p>
+                <p>{t('settings.chartExample.savedConfigs.hint')}</p>
               </div>
             ) : (
               <div className="chart-example__saved-list">
                 {savedConfigs.map(config => (
                   <div key={config.id} className="chart-example__saved-item">
                     <div className="chart-example__saved-info">
-                      <h4>{config.title || '未命名图表'}</h4>
-                      <p>图表类型: {getChartTypeLabel(config.chartType)}</p>
-                      <p>保存时间: {new Date(config.savedAt).toLocaleString()}</p>
+                      <h4>{config.title || t('settings.chartExample.savedConfigs.unnamed')}</h4>
+                      <p>{t('settings.chartExample.savedConfigs.type')}: {getChartTypeLabel(config.chartType)}</p>
+                      <p>{t('settings.chartExample.savedConfigs.savedAt')}: {new Date(config.savedAt).toLocaleString()}</p>
                     </div>
                     <div className="chart-example__saved-actions">
                       <button 

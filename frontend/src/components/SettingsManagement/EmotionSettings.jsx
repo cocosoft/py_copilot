@@ -36,7 +36,7 @@ const EmotionSettings = ({ settings, saveSettings, isLoading }) => {
             />
             <span className="toggle-slider"></span>
           </label>
-          <span className="toggle-label">允许助手识别您的情绪状态</span>
+          <span className="toggle-label">{t('settings.emotion.emotionRecognitionDesc')}</span>
         </div>
       </div>
 
@@ -51,7 +51,7 @@ const EmotionSettings = ({ settings, saveSettings, isLoading }) => {
             />
             <span className="toggle-slider"></span>
           </label>
-          <span className="toggle-label">允许助手根据您的情绪调整回应方式</span>
+          <span className="toggle-label">{t('settings.emotion.emotionResponseDesc')}</span>
         </div>
       </div>
 
@@ -66,7 +66,7 @@ const EmotionSettings = ({ settings, saveSettings, isLoading }) => {
             />
             <span className="toggle-slider"></span>
           </label>
-          <span className="toggle-label">允许助手记住您的情绪偏好</span>
+          <span className="toggle-label">{t('settings.emotion.emotionMemoryDesc')}</span>
         </div>
       </div>
 

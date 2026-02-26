@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getImageUrl, DEFAULT_IMAGES } from '../../config/imageConfig';
+import { useI18n } from '../../hooks/useI18n';
 import ModelModalV2 from './ModelModalV2';
 import ModelParameterModal from './ModelParameterModal';
 import SupplierDetail from '../SupplierManagement/SupplierDetail';
@@ -9,6 +10,7 @@ import '../../styles/ModelManagement.css';
 import api from '../../utils/api';
 
 const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate }) => {
+  const { t } = useI18n();
   const [currentModels, setCurrentModels] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -170,9 +172,9 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
         models.map(model => loadModelCapabilities(model.id))
       );
     } catch (err) {
-      const errorMessage = err.message || '加载模型失败';
-      console.error('❌ 加载模型失败:', errorMessage);
-      setError(`加载模型失败: ${errorMessage}`);
+      const errorMessage = err.message || t('settings.modelManagement.errors.loadModels');
+      console.error('❌', t('settings.modelManagement.errors.loadModels') + ':', errorMessage);
+      setError(`${t('settings.modelManagement.errors.loadModels')}: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -244,17 +246,17 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
           // 默认选中所有模型
           setSelectedModelIds(newModels.map(model => model.model_id));
           setIsModelSelectionOpen(true);
-          setSuccess(`成功获取 ${newModels.length} 个新模型（已过滤掉 ${response.models.length - newModels.length} 个已保存的模型）`);
+          setSuccess(t('settings.modelManagement.messages.fetchSuccess', { count: newModels.length, filtered: response.models.length - newModels.length }));
         } else {
-          setSuccess('所有模型都已保存，没有新的模型可添加');
+          setSuccess(t('settings.modelManagement.messages.allModelsSaved'));
         }
       } else {
-        setError('未获取到模型列表，请检查API配置是否正确');
+        setError(t('settings.modelManagement.errors.noModelsFetched'));
       }
     } catch (err) {
-      const errorMessage = err.message || '获取模型列表失败';
-      console.error('❌ 获取模型列表失败:', errorMessage);
-      setError(`获取模型列表失败: ${errorMessage}`);
+      const errorMessage = err.message || t('settings.modelManagement.errors.fetchModels');
+      console.error('❌', t('settings.modelManagement.errors.fetchModels') + ':', errorMessage);
+      setError(`${t('settings.modelManagement.errors.fetchModels')}: ${errorMessage}`);
     } finally {
       setSaving(false);
     }
@@ -361,14 +363,14 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
       
       // 显示保存结果
       if (errorCount === 0) {
-        setSuccess(`成功保存 ${savedCount} 个模型`);
+        setSuccess(t('settings.modelManagement.messages.saveSuccess', { count: savedCount }));
       } else {
-        setError(`保存完成：成功 ${savedCount} 个，失败 ${errorCount} 个。失败详情：${errorMessages.join('; ')}`);
+        setError(t('settings.modelManagement.errors.partialSave', { saved: savedCount, error: errorCount }) + ': ' + errorMessages.join('; '));
       }
     } catch (err) {
-      const errorMessage = err.message || '保存模型失败';
-      console.error('❌ 保存模型失败:', errorMessage);
-      setError(`保存模型失败: ${errorMessage}`);
+      const errorMessage = err.message || t('settings.modelManagement.errors.saveModel');
+      console.error('❌', t('settings.modelManagement.errors.saveModel') + ':', errorMessage);
+      setError(`${t('settings.modelManagement.errors.saveModel')}: ${errorMessage}`);
     } finally {
       setSaving(false);
     }
@@ -428,7 +430,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
             // 没有logo文件，使用普通JSON
             savedModel = await api.modelApi.create(selectedSupplier.id, modelBasicData);
           }
-          setSuccess('模型添加成功');
+          setSuccess(t('settings.modelManagement.messages.addSuccess'));
         } else {
           // 如果有logo文件，使用FormData处理
           if (logo) {
@@ -442,7 +444,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
             // 没有logo文件，使用普通JSON
             savedModel = await api.modelApi.update(selectedSupplier.id, editingModel.id, modelBasicData);
           }
-          setSuccess('模型更新成功');
+          setSuccess(t('settings.modelManagement.messages.updateSuccess'));
         }
       } catch (error) {
         console.error('保存模型基本信息失败:', error);
@@ -526,9 +528,9 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
           );
           
           console.log(`成功应用参数模板 ${modelData.parameterTemplateId} 到模型 ${modelId}`);
-          setSuccess('模型保存成功并与参数模板同步');
+          setSuccess(t('settings.modelManagement.messages.updateSuccess'));
         } catch (err) {
-          const errorMsg = err.response?.data?.message || err.message || '模板应用失败';
+          const errorMsg = err.response?.data?.message || err.message || t('settings.modelManagement.errors.generic');
           console.error('应用参数模板失败:', {
             error: err,
             templateId: modelData.parameterTemplateId,
@@ -536,15 +538,15 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
             timestamp: new Date().toISOString()
           });
           // 使用警告而不是错误，因为这不是关键步骤
-          setSuccess('模型保存成功，但应用参数模板失败: ' + errorMsg);
+          setSuccess(t('settings.modelManagement.messages.updateSuccess') + ': ' + errorMsg);
         }
       }
       
       await loadModels();
     } catch (err) {
-      const errorMessage = err.message || '保存模型失败';
-      console.error('❌ 保存模型失败:', errorMessage);
-      setError(`保存模型失败: ${errorMessage}`);
+      const errorMessage = err.message || t('settings.modelManagement.errors.saveModel');
+      console.error('❌', t('settings.modelManagement.errors.saveModel') + ':', errorMessage);
+      setError(`${t('settings.modelManagement.errors.saveModel')}: ${errorMessage}`);
     } finally {
       setSaving(false);
       setIsModelModalOpen(false);
@@ -554,16 +556,16 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
 
   // 删除模型
   const handleDeleteModel = async (modelId) => {
-    if (window.confirm('确定要删除这个模型吗？')) {
+    if (window.confirm(t('settings.modelManagement.messages.confirmDelete'))) {
       try {
         setSaving(true);
         await api.modelApi.delete(selectedSupplier.id, modelId);
-        setSuccess('模型删除成功');
+        setSuccess(t('settings.modelManagement.messages.deleteSuccess'));
         await loadModels();
       } catch (err) {
-        const errorMessage = err.message || '删除模型失败';
-        console.error('❌ 删除模型失败:', errorMessage);
-        setError(`删除模型失败: ${errorMessage}`);
+        const errorMessage = err.message || t('settings.modelManagement.errors.deleteModel');
+        console.error('❌', t('settings.modelManagement.errors.deleteModel') + ':', errorMessage);
+        setError(`${t('settings.modelManagement.errors.deleteModel')}: ${errorMessage}`);
       } finally {
         setSaving(false);
         setSuccess(null);
@@ -576,12 +578,12 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
     try {
       setSaving(true);
       await api.modelApi.setDefault(selectedSupplier.id, modelId);
-      setSuccess('默认模型设置成功');
+      setSuccess(t('settings.modelManagement.messages.setDefaultSuccess'));
       await loadModels();
     } catch (err) {
-      const errorMessage = err.message || '设置默认模型失败';
-      console.error('❌ 设置默认模型失败:', errorMessage);
-      setError(`设置默认模型失败: ${errorMessage}`);
+      const errorMessage = err.message || t('settings.modelManagement.errors.setDefault');
+      console.error('❌', t('settings.modelManagement.errors.setDefault') + ':', errorMessage);
+      setError(`${t('settings.modelManagement.errors.setDefault')}: ${errorMessage}`);
     } finally {
       setSaving(false);
       setSuccess(null);
@@ -748,43 +750,43 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
       ) : selectedModel ? (
         <div className="model-parameters-section">
           <div className="section-header">
-            <h2>{selectedModel.model_name ? `${selectedModel.model_name} (${selectedModel.model_id})` : selectedModel.model_id} - 参数管理</h2>
+            <h2>{selectedModel.model_name ? `${selectedModel.model_name} (${selectedModel.model_id})` : selectedModel.model_id} - {t('settings.modelManagement.sections.parameterManagement')}</h2>
             <div className="section-actions">
               <button
                 className="btn btn-primary"
                 onClick={() => handleAddParameterClick()}
                 disabled={saving}
               >
-                添加参数
+                {t('settings.modelManagement.buttons.addParameter')}
               </button>
               <button
                 className="btn btn-secondary"
                 onClick={() => handleBackToModels()}
                 disabled={saving}
               >
-                返回模型列表
+                {t('settings.modelManagement.buttons.backToList')}
               </button>
             </div>
           </div>
 
           {loading ? (
-            <div className="loading-state">加载参数中...</div>
+            <div className="loading-state">{t('settings.modelManagement.loading.parameters')}</div>
           ) : error ? (
             <div className="error-message">{error}</div>
           ) : modelParameters.length === 0 ? (
-            <div className="empty-state">暂无参数，请添加参数</div>
+            <div className="empty-state">{t('settings.modelManagement.empty.noParameters')}</div>
           ) : (
             <div className="parameters-table-container">
               <table className="parameters-table">
                 <thead>
                   <tr>
-                    <th>参数名称</th>
-                    <th>参数值</th>
-                    <th>类型</th>
-                    <th>默认值</th>
-                    <th>描述</th>
-                    <th>必填</th>
-                    <th>操作</th>
+                    <th>{t('settings.modelManagement.table.parameterName')}</th>
+                    <th>{t('settings.modelManagement.table.parameterValue')}</th>
+                    <th>{t('settings.modelManagement.table.type')}</th>
+                    <th>{t('settings.modelManagement.table.defaultValue')}</th>
+                    <th>{t('settings.modelManagement.table.description')}</th>
+                    <th>{t('settings.modelManagement.table.required')}</th>
+                    <th>{t('settings.modelManagement.table.actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -793,13 +795,13 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
                       <tr key={param.id} className={param.inherited ? 'inherited-parameter' : 'custom-parameter'}>
                         <td>
                           {param.parameter_name}
-                          {param.inherited && <span className="inherited-badge">继承</span>}
+                          {param.inherited && <span className="inherited-badge">{t('settings.modelManagement.table.inherited')}</span>}
                         </td>
                         <td>{typeof param.parameter_value === 'object' ? JSON.stringify(param.parameter_value) : param.parameter_value}</td>
                         <td>{param.parameter_type}</td>
                         <td>{typeof param.default_value === 'object' ? JSON.stringify(param.default_value) : param.default_value}</td>
                         <td>{param.description}</td>
-                        <td>{param.is_required ? '是' : '否'}</td>
+                        <td>{param.is_required ? t('settings.modelManagement.table.yes') : t('settings.modelManagement.table.no')}</td>
                         <td>
                         <div className="parameter-actions">
                           <button
@@ -807,14 +809,14 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
                             onClick={() => handleEditParameterClick(param)}
                             disabled={saving || param.inherited}
                           >
-                            编辑
+                            {t('settings.modelManagement.buttons.edit')}
                           </button>
                           <button
                             className="btn btn-danger btn-small"
                             onClick={() => handleDeleteParameter(param.id)}
                             disabled={saving || param.inherited}
                           >
-                            删除
+                            {t('settings.modelManagement.buttons.delete')}
                           </button>
                         </div>
                         </td>
@@ -831,29 +833,29 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
           {/* 模型卡片 */}
           <div className="model-section">
             <div className="section-header">
-              <h2>模型卡片</h2>
+              <h2>{t('settings.modelManagement.sections.modelCards')}</h2>
               <div className="section-actions">
                 <button className="btn btn-primary"
                   onClick={() => handleAddModelClick()}
                   disabled={saving || !selectedSupplier}
                 >
-                  添加模型
+                  {t('settings.modelManagement.buttons.addModel')}
                 </button>
                 <button className="btn btn-secondary"
                   onClick={() => handleFetchModelsClick()}
                   disabled={saving || !selectedSupplier}
                 >
-                  获取模型
+                  {t('settings.modelManagement.buttons.fetchModels')}
                 </button>
               </div>
             </div>
 
             {loading ? (
-              <div className="loading-state">加载模型中...</div>
+              <div className="loading-state">{t('settings.modelManagement.loading.models')}</div>
             ) : error ? (
               <div className="error-message">{error}</div>
             ) : currentModels.length === 0 ? (
-              <div className="empty-state">暂无模型，请添加模型</div>
+              <div className="empty-state">{t('settings.modelManagement.empty.noModels')}</div>
             ) : (
               <div className="models-container">
                 {currentModels.map((model) => (
@@ -881,7 +883,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
                         <h3 className="model-name">{model.model_name ? `${model.model_name} (${model.model_id})` : model.model_id}</h3>
                       </div>
                       <div className="model-header-right">
-                        {model.is_default && <span className="default-badge">默认</span>}
+                        {model.is_default && <span className="default-badge">{t('settings.modelManagement.table.default')}</span>}
                         {/* 模型分类信息 */}
                         {model.categories && model.categories.length > 0 ? (
                           <div className="model_categories">
@@ -903,7 +905,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
                           </div>
                         ) : (
                           <span className="model-type-badge">
-                            未分类
+                            {t('settings.modelManagement.table.uncategorized')}
                           </span>
                         )}
                       </div>
@@ -920,25 +922,25 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
                           className="description-toggle"
                           onClick={() => toggleDescription(model.id)}
                         >
-                          {expandedDescriptions[model.id] ? '收起' : '显示更多'}
+                          {expandedDescriptions[model.id] ? t('settings.modelManagement.buttons.collapse') : t('settings.modelManagement.buttons.expand')}
                         </button>
                       )}
                     </div>
                     <div className="model-meta">
-                        <div className="meta-item">上下文窗口: {model.contextWindow || model.context_window}</div>
-                        <div className="meta-item">最大Token: {model.max_tokens || 1000}</div>
+                        <div className="meta-item">{t('settings.modelManagement.model.contextWindow')}: {model.contextWindow || model.context_window}</div>
+                        <div className="meta-item">{t('settings.modelManagement.model.maxTokens')}: {model.max_tokens || 1000}</div>
                       {/* 显示模型能力信息 */}
                       <div className="meta-item">
-                        <span>能力:</span>
+                        <span>{t('settings.capability.title')}:</span>
                         <div className="capabilities-list">
                           {modelCapabilities[model.id]?.length > 0 ? (
                             modelCapabilities[model.id].map(association => (
                               <span key={association.id} className="capability-tag">
-                                {association.capability?.display_name || association.capability?.name || '未知能力'}
+                                {association.capability?.display_name || association.capability?.name || t('settings.modelManagement.empty.noData')}
                               </span>
                             ))
                           ) : (
-                            <span className="no-capabilities">暂无能力</span>
+                            <span className="no-capabilities">{t('settings.modelManagement.empty.noData')}</span>
                           )}
                         </div>
                       </div>
@@ -950,28 +952,28 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
                         onClick={() => handleEditModelClick(model)}
                         disabled={saving}
                       >
-                        编辑
+                        {t('settings.modelManagement.buttons.edit')}
                       </button>
                       <button
                         className="btn btn-success btn-small"
                         onClick={() => handleViewParameters(model)}
                         disabled={saving}
                       >
-                        参数
+                        {t('settings.modelManagement.sections.parameterManagement')}
                       </button>
                       <button
                         className="btn btn-info btn-small"
                         onClick={() => handleManageCapabilities(model)}
                         disabled={saving}
                       >
-                        能力
+                        {t('settings.capability.title')}
                       </button>
                       <button
                         className="btn btn-danger btn-small"
                         onClick={() => handleDeleteModel(model.id)}
                         disabled={saving}
                       >
-                        删除
+                        {t('settings.modelManagement.buttons.delete')}
                       </button>
                     </div>
                   </div>

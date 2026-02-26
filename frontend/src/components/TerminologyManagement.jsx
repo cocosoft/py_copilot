@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getTerminology, saveTerminology, searchTerminology } from '../services/translationService';
+import { useI18n } from '../hooks/useI18n';
 import './TerminologyManagement.css';
 
 const TerminologyManagement = ({ 
@@ -10,6 +11,7 @@ const TerminologyManagement = ({
   targetLanguage = 'zh',
   onTermSelect = () => {}
 }) => {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState('search');
   const [searchQuery, setSearchQuery] = useState('');
   const [newTerm, setNewTerm] = useState({
@@ -49,11 +51,11 @@ const TerminologyManagement = ({
         description: '',
         tags: ''
       });
-      alert('术语保存成功！');
+      alert(t('settings.terminology.messages.saveSuccess'));
     },
     onError: (error) => {
       console.error('保存术语失败:', error);
-      alert('保存术语失败，请重试');
+      alert(t('settings.terminology.messages.saveFailed'));
     }
   });
 
@@ -93,7 +95,7 @@ const TerminologyManagement = ({
 
   const handleSaveTerminology = () => {
     if (!newTerm.source_term.trim() || !newTerm.target_term.trim()) {
-      alert('请填写源术语和目标术语');
+      alert(t('settings.terminology.messages.fillRequired'));
       return;
     }
 
@@ -120,28 +122,28 @@ const TerminologyManagement = ({
     <div className="terminology-modal-overlay" onClick={onClose}>
       <div className="terminology-modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="terminology-modal-header">
-          <h3>术语库管理</h3>
+          <h3>{t('settings.terminology.title')}</h3>
           <button className="close-button" onClick={onClose}>×</button>
         </div>
 
         <div className="terminology-tabs">
-          <button 
+          <button
             className={`tab-button ${activeTab === 'search' ? 'active' : ''}`}
             onClick={() => setActiveTab('search')}
           >
-            搜索术语
+            {t('settings.terminology.tabs.search')}
           </button>
-          <button 
+          <button
             className={`tab-button ${activeTab === 'browse' ? 'active' : ''}`}
             onClick={() => setActiveTab('browse')}
           >
-            浏览术语
+            {t('settings.terminology.tabs.browse')}
           </button>
-          <button 
+          <button
             className={`tab-button ${activeTab === 'add' ? 'active' : ''}`}
             onClick={() => setActiveTab('add')}
           >
-            添加术语
+            {t('settings.terminology.tabs.add')}
           </button>
         </div>
 
@@ -152,25 +154,25 @@ const TerminologyManagement = ({
               <div className="search-input-group">
                 <input
                   type="text"
-                  placeholder="输入术语进行搜索..."
+                  placeholder={t('settings.terminology.search.placeholder')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                   className="search-input"
                 />
-                <button 
+                <button
                   onClick={handleSearch}
                   disabled={isLoading}
                   className="search-button"
                 >
-                  {isLoading ? '搜索中...' : '搜索'}
+                  {isLoading ? t('settings.terminology.search.searching') : t('settings.terminology.search.button')}
                 </button>
               </div>
 
               <div className="search-results">
                 {searchResults.length > 0 ? (
                   <div className="results-list">
-                    <h4>搜索结果 ({searchResults.length})</h4>
+                    <h4>{t('settings.terminology.search.results', { count: searchResults.length })}</h4>
                     {searchResults.map((term) => (
                       <div key={term.id} className="term-card">
                         <div className="term-content">
@@ -186,17 +188,17 @@ const TerminologyManagement = ({
                             <p className="term-description">{term.description}</p>
                           )}
                         </div>
-                        <button 
+                        <button
                           onClick={() => handleUseTerm(term)}
                           className="use-term-button"
                         >
-                          使用
+                          {t('settings.terminology.search.use')}
                         </button>
                       </div>
                     ))}
                   </div>
                 ) : searchQuery && !isLoading ? (
-                  <div className="no-results">未找到相关术语</div>
+                  <div className="no-results">{t('settings.terminology.search.noResults')}</div>
                 ) : null}
               </div>
             </div>
@@ -219,22 +221,22 @@ const TerminologyManagement = ({
                           {term.domain && (
                             <span className="term-domain">{term.domain}</span>
                           )}
-                          <span className="term-usage">使用次数: {term.usage_count}</span>
+                          <span className="term-usage">{t('settings.terminology.browse.usageCount', { count: term.usage_count })}</span>
                         </div>
                         {term.description && (
                           <p className="term-description">{term.description}</p>
                         )}
                       </div>
-                      <button 
+                      <button
                         onClick={() => handleUseTerm(term)}
                         className="use-term-button"
                       >
-                        使用
+                        {t('settings.terminology.browse.use')}
                       </button>
                     </div>
                   ))
                 ) : (
-                  <div className="no-terms">暂无术语数据</div>
+                  <div className="no-terms">{t('settings.terminology.browse.noTerms')}</div>
                 )}
               </div>
             </div>
@@ -245,29 +247,29 @@ const TerminologyManagement = ({
             <div className="add-tab">
               <div className="add-term-form">
                 <div className="form-group">
-                  <label>源术语 *</label>
+                  <label>{t('settings.terminology.add.sourceTerm')}</label>
                   <input
                     type="text"
                     value={newTerm.source_term}
                     onChange={(e) => setNewTerm({...newTerm, source_term: e.target.value})}
-                    placeholder="输入源语言术语"
+                    placeholder={t('settings.terminology.add.sourcePlaceholder')}
                     className="form-input"
                   />
                 </div>
 
                 <div className="form-group">
-                  <label>目标术语 *</label>
+                  <label>{t('settings.terminology.add.targetTerm')}</label>
                   <input
                     type="text"
                     value={newTerm.target_term}
                     onChange={(e) => setNewTerm({...newTerm, target_term: e.target.value})}
-                    placeholder="输入目标语言术语"
+                    placeholder={t('settings.terminology.add.targetPlaceholder')}
                     className="form-input"
                   />
                 </div>
 
                 <div className="form-group">
-                  <label>领域</label>
+                  <label>{t('settings.terminology.add.domain')}</label>
                   <select
                     value={newTerm.domain}
                     onChange={(e) => setNewTerm({...newTerm, domain: e.target.value})}
@@ -280,34 +282,34 @@ const TerminologyManagement = ({
                 </div>
 
                 <div className="form-group">
-                  <label>描述</label>
+                  <label>{t('settings.terminology.add.description')}</label>
                   <textarea
                     value={newTerm.description}
                     onChange={(e) => setNewTerm({...newTerm, description: e.target.value})}
-                    placeholder="术语描述（可选）"
+                    placeholder={t('settings.terminology.add.descriptionPlaceholder')}
                     className="form-textarea"
                     rows="3"
                   />
                 </div>
 
                 <div className="form-group">
-                  <label>标签</label>
+                  <label>{t('settings.terminology.add.tags')}</label>
                   <input
                     type="text"
                     value={newTerm.tags}
                     onChange={(e) => setNewTerm({...newTerm, tags: e.target.value})}
-                    placeholder="用逗号分隔的标签（可选）"
+                    placeholder={t('settings.terminology.add.tagsPlaceholder')}
                     className="form-input"
                   />
                 </div>
 
                 <div className="form-actions">
-                  <button 
+                  <button
                     onClick={handleSaveTerminology}
                     disabled={saveTerminologyMutation.isLoading}
                     className="save-button"
                   >
-                    {saveTerminologyMutation.isLoading ? '保存中...' : '保存术语'}
+                    {saveTerminologyMutation.isLoading ? t('settings.terminology.add.saving') : t('settings.terminology.add.save')}
                   </button>
                 </div>
               </div>

@@ -18,5 +18,8 @@
   "about": "关于",
   "help": "帮助",
   "personal": "个人中心",
-  "api": "API管理"
+  "api": "API管理",
+  "tasks": "任务",
+  "expand": "展开导航栏",
+  "collapse": "收缩导航栏"
 }

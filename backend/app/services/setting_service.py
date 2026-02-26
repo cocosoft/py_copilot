@@ -1,15 +1,21 @@
 from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
-from app.models.setting import UserSetting
 from app.schemas.setting import SettingCreate, SettingUpdate
 
 
 class SettingService:
     """设置服务类"""
-    
+
+    @staticmethod
+    def _get_user_setting_model():
+        """延迟导入 UserSetting 模型，避免循环导入问题"""
+        from app.models.setting import UserSetting
+        return UserSetting
+
     @staticmethod
     def get_user_settings(db: Session, user_id: int) -> Dict[str, Any]:
         """获取用户所有设置"""
+        UserSetting = SettingService._get_user_setting_model()
         settings = db.query(UserSetting).filter(UserSetting.user_id == user_id).all()
         
         # 构建设置字典
@@ -54,19 +60,21 @@ class SettingService:
         return settings_dict
     
     @staticmethod
-    def get_user_setting(db: Session, user_id: int, setting_type: str) -> Optional[UserSetting]:
+    def get_user_setting(db: Session, user_id: int, setting_type: str):
         """获取用户特定类型的设置"""
+        UserSetting = SettingService._get_user_setting_model()
         return db.query(UserSetting).filter(
             UserSetting.user_id == user_id,
             UserSetting.setting_type == setting_type
         ).first()
-    
+
     @staticmethod
-    def create_or_update_setting(db: Session, user_id: int, setting_type: str, setting_data: Dict[str, Any]) -> UserSetting:
+    def create_or_update_setting(db: Session, user_id: int, setting_type: str, setting_data: Dict[str, Any]):
         """创建或更新设置"""
+        UserSetting = SettingService._get_user_setting_model()
         # 查找现有设置
         existing_setting = SettingService.get_user_setting(db, user_id, setting_type)
-        
+
         if existing_setting:
             # 更新现有设置
             existing_setting.setting_data = setting_data
@@ -84,7 +92,7 @@ class SettingService:
             db.commit()
             db.refresh(new_setting)
             return new_setting
-    
+
     @staticmethod
     def delete_setting(db: Session, user_id: int, setting_type: str) -> bool:
         """删除设置"""

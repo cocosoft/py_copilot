@@ -5,6 +5,8 @@ export const useI18n = () => {
 
   const changeLanguage = (lng) => {
     i18n.changeLanguage(lng);
+    // 保存语言设置到 localStorage
+    localStorage.setItem('app-language', lng);
   };
 
   return {

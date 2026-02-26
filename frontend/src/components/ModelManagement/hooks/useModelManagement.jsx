@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { defaultModelApi, supplierApi, capabilityApi } from '../../../utils/api';
+import { useI18n } from '../../../hooks/useI18n';
 
 /**
  * 模型管理自定义钩子
  * 处理模型数据加载、保存和管理逻辑
  */
 const useModelManagement = () => {
+  const { t } = useI18n();
   // 状态管理
   const [globalDefaultModel, setGlobalDefaultModel] = useState(null);
   const [sceneDefaultModels, setSceneDefaultModels] = useState({
@@ -40,9 +42,9 @@ const useModelManagement = () => {
     const errors = {};
     
     if (!modelId) {
-      errors[scope] = scope === 'global' 
-        ? '请选择全局默认模型' 
-        : `请选择${scene}场景的默认模型`;
+      errors[scope] = scope === 'global'
+        ? t('settings.modelManagement.validation.selectGlobalModel')
+        : t('settings.modelManagement.validation.selectSceneModel', { scene });
     }
     
     return errors;
@@ -379,11 +381,11 @@ const useModelManagement = () => {
       await loadModelsAndConfigs();
 
       // 显示成功消息
-      alert('本地模型配置已保存');
+      alert(t('settings.modelManagement.messages.localConfigSaved'));
 
     } catch (err) {
       console.error('保存本地模型配置失败:', err);
-      setError('保存本地模型配置失败，请重试');
+      setError(t('settings.modelManagement.messages.localConfigSaveFailed'));
     } finally {
       setIsSavingDefaultModel(false);
     }
@@ -432,11 +434,11 @@ const useModelManagement = () => {
       await loadModelsAndConfigs();
 
       // 显示成功消息
-      alert('默认模型设置已保存');
+      alert(t('settings.modelManagement.messages.defaultModelSaved'));
 
     } catch (err) {
       console.error('保存默认模型设置失败:', err);
-      setError('保存默认模型设置失败，请重试');
+      setError(t('settings.modelManagement.messages.defaultModelSaveFailed'));
     } finally {
       setIsSavingDefaultModel(false);
     }

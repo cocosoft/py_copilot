@@ -24,5 +24,41 @@
   "download": "Download",
   "refresh": "Refresh",
   "export": "Export",
-  "import": "Import"
+  "import": "Import",
+  "home": {
+    "welcome": "Welcome to Py Copilot",
+    "subtitle": "Intelligent Assistant Center",
+    "description1": "Py Copilot is your personal intelligent assistant, providing various AI features to help you work more efficiently.",
+    "description2": "Please select the function you need from the left menu.",
+    "features": {
+      "chat": {
+        "title": "Chat",
+        "description": "Have natural language conversations with AI agents"
+      },
+      "agents": {
+        "title": "Agents",
+        "description": "Manage and use different AI agents"
+      },
+      "image": {
+        "title": "Image",
+        "description": "Generate and process image content"
+      },
+      "video": {
+        "title": "Video",
+        "description": "Video generation and editing features"
+      },
+      "voice": {
+        "title": "Voice",
+        "description": "Voice recognition and synthesis features"
+      },
+      "translate": {
+        "title": "Translate",
+        "description": "Multi-language translation and language recognition"
+      },
+      "settings": {
+        "title": "Settings",
+        "description": "Personalized settings and model management"
+      }
+    }
+  }
 }

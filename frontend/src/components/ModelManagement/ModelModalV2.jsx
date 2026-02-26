@@ -3,9 +3,12 @@ import { getImageUrl } from '../../config/imageConfig';
 import { categoryApi, modelApi, dimensionHierarchyApi, parameterTemplatesApi } from '../../utils/api';
 import SimplifiedCategorySelector from './SimplifiedCategorySelector';
 import TemplatePreviewModal from './TemplatePreviewModal';
+import { useI18n } from '../../hooks/useI18n';
 import '../../styles/ModelModal.css';
 
 const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isFirstModel = false }) => {
+  const { t } = useI18n();
+
   // 表单状态管理
   const [formData, setFormData] = useState({
     model_id: '',
@@ -33,16 +36,16 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
   // 主Tab标签状态
   const [activeMainTab, setActiveMainTab] = useState('basic');
   const mainTabs = [
-    { id: 'basic', label: '基础信息' },
-    { id: 'dimension', label: '维度配置' },
-    { id: 'capability', label: '能力发现' }
+    { id: 'basic', label: t('settings.modelModalV2.tabs.basic') },
+    { id: 'dimension', label: t('settings.modelModalV2.tabs.dimension') },
+    { id: 'capability', label: t('settings.modelModalV2.tabs.capability') }
   ];
-  
+
   // 维度配置内的次级Tab标签状态
   const [activeDimensionTab, setActiveDimensionTab] = useState('category');
   const dimensionTabs = [
-    { id: 'category', label: '分类配置' },
-    { id: 'template', label: '参数模板' }
+    { id: 'category', label: t('settings.modelModalV2.tabs.category') },
+    { id: 'template', label: t('settings.modelModalV2.tabs.template') }
   ];
   
   // 模板预览状态
@@ -707,7 +710,7 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
       setTemplateApplicationState(prev => ({
         ...prev,
         loading: false,
-        success: `模板已成功应用到维度 ${dimensionDisplayNames[dimension] || dimension}`,
+        success: t('settings.modelModalV2.messages.templateApplied', { dimension: dimensionDisplayNames[dimension] || dimension }),
         appliedTemplates: {
           ...prev.appliedTemplates,
           [dimension]: template.id
@@ -717,7 +720,7 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
       setTemplateApplicationState(prev => ({
         ...prev,
         loading: false,
-        error: `应用模板失败: ${err.message || '未知错误'}`
+        error: t('settings.modelModalV2.messages.templateApplyFailed') + ': ' + (err.message || t('settings.modelModalV2.messages.unknownError'))
       }));
     }
   };
@@ -725,13 +728,13 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
   // 应用模板参数 - 增强版
   const applyTemplateParameters = (dimension, template) => {
     if (!dimension) {
-      throw new Error("请先选择维度");
+      throw new Error(t('settings.modelModalV2.messages.selectDimensionFirst'));
     }
-    
+
     // 模板参数验证
     const validationResult = validateTemplateParameters(template.parameters, dimension);
     if (!validationResult.isValid) {
-      throw new Error(`模板参数验证失败: ${validationResult.errors.join(', ')}`);
+      throw new Error(t('settings.modelModalV2.messages.templateValidationFailed') + ': ' + validationResult.errors.join(', '));
     }
     
     // 更新本地状态，保存原始参数用于回滚
@@ -796,13 +799,13 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
     if (file) {
       // 检查文件类型
       if (!file.type.startsWith('image/')) {
-        alert('请选择图片文件');
+        alert(t('settings.modelModalV2.form.selectImage'));
         return;
       }
 
       // 检查文件大小（限制为2MB）
       if (file.size > 2 * 1024 * 1024) {
-        alert('图片大小不能超过2MB');
+        alert(t('settings.modelModalV2.form.imageSizeError'));
         return;
       }
 
@@ -833,24 +836,24 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
   // 处理表单提交
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // 验证必填字段
     if (!formData.model_id || !formData.model_name) {
-      alert('请填写模型ID和模型名称');
+      alert(t('settings.modelModalV2.validation.fillRequired'));
       return;
     }
-    
+
 
     // 验证至少有一个维度配置了分类
     const activeDimensions = Object.entries(dimensionConfigs)
-      .filter(([dimension, config]) => 
-        config.selectedCategories && 
-        config.selectedCategories.length > 0 && 
+      .filter(([dimension, config]) =>
+        config.selectedCategories &&
+        config.selectedCategories.length > 0 &&
         config.isActive
       );
-    
+
     if (activeDimensions.length === 0) {
-      alert('请至少配置一个维度的分类');
+      alert(t('settings.modelModalV2.validation.selectDimension'));
       return;
     }
     
@@ -888,7 +891,7 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
       
     } catch (error) {
       console.error('保存模型失败:', error);
-      alert('保存失败：' + (error.message || '未知错误'));
+      alert(t('settings.modelModalV2.messages.saveFailed') + '：' + (error.message || t('settings.modelModalV2.messages.unknownError')));
     } finally {
       setSaving(false);
     }
@@ -914,10 +917,10 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
     
     // 维度显示名称映射
     const dimensionDisplayNames = {
-      'tasks': '任务维度',
-      'languages': '语言维度', 
-      'licenses': '协议维度',
-      'technologies': '技术维度'
+      'tasks': t('settings.modelModalV2.dimensions.tasks'),
+      'languages': t('settings.modelModalV2.dimensions.languages'),
+      'licenses': t('settings.modelModalV2.dimensions.licenses'),
+      'technologies': t('settings.modelModalV2.dimensions.technologies')
     };
     
     const displayName = dimensionDisplayNames[dimension] || dimension;
@@ -929,9 +932,9 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
             <h4>{displayName}</h4>
             <div className="dimension-badge">
               {isActive ? (
-                <span className="badge active">已启用</span>
+                <span className="badge active">{t('settings.modelModalV2.status.enabled')}</span>
               ) : (
-                <span className="badge inactive">已禁用</span>
+                <span className="badge inactive">{t('settings.modelModalV2.status.disabled')}</span>
               )}
             </div>
           </div>
@@ -943,7 +946,7 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
                 onChange={(e) => handleDimensionConfigChange(dimension, 'isActive', e.target.checked)}
               />
               <span className="status-label">
-                {isActive ? '已启用' : '已禁用'}
+                {isActive ? t('settings.modelModalV2.status.enabled') : t('settings.modelModalV2.status.disabled')}
               </span>
             </label>
           </div>
@@ -969,9 +972,9 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
             {activeDimensionTab === 'category' && (
               <div className="form-group">
                 <label className="form-label-with-count">
-                  选择分类
+                  {t('settings.modelModalV2.form.selectCategories')}
                   {categories.length > 0 && (
-                    <span className="count-badge">{categories.length} 个分类</span>
+                    <span className="count-badge">{t('settings.modelModalV2.form.categoryCount', { count: categories.length })}</span>
                   )}
                 </label>
                 <select 
@@ -993,14 +996,14 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
                   ))}
                 </select>
                 <div className="multiselect-hint">
-                  按住 Ctrl (Windows) 或 Command (Mac) 键可选择多个分类
+                  {t('settings.modelModalV2.form.multiselectHint')}
                 </div>
                 {categories.length === 0 && (
-                  <div className="field-hint">该维度下暂无可用分类</div>
+                  <div className="field-hint">{t('settings.modelModalV2.form.noCategories')}</div>
                 )}
                 {(config.selectedCategories || []).length > 0 && (
                   <div className="selection-hint">
-                    ✓ 已选择 {(config.selectedCategories || []).length} 个分类
+                    {t('settings.modelModalV2.form.selectedCount', { count: (config.selectedCategories || []).length })}
                   </div>
                 )}
               </div>
@@ -1009,15 +1012,15 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
             {/* 参数模板 Tab 内容 */}
             {activeDimensionTab === 'template' && (
               <div className="form-group">
-                <label>参数模板:</label>
+                <label>{t('settings.modelModalV2.form.parameterTemplate')}:</label>
                 <div className="template-selector">
-                  <select 
+                  <select
                     value={config.selectedTemplate || ''}
                     onChange={(e) => handleDimensionConfigChange(dimension, 'selectedTemplate', e.target.value)}
                     disabled={parameterTemplates.length === 0}
                   >
                     <option value="">
-                      {parameterTemplates.length === 0 ? '暂无模板' : '请选择模板'}
+                      {parameterTemplates.length === 0 ? t('settings.modelModalV2.form.noTemplates') : t('settings.modelModalV2.form.selectTemplate')}
                     </option>
                     {parameterTemplates.map(template => (
                       <option key={template.id} value={template.id}>
@@ -1026,13 +1029,13 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
                     ))}
                   </select>
                   {config.selectedTemplate && (
-                    <button 
+                    <button
                       type="button"
                       className="btn-preview"
                       onClick={() => openTemplatePreview(config.selectedTemplate)}
-                      title="预览模板参数"
+                      title={t('settings.modelModalV2.form.preview')}
                     >
-                      预览
+                      {t('settings.modelModalV2.form.preview')}
                     </button>
                   )}
                 </div>
@@ -1042,16 +1045,16 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
             {/* 参数配置 */}
             {Object.keys(config.parameters || {}).length > 0 && (
               <div className="parameters-section">
-                <h5>参数配置</h5>
+                <h5>{t('settings.modelModalV2.form.parameterConfig')}</h5>
                 <div className="parameter-group">
                   {Object.entries(config.parameters).map(([paramName, paramValue]) => (
                     <div key={paramName} className="parameter-item">
                       <label>{paramName}:</label>
-                      <input 
+                      <input
                         type="text"
                         value={paramValue}
                         onChange={(e) => handleParameterChange(dimension, paramName, e.target.value)}
-                        placeholder="参数值"
+                        placeholder={t('settings.modelModalV2.form.parameterValue')}
                       />
                     </div>
                   ))}
@@ -1062,30 +1065,30 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
             {/* 当前配置状态 */}
             <div className="config-status">
               <div className="status-item">
-                <span className="status-label">分类:</span>
+                <span className="status-label">{t('settings.modelModalV2.form.status.category')}:</span>
                 <span className="status-value">
-                  {config.selectedCategories && config.selectedCategories.length > 0 ? 
+                  {config.selectedCategories && config.selectedCategories.length > 0 ?
                     config.selectedCategories.map(categoryId => {
                       const category = categories.find(c => c.id === categoryId);
-                      return category ? category.display_name || category.name : '未知分类';
-                    }).join(', ') : '未选择'
+                      return category ? category.display_name || category.name : t('settings.modelModalV2.form.status.unknown');
+                    }).join(', ') : t('settings.modelModalV2.form.status.notSelected')
                   }
                 </span>
               </div>
               <div className="status-item">
-                <span className="status-label">模板:</span>
+                <span className="status-label">{t('settings.modelModalV2.form.status.template')}:</span>
                 <span className="status-value">
-                  {config.selectedTemplate ? 
-                    parameterTemplates.find(t => t.id == config.selectedTemplate)?.name || 
-                    '未知模板' : 
-                    '未选择'
+                  {config.selectedTemplate ?
+                    parameterTemplates.find(t => t.id == config.selectedTemplate)?.name ||
+                    t('settings.modelModalV2.form.status.unknown') :
+                    t('settings.modelModalV2.form.status.notSelected')
                   }
                 </span>
               </div>
               <div className="status-item">
-                <span className="status-label">参数:</span>
+                <span className="status-label">{t('settings.modelModalV2.form.status.parameters')}:</span>
                 <span className="status-value">
-                  {Object.keys(config.parameters || {}).length} 个
+                  {t('settings.modelModalV2.form.status.count', { count: Object.keys(config.parameters || {}).length })}
                 </span>
               </div>
             </div>
@@ -1163,14 +1166,14 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
     <div className="modal-overlay" onClick={handleOverlayClick}>
       <div className="modal-container">
         <div className="modal-header">
-          <h3>{mode === 'add' ? '添加模型（多维度配置）' : '编辑模型（多维度配置）'}</h3>
+          <h3>{mode === 'add' ? t('settings.modelModalV2.title.add') : t('settings.modelModalV2.title.edit')}</h3>
           <button className="modal-close" onClick={onClose}>
             ×
           </button>
         </div>
-        
+
         {loading ? (
-          <div className="loading">加载中...</div>
+          <div className="loading">{t('settings.modelModalV2.messages.loading')}</div>
         ) : (
           <form onSubmit={handleSubmit} className="modal-form">
             {/* 主Tab标签 */}
@@ -1190,12 +1193,12 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
             {/* 基础信息 Tab 内容 */}
             {activeMainTab === 'basic' && (
               <div className="form-section">
-                <h4>基础信息</h4>
-              
+                <h4>{t('settings.modelModalV2.tabs.basic')}</h4>
+
               <div className="form-row">
                 <div className="form-group">
-                  <label>模型ID: <span className="required">*</span></label>
-                  <input 
+                  <label>{t('settings.modelModalV2.form.modelId')}: <span className="required">*</span></label>
+                  <input
                     type="text"
                     name="model_id"
                     value={formData.model_id}
@@ -1203,10 +1206,10 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
                     required
                   />
                 </div>
-                
+
                 <div className="form-group">
-                  <label>模型名称: <span className="required">*</span></label>
-                  <input 
+                  <label>{t('settings.modelModalV2.form.modelName')}: <span className="required">*</span></label>
+                  <input
                     type="text"
                     name="model_name"
                     value={formData.model_name}
@@ -1215,31 +1218,31 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
                   />
                 </div>
               </div>
-              
+
               <div className="form-group">
-                <label>描述:</label>
-                <textarea 
+                <label>{t('settings.modelModalV2.form.description')}:</label>
+                <textarea
                   name="description"
                   value={formData.description}
                   onChange={handleFormChange}
                   rows="3"
                 />
               </div>
-              
+
               <div className="form-row">
                 <div className="form-group">
-                  <label>上下文窗口:</label>
-                  <input 
+                  <label>{t('settings.modelModalV2.form.contextWindow')}:</label>
+                  <input
                     type="number"
                     name="contextWindow"
                     value={formData.contextWindow}
                     onChange={handleFormChange}
                   />
                 </div>
-                
+
                 <div className="form-group">
-                  <label>最大Token数:</label>
-                  <input 
+                  <label>{t('settings.modelModalV2.form.maxTokens')}:</label>
+                  <input
                     type="number"
                     name="max_tokens"
                     value={formData.max_tokens}
@@ -1247,44 +1250,44 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
                   />
                 </div>
               </div>
-              
+
               <div className="form-row">
                 <div className="form-group">
                   <label>
-                    <input 
+                    <input
                       type="checkbox"
                       name="isDefault"
                       checked={formData.isDefault}
                       onChange={handleFormChange}
                     />
-                    设为默认模型
+                    {t('settings.modelModalV2.form.isDefault')}
                   </label>
                 </div>
-                
+
                 <div className="form-group">
                   <label>
-                    <input 
+                    <input
                       type="checkbox"
                       name="is_active"
                       checked={formData.is_active}
                       onChange={handleFormChange}
                     />
-                    激活模型
+                    {t('settings.modelModalV2.form.isActive')}
                   </label>
                 </div>
               </div>
-              
+
               {/* LOGO上传 */}
               <div className="form-group">
-                <label>模型LOGO:</label>
+                <label>{t('settings.modelModalV2.form.logo')}:</label>
                 <div className="logo-upload">
                   {logoPreview && (
                     <div className="logo-preview">
-                      <img src={logoPreview} alt="LOGO预览" />
-                      <button type="button" onClick={handleRemoveLogo}>移除</button>
+                      <img src={logoPreview} alt={t('settings.modelModalV2.form.logoPreview')} />
+                      <button type="button" onClick={handleRemoveLogo}>{t('settings.modelModalV2.form.remove')}</button>
                     </div>
                   )}
-                  <input 
+                  <input
                     type="file"
                     accept="image/*"
                     onChange={handleLogoChange}
@@ -1298,7 +1301,7 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
             {activeMainTab === 'dimension' && (
               <div className="form-section">
               <div className="dimension-config-header">
-                <h4>维度配置</h4>
+                <h4>{t('settings.modelModalV2.form.dimensionConfig')}</h4>
                 <div className="selector-toggle">
                   <label>
                     <input
@@ -1306,33 +1309,33 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
                       checked={useSimplifiedSelector}
                       onChange={(e) => setUseSimplifiedSelector(e.target.checked)}
                     />
-                    使用简化分类选择器
+                    {t('settings.modelModalV2.form.simplifiedSelector')}
                   </label>
                 </div>
               </div>
-              
+
               {renderDimensionSelector()}
             </div>
             )}
-            
+
             {/* 能力发现 Tab 内容 */}
             {activeMainTab === 'capability' && (
               <div className="form-section">
-                <h4>能力发现</h4>
+                <h4>{t('settings.modelModalV2.capability.title')}</h4>
                 <div className="capability-placeholder">
-                  <p>能力发现功能正在开发中...</p>
-                  <p>此功能将帮助您自动发现和配置模型的各项能力。</p>
+                  <p>{t('settings.modelModalV2.capability.placeholder')}</p>
+                  <p>{t('settings.modelModalV2.capability.description')}</p>
                 </div>
               </div>
             )}
-            
+
             {/* 操作按钮 */}
             <div className="modal-actions">
               <button type="button" onClick={onClose} disabled={saving}>
-                取消
+                {t('settings.modelModalV2.buttons.cancel')}
               </button>
               <button type="submit" disabled={saving}>
-                {saving ? '保存中...' : '保存'}
+                {saving ? t('settings.modelModalV2.messages.saving') : t('settings.modelModalV2.buttons.save')}
               </button>
             </div>
           </form>

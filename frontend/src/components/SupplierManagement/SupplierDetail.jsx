@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { getImageUrl, DEFAULT_IMAGES } from '../../config/imageConfig';
+import { useI18n } from '../../hooks/useI18n';
 import { supplierApi } from '../../utils/api/supplierApi';
 import { API_BASE_URL } from '../../utils/apiUtils';
 import SupplierModal from './SupplierModal';
 import './SupplierDetail.css';
 
 const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, onNavigateToParameterManagement }) => {
+  const { t } = useI18n();
   const [currentSupplier, setCurrentSupplier] = useState(null);
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
   const [supplierModalMode, setSupplierModalMode] = useState('edit');
@@ -46,8 +48,8 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
     try {
       const newStatus = !supplier.is_active;
       const confirmMessage = newStatus
-        ? `确定要启用供应商 "${supplier.name}" 吗？`
-        : `确定要停用供应商 "${supplier.name}" 吗？`;
+        ? t('settings.supplierManagement.messages.confirmEnable', { name: supplier.name })
+        : t('settings.supplierManagement.messages.confirmDisable', { name: supplier.name });
 
       if (!window.confirm(confirmMessage)) {
         return;
@@ -179,14 +181,14 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
       }
 
       // 显示成功消息
-      alert(`${supplierModalMode === 'add' ? '添加' : '更新'}供应商成功！`);
+      alert(supplierModalMode === 'add' ? t('settings.supplierManagement.messages.addSuccess') : t('settings.supplierManagement.messages.updateSuccess'));
 
       // 关闭模态窗口
       handleCloseSupplierModal();
 
     } catch (error) {
         console.error('保存供应商失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
-        const errorMessage = `${supplierModalMode === 'add' ? '添加' : '更新'}供应商失败`;
+        const errorMessage = supplierModalMode === 'add' ? t('settings.supplierManagement.errors.addFailed') : t('settings.supplierManagement.errors.updateFailed');
         throw new Error(errorMessage);
       } finally {
       setSaving(false);
@@ -226,7 +228,7 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
     
     setIsDeleting(true);
     
-    if (!window.confirm(`确定要删除供应商 "${supplier.name}" 吗？删除后将无法恢复。`)) {
+    if (!window.confirm(t('settings.supplierManagement.messages.confirmDelete', { name: supplier.name }))) {
       setIsDeleting(false);
       return;
     }
@@ -236,7 +238,7 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
       await supplierApi.delete(supplier.id);
 
       // 显示成功消息
-      alert('供应商删除成功');
+      alert(t('settings.supplierManagement.messages.deleteSuccess'));
 
       // 延迟刷新和取消选中，确保请求完成
       setTimeout(() => {
@@ -254,7 +256,7 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
     } catch (err) {
       console.error('❌ Failed to delete supplier:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
       console.error('❌ 错误详情:', JSON.stringify(err, null, 2));
-      alert('删除供应商失败，请稍后重试');
+      alert(t('settings.supplierManagement.errors.deleteFailed'));
     } finally {
       setIsDeleting(false);
     }
@@ -281,7 +283,7 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
       // 显示保存成功
       setSaveStatus({
         type: 'success',
-        message: 'API配置保存成功'
+        message: t('settings.supplierManagement.messages.saveSuccess')
       });
 
       // 刷新供应商列表
@@ -292,7 +294,7 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
       console.error('保存API配置失败:', error);
       setSaveStatus({
         type: 'error',
-        message: '保存失败，请稍后重试'
+        message: t('settings.supplierManagement.errors.saveFailed')
       });
     } finally {
       setSaving(false);
@@ -309,8 +311,8 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
       if (!localApiConfig.apiUrl) {
         setTestResult({
           type: 'error',
-          message: 'API测试失败',
-          details: 'API端点不能为空'
+          message: t('settings.supplierManagement.errors.testFailed'),
+          details: t('settings.supplierManagement.errors.emptyEndpoint')
         });
         return;
       }
@@ -319,8 +321,8 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
       if (!(/^https?:\/\/.+/.test(localApiConfig.apiUrl))) {
         setTestResult({
           type: 'error',
-          message: 'API测试失败',
-          details: 'API端点格式不正确，必须包含http://或https://'
+          message: t('settings.supplierManagement.errors.testFailed'),
+          details: t('settings.supplierManagement.errors.invalidEndpoint')
         });
         return;
       }
@@ -328,8 +330,8 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
       if (!localApiConfig.apiKey) {
         setTestResult({
           type: 'error',
-          message: 'API测试失败',
-          details: 'API密钥不能为空'
+          message: t('settings.supplierManagement.errors.testFailed'),
+          details: t('settings.supplierManagement.errors.emptyKey')
         });
         return;
       }
@@ -343,14 +345,14 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
       if (result.status === 'success') {
         setTestResult({
           type: 'success',
-          message: 'API测试成功！',
+          message: t('settings.supplierManagement.messages.testSuccess'),
           details: result.message || 'API连接正常'
         });
       } else {
         setTestResult({
           type: 'error',
-          message: 'API测试失败',
-          details: result.message || '无法连接到API'
+          message: t('settings.supplierManagement.errors.testFailed'),
+          details: result.message || t('settings.supplierManagement.errors.connectionFailed')
         });
       }
     } catch (error) {
@@ -359,7 +361,7 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
         console.error('错误对象:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
         
         // 解析错误信息，优先使用error.message（apiUtils.js已处理）
-        let errorDetails = '无法连接到API';
+        let errorDetails = t('settings.supplierManagement.errors.connectionFailed');
         
         // 首先使用apiUtils.js处理过的错误消息
         if (error.message) {
@@ -419,7 +421,7 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
               rel="noopener noreferrer"
               className="supplier-website"
             >
-              官网
+              {t('settings.supplierManagement.officialWebsite')}
             </a>
           )}
         </div>
@@ -428,21 +430,21 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
           <button
             className="btn-expand"
             onClick={toggleExpand}
-            title={isExpanded ? '收缩详情' : '展开详情'}
+            title={isExpanded ? t('settings.supplierManagement.buttons.collapse') : t('settings.supplierManagement.buttons.expand')}
           >
             {isExpanded ? '▲' : '▼'}
           </button>
           <button
             className="btn-edit"
             onClick={() => handleEditSupplier(selectedSupplier)}
-            title="编辑供应商信息"
+            title={t('settings.supplierManagement.buttons.edit')}
           >
             ✏️
           </button>
           <button
             className="btn-delete"
             onClick={() => handleDeleteSupplier(selectedSupplier)}
-            title="删除供应商"
+            title={t('settings.supplierManagement.buttons.delete')}
           >
             🗑️
           </button>
@@ -450,22 +452,22 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
             <button
               className="btn-param-management"
               onClick={onNavigateToParameterManagement}
-              title="参数管理"
+              title={t('settings.supplierManagement.buttons.parameterManagement')}
             >
               ⚙️
             </button>
           )}
         </div>
         <div className="supplier-actions">
-          <label className="toggle-switch" title={selectedSupplier.is_active ? '当前已启用，点击停用' : '当前已停用，点击启用'}>
+          <label className="toggle-switch" title={selectedSupplier.is_active ? t('settings.supplierManagement.labels.disableHint') : t('settings.supplierManagement.labels.enableHint')}>
             <input
               type="checkbox"
               checked={selectedSupplier.is_active}
               onChange={(e) => {
                 const newStatus = !selectedSupplier.is_active;
                 const confirmMessage = newStatus
-                  ? `确定要启用供应商 "${selectedSupplier.name}" 吗？`
-                  : `确定要停用供应商 "${selectedSupplier.name}" 吗？`;
+                  ? t('settings.supplierManagement.messages.confirmEnable', { name: selectedSupplier.name })
+                  : t('settings.supplierManagement.messages.confirmDisable', { name: selectedSupplier.name });
 
                 if (window.confirm(confirmMessage)) {
                   supplierApi.updateSupplierStatus(selectedSupplier.id, newStatus)
@@ -488,24 +490,24 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
       {/* 内容区域，根据展开状态控制显示 */}
       <div className={`supplier-content ${isExpanded ? 'expanded' : 'collapsed'}`}>
         <div className="supplier-description">
-          {selectedSupplier.description || '未提供描述'}
+          {selectedSupplier.description || t('settings.supplierManagement.messages.noDescription')}
         </div>
         
         <div className="supplier-info-panel">
           <div className="supplier-info-grid">
             <div className="info-row">
-              <span className="info-label">API地址:</span>
+              <span className="info-label">{t('settings.supplierManagement.labels.apiEndpoint')}:</span>
               <input
                 type="url"
                 className="info-value"
                 value={localApiConfig.apiUrl}
                 onChange={(e) => setLocalApiConfig({ ...localApiConfig, apiUrl: e.target.value })}
-                placeholder="请输入API地址"
+                placeholder={t('settings.supplierManagement.placeholders.apiEndpoint')}
               />
             </div>
 
             <div className="api-key-row">
-              <span className="info-label">API密钥:</span>
+              <span className="info-label">{t('settings.supplierManagement.labels.apiKey')}:</span>
               <div className="api-key-input-group">
                 {isEditMode ? (
                   <input
@@ -513,7 +515,7 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
                     className="info-value"
                     value={localApiConfig.apiKey}
                     onChange={(e) => setLocalApiConfig({ ...localApiConfig, apiKey: e.target.value })}
-                    placeholder="请输入API密钥"
+                    placeholder={t('settings.supplierManagement.placeholders.apiKey')}
                     autoFocus
                     onBlur={() => setIsEditMode(false)}
                   />
@@ -522,16 +524,16 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
                     className="info-value api-key-display"
                     onClick={() => setIsEditMode(true)}
                   >
-                    {localApiConfig.apiKey ? formatApiKey(localApiConfig.apiKey) : '点击输入API密钥'}
+                    {localApiConfig.apiKey ? formatApiKey(localApiConfig.apiKey) : t('settings.supplierManagement.placeholders.clickToInput')}
                   </div>
                 )}
                 <button
                   className="btn-copy"
                   onClick={() => navigator.clipboard.writeText(localApiConfig.apiKey)}
-                  title="复制API密钥"
+                  title={t('settings.supplierManagement.buttons.copy')}
                   disabled={!localApiConfig.apiKey}
                 >
-                  复制
+                  {t('settings.supplierManagement.buttons.copy')}
                 </button>
               </div>
             </div>
@@ -543,14 +545,14 @@ const SupplierDetail = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate, 
                 onClick={handleSaveApiConfig}
                 disabled={saving}
               >
-                {saving ? '保存中...' : '保存配置'}
+                {saving ? t('settings.supplierManagement.loading.saving') : t('settings.supplierManagement.buttons.save')}
               </button>
               <button
                 className="btn-test"
                 onClick={handleTestApiConfig}
                 disabled={testing || !localApiConfig.apiUrl || !localApiConfig.apiKey}
               >
-                {testing ? '测试中...' : '测试API'}
+                {testing ? t('settings.supplierManagement.loading.testing') : t('settings.supplierManagement.buttons.test')}
               </button>
             </div>
 

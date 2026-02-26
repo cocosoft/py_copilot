@@ -31,25 +31,7 @@ const ApiKeyUpdater = () => {
           console.log('✅ 使用localStorage中的缓存供应商数据');
         } else {
           console.log('✅ 使用默认供应商数据');
-          const defaultSuppliers = [
-            {
-              id: 1,
-              name: 'OpenAI',
-              display_name: 'OpenAI',
-              description: 'OpenAI提供强大的GPT系列模型',
-              logo: '/logos/providers/openai.png',
-              website: 'https://openai.com',
-              is_active: true
-            },
-            {
-              id: 2,
-              name: 'Anthropic',
-              display_name: 'Anthropic',
-              description: 'Anthropic提供Claude系列模型',
-              logo: '/logos/providers/anthropic.png',
-              website: 'https://anthropic.com',
-              is_active: true
-            },
+          const defaultSuppliers = [          
             {
               id: 3,
               name: 'DeepSeek',

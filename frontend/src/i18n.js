@@ -23,11 +23,6 @@ import workflow_enUS from './locales/en-US/workflow.json';
 import skill_enUS from './locales/en-US/skill.json';
 import errors_enUS from './locales/en-US/errors.json';
 
-// 调试：检查导入的翻译文件
-console.log('Debug: common_zhCN:', common_zhCN);
-console.log('Debug: settings_zhCN:', settings_zhCN);
-console.log('Debug: settings_zhCN.title:', settings_zhCN.title);
-console.log('Debug: settings_zhCN.general.title:', settings_zhCN.general?.title);
 
 // 合并所有翻译到一个命名空间，使用嵌套对象的结构
 const translation_zhCN = {
@@ -56,13 +51,6 @@ const translation_enUS = {
   errors: errors_enUS
 };
 
-// 调试：检查合并后的翻译文件
-console.log('Debug: translation_zhCN:', translation_zhCN);
-console.log('Debug: translation_zhCN.common:', translation_zhCN.common);
-console.log('Debug: translation_zhCN.settings:', translation_zhCN.settings);
-console.log('Debug: translation_zhCN.settings.title:', translation_zhCN.settings?.title);
-console.log('Debug: translation_zhCN.settings.general.title:', translation_zhCN.settings?.general?.title);
-console.log('Debug: translation_zhCN.common.export:', translation_zhCN.common?.export);
 
 const resources = {
   'zh-CN': {
@@ -73,11 +61,14 @@ const resources = {
   }
 };
 
+// 从 localStorage 读取保存的语言设置
+const savedLanguage = localStorage.getItem('app-language') || 'zh-CN';
+
 i18n
   .use(initReactI18next)
   .init({
     resources,
-    lng: 'zh-CN',
+    lng: savedLanguage,
     fallbackLng: 'zh-CN',
     defaultNS: 'translation',
     ns: ['translation'],
@@ -89,11 +80,7 @@ i18n
     if (err) {
       console.error('i18n initialization error:', err);
     } else {
-      console.log('i18n initialized successfully');
-      console.log('i18n resources:', i18n.options.resources);
-      console.log('i18n language:', i18n.language);
-      console.log('Test translation:', i18n.t('settings.title'));
-      console.log('Test common translation:', i18n.t('common.export'));
+
     }
   });
 

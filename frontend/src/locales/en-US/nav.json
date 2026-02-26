@@ -18,5 +18,8 @@
   "about": "About",
   "help": "Help",
   "personal": "Personal",
-  "api": "API Management"
+  "api": "API Management",
+  "tasks": "Tasks",
+  "expand": "Expand Navigation",
+  "collapse": "Collapse Navigation"
 }

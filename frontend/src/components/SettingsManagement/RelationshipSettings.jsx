@@ -35,7 +35,7 @@ const RelationshipSettings = ({ settings, saveSettings, isLoading }) => {
           />
           <span className="toggle-slider"></span>
         </label>
-        <span className="toggle-label">允许助手记住重要的人际关系</span>
+        <span className="toggle-label">{t('settings.relationship.relationshipMemoryDesc')}</span>
       </div>
 
       <div className="setting-group">
@@ -48,7 +48,7 @@ const RelationshipSettings = ({ settings, saveSettings, isLoading }) => {
           />
           <span className="toggle-slider"></span>
         </label>
-        <span className="toggle-label">允许助手提醒重要的关系里程碑</span>
+        <span className="toggle-label">{t('settings.relationship.milestoneRemindersDesc')}</span>
       </div>
 
       <div className="setting-group">
@@ -61,7 +61,7 @@ const RelationshipSettings = ({ settings, saveSettings, isLoading }) => {
           />
           <span className="toggle-slider"></span>
         </label>
-        <span className="toggle-label">允许助手提供关系管理的洞察</span>
+        <span className="toggle-label">{t('settings.relationship.relationshipInsightsDesc')}</span>
       </div>
 
       <div className="setting-actions">

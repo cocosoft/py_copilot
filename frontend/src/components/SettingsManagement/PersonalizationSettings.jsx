@@ -67,7 +67,7 @@ const PersonalizationSettings = ({ settings, saveSettings, isLoading }) => {
           {Object.entries(localSettings.personalityTraits).map(([trait, value]) => (
             <div key={trait} className="trait-item">
               <span className="trait-name">
-                {trait.charAt(0).toUpperCase() + trait.slice(1)}
+                {t(`settings.personalization.traits.${trait}`)}
               </span>
               <input
                 type="range"
@@ -89,10 +89,10 @@ const PersonalizationSettings = ({ settings, saveSettings, isLoading }) => {
         <div className="style-options">
           {
             [
-              { value: 'formal', label: '正式' },
-              { value: 'balanced', label: '平衡' },
-              { value: 'casual', label: '随意' },
-              { value: 'friendly', label: '友好' }
+              { value: 'formal', label: t('settings.personalization.styles.formal') },
+              { value: 'balanced', label: t('settings.personalization.styles.balanced') },
+              { value: 'casual', label: t('settings.personalization.styles.casual') },
+              { value: 'friendly', label: t('settings.personalization.styles.friendly') }
             ].map(style => (
               <label key={style.value} className="style-option">
                 <input
@@ -114,9 +114,9 @@ const PersonalizationSettings = ({ settings, saveSettings, isLoading }) => {
         <div className="speed-options">
           {
             [
-              { value: 'fast', label: '快速' },
-              { value: 'medium', label: '中等' },
-              { value: 'slow', label: '缓慢' }
+              { value: 'fast', label: t('settings.personalization.speeds.fast') },
+              { value: 'medium', label: t('settings.personalization.speeds.medium') },
+              { value: 'slow', label: t('settings.personalization.speeds.slow') }
             ].map(speed => (
               <label key={speed.value} className="speed-option">
                 <input
@@ -136,17 +136,17 @@ const PersonalizationSettings = ({ settings, saveSettings, isLoading }) => {
       <div className="setting-group">
         <label className="setting-label">{t('settings.personalization.customPrompt')}</label>
         <p className="setting-description">
-          为您的智能助手编写个性化的提示词，用于定义助手的行为方式、回答风格，专业领域等
+          {t('settings.personalization.customPromptDescription')}
         </p>
         <textarea
           className="custom-prompt-textarea"
           value={localSettings.customPrompt || ''}
           onChange={handleCustomPromptChange}
-          placeholder="例如：你是一位专业的技术顾问，擅长用通俗易懂的语言解释复杂的技术概念..."
+          placeholder={t('settings.personalization.customPromptPlaceholder')}
           rows={6}
         />
         <p className="setting-hint">
-          提示：这里的内容将作为系统提示词的一部分，影响助手的回答方式
+          {t('settings.personalization.customPromptHint')}
         </p>
       </div>
 

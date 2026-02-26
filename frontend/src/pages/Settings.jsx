@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { request, requestWithRetry } from '../utils/apiUtils';
 import * as d3 from 'd3';
 import './settings.css';
@@ -26,6 +27,9 @@ const debounce = (func, wait) => {
 
 
 const Settings = () => {
+  // 使用 i18n 翻译
+  const { t } = useTranslation();
+  
   // 状态管理当前选中的二级菜单
   const [activeSection, setActiveSection] = useState('general');
   
@@ -956,8 +960,8 @@ const Settings = () => {
         return (
           <div className="settings-content">
             <div className="content-header">
-              <h2>应用配置</h2>
-              <p>管理智能个人助手的基本配置和个性化选项</p>
+              <h2>{t('settings.general.title')}</h2>
+              <p>{t('settings.general.description')}</p>
             </div>
             
             <div className="general-settings-container">
@@ -970,8 +974,8 @@ const Settings = () => {
         return (
           <div className="settings-content">
             <div className="content-header">
-              <h2>模型管理</h2>
-              <p>管理AI供应商和模型配置，含模型分类与模型能力管理。</p>
+              <h2>{t('settings.modelManagement.title')}</h2>
+              <p>{t('settings.modelManagement.description')}</p>
             </div>
             
             <div className="model-management-container">
@@ -1019,31 +1023,31 @@ const Settings = () => {
         return (
           <div className="settings-content">
             <div className="content-header">
-              <h2>搜索管理</h2>
-              <p>配置联网搜索的基础选项</p>
+              <h2>{t('settings.search.title')}</h2>
+              <p>{t('settings.search.description')}</p>
             </div>
             
             {isLoadingSearch ? (
-              <div className="loading">加载中...</div>
+              <div className="loading">{t('common.loading')}</div>
             ) : (
               <div className="search-section">
                 <div className="setting-card">
                   <div className="setting-item">
-                    <label htmlFor="defaultSearchEngine">默认搜索引擎</label>
+                    <label htmlFor="defaultSearchEngine">{t('settings.search.defaultEngine')}</label>
                     <select 
                       id="defaultSearchEngine"
                       className="search-select"
                       value={defaultSearchEngine}
                       onChange={(e) => setDefaultSearchEngine(e.target.value)}
                     >
-                      <option value="google">Google</option>
-                      <option value="bing">Bing</option>
-                      <option value="baidu">百度</option>
+                      <option value="google">{t('settings.search.engines.google')}</option>
+                      <option value="bing">{t('settings.search.engines.bing')}</option>
+                      <option value="baidu">{t('settings.search.engines.baidu')}</option>
                     </select>
                   </div>
                   
                   <div className="setting-item">
-                    <label htmlFor="safeSearch">启用安全搜索</label>
+                    <label htmlFor="safeSearch">{t('settings.search.safeSearch')}</label>
                     <input 
                       type="checkbox" 
                       id="safeSearch" 
@@ -1058,7 +1062,7 @@ const Settings = () => {
                       onClick={saveSearchSettings}
                       disabled={isSavingSearch}
                     >
-                      {isSavingSearch ? '保存中...' : '保存设置'}
+                      {isSavingSearch ? t('common.loading') : t('common.save')}
                     </button>
                   </div>
                 </div>
@@ -1071,24 +1075,24 @@ const Settings = () => {
         return (
           <div className="settings-content">
             <div className="content-header">
-              <h2>默认模型</h2>
-              <p>设置系统默认使用的AI模型</p>
+              <h2>{t('settings.defaultModel.title')}</h2>
+              <p>{t('settings.defaultModel.description')}</p>
             </div>
             
             {/* 全局默认模型 */}
             <div className="setting-card">
               <div className="setting-header">
-                <h3>全局默认模型</h3>
-                <p>系统级别的默认AI模型，作为所有场景的基础默认值</p>
+                <h3>{t('settings.defaultModel.global')}</h3>
+                <p>{t('settings.defaultModel.globalDescription')}</p>
               </div>
               
               <div className="setting-item">
-                <label htmlFor="globalDefaultModel">选择全局默认模型</label>
+                <label htmlFor="globalDefaultModel">{t('settings.defaultModel.selectLabel')}</label>
                 <ModelSelectDropdown
                   models={models}
                   selectedModel={models.find(model => model.id === globalDefaultModel) || null}
                   onModelSelect={(model) => setGlobalDefaultModel(model.id)}
-                  placeholder="请选择模型"
+                  placeholder={t('settings.defaultModel.placeholder')}
                   disabled={isLoadingModels}
                   getModelLogoUrl={(model) => {
                     // 根据供应商返回不同的LOGO URL
@@ -1101,18 +1105,18 @@ const Settings = () => {
             {/* 场景默认模型 */}
             <div className="setting-card">
               <div className="setting-header">
-                <h3>场景默认模型</h3>
-                <p>为特定业务场景设置专属默认模型</p>
+                <h3>{t('settings.defaultModel.scene')}</h3>
+                <p>{t('settings.defaultModel.sceneDescription')}</p>
               </div>
               
               {/* 聊天场景 */}
               <div className="setting-item">
-                <label htmlFor="chatModel">聊天场景</label>
+                <label htmlFor="chatModel">{t('settings.defaultModel.scenes.chat')}</label>
                 <ModelSelectDropdown
                   models={getModelsByType('chat')}
                   selectedModel={getModelsByType('chat').find(model => model.id === sceneDefaultModels.chat) || null}
                   onModelSelect={(model) => setSceneDefaultModels(prev => ({ ...prev, chat: model.id }))}
-                  placeholder="请选择模型"
+                  placeholder={t('settings.defaultModel.placeholder')}
                   disabled={isLoadingModels}
                   getModelLogoUrl={(model) => `/logos/providers/${model.supplier || 'default'}.png`}
                 />
@@ -1120,12 +1124,12 @@ const Settings = () => {
               
               {/* 图像场景 */}
               <div className="setting-item">
-                <label htmlFor="imageModel">图像场景</label>
+                <label htmlFor="imageModel">{t('settings.defaultModel.scenes.image')}</label>
                 <ModelSelectDropdown
                   models={getModelsByType('image')}
                   selectedModel={getModelsByType('image').find(model => model.id === sceneDefaultModels.image) || null}
                   onModelSelect={(model) => setSceneDefaultModels(prev => ({ ...prev, image: model.id }))}
-                  placeholder="请选择模型"
+                  placeholder={t('settings.defaultModel.placeholder')}
                   disabled={isLoadingModels}
                   getModelLogoUrl={(model) => `/logos/providers/${model.supplier || 'default'}.png`}
                 />
@@ -1133,12 +1137,12 @@ const Settings = () => {
               
               {/* 视频场景 */}
               <div className="setting-item">
-                <label htmlFor="videoModel">视频场景</label>
+                <label htmlFor="videoModel">{t('settings.defaultModel.scenes.video')}</label>
                 <ModelSelectDropdown
                   models={getModelsByType('video')}
                   selectedModel={getModelsByType('video').find(model => model.id === sceneDefaultModels.video) || null}
                   onModelSelect={(model) => setSceneDefaultModels(prev => ({ ...prev, video: model.id }))}
-                  placeholder="请选择模型"
+                  placeholder={t('settings.defaultModel.placeholder')}
                   disabled={isLoadingModels}
                   getModelLogoUrl={(model) => `/logos/providers/${model.supplier || 'default'}.png`}
                 />
@@ -1146,12 +1150,12 @@ const Settings = () => {
               
               {/* 语音场景 */}
               <div className="setting-item">
-                <label htmlFor="voiceModel">语音场景</label>
+                <label htmlFor="voiceModel">{t('settings.defaultModel.scenes.voice')}</label>
                 <ModelSelectDropdown
                   models={getModelsByType('voice')}
                   selectedModel={getModelsByType('voice').find(model => model.id === sceneDefaultModels.voice) || null}
                   onModelSelect={(model) => setSceneDefaultModels(prev => ({ ...prev, voice: model.id }))}
-                  placeholder="请选择模型"
+                  placeholder={t('settings.defaultModel.placeholder')}
                   disabled={isLoadingModels}
                   getModelLogoUrl={(model) => `/logos/providers/${model.supplier || 'default'}.png`}
                 />
@@ -1159,12 +1163,12 @@ const Settings = () => {
               
               {/* 翻译场景 */}
               <div className="setting-item">
-                <label htmlFor="translateModel">翻译场景</label>
+                <label htmlFor="translateModel">{t('settings.defaultModel.scenes.translate')}</label>
                 <ModelSelectDropdown
                   models={getModelsByType('translate')}
                   selectedModel={getModelsByType('translate').find(model => model.id === sceneDefaultModels.translate) || null}
                   onModelSelect={(model) => setSceneDefaultModels(prev => ({ ...prev, translate: model.id }))}
-                  placeholder="请选择模型"
+                  placeholder={t('settings.defaultModel.placeholder')}
                   disabled={isLoadingModels}
                   getModelLogoUrl={(model) => `/logos/providers/${model.supplier || 'default'}.png`}
                 />
@@ -1172,12 +1176,12 @@ const Settings = () => {
               
               {/* 知识库场景 */}
               <div className="setting-item">
-                <label htmlFor="knowledgeModel">知识库场景</label>
+                <label htmlFor="knowledgeModel">{t('settings.defaultModel.scenes.knowledge')}</label>
                 <ModelSelectDropdown
                   models={getModelsByType('knowledge')}
                   selectedModel={getModelsByType('knowledge').find(model => model.id === sceneDefaultModels.knowledge) || null}
                   onModelSelect={(model) => setSceneDefaultModels(prev => ({ ...prev, knowledge: model.id }))}
-                  placeholder="请选择模型"
+                  placeholder={t('settings.defaultModel.placeholder')}
                   disabled={isLoadingModels}
                   getModelLogoUrl={(model) => `/logos/providers/${model.supplier || 'default'}.png`}
                 />
@@ -1185,12 +1189,12 @@ const Settings = () => {
               
               {/* 工作流场景 */}
               <div className="setting-item">
-                <label htmlFor="workflowModel">工作流场景</label>
+                <label htmlFor="workflowModel">{t('settings.defaultModel.scenes.workflow')}</label>
                 <ModelSelectDropdown
                   models={getModelsByType('workflow')}
                   selectedModel={getModelsByType('workflow').find(model => model.id === sceneDefaultModels.workflow) || null}
                   onModelSelect={(model) => setSceneDefaultModels(prev => ({ ...prev, workflow: model.id }))}
-                  placeholder="请选择模型"
+                  placeholder={t('settings.defaultModel.placeholder')}
                   disabled={isLoadingModels}
                   getModelLogoUrl={(model) => `/logos/providers/${model.supplier || 'default'}.png`}
                 />
@@ -1198,12 +1202,12 @@ const Settings = () => {
               
               {/* 工具调用场景 */}
               <div className="setting-item">
-                <label htmlFor="toolModel">工具调用场景</label>
+                <label htmlFor="toolModel">{t('settings.defaultModel.scenes.tool')}</label>
                 <ModelSelectDropdown
                   models={getModelsByType('tool')}
                   selectedModel={getModelsByType('tool').find(model => model.id === sceneDefaultModels.tool) || null}
                   onModelSelect={(model) => setSceneDefaultModels(prev => ({ ...prev, tool: model.id }))}
-                  placeholder="请选择模型"
+                  placeholder={t('settings.defaultModel.placeholder')}
                   disabled={isLoadingModels}
                   getModelLogoUrl={(model) => `/logos/providers/${model.supplier || 'default'}.png`}
                 />
@@ -1211,12 +1215,12 @@ const Settings = () => {
               
               {/* 搜索场景 */}
               <div className="setting-item">
-                <label htmlFor="searchModel">搜索场景</label>
+                <label htmlFor="searchModel">{t('settings.defaultModel.scenes.search')}</label>
                 <ModelSelectDropdown
                   models={getModelsByType('search')}
                   selectedModel={getModelsByType('search').find(model => model.id === sceneDefaultModels.search) || null}
                   onModelSelect={(model) => setSceneDefaultModels(prev => ({ ...prev, search: model.id }))}
-                  placeholder="请选择模型"
+                  placeholder={t('settings.defaultModel.placeholder')}
                   disabled={isLoadingModels}
                   getModelLogoUrl={(model) => `/logos/providers/${model.supplier || 'default'}.png`}
                 />
@@ -1224,12 +1228,12 @@ const Settings = () => {
               
               {/* MCP场景 */}
               <div className="setting-item">
-                <label htmlFor="mcpModel">MCP场景</label>
+                <label htmlFor="mcpModel">{t('settings.defaultModel.scenes.mcp')}</label>
                 <ModelSelectDropdown
                   models={getModelsByType('mcp')}
                   selectedModel={getModelsByType('mcp').find(model => model.id === sceneDefaultModels.mcp) || null}
                   onModelSelect={(model) => setSceneDefaultModels(prev => ({ ...prev, mcp: model.id }))}
-                  placeholder="请选择模型"
+                  placeholder={t('settings.defaultModel.placeholder')}
                   disabled={isLoadingModels}
                   getModelLogoUrl={(model) => `/logos/providers/${model.supplier || 'default'}.png`}
                 />
@@ -1241,7 +1245,7 @@ const Settings = () => {
                   onClick={handleSaveDefaultModel}
                   disabled={isSavingDefaultModel || isLoadingModels}
                 >
-                  {isSavingDefaultModel ? '保存中...' : '保存设置'}
+                  {isSavingDefaultModel ? t('settings.defaultModel.saving') : t('settings.defaultModel.saveSettings')}
                 </button>
               </div>
             </div>
@@ -1255,24 +1259,24 @@ const Settings = () => {
         return (
           <div className="settings-content">
             <div className="content-header">
-              <h2>全局记忆</h2>
-              <p>管理系统全局记忆和上下文信息</p>
+              <h2>{t('settings.memory.title')}</h2>
+              <p>{t('settings.memory.description')}</p>
             </div>
             
             <div className="global-memory-container">
               {/* 全局记忆配置 */}
               <div className="setting-card">
                 <div className="setting-header">
-                  <h3>记忆配置</h3>
-                  <p>配置全局记忆的存储和管理参数</p>
+                  <h3>{t('settings.memory.config')}</h3>
+                  <p>{t('settings.memory.configDescription')}</p>
                 </div>
                 
                 {isLoadingMemoryConfig ? (
-                  <div className="loading">加载中...</div>
+                  <div className="loading">{t('settings.memory.loading')}</div>
                 ) : (
                   <div className="memory-config-section">
                     <div className="setting-item">
-                      <label htmlFor="shortTermRetention">短期记忆保留天数</label>
+                      <label htmlFor="shortTermRetention">{t('settings.memory.shortTermRetention')}</label>
                       <input 
                         type="number" 
                         id="shortTermRetention" 
@@ -1285,21 +1289,21 @@ const Settings = () => {
                     </div>
                     
                     <div className="setting-item">
-                      <label htmlFor="privacyLevel">隐私级别</label>
+                      <label htmlFor="privacyLevel">{t('settings.memory.privacyLevel')}</label>
                       <select 
                         id="privacyLevel" 
                         className="form-select"
                         value={memoryConfig.privacy_level}
                         onChange={(e) => setMemoryConfig(prev => ({ ...prev, privacy_level: e.target.value }))}
                       >
-                        <option value="LOW">低（基本保护）</option>
-                        <option value="MEDIUM">中（标准保护）</option>
-                        <option value="HIGH">高（严格保护）</option>
+                        <option value="LOW">{t('settings.memory.privacyLevels.low')}</option>
+                        <option value="MEDIUM">{t('settings.memory.privacyLevels.medium')}</option>
+                        <option value="HIGH">{t('settings.memory.privacyLevels.high')}</option>
                       </select>
                     </div>
                     
                     <div className="setting-item">
-                      <label htmlFor="autoPurge">自动清理过期记忆</label>
+                      <label htmlFor="autoPurge">{t('settings.memory.autoPurge')}</label>
                       <input 
                         type="checkbox" 
                         id="autoPurge" 
@@ -1309,7 +1313,7 @@ const Settings = () => {
                     </div>
                     
                     <div className="setting-item">
-                      <label htmlFor="retrievalThreshold">检索相似度阈值</label>
+                      <label htmlFor="retrievalThreshold">{t('settings.memory.retrievalThreshold')}</label>
                       <input 
                         type="number" 
                         id="retrievalThreshold" 
@@ -1323,7 +1327,7 @@ const Settings = () => {
                     </div>
                     
                     <div className="setting-item">
-                      <label htmlFor="maxRetrievalResults">最大检索结果数</label>
+                      <label htmlFor="maxRetrievalResults">{t('settings.memory.maxRetrievalResults')}</label>
                       <input 
                         type="number" 
                         id="maxRetrievalResults" 
@@ -1341,7 +1345,7 @@ const Settings = () => {
                         onClick={saveMemoryConfig}
                         disabled={isSavingMemoryConfig}
                       >
-                        {isSavingMemoryConfig ? '保存中...' : '保存配置'}
+                        {isSavingMemoryConfig ? t('settings.memory.saving') : t('settings.memory.saveConfig')}
                       </button>
                     </div>
                   </div>
@@ -1351,45 +1355,45 @@ const Settings = () => {
               {/* 记忆统计和分析 */}
               <div className="setting-card">
                 <div className="setting-header">
-                  <h3>记忆统计与分析</h3>
-                  <p>查看记忆的统计信息和模式分析</p>
+                  <h3>{t('settings.memory.stats')}</h3>
+                  <p>{t('settings.memory.statsDescription')}</p>
                 </div>
                 
                 <div className="memory-analytics-section">
                   {/* 记忆统计 */}
                   <div className="analytics-row">
                     {isLoadingStats ? (
-                      <div className="loading">加载中...</div>
+                      <div className="loading">{t('settings.memory.loading')}</div>
                     ) : memoryStats ? (
                       <div className="stats-grid">
                         <div className="stat-card">
                           <div className="stat-value">{memoryStats?.total_count || 0}</div>
-                          <div className="stat-label">总记忆数</div>
+                          <div className="stat-label">{t('settings.memory.statLabels.total')}</div>
                         </div>
                         <div className="stat-card">
                           <div className="stat-value">{memoryStats.by_type?.SHORT_TERM || 0}</div>
-                          <div className="stat-label">短期记忆</div>
+                          <div className="stat-label">{t('settings.memory.statLabels.shortTerm')}</div>
                         </div>
                         <div className="stat-card">
                           <div className="stat-value">{memoryStats.by_type?.LONG_TERM || 0}</div>
-                          <div className="stat-label">长期记忆</div>
+                          <div className="stat-label">{t('settings.memory.statLabels.longTerm')}</div>
                         </div>
                         <div className="stat-card">
                           <div className="stat-value">{memoryStats?.vector_db_count || 0}</div>
-                          <div className="stat-label">向量存储数</div>
+                          <div className="stat-label">{t('settings.memory.statLabels.vector')}</div>
                         </div>
                         <div className="stat-card">
                           <div className="stat-value">{memoryStats?.average_importance ? memoryStats.average_importance.toFixed(2) : '0.00'}</div>
-                          <div className="stat-label">平均重要性</div>
+                          <div className="stat-label">{t('settings.memory.statLabels.importance')}</div>
                         </div>
                         <div className="stat-card">
                           <div className="stat-value">0.00 MB</div>
-                          <div className="stat-label">存储大小</div>
+                          <div className="stat-label">{t('settings.memory.statLabels.storage')}</div>
                         </div>
                       </div>
                     ) : (
                       <div className="empty-state">
-                        <p>暂无统计数据</p>
+                        <p>{t('settings.memory.noData')}</p>
                       </div>
                     )}
                   </div>
@@ -1397,11 +1401,11 @@ const Settings = () => {
                   {/* 可视化图表 */}
                   <div className="analytics-row">
                     <div className="chart-container">
-                      <h4>记忆类型分布</h4>
+                      <h4>{t('settings.memory.typeDistribution')}</h4>
                       <svg ref={memoryTypeChartRef} width="100%" height="200"></svg>
                     </div>
                     <div className="chart-container">
-                      <h4>记忆重要性分布</h4>
+                      <h4>{t('settings.memory.importanceDistribution')}</h4>
                       <svg ref={importanceChartRef} width="100%" height="200"></svg>
                     </div>
                   </div>
@@ -1409,27 +1413,27 @@ const Settings = () => {
                   {/* 记忆模式分析 */}
                   <div className="analytics-row">
                     <div className="pattern-analysis">
-                      <h4>记忆模式分析</h4>
+                      <h4>{t('settings.memory.patternAnalysis')}</h4>
                       {isLoadingPatterns ? (
-                        <div className="loading">加载中...</div>
+                        <div className="loading">{t('settings.memory.loading')}</div>
                       ) : memoryPatterns ? (
                         <div className="patterns-grid">
                           <div className="pattern-card">
-                            <h5>高频主题</h5>
+                            <h5>{t('settings.memory.patterns.topTopics')}</h5>
                             <div className="pattern-content">
                               <ul>
                                 {memoryPatterns.top_topics?.map((topic, index) => (
-                                  <li key={index}>{topic.topic}: {topic.frequency}次</li>
+                                  <li key={index}>{topic.topic}: {topic.frequency}{t('settings.memory.patterns.frequency')}</li>
                                 )) || []}
                               </ul>
                             </div>
                           </div>
                           <div className="pattern-card">
-                            <h5>关联模式</h5>
+                            <h5>{t('settings.memory.patterns.associationPatterns')}</h5>
                             <div className="pattern-content">
                               <ul>
                                 {memoryPatterns.association_patterns?.map((pattern, index) => (
-                                  <li key={index}>{pattern.concept1} → {pattern.concept2}: 相似度 {pattern.strength.toFixed(2)}</li>
+                                  <li key={index}>{pattern.concept1} → {pattern.concept2}: {t('settings.memory.patterns.similarity')} {pattern.strength.toFixed(2)}</li>
                                 )) || []}
                               </ul>
                             </div>
@@ -1437,7 +1441,7 @@ const Settings = () => {
                         </div>
                       ) : (
                         <div className="empty-state">
-                          <p>暂无模式数据</p>
+                          <p>{t('settings.memory.noPatternData')}</p>
                         </div>
                       )}
                     </div>
@@ -1448,8 +1452,8 @@ const Settings = () => {
               {/* 记忆生命周期管理 */}
               <div className="setting-card">
                 <div className="setting-header">
-                  <h3>记忆生命周期管理</h3>
-                  <p>管理记忆的自动清理和压缩</p>
+                  <h3>{t('settings.memory.lifecycle.title')}</h3>
+                  <p>{t('settings.memory.lifecycle.description')}</p>
                 </div>
                 
                 <div className="lifecycle-management">
@@ -1459,20 +1463,20 @@ const Settings = () => {
                       onClick={cleanupExpiredMemories}
                       disabled={isCleaningUpMemories}
                     >
-                      {isCleaningUpMemories ? '清理中...' : '清理过期记忆'}
+                      {isCleaningUpMemories ? t('settings.memory.lifecycle.cleaning') : t('settings.memory.lifecycle.cleanup')}
                     </button>
                     <button 
                       className="compress-btn" 
                       onClick={compressSimilarMemories}
                       disabled={isCompressingMemories}
                     >
-                      {isCompressingMemories ? '压缩中...' : '压缩相似记忆'}
+                      {isCompressingMemories ? t('settings.memory.lifecycle.compressing') : t('settings.memory.lifecycle.compress')}
                     </button>
                   </div>
                   
                   <div className="lifecycle-info">
-                    <p>• 清理过期记忆：移除超过保留天数的短期记忆</p>
-                    <p>• 压缩相似记忆：将相似度超过阈值的短期记忆合并为长期记忆</p>
+                    <p>• {t('settings.memory.lifecycle.cleanupDesc')}</p>
+                    <p>• {t('settings.memory.lifecycle.compressDesc')}</p>
                   </div>
                 </div>
               </div>
@@ -1480,14 +1484,14 @@ const Settings = () => {
               {/* 知识图谱 */}
               <div className="setting-card">
                 <div className="setting-header">
-                  <h3>知识图谱</h3>
-                  <p>可视化展示记忆之间的关联关系</p>
+                  <h3>{t('settings.memory.knowledgeGraph.title')}</h3>
+                  <p>{t('settings.memory.knowledgeGraph.description')}</p>
                 </div>
                 
                 <div className="knowledge-graph-section">
                   <div className="graph-controls">
                     <div className="setting-item">
-                      <label htmlFor="maxNodes">最大节点数</label>
+                      <label htmlFor="maxNodes">{t('settings.memory.knowledgeGraph.maxNodes')}</label>
                       <input 
                         type="number" 
                         id="maxNodes" 
@@ -1503,23 +1507,23 @@ const Settings = () => {
                       onClick={loadKnowledgeGraph}
                       disabled={isLoadingGraph}
                     >
-                      {isLoadingGraph ? '加载中...' : '刷新图谱'}
+                      {isLoadingGraph ? t('settings.memory.knowledgeGraph.refreshing') : t('settings.memory.knowledgeGraph.refresh')}
                     </button>
                   </div>
                   
                   <div className="graph-container">
                     {isLoadingGraph ? (
-                      <div className="loading">加载中...</div>
+                      <div className="loading">{t('settings.memory.loading')}</div>
                     ) : knowledgeGraph ? (
                       <div className="graph-info">
-                        <p>节点数: {knowledgeGraph.nodes?.length || 0}, 边数: {knowledgeGraph.edges?.length || 0}</p>
+                        <p>{t('settings.memory.knowledgeGraph.nodes')}: {knowledgeGraph.nodes?.length || 0}, {t('settings.memory.knowledgeGraph.edges')}: {knowledgeGraph.edges?.length || 0}</p>
                         <svg ref={knowledgeGraphRef} width="100%" height="500"></svg>
                       </div>
                     ) : (
                       <div className="empty-state">
                         <div className="empty-icon">🔗</div>
-                        <h4>暂无知识图谱数据</h4>
-                        <p>点击"刷新图谱"按钮加载知识图谱</p>
+                        <h4>{t('settings.memory.knowledgeGraph.noData')}</h4>
+                        <p>{t('settings.memory.knowledgeGraph.loadHint')}</p>
                       </div>
                     )}
                   </div>
@@ -1529,8 +1533,8 @@ const Settings = () => {
               {/* 记忆列表 */}
               <div className="setting-card">
                 <div className="setting-header">
-                  <h3>记忆列表</h3>
-                  <p>查看和管理系统中的全局记忆</p>
+                  <h3>{t('settings.memory.memoryList.title')}</h3>
+                  <p>{t('settings.memory.memoryList.description')}</p>
                 </div>
                 
                 <div className="memory-list-section">
@@ -1539,19 +1543,19 @@ const Settings = () => {
                       <input 
                         type="text" 
                         className="form-input" 
-                        placeholder="搜索记忆内容..." 
+                        placeholder={t('settings.memory.memoryList.searchPlaceholder')} 
                         value={memorySearchQuery}
                         onChange={(e) => setMemorySearchQuery(e.target.value)}
                         onKeyPress={(e) => e.key === 'Enter' && loadMemories()}
                       />
-                      <button className="search-btn" onClick={loadMemories}>搜索</button>
+                      <button className="search-btn" onClick={loadMemories}>{t('settings.memory.memoryList.search')}</button>
                     </div>
                     <div className="list-actions">
                       <button className="refresh-btn" onClick={loadMemories} disabled={isLoadingMemories}>
-                        {isLoadingMemories ? '加载中...' : '刷新'}
+                        {isLoadingMemories ? t('settings.memory.loading') : t('settings.memory.knowledgeGraph.refreshList')}
                       </button>
                       <button className="import-btn" onClick={() => document.getElementById('import-file').click()}>
-                        导入MD
+                        {t('settings.memory.memoryList.importMD')}
                       </button>
                       <input
                         type="file"
@@ -1561,13 +1565,13 @@ const Settings = () => {
                         onChange={handleFileImport}
                       />
                       <button className="clear-btn" onClick={clearAllMemories} disabled={isDeletingMemory}>
-                        {isDeletingMemory ? '处理中...' : '清空所有'}
+                        {isDeletingMemory ? t('settings.memory.memoryList.processing') : t('settings.memory.memoryList.clearAll')}
                       </button>
                     </div>
                   </div>
                   
                   {isLoadingMemories ? (
-                    <div className="loading">加载中...</div>
+                    <div className="loading">{t('settings.memory.loading')}</div>
                   ) : memories.length > 0 ? (
                     <div className="memory-list">
                       <table className="data-table">
@@ -1580,7 +1584,7 @@ const Settings = () => {
                                 setSortDirection(sortField === 'id' && sortDirection === 'asc' ? 'desc' : 'asc');
                               }}
                             >
-                              ID {sortField === 'id' && (sortDirection === 'asc' ? '↑' : '↓')}
+                              {t('settings.memory.memoryList.id')} {sortField === 'id' && (sortDirection === 'asc' ? '↑' : '↓')}
                             </th>
                             <th 
                               style={{ cursor: 'pointer' }} 
@@ -1589,7 +1593,7 @@ const Settings = () => {
                                 setSortDirection(sortField === 'memory_type' && sortDirection === 'asc' ? 'desc' : 'asc');
                               }}
                             >
-                              类型 {sortField === 'memory_type' && (sortDirection === 'asc' ? '↑' : '↓')}
+                              {t('settings.memory.memoryList.type')} {sortField === 'memory_type' && (sortDirection === 'asc' ? '↑' : '↓')}
                             </th>
                             <th 
                               style={{ cursor: 'pointer' }} 
@@ -1598,9 +1602,9 @@ const Settings = () => {
                                 setSortDirection(sortField === 'memory_category' && sortDirection === 'asc' ? 'desc' : 'asc');
                               }}
                             >
-                              分类 {sortField === 'memory_category' && (sortDirection === 'asc' ? '↑' : '↓')}
+                              {t('settings.memory.memoryList.category')} {sortField === 'memory_category' && (sortDirection === 'asc' ? '↑' : '↓')}
                             </th>
-                            <th>内容</th>
+                            <th>{t('settings.memory.memoryList.content')}</th>
                             <th 
                               style={{ cursor: 'pointer' }} 
                               onClick={() => {
@@ -1608,7 +1612,7 @@ const Settings = () => {
                                 setSortDirection(sortField === 'importance' && sortDirection === 'asc' ? 'desc' : 'asc');
                               }}
                             >
-                              重要性 {sortField === 'importance' && (sortDirection === 'asc' ? '↑' : '↓')}
+                              {t('settings.memory.memoryList.importance')} {sortField === 'importance' && (sortDirection === 'asc' ? '↑' : '↓')}
                             </th>
                             <th 
                               style={{ cursor: 'pointer' }} 
@@ -1617,9 +1621,9 @@ const Settings = () => {
                                 setSortDirection(sortField === 'created_at' && sortDirection === 'asc' ? 'desc' : 'asc');
                               }}
                             >
-                              创建时间 {sortField === 'created_at' && (sortDirection === 'asc' ? '↑' : '↓')}
+                              {t('settings.memory.memoryList.createdAt')} {sortField === 'created_at' && (sortDirection === 'asc' ? '↑' : '↓')}
                             </th>
-                            <th>操作</th>
+                            <th>{t('settings.memory.memoryList.actions')}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1627,7 +1631,7 @@ const Settings = () => {
                             <tr key={memory.id}>
                               <td>{memory.id}</td>
                               <td>{memory.memory_type}</td>
-                              <td>{memory.memory_category || '未分类'}</td>
+                              <td>{memory.memory_category || t('settings.memory.memoryList.uncategorized')}</td>
                               <td className="memory-content">{memory.content.length > 50 ? memory.content.substring(0, 50) + '...' : memory.content}</td>
                               <td>{memory.importance}</td>
                               <td>{new Date(memory.created_at).toLocaleString()}</td>
@@ -1637,28 +1641,28 @@ const Settings = () => {
                                   onClick={() => loadMemoryDetail(memory.id)}
                                   disabled={isLoadingMemoryDetail}
                                 >
-                                  查看
+                                  {t('settings.memory.memoryList.view')}
                                 </button>
                                 <button 
                                   className="edit-btn" 
                                   onClick={() => openEditModal(memory)}
                                   disabled={isSavingMemory}
                                 >
-                                  编辑
+                                  {t('settings.memory.memoryList.edit')}
                                 </button>
                                 <button 
                                   className="export-btn" 
                                   onClick={() => exportMemory(memory.id)}
                                   disabled={false}
                                 >
-                                  导出
+                                  {t('settings.memory.memoryList.export')}
                                 </button>
                                 <button 
                                   className="delete-btn" 
                                   onClick={() => deleteMemory(memory.id)}
                                   disabled={isDeletingMemory}
                                 >
-                                  删除
+                                  {t('settings.memory.memoryList.delete')}
                                 </button>
                               </td>
                             </tr>
@@ -1675,32 +1679,32 @@ const Settings = () => {
                               onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                               disabled={currentPage === 1}
                             >
-                              上一页
+                              {t('settings.memory.memoryList.previous')}
                             </button>
                             <span className="page-info">
-                              第 {currentPage} 页，共 {Math.ceil(totalMemories / memoriesPerPage)} 页
+                              {t('settings.memory.memoryList.pageInfo', { current: currentPage, total: Math.ceil(totalMemories / memoriesPerPage) })}
                             </span>
                             <button 
                               className="page-btn" 
                               onClick={() => setCurrentPage(prev => Math.min(Math.ceil(totalMemories / memoriesPerPage), prev + 1))}
                               disabled={currentPage === Math.ceil(totalMemories / memoriesPerPage)}
                             >
-                              下一页
+                              {t('settings.memory.memoryList.next')}
                             </button>
                           </div>
                           <div className="pagination-options">
                             <div className="page-size-selector">
-                              <label htmlFor="memoriesPerPage">每页显示：</label>
+                              <label htmlFor="memoriesPerPage">{t('settings.memory.memoryList.perPage')}</label>
                               <select 
                                 id="memoriesPerPage" 
                                 value={memoriesPerPage} 
                                 onChange={handleMemoriesPerPageChange}
                                 disabled={isLoadingMemories}
                               >
-                                <option value={5}>5条</option>
-                                <option value={10}>10条</option>
-                                <option value={20}>20条</option>
-                                <option value={50}>50条</option>
+                                <option value={5}>5{t('settings.memory.memoryList.items')}</option>
+                                <option value={10}>10{t('settings.memory.memoryList.items')}</option>
+                                <option value={20}>20{t('settings.memory.memoryList.items')}</option>
+                                <option value={50}>50{t('settings.memory.memoryList.items')}</option>
                               </select>
                             </div>
                             <div className="page-jump">
@@ -1792,7 +1796,7 @@ const Settings = () => {
               onClick={() => setActiveSection('general')}
             >
               <span className="nav-icon">⚙️</span>
-              <span className="nav-text">应用配置</span>
+              <span className="nav-text">{t('settings.navigation.general')}</span>
             </button>
             
             <button 
@@ -1800,7 +1804,7 @@ const Settings = () => {
               onClick={() => setActiveSection('model')}
             >
               <span className="nav-icon">🧠</span>
-              <span className="nav-text">模型管理</span>
+              <span className="nav-text">{t('settings.navigation.modelManagement')}</span>
             </button>
             
             <button 
@@ -1808,7 +1812,7 @@ const Settings = () => {
               onClick={() => setActiveSection('agents')}
             >
               <span className="nav-icon">🤖</span>
-              <span className="nav-text">智能体管理</span>
+              <span className="nav-text">{t('nav.agents')}</span>
             </button>
             
             <button 
@@ -1816,7 +1820,7 @@ const Settings = () => {
               onClick={() => setActiveSection('knowledge')}
             >
               <span className="nav-icon">📚</span>
-              <span className="nav-text">知识库管理</span>
+              <span className="nav-text">{t('nav.knowledge')}</span>
             </button>
             
             <button 
@@ -1824,7 +1828,7 @@ const Settings = () => {
               onClick={() => setActiveSection('workflow')}
             >
               <span className="nav-icon">🔄</span>
-              <span className="nav-text">工作流管理</span>
+              <span className="nav-text">{t('nav.workflow')}</span>
             </button>
             
             <button 
@@ -1832,7 +1836,7 @@ const Settings = () => {
               onClick={() => setActiveSection('tool')}
             >
               <span className="nav-icon">🔧</span>
-              <span className="nav-text">工具管理</span>
+              <span className="nav-text">{t('nav.tools')}</span>
             </button>
             
             <button 
@@ -1840,7 +1844,7 @@ const Settings = () => {
               onClick={() => setActiveSection('skill')}
             >
               <span className="nav-icon">🎯</span>
-              <span className="nav-text">技能管理</span>
+              <span className="nav-text">{t('nav.skills')}</span>
             </button>
             
             <button 
@@ -1848,7 +1852,7 @@ const Settings = () => {
               onClick={() => setActiveSection('search')}
             >
               <span className="nav-icon">🔍</span>
-              <span className="nav-text">搜索管理</span>
+              <span className="nav-text">{t('settings.navigation.search')}</span>
             </button>
             
 
@@ -1858,7 +1862,7 @@ const Settings = () => {
               onClick={() => setActiveSection('globalMemory')}
             >
               <span className="nav-icon">💾</span>
-              <span className="nav-text">全局记忆</span>
+              <span className="nav-text">{t('settings.navigation.memory')}</span>
             </button>
             
             <button 
@@ -1866,7 +1870,7 @@ const Settings = () => {
               onClick={() => setActiveSection('mcp')}
             >
               <span className="nav-icon">🔗</span>
-              <span className="nav-text">MCP服务</span>
+              <span className="nav-text">{t('settings.navigation.mcp')}</span>
             </button>
               
 
@@ -1877,7 +1881,7 @@ const Settings = () => {
         <button 
           className="sidebar-toggle-btn"
           onClick={toggleSidebar}
-          title={sidebarExpanded ? "收缩导航栏" : "展开导航栏"}
+          title={sidebarExpanded ? t('nav.collapse') : t('nav.expand')}
         >
           {sidebarExpanded ? "◀" : "▶"}
         </button>

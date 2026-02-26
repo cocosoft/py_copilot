@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import ApiKeyUpdater from './components/ApiKeyUpdater';
 import { BrowserRouter as Router, NavLink, Route, Routes, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
@@ -9,6 +10,7 @@ import { isAuthenticated } from './utils/authUtils';
 import { StoreProvider, StoreMonitor, useStateManager } from './utils/storeManager';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import GlobalErrorBoundary from './components/UI/GlobalErrorBoundary';
+import { request } from './utils/apiUtils';
 
 // 创建React Query客户端实例
 const queryClient = new QueryClient({
@@ -55,6 +57,54 @@ function App() {
 
 // 主应用组件（需要认证）
 function MainApp() {
+  const { t, i18n } = useTranslation();
+  const [isLanguageLoaded, setIsLanguageLoaded] = useState(false);
+  
+  // 从后端加载语言设置
+  useEffect(() => {
+    const loadLanguageFromBackend = async () => {
+      try {
+        const result = await request('/v1/settings', {
+          method: 'GET'
+        });
+        
+        if (result.success && result.data?.general?.language) {
+          const backendLanguage = result.data.general.language;
+          // 如果后端语言与当前语言不同，则切换
+          if (backendLanguage !== i18n.language) {
+            i18n.changeLanguage(backendLanguage);
+            localStorage.setItem('app-language', backendLanguage);
+          }
+        }
+      } catch (error) {
+        console.error('从后端加载语言设置失败:', error);
+        // 如果后端加载失败，使用 localStorage 中的语言设置
+        const savedLanguage = localStorage.getItem('app-language');
+        if (savedLanguage && savedLanguage !== i18n.language) {
+          i18n.changeLanguage(savedLanguage);
+        }
+      } finally {
+        setIsLanguageLoaded(true);
+      }
+    };
+    
+    loadLanguageFromBackend();
+  }, [i18n]);
+  
+  // 语言设置加载完成前显示加载状态
+  if (!isLanguageLoaded) {
+    return (
+      <div className="app-container" style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center',
+        height: '100vh'
+      }}>
+        <div>Loading...</div>
+      </div>
+    );
+  }
+  
   return (
     <div className="app-container">
       <ApiKeyUpdater />
@@ -70,26 +120,26 @@ function MainApp() {
           <NavLink 
             to="/personal" 
             className="header-user-button"
-            title="用户"
+            title={t('nav.personal')}
           >
             <span className="user-icon">👤</span>
-            <span className="user-text">用户</span>
+            <span className="user-text">{t('nav.personal')}</span>
           </NavLink>
           <NavLink 
             to="/settings" 
             className="header-user-button"
-            title="设置"
+            title={t('nav.settings')}
           >
             <span className="user-icon">⚙️</span>
-            <span className="user-text">设置</span>
+            <span className="user-text">{t('nav.settings')}</span>
           </NavLink>
           <NavLink 
             to="/help" 
             className="header-user-button"
-            title="帮助"
+            title={t('nav.help')}
           >
             <span className="user-icon">❓</span>
-            <span className="user-text">帮助</span>
+            <span className="user-text">{t('nav.help')}</span>
           </NavLink>
         </div>
       </header>
