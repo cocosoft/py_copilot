@@ -17,23 +17,37 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.api_v1_str}/auth/login
 
 def get_current_user(
     db: Session = Depends(get_db),
-    token: Optional[str] = None
+    token: Optional[str] = None,
+    x_user_id: Optional[int] = Header(None, alias="X-User-Id")
 ) -> User:
     """
     获取当前用户
-    
+
     Args:
         db: 数据库会话
         token: 可选的OAuth2令牌，仅在启用认证时需要
-    
+        x_user_id: 可选的用户ID（通过请求头传递，用于未启用认证时）
+
     Returns:
         当前用户对象
-    
+
     Raises:
         HTTPException: 认证失败时抛出
     """
-    # 如果未启用认证，返回一个模拟的用户对象
+    # 如果未启用认证，从请求头获取用户ID或返回第一个用户
     if not settings.enable_auth:
+        # 如果请求头中提供了用户ID，使用它
+        if x_user_id:
+            user = db.query(User).filter(User.id == x_user_id).first()
+            if user:
+                return user
+
+        # 否则返回第一个用户
+        user = db.query(User).first()
+        if user:
+            return user
+
+        # 如果没有用户，创建一个mock用户（仅用于开发测试）
         mock_user = User(
             id=1,
             username="admin",

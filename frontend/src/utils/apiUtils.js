@@ -7,6 +7,25 @@ export const STORAGE_PREFIX = 'llm_admin_';
 // 导入认证工具函数
 import { getAuthToken } from './authUtils';
 
+/**
+ * 获取当前用户ID
+ * 从localStorage中的auth-storage读取
+ *
+ * @returns {number|null} 用户ID
+ */
+const getCurrentUserId = () => {
+  try {
+    const authStorage = localStorage.getItem('auth-storage');
+    if (authStorage) {
+      const parsed = JSON.parse(authStorage);
+      return parsed?.state?.user?.id || null;
+    }
+  } catch (error) {
+    console.error('获取用户ID失败:', error);
+  }
+  return null;
+};
+
 // 通用请求函数
 export const request = async (endpoint, options = {}) => {
   
@@ -46,6 +65,12 @@ export const request = async (endpoint, options = {}) => {
   const authToken = getAuthToken();
   if (authToken) {
     defaultHeaders['Authorization'] = `Bearer ${authToken}`;
+  }
+
+  // 添加用户ID到请求头（用于未启用认证时识别用户）
+  const userId = getCurrentUserId();
+  if (userId) {
+    defaultHeaders['X-User-Id'] = userId.toString();
   }
   
   const defaultOptions = {
