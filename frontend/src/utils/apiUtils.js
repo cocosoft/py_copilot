@@ -16,9 +16,20 @@ import { getAuthToken } from './authUtils';
 const getCurrentUserId = () => {
   try {
     const authStorage = localStorage.getItem('auth-storage');
+    console.log('[DEBUG] auth-storage raw:', authStorage ? authStorage.substring(0, 200) : 'null');
     if (authStorage) {
       const parsed = JSON.parse(authStorage);
-      return parsed?.state?.user?.id || null;
+      console.log('[DEBUG] auth-storage parsed keys:', Object.keys(parsed));
+      console.log('[DEBUG] has state:', 'state' in parsed);
+      if (parsed.state) {
+        console.log('[DEBUG] state keys:', Object.keys(parsed.state));
+        console.log('[DEBUG] has user:', 'user' in parsed.state);
+        if (parsed.state.user) {
+          console.log('[DEBUG] user keys:', Object.keys(parsed.state.user));
+          console.log('[DEBUG] user ID:', parsed.state.user.id);
+          return parsed.state.user.id;
+        }
+      }
     }
   } catch (error) {
     console.error('获取用户ID失败:', error);
