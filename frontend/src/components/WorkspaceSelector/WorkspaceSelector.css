@@ -199,6 +199,70 @@
     transition: width 0.3s ease;
 }
 
+/* 操作按钮样式 */
+.workspace-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: #657786;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.workspace-action-btn:hover {
+    background-color: rgba(52, 152, 219, 0.1);
+    color: #3498db;
+    border-color: rgba(52, 152, 219, 0.2);
+}
+
+.workspace-action-btn .btn-icon {
+    font-size: 14px;
+}
+
+/* 表单按钮样式 */
+.workspace-form-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.workspace-form-btn.primary {
+    background-color: #3498db;
+    color: white;
+}
+
+.workspace-form-btn.primary:hover:not(:disabled) {
+    background-color: #2980b9;
+}
+
+.workspace-form-btn.primary:disabled {
+    background-color: #bdc3c7;
+    cursor: not-allowed;
+}
+
+.workspace-form-btn.secondary {
+    background-color: transparent;
+    color: #657786;
+    border-color: #e1e8ed;
+}
+
+.workspace-form-btn.secondary:hover {
+    background-color: #f8f9fa;
+    color: #2c3e50;
+}
+
 /* 表单样式 */
 .workspace-form {
     padding: 16px;

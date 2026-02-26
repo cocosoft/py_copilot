@@ -4,10 +4,9 @@
  * 提供工作空间的切换、创建、编辑、删除功能
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { FiChevronDown, FiPlus, FiEdit2, FiTrash2, FiCheck, FiSettings, FiDatabase } from 'react-icons/fi';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { FiChevronDown, FiPlus, FiEdit2, FiTrash2, FiCheck, FiDatabase } from 'react-icons/fi';
 import useAuthStore from '../../stores/authStore';
-import Button from '../UI/Button';
 import Input from '../UI/Input';
 import Modal from '../UI/Modal';
 import Badge from '../UI/Badge';
@@ -30,13 +29,13 @@ import './WorkspaceSelector.css';
  */
 const WorkspaceSelector = ({ showStorage = true }) => {
     const [loading, setLoading] = useState(false);
-    const [modalVisible, setModalVisible] = useState(false);
     const [createModalVisible, setCreateModalVisible] = useState(false);
     const [editModalVisible, setEditModalVisible] = useState(false);
     const [editingWorkspace, setEditingWorkspace] = useState(null);
     const [storageInfo, setStorageInfo] = useState(null);
     const [formData, setFormData] = useState({ name: '', description: '' });
     const [dropdownOpen, setDropdownOpen] = useState(false);
+    const dropdownRef = useRef(null);
 
     // 从全局状态获取工作空间信息
     const {
@@ -98,6 +97,23 @@ const WorkspaceSelector = ({ showStorage = true }) => {
         }
     }, [currentWorkspace, loadStorageInfo]);
 
+    // 点击外部关闭下拉菜单
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setDropdownOpen(false);
+            }
+        };
+
+        if (dropdownOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [dropdownOpen]);
+
     /**
      * 处理切换工作空间
      */
@@ -112,7 +128,6 @@ const WorkspaceSelector = ({ showStorage = true }) => {
             const workspace = await switchWorkspace(workspaceId);
             setCurrentWorkspace(workspace);
             setDropdownOpen(false);
-            // 刷新页面以加载新工作空间的数据
             window.location.reload();
         } catch (error) {
             console.error('切换工作空间失败:', error);
@@ -203,12 +218,8 @@ const WorkspaceSelector = ({ showStorage = true }) => {
     /**
      * 打开编辑弹窗
      */
-    const openEditModal = (workspace, e) => {
-        if (e) {
-            e.stopPropagation();
-            e.preventDefault();
-        }
-        setDropdownOpen(false);
+    const openEditModal = (workspace) => {
+        console.log('打开编辑弹窗:', workspace);
         setEditingWorkspace(workspace);
         setFormData({
             name: workspace.name,
@@ -220,12 +231,8 @@ const WorkspaceSelector = ({ showStorage = true }) => {
     /**
      * 打开创建弹窗
      */
-    const openCreateModal = (e) => {
-        if (e) {
-            e.stopPropagation();
-            e.preventDefault();
-        }
-        setDropdownOpen(false);
+    const openCreateModal = () => {
+        console.log('打开创建弹窗');
         setFormData({ name: '', description: '' });
         setCreateModalVisible(true);
     };
@@ -245,100 +252,8 @@ const WorkspaceSelector = ({ showStorage = true }) => {
         return `${size.toFixed(2)} ${units[unitIndex]}`;
     };
 
-    /**
-     * 渲染下拉菜单
-     */
-    const renderDropdown = () => {
-        if (!dropdownOpen) return null;
-
-        return (
-            <div className="workspace-dropdown">
-                <div className="workspace-dropdown-header">
-                    <span className="workspace-dropdown-title">工作空间</span>
-                    <Button
-                        variant="ghost"
-                        size="small"
-                        icon={<FiPlus />}
-                        onClick={(e) => openCreateModal(e)}
-                    >
-                        新建
-                    </Button>
-                </div>
-                <div className="workspace-dropdown-list">
-                    {workspaces.map(workspace => (
-                        <div
-                            key={workspace.id}
-                            className={`workspace-dropdown-item ${workspace.id === currentWorkspace?.id ? 'active' : ''}`}
-                            onClick={() => handleSwitchWorkspace(workspace.id)}
-                        >
-                            <div className="workspace-item-info">
-                                <div className="workspace-item-name">
-                                    {workspace.name}
-                                    {workspace.is_default && (
-                                        <Badge variant="default" className="workspace-default-badge">默认</Badge>
-                                    )}
-                                </div>
-                                {workspace.description && (
-                                    <div className="workspace-item-desc">{workspace.description}</div>
-                                )}
-                            </div>
-                            <div className="workspace-item-actions">
-                                {workspace.id === currentWorkspace?.id && (
-                                    <FiCheck className="workspace-check-icon" />
-                                )}
-                                <Button
-                                    variant="ghost"
-                                    size="small"
-                                    icon={<FiEdit2 />}
-                                    onClick={(e) => openEditModal(workspace, e)}
-                                />
-                                {!workspace.is_default && (
-                                    <Button
-                                        variant="ghost"
-                                        size="small"
-                                        icon={<FiTrash2 />}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleDeleteWorkspace(workspace);
-                                        }}
-                                    />
-                                )}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        );
-    };
-
-    /**
-     * 渲染存储使用情况
-     */
-    const renderStorageInfo = () => {
-        if (!showStorage || !storageInfo) return null;
-
-        const usagePercent = storageInfo.usage_percentage || 0;
-
-        return (
-            <div className="workspace-storage-info">
-                <div className="storage-info-header">
-                    <FiDatabase className="storage-icon" />
-                    <span className="storage-text">
-                        {formatStorageSize(storageInfo.used_storage_bytes)} / {formatStorageSize(storageInfo.max_storage_bytes)}
-                    </span>
-                </div>
-                <div className="storage-progress-bar">
-                    <div
-                        className="storage-progress-fill"
-                        style={{ width: `${Math.min(usagePercent, 100)}%` }}
-                    />
-                </div>
-            </div>
-        );
-    };
-
     return (
-        <div className="workspace-selector">
+        <div className="workspace-selector" ref={dropdownRef}>
             {/* 当前工作空间显示 */}
             <div
                 className="workspace-current"
@@ -350,17 +265,99 @@ const WorkspaceSelector = ({ showStorage = true }) => {
                         {currentWorkspace?.name || '加载中...'}
                     </span>
                     {currentWorkspace?.is_default && (
-                        <Badge variant="default" className="workspace-default-badge">默认</Badge>
+                        <Badge variant="secondary" className="workspace-default-badge">默认</Badge>
                     )}
                 </div>
                 <FiChevronDown className={`workspace-chevron ${dropdownOpen ? 'open' : ''}`} />
             </div>
 
             {/* 下拉菜单 */}
-            {renderDropdown()}
+            {dropdownOpen && (
+                <div className="workspace-dropdown">
+                    <div className="workspace-dropdown-header">
+                        <span className="workspace-dropdown-title">工作空间</span>
+                        <button
+                            className="workspace-action-btn"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                openCreateModal();
+                            }}
+                            type="button"
+                        >
+                            <FiPlus className="btn-icon" />
+                            <span>新建</span>
+                        </button>
+                    </div>
+                    <div className="workspace-dropdown-list">
+                        {workspaces.map(workspace => (
+                            <div
+                                key={workspace.id}
+                                className={`workspace-dropdown-item ${workspace.id === currentWorkspace?.id ? 'active' : ''}`}
+                                onClick={() => handleSwitchWorkspace(workspace.id)}
+                            >
+                                <div className="workspace-item-info">
+                                    <div className="workspace-item-name">
+                                        {workspace.name}
+                                        {workspace.is_default && (
+                                            <Badge variant="secondary" className="workspace-default-badge">默认</Badge>
+                                        )}
+                                    </div>
+                                    {workspace.description && (
+                                        <div className="workspace-item-desc">{workspace.description}</div>
+                                    )}
+                                </div>
+                                <div className="workspace-item-actions">
+                                    {workspace.id === currentWorkspace?.id && (
+                                        <FiCheck className="workspace-check-icon" />
+                                    )}
+                                    <button
+                                        className="workspace-action-btn"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            openEditModal(workspace);
+                                        }}
+                                        type="button"
+                                        title="编辑"
+                                    >
+                                        <FiEdit2 className="btn-icon" />
+                                    </button>
+                                    {!workspace.is_default && (
+                                        <button
+                                            className="workspace-action-btn"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteWorkspace(workspace);
+                                            }}
+                                            type="button"
+                                            title="删除"
+                                        >
+                                            <FiTrash2 className="btn-icon" />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* 存储使用情况 */}
-            {renderStorageInfo()}
+            {showStorage && storageInfo && (
+                <div className="workspace-storage-info">
+                    <div className="storage-info-header">
+                        <FiDatabase className="storage-icon" />
+                        <span className="storage-text">
+                            {formatStorageSize(storageInfo.used_storage_bytes)} / {formatStorageSize(storageInfo.max_storage_bytes)}
+                        </span>
+                    </div>
+                    <div className="storage-progress-bar">
+                        <div
+                            className="storage-progress-fill"
+                            style={{ width: `${Math.min(storageInfo.usage_percentage || 0, 100)}%` }}
+                        />
+                    </div>
+                </div>
+            )}
 
             {/* 创建弹窗 */}
             <Modal
@@ -388,17 +385,21 @@ const WorkspaceSelector = ({ showStorage = true }) => {
                         />
                     </div>
                     <div className="form-actions">
-                        <Button variant="secondary" onClick={() => setCreateModalVisible(false)}>
-                            取消
-                        </Button>
-                        <Button
-                            variant="primary"
-                            onClick={handleCreateWorkspace}
-                            loading={loading}
-                            disabled={!formData.name.trim()}
+                        <button
+                            className="workspace-form-btn secondary"
+                            onClick={() => setCreateModalVisible(false)}
+                            type="button"
                         >
-                            创建
-                        </Button>
+                            取消
+                        </button>
+                        <button
+                            className="workspace-form-btn primary"
+                            onClick={handleCreateWorkspace}
+                            disabled={loading || !formData.name.trim()}
+                            type="button"
+                        >
+                            {loading ? '创建中...' : '创建'}
+                        </button>
                     </div>
                 </div>
             </Modal>
@@ -429,17 +430,21 @@ const WorkspaceSelector = ({ showStorage = true }) => {
                         />
                     </div>
                     <div className="form-actions">
-                        <Button variant="secondary" onClick={() => setEditModalVisible(false)}>
-                            取消
-                        </Button>
-                        <Button
-                            variant="primary"
-                            onClick={handleEditWorkspace}
-                            loading={loading}
-                            disabled={!formData.name.trim()}
+                        <button
+                            className="workspace-form-btn secondary"
+                            onClick={() => setEditModalVisible(false)}
+                            type="button"
                         >
-                            保存
-                        </Button>
+                            取消
+                        </button>
+                        <button
+                            className="workspace-form-btn primary"
+                            onClick={handleEditWorkspace}
+                            disabled={loading || !formData.name.trim()}
+                            type="button"
+                        >
+                            {loading ? '保存中...' : '保存'}
+                        </button>
                     </div>
                 </div>
             </Modal>
