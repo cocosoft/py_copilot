@@ -35,6 +35,7 @@ class FileUploadRequest(BaseModel):
     conversation_id: Optional[int] = Field(None, description="关联对话ID")
     knowledge_base_id: Optional[int] = Field(None, description="关联知识库ID")
     related_id: Optional[int] = Field(None, description="通用关联ID")
+    workspace_id: Optional[int] = Field(None, description="工作空间ID（可选）")
 
 
 class FileUploadResponse(BaseModel):
@@ -48,6 +49,7 @@ class FileUploadResponse(BaseModel):
     mime_type: str
     category: str
     relative_path: str
+    workspace_id: Optional[int] = None
     created_at: str
 
 
@@ -63,6 +65,7 @@ class FileInfoResponse(BaseModel):
     status: str
     relative_path: str
     user_id: int
+    workspace_id: Optional[int]
     conversation_id: Optional[int]
     knowledge_base_id: Optional[int]
     created_at: str
@@ -151,12 +154,13 @@ async def upload_file(
     conversation_id: Optional[int] = Query(None, description="关联对话ID"),
     knowledge_base_id: Optional[int] = Query(None, description="关联知识库ID"),
     related_id: Optional[int] = Query(None, description="通用关联ID"),
+    workspace_id: Optional[int] = Query(None, description="工作空间ID"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     统一文件上传接口
-    
+
     支持分类：
     - conversation_attachment: 聊天附件
     - voice_message: 语音消息
@@ -165,26 +169,28 @@ async def upload_file(
     - user_avatar: 用户头像
     - user_export: 用户导出
     - temp_file: 临时文件
+
+    支持工作空间隔离，如果提供了workspace_id，文件将存储在指定工作空间下
     """
     try:
         # 验证文件名
         if not file.filename:
             raise HTTPException(status_code=400, detail="文件名不能为空")
-        
+
         # 获取分类枚举
         file_category = get_category_enum(category)
-        
+
         # 验证文件类型
         if not validate_file_extension(file.filename, file_category):
             raise HTTPException(
-                status_code=400, 
+                status_code=400,
                 detail=f"该分类不允许此文件类型"
             )
-        
+
         # 读取文件内容
         content = await file.read()
         file_size = len(content)
-        
+
         # 验证文件大小
         max_sizes = {
             FileCategory.CONVERSATION_ATTACHMENT: 50 * 1024 * 1024,  # 50MB
@@ -194,27 +200,32 @@ async def upload_file(
             FileCategory.TEMP_FILE: 100 * 1024 * 1024,               # 100MB
         }
         max_size = max_sizes.get(file_category, 50 * 1024 * 1024)
-        
+
         if file_size > max_size:
             raise HTTPException(
                 status_code=400,
                 detail=f"文件大小超过限制，最大允许 {max_size // (1024 * 1024)}MB"
             )
-        
+
         # 确定关联ID
         related_id_value = related_id
         if file_category == FileCategory.CONVERSATION_ATTACHMENT and conversation_id:
             related_id_value = conversation_id
         elif file_category == FileCategory.KNOWLEDGE_DOCUMENT and knowledge_base_id:
             related_id_value = knowledge_base_id
-        
-        # 保存文件
+
+        # 如果没有提供workspace_id，使用用户当前工作空间
+        if workspace_id is None:
+            workspace_id = current_user.current_workspace_id
+
+        # 保存文件（支持工作空间隔离）
         file_info = await file_storage_service.save_file(
             file_data=content,
             filename=file.filename,
             user_id=current_user.id,
             category=file_category,
             related_id=related_id_value,
+            workspace_id=workspace_id,
             metadata={
                 'conversation_id': conversation_id,
                 'knowledge_base_id': knowledge_base_id,
@@ -222,11 +233,12 @@ async def upload_file(
                 'upload_time': datetime.now().isoformat()
             }
         )
-        
+
         # 创建数据库记录
         new_record = FileRecord(
             id=file_info['file_id'],
             user_id=current_user.id,
+            workspace_id=workspace_id,
             original_name=file_info['original_name'],
             stored_name=file_info['stored_name'],
             relative_path=file_info['relative_path'],
@@ -242,10 +254,10 @@ async def upload_file(
             status=FileStatus.COMPLETED,
             extra_metadata=file_info['metadata']
         )
-        
+
         db.add(new_record)
         db.commit()
-        
+
         return FileUploadResponse(
             success=True,
             message="文件上传成功",
@@ -256,9 +268,10 @@ async def upload_file(
             mime_type=file_info.get('mime_type', 'application/octet-stream'),
             category=category,
             relative_path=file_info['relative_path'],
+            workspace_id=workspace_id,
             created_at=file_info['created_at']
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:

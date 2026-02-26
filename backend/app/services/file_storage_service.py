@@ -42,24 +42,26 @@ class FileStorageService:
         user_id: int,
         category: FileCategory,
         related_id: Optional[int] = None,
+        workspace_id: Optional[int] = None,
         metadata: Optional[Dict[str, Any]] = None,
         generate_unique_name: bool = True
     ) -> Dict[str, Any]:
         """
         保存文件
-        
+
         Args:
             file_data: 文件数据（文件对象或字节）
             filename: 原始文件名
             user_id: 用户ID
             category: 文件分类
             related_id: 关联ID（如对话ID、知识库ID）
+            workspace_id: 工作空间ID（用于工作空间隔离）
             metadata: 额外元数据
             generate_unique_name: 是否生成唯一文件名
-        
+
         Returns:
             Dict[str, Any]: 文件信息字典
-        
+
         Raises:
             ValueError: 参数无效
             IOError: 文件保存失败
@@ -69,7 +71,7 @@ class FileStorageService:
             raise ValueError("文件名不能为空")
         if user_id <= 0:
             raise ValueError("用户ID无效")
-        
+
         # 读取文件内容
         if hasattr(file_data, 'read'):
             content = file_data.read()
@@ -77,20 +79,22 @@ class FileStorageService:
                 file_data.seek(0)
         else:
             content = file_data
-        
+
         if isinstance(content, str):
             content = content.encode('utf-8')
-        
+
         file_size = len(content)
-        
+
         # 生成文件名
         if generate_unique_name:
             stored_name = self.path_manager.generate_filename(filename, category)
         else:
             stored_name = self.path_manager._sanitize_filename(filename)
-        
-        # 获取存储路径
-        storage_dir = self.path_manager.get_storage_path(user_id, category, related_id)
+
+        # 获取存储路径（支持工作空间隔离）
+        storage_dir = self.path_manager.get_storage_path(
+            user_id, category, related_id, workspace_id
+        )
         file_path = storage_dir / stored_name
         
         # 检查文件是否已存在，如果存在则添加序号
@@ -127,12 +131,13 @@ class FileStorageService:
             'checksum': checksum,
             'extension': extension,
             'user_id': user_id,
+            'workspace_id': workspace_id,
             'category': category.value,
             'related_id': related_id,
             'metadata': metadata or {},
             'created_at': datetime.now().isoformat()
         }
-        
+
         return file_info
     
     async def read_file(self, file_path: Union[str, Path]) -> bytes:
@@ -210,38 +215,41 @@ class FileStorageService:
         target_user_id: int,
         target_category: FileCategory,
         target_related_id: Optional[int] = None,
+        target_workspace_id: Optional[int] = None,
         new_filename: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         复制文件到新位置
-        
+
         Args:
             source_path: 源文件路径
             target_user_id: 目标用户ID
             target_category: 目标分类
             target_related_id: 目标关联ID
+            target_workspace_id: 目标工作空间ID
             new_filename: 新文件名（可选）
-        
+
         Returns:
             Dict[str, Any]: 新文件信息
         """
         source = Path(source_path)
         if not source.exists():
             raise FileNotFoundError(f"源文件不存在: {source_path}")
-        
+
         # 读取源文件
         content = source.read_bytes()
-        
+
         # 确定文件名
         filename = new_filename or source.name
-        
+
         # 保存到新位置
         return await self.save_file(
             file_data=content,
             filename=filename,
             user_id=target_user_id,
             category=target_category,
-            related_id=target_related_id
+            related_id=target_related_id,
+            workspace_id=target_workspace_id
         )
     
     async def move_file(
@@ -250,18 +258,20 @@ class FileStorageService:
         target_user_id: int,
         target_category: FileCategory,
         target_related_id: Optional[int] = None,
+        target_workspace_id: Optional[int] = None,
         new_filename: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         移动文件到新位置
-        
+
         Args:
             source_path: 源文件路径
             target_user_id: 目标用户ID
             target_category: 目标分类
             target_related_id: 目标关联ID
+            target_workspace_id: 目标工作空间ID
             new_filename: 新文件名（可选）
-        
+
         Returns:
             Dict[str, Any]: 新文件信息
         """
@@ -271,12 +281,13 @@ class FileStorageService:
             target_user_id=target_user_id,
             target_category=target_category,
             target_related_id=target_related_id,
+            target_workspace_id=target_workspace_id,
             new_filename=new_filename
         )
-        
+
         # 再删除源文件
         await self.delete_file(source_path)
-        
+
         return file_info
     
     def file_exists(self, file_path: Union[str, Path]) -> bool:

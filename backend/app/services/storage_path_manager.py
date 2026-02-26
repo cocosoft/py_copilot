@@ -93,23 +93,31 @@ class StoragePathManager:
         user_id: int,
         category: FileCategory,
         related_id: Optional[int] = None,
+        workspace_id: Optional[int] = None,
         create_dirs: bool = True
     ) -> Path:
         """
         获取存储路径
-        
+
+        支持工作空间隔离，如果提供了workspace_id，文件将存储在工作空间目录下
+
         Args:
             user_id: 用户ID
             category: 文件分类
             related_id: 关联ID（如对话ID、知识库ID）
+            workspace_id: 工作空间ID（可选，用于工作空间隔离）
             create_dirs: 是否自动创建目录
-        
+
         Returns:
             Path: 存储路径对象
         """
         # 构建路径组件
         path_parts = [self.base_path, "users", str(user_id)]
-        
+
+        # 如果提供了工作空间ID，添加工作空间层级
+        if workspace_id is not None:
+            path_parts.extend(["workspaces", str(workspace_id)])
+
         # 根据分类添加子目录
         category_paths = {
             FileCategory.CONVERSATION_ATTACHMENT: ["conversations", str(related_id), "attachments"],
@@ -122,22 +130,22 @@ class StoragePathManager:
             FileCategory.USER_EXPORT: ["exports"],
             FileCategory.TEMP_FILE: ["temp"],
         }
-        
+
         if category in category_paths:
             path_parts.extend(category_paths[category])
-        
+
         # 添加日期层级（除了特定目录）
         if category not in [FileCategory.USER_AVATAR]:
             now = datetime.now()
             path_parts.extend([now.strftime("%Y"), now.strftime("%m")])
-        
+
         # 构建完整路径
         full_path = Path(*path_parts)
-        
+
         # 创建目录
         if create_dirs:
             full_path.mkdir(parents=True, exist_ok=True)
-        
+
         return full_path
     
     def get_user_base_path(self, user_id: int) -> Path:
