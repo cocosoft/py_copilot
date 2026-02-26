@@ -131,9 +131,15 @@ const WorkspaceSelector = ({ showStorage = true }) => {
             console.log('调用switchWorkspace API');
             const workspace = await switchWorkspace(workspaceId);
             console.log('切换成功:', workspace);
+
+            // 更新状态
             setCurrentWorkspace(workspace);
             setDropdownOpen(false);
-            window.location.reload();
+
+            // 延迟刷新，确保状态已持久化到localStorage
+            setTimeout(() => {
+                window.location.reload();
+            }, 300);
         } catch (error) {
             console.error('切换工作空间失败:', error);
             alert('切换工作空间失败: ' + (error.message || '未知错误'));
