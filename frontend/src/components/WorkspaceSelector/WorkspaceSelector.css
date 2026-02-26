@@ -287,6 +287,86 @@
     margin-top: 24px;
 }
 
+/* 弹窗样式 */
+.workspace-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+}
+
+.workspace-modal {
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    width: 100%;
+    max-width: 480px;
+    max-height: 90vh;
+    overflow: hidden;
+    animation: modalSlideIn 0.2s ease;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.workspace-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e1e8ed;
+    background-color: #f8f9fa;
+}
+
+.workspace-modal-header h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin: 0;
+}
+
+.workspace-modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #657786;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.workspace-modal-close:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: #2c3e50;
+}
+
+.workspace-modal-content {
+    padding: 20px;
+    overflow-y: auto;
+    max-height: calc(90vh - 70px);
+}
+
 /* 响应式适配 */
 @media (max-width: 768px) {
     .workspace-current {
@@ -301,5 +381,10 @@
         min-width: 240px;
         left: auto;
         right: 0;
+    }
+
+    .workspace-modal {
+        max-width: 100%;
+        margin: 10px;
     }
 }

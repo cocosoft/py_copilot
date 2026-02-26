@@ -360,94 +360,114 @@ const WorkspaceSelector = ({ showStorage = true }) => {
             )}
 
             {/* 创建弹窗 */}
-            <Modal
-                isOpen={createModalVisible}
-                onClose={() => setCreateModalVisible(false)}
-                title="创建工作空间"
-            >
-                <div className="workspace-form">
-                    <div className="form-field">
-                        <label>工作空间名称 *</label>
-                        <Input
-                            value={formData.name}
-                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            placeholder="请输入工作空间名称"
-                            maxLength={100}
-                        />
-                    </div>
-                    <div className="form-field">
-                        <label>描述</label>
-                        <Input
-                            value={formData.description}
-                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                            placeholder="请输入工作空间描述（可选）"
-                            maxLength={500}
-                        />
-                    </div>
-                    <div className="form-actions">
-                        <button
-                            className="workspace-form-btn secondary"
-                            onClick={() => setCreateModalVisible(false)}
-                            type="button"
-                        >
-                            取消
-                        </button>
-                        <button
-                            className="workspace-form-btn primary"
-                            onClick={handleCreateWorkspace}
-                            disabled={loading || !formData.name.trim()}
-                            type="button"
-                        >
-                            {loading ? '创建中...' : '创建'}
-                        </button>
+            {createModalVisible && (
+                <div className="workspace-modal-overlay" onClick={() => setCreateModalVisible(false)}>
+                    <div className="workspace-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="workspace-modal-header">
+                            <h3>创建工作空间</h3>
+                            <button
+                                className="workspace-modal-close"
+                                onClick={() => setCreateModalVisible(false)}
+                                type="button"
+                            >
+                                ×
+                            </button>
+                        </div>
+                        <div className="workspace-modal-content">
+                            <div className="form-field">
+                                <label>工作空间名称 *</label>
+                                <Input
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    placeholder="请输入工作空间名称"
+                                    maxLength={100}
+                                />
+                            </div>
+                            <div className="form-field">
+                                <label>描述</label>
+                                <Input
+                                    value={formData.description}
+                                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                    placeholder="请输入工作空间描述（可选）"
+                                    maxLength={500}
+                                />
+                            </div>
+                            <div className="form-actions">
+                                <button
+                                    className="workspace-form-btn secondary"
+                                    onClick={() => setCreateModalVisible(false)}
+                                    type="button"
+                                >
+                                    取消
+                                </button>
+                                <button
+                                    className="workspace-form-btn primary"
+                                    onClick={handleCreateWorkspace}
+                                    disabled={loading || !formData.name.trim()}
+                                    type="button"
+                                >
+                                    {loading ? '创建中...' : '创建'}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </Modal>
+            )}
 
             {/* 编辑弹窗 */}
-            <Modal
-                isOpen={editModalVisible}
-                onClose={() => setEditModalVisible(false)}
-                title="编辑工作空间"
-            >
-                <div className="workspace-form">
-                    <div className="form-field">
-                        <label>工作空间名称 *</label>
-                        <Input
-                            value={formData.name}
-                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            placeholder="请输入工作空间名称"
-                            maxLength={100}
-                        />
-                    </div>
-                    <div className="form-field">
-                        <label>描述</label>
-                        <Input
-                            value={formData.description}
-                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                            placeholder="请输入工作空间描述（可选）"
-                            maxLength={500}
-                        />
-                    </div>
-                    <div className="form-actions">
-                        <button
-                            className="workspace-form-btn secondary"
-                            onClick={() => setEditModalVisible(false)}
-                            type="button"
-                        >
-                            取消
-                        </button>
-                        <button
-                            className="workspace-form-btn primary"
-                            onClick={handleEditWorkspace}
-                            disabled={loading || !formData.name.trim()}
-                            type="button"
-                        >
-                            {loading ? '保存中...' : '保存'}
-                        </button>
+            {editModalVisible && (
+                <div className="workspace-modal-overlay" onClick={() => setEditModalVisible(false)}>
+                    <div className="workspace-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="workspace-modal-header">
+                            <h3>编辑工作空间</h3>
+                            <button
+                                className="workspace-modal-close"
+                                onClick={() => setEditModalVisible(false)}
+                                type="button"
+                            >
+                                ×
+                            </button>
+                        </div>
+                        <div className="workspace-modal-content">
+                            <div className="form-field">
+                                <label>工作空间名称 *</label>
+                                <Input
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    placeholder="请输入工作空间名称"
+                                    maxLength={100}
+                                />
+                            </div>
+                            <div className="form-field">
+                                <label>描述</label>
+                                <Input
+                                    value={formData.description}
+                                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                    placeholder="请输入工作空间描述（可选）"
+                                    maxLength={500}
+                                />
+                            </div>
+                            <div className="form-actions">
+                                <button
+                                    className="workspace-form-btn secondary"
+                                    onClick={() => setEditModalVisible(false)}
+                                    type="button"
+                                >
+                                    取消
+                                </button>
+                                <button
+                                    className="workspace-form-btn primary"
+                                    onClick={handleEditWorkspace}
+                                    disabled={loading || !formData.name.trim()}
+                                    type="button"
+                                >
+                                    {loading ? '保存中...' : '保存'}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </Modal>
+            )}
         </div>
     );
 };
