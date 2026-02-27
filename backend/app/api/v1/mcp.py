@@ -617,6 +617,147 @@ async def list_mcp_tools(
 
 # ==================== Third-party MCP Services API ====================
 
+def _get_marketplace_servers_data() -> Dict[str, List[Dict[str, Any]]]:
+    """获取预定义的 MCP 市场服务数据
+    
+    Returns:
+        市场服务器数据字典
+    """
+    return {
+        "mcpmarket": [
+            {
+                "id": "github",
+                "name": "GitHub MCP",
+                "description": "提供 GitHub API 访问能力，支持代码搜索、仓库管理、Issue 操作等",
+                "category": "Developer Tools",
+                "install_command": "npx -y @modelcontextprotocol/server-github",
+                "transport": "stdio",
+                "auth_required": True,
+                "auth_type": "token",
+                "env_vars": ["GITHUB_PERSONAL_ACCESS_TOKEN"],
+                "popularity": 27280
+            },
+            {
+                "id": "playwright",
+                "name": "Playwright MCP",
+                "description": "自动化浏览器交互，支持网页截图、表单填写、页面导航等",
+                "category": "Developer Tools",
+                "install_command": "npx -y @modelcontextprotocol/server-playwright",
+                "transport": "stdio",
+                "auth_required": False,
+                "env_vars": [],
+                "popularity": 27758
+            },
+            {
+                "id": "filesystem",
+                "name": "File System MCP",
+                "description": "本地文件系统访问，支持文件读写、目录浏览、文件搜索等",
+                "category": "Developer Tools",
+                "install_command": "npx -y @modelcontextprotocol/server-filesystem",
+                "transport": "stdio",
+                "auth_required": False,
+                "env_vars": [],
+                "popularity": 25000
+            },
+            {
+                "id": "sqlite",
+                "name": "SQLite MCP",
+                "description": "SQLite 数据库操作，支持查询、插入、更新等数据库操作",
+                "category": "Database Management",
+                "install_command": "npx -y @modelcontextprotocol/server-sqlite",
+                "transport": "stdio",
+                "auth_required": False,
+                "env_vars": [],
+                "popularity": 20000
+            },
+            {
+                "id": "postgres",
+                "name": "PostgreSQL MCP",
+                "description": "PostgreSQL 数据库操作，支持复杂查询和数据库管理",
+                "category": "Database Management",
+                "install_command": "npx -y @modelcontextprotocol/server-postgres",
+                "transport": "stdio",
+                "auth_required": True,
+                "auth_type": "connection_string",
+                "env_vars": ["DATABASE_URL"],
+                "popularity": 18000
+            },
+            {
+                "id": "brave-search",
+                "name": "Brave Search MCP",
+                "description": "Brave 搜索引擎集成，支持网页搜索、图片搜索",
+                "category": "Productivity & Workflow",
+                "install_command": "npx -y @modelcontextprotocol/server-brave-search",
+                "transport": "stdio",
+                "auth_required": True,
+                "auth_type": "api_key",
+                "env_vars": ["BRAVE_API_KEY"],
+                "popularity": 15000
+            },
+            {
+                "id": "fetch",
+                "name": "Fetch MCP",
+                "description": "网页内容获取，支持获取网页 HTML、转换为 Markdown",
+                "category": "Productivity & Workflow",
+                "install_command": "npx -y @modelcontextprotocol/server-fetch",
+                "transport": "stdio",
+                "auth_required": False,
+                "env_vars": [],
+                "popularity": 14000
+            },
+            {
+                "id": "puppeteer",
+                "name": "Puppeteer MCP",
+                "description": "基于 Puppeteer 的浏览器自动化，支持网页截图、PDF 生成",
+                "category": "Developer Tools",
+                "install_command": "npx -y @modelcontextprotocol/server-puppeteer",
+                "transport": "stdio",
+                "auth_required": False,
+                "env_vars": [],
+                "popularity": 12000
+            },
+            {
+                "id": "figma",
+                "name": "Figma MCP",
+                "description": "Figma 设计文件访问，支持获取设计布局信息",
+                "category": "API Development",
+                "install_command": "npx -y @modelcontextprotocol/server-figma",
+                "transport": "stdio",
+                "auth_required": True,
+                "auth_type": "token",
+                "env_vars": ["FIGMA_ACCESS_TOKEN"],
+                "popularity": 13267
+            },
+            {
+                "id": "blender",
+                "name": "Blender MCP",
+                "description": "Blender 3D 建模集成，支持 AI 辅助 3D 场景创建",
+                "category": "Developer Tools",
+                "install_command": "uvx mcp-blender",
+                "transport": "stdio",
+                "auth_required": False,
+                "env_vars": [],
+                "popularity": 17359
+            }
+        ],
+        "modelscope": [
+            {
+                "id": "aigohotel",
+                "name": "全球酒店推荐&预订",
+                "description": "全球酒店智能推荐及预订工具，支持城市搜索、星级筛选、价格比较",
+                "category": "生活服务",
+                "install_command": None,
+                "connection_url": "https://mcp.modelscope.cn/sse/aigohotel",
+                "transport": "sse",
+                "auth_required": True,
+                "auth_type": "api_key",
+                "env_vars": ["MODELSCOPE_API_KEY"],
+                "popularity": 5000
+            }
+        ]
+    }
+
+
 @router.get("/marketplace/servers", response_model=Dict[str, Any])
 async def list_marketplace_servers(
     source: str = Query("mcpmarket", description="MCP市场源: mcpmarket, modelscope"),
@@ -636,141 +777,8 @@ async def list_marketplace_servers(
         可用的 MCP 服务列表
     """
     try:
-        # 预定义的常用 MCP 服务列表
-        # 实际应用中可以通过爬虫或 API 从第三方市场获取
-        marketplace_servers = {
-            "mcpmarket": [
-                {
-                    "id": "github",
-                    "name": "GitHub MCP",
-                    "description": "提供 GitHub API 访问能力，支持代码搜索、仓库管理、Issue 操作等",
-                    "category": "Developer Tools",
-                    "install_command": "npx -y @modelcontextprotocol/server-github",
-                    "transport": "stdio",
-                    "auth_required": True,
-                    "auth_type": "token",
-                    "env_vars": ["GITHUB_PERSONAL_ACCESS_TOKEN"],
-                    "popularity": 27280
-                },
-                {
-                    "id": "playwright",
-                    "name": "Playwright MCP",
-                    "description": "自动化浏览器交互，支持网页截图、表单填写、页面导航等",
-                    "category": "Developer Tools",
-                    "install_command": "npx -y @modelcontextprotocol/server-playwright",
-                    "transport": "stdio",
-                    "auth_required": False,
-                    "env_vars": [],
-                    "popularity": 27758
-                },
-                {
-                    "id": "filesystem",
-                    "name": "File System MCP",
-                    "description": "本地文件系统访问，支持文件读写、目录浏览、文件搜索等",
-                    "category": "Developer Tools",
-                    "install_command": "npx -y @modelcontextprotocol/server-filesystem",
-                    "transport": "stdio",
-                    "auth_required": False,
-                    "env_vars": [],
-                    "popularity": 25000
-                },
-                {
-                    "id": "sqlite",
-                    "name": "SQLite MCP",
-                    "description": "SQLite 数据库操作，支持查询、插入、更新等数据库操作",
-                    "category": "Database Management",
-                    "install_command": "npx -y @modelcontextprotocol/server-sqlite",
-                    "transport": "stdio",
-                    "auth_required": False,
-                    "env_vars": [],
-                    "popularity": 20000
-                },
-                {
-                    "id": "postgres",
-                    "name": "PostgreSQL MCP",
-                    "description": "PostgreSQL 数据库操作，支持复杂查询和数据库管理",
-                    "category": "Database Management",
-                    "install_command": "npx -y @modelcontextprotocol/server-postgres",
-                    "transport": "stdio",
-                    "auth_required": True,
-                    "auth_type": "connection_string",
-                    "env_vars": ["DATABASE_URL"],
-                    "popularity": 18000
-                },
-                {
-                    "id": "brave-search",
-                    "name": "Brave Search MCP",
-                    "description": "Brave 搜索引擎集成，支持网页搜索、图片搜索",
-                    "category": "Productivity & Workflow",
-                    "install_command": "npx -y @modelcontextprotocol/server-brave-search",
-                    "transport": "stdio",
-                    "auth_required": True,
-                    "auth_type": "api_key",
-                    "env_vars": ["BRAVE_API_KEY"],
-                    "popularity": 15000
-                },
-                {
-                    "id": "fetch",
-                    "name": "Fetch MCP",
-                    "description": "网页内容获取，支持获取网页 HTML、转换为 Markdown",
-                    "category": "Productivity & Workflow",
-                    "install_command": "npx -y @modelcontextprotocol/server-fetch",
-                    "transport": "stdio",
-                    "auth_required": False,
-                    "env_vars": [],
-                    "popularity": 14000
-                },
-                {
-                    "id": "puppeteer",
-                    "name": "Puppeteer MCP",
-                    "description": "基于 Puppeteer 的浏览器自动化，支持网页截图、PDF 生成",
-                    "category": "Developer Tools",
-                    "install_command": "npx -y @modelcontextprotocol/server-puppeteer",
-                    "transport": "stdio",
-                    "auth_required": False,
-                    "env_vars": [],
-                    "popularity": 12000
-                },
-                {
-                    "id": "figma",
-                    "name": "Figma MCP",
-                    "description": "Figma 设计文件访问，支持获取设计布局信息",
-                    "category": "API Development",
-                    "install_command": "npx -y @modelcontextprotocol/server-figma",
-                    "transport": "stdio",
-                    "auth_required": True,
-                    "auth_type": "token",
-                    "env_vars": ["FIGMA_ACCESS_TOKEN"],
-                    "popularity": 13267
-                },
-                {
-                    "id": "blender",
-                    "name": "Blender MCP",
-                    "description": "Blender 3D 建模集成，支持 AI 辅助 3D 场景创建",
-                    "category": "Developer Tools",
-                    "install_command": "uvx mcp-blender",
-                    "transport": "stdio",
-                    "auth_required": False,
-                    "env_vars": [],
-                    "popularity": 17359
-                }
-            ],
-            "modelscope": [
-                {
-                    "id": "aigohotel",
-                    "name": "全球酒店推荐&预订",
-                    "description": "全球酒店智能推荐及预订工具，支持城市搜索、星级筛选、价格比较",
-                    "category": "生活服务",
-                    "install_command": None,
-                    "connection_url": "https://mcp.modelscope.cn/sse/aigohotel",
-                    "transport": "sse",
-                    "auth_required": True,
-                    "auth_type": "api_key",
-                    "env_vars": ["MODELSCOPE_API_KEY"],
-                    "popularity": 5000
-                }
-            ]
-        }
+        # 获取预定义的 MCP 市场服务数据
+        marketplace_servers = _get_marketplace_servers_data()
         
         servers = marketplace_servers.get(source, [])
         
@@ -823,13 +831,8 @@ async def install_marketplace_server(
         service = MCPConfigService(db)
         
         # 获取市场服务信息
-        marketplace_result = await list_marketplace_servers(
-            source=source,
-            db=db,
-            current_user=current_user
-        )
-        
-        servers = marketplace_result["data"]["servers"]
+        marketplace_servers = _get_marketplace_servers_data()
+        servers = marketplace_servers.get(source, [])
         server_info = next((s for s in servers if s["id"] == server_id), None)
         
         if not server_info:
