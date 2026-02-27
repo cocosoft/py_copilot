@@ -191,6 +191,9 @@ from app.services.monitoring.monitoring_service import MonitoringService, System
 # 导入任务队列
 from app.core.task_queue import start_task_queue, stop_task_queue
 
+# 导入 MCP 初始化函数
+from app.mcp import initialize_mcp_services
+
 # 创建简化的监控服务实例（避免数据库依赖）
 _monitoring_service = None
 _system_metrics_collector = None
@@ -260,6 +263,13 @@ async def startup_event():
         logger.info("Function Calling工具初始化完成")
     except Exception as e:
         logger.error(f"初始化Function Calling工具失败: {e}")
+    
+    # 初始化 MCP 服务
+    try:
+        await initialize_mcp_services()
+        logger.info("MCP 服务初始化完成")
+    except Exception as e:
+        logger.error(f"初始化 MCP 服务失败: {e}")
 
 # 应用关闭事件
 @app.on_event("shutdown")
@@ -281,6 +291,14 @@ async def shutdown_event():
         logger.info("模型监控服务已关闭")
     except Exception as e:
         logger.error(f"关闭模型监控服务失败: {e}")
+    
+    # 关闭 MCP 服务
+    try:
+        from app.mcp import shutdown_mcp_services
+        await shutdown_mcp_services()
+        logger.info("MCP 服务已关闭")
+    except Exception as e:
+        logger.error(f"关闭 MCP 服务失败: {e}")
 
 def get_monitoring_service():
     """获取监控服务实例（简化版，避免数据库依赖）"""

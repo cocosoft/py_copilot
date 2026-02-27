@@ -737,7 +737,8 @@ class WorkflowEngine:
                 RelationshipAnalysisExecutor,
                 BranchNodeExecutor,
                 ConditionNodeExecutor,
-                ProcessNodeExecutor
+                ProcessNodeExecutor,
+                MCPNodeExecutor
             )
             
             # 定义节点执行器映射
@@ -751,7 +752,8 @@ class WorkflowEngine:
                 "relationship_analysis": RelationshipAnalysisExecutor,
                 "branch": BranchNodeExecutor,
                 "condition": ConditionNodeExecutor,
-                "process": ProcessNodeExecutor
+                "process": ProcessNodeExecutor,
+                "mcp": MCPNodeExecutor
             }
             
             # 创建执行器实例

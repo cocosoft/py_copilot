@@ -459,6 +459,20 @@
   border-color: #6f42c1;
 }
 
+/* MCP 节点样式 */
+.mcp-node {
+  background: white;
+  border: 2px solid #fd7e14;
+  border-radius: 8px;
+  padding: 12px;
+  min-width: 200px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.mcp-node .node-header {
+  background: linear-gradient(135deg, #fd7e14, #ff9f43);
+}
+
 /* 基础节点样式 */
 .start-node,
 .end-node,

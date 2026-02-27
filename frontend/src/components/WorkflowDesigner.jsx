@@ -250,6 +250,28 @@ const ProcessNode = ({ data }) => (
   </div>
 );
 
+// MCP 节点组件
+const MCPNode = ({ data }) => (
+  <div className="mcp-node">
+    <Handle type="target" position={Position.Top} />
+    <div className="node-header">
+      <span className="node-icon">🔗</span>
+      <span className="node-title">MCP 工具</span>
+    </div>
+    <div className="node-content">
+      <div className="node-property">
+        <label>工具名称:</label>
+        <span>{data.tool_name || '未设置'}</span>
+      </div>
+      <div className="node-property">
+        <label>超时时间:</label>
+        <span>{data.timeout || 30}s</span>
+      </div>
+    </div>
+    <Handle type="source" position={Position.Bottom} />
+  </div>
+);
+
 const nodeTypes = {
   knowledgeSearch: KnowledgeSearchNode,
   entityExtraction: EntityExtractionNode,
@@ -263,6 +285,8 @@ const nodeTypes = {
   input: InputNode,
   output: OutputNode,
   process: ProcessNode,
+  // MCP 节点
+  mcp: MCPNode,
 };
 
 // 节点面板组件
@@ -342,6 +366,17 @@ const NodePanel = ({ onNodeAdd }) => {
           name: '可视化',
           icon: '📊',
           description: '生成知识图谱可视化'
+        }
+      ]
+    },
+    {
+      name: 'MCP 节点',
+      nodes: [
+        {
+          type: 'mcp',
+          name: 'MCP 工具',
+          icon: '🔗',
+          description: '调用外部 MCP 服务提供的工具'
         }
       ]
     }
@@ -981,6 +1016,50 @@ const NodeConfigPanel = ({ selectedNode, onConfigUpdate, onDelete, nodes, edges 
                 )}
               </div>
             )}
+          </div>
+        );
+
+      case 'mcp':
+        return (
+          <div className="config-form">
+            <div className="form-group">
+              <label>MCP 工具名称</label>
+              <input
+                type="text"
+                value={config.tool_name || ''}
+                onChange={(e) => handleConfigChange('tool_name', e.target.value)}
+                placeholder="输入 MCP 工具名称，如: mcp_github_search_code"
+              />
+            </div>
+            <div className="form-group">
+              <label>工具参数 (JSON 格式)</label>
+              <textarea
+                value={config.arguments ? JSON.stringify(config.arguments, null, 2) : '{}'}
+                onChange={(e) => {
+                  try {
+                    const args = JSON.parse(e.target.value);
+                    handleConfigChange('arguments', args);
+                  } catch (err) {
+                    // 允许无效的 JSON 在输入过程中
+                  }
+                }}
+                placeholder='{"query": "搜索关键词", "language": "python"}'
+                rows="6"
+              />
+              <small style={{ color: '#6c757d', marginTop: '4px', display: 'block' }}>
+                使用 $变量名 引用上下文变量
+              </small>
+            </div>
+            <div className="form-group">
+              <label>超时时间 (秒)</label>
+              <input
+                type="number"
+                value={config.timeout || 30}
+                onChange={(e) => handleConfigChange('timeout', parseInt(e.target.value))}
+                min="1"
+                max="300"
+              />
+            </div>
           </div>
         );
 

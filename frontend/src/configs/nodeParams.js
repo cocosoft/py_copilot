@@ -108,6 +108,19 @@ export const nodeParamsConfig = {
       { name: 'entity_count', type: 'number', description: '实体数量' },
       { name: 'relationship_count', type: 'number', description: '关系数量' }
     ]
+  },
+  
+  // MCP 节点
+  mcp: {
+    inputs: [
+      { name: 'tool_name', type: 'string', description: 'MCP 工具名称' },
+      { name: 'arguments', type: 'object', description: '工具参数' }
+    ],
+    outputs: [
+      { name: 'result', type: 'any', description: '工具执行结果' },
+      { name: 'success', type: 'boolean', description: '执行是否成功' },
+      { name: 'error', type: 'string', description: '错误信息' }
+    ]
   }
 };
 

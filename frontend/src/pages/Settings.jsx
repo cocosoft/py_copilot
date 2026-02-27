@@ -11,6 +11,7 @@ import Tool from './Tool';
 import ModelSelectDropdown from '../components/ModelManagement/ModelSelectDropdown';
 import SkillManagement from '../components/SkillManagement/SkillManagement';
 import SettingsManager from '../components/SettingsManagement/SettingsManager';
+import MCPSettings from '../components/MCPSettings';
 
 // 防抖函数
 const debounce = (func, wait) => {
@@ -1746,25 +1747,7 @@ const Settings = () => {
       case 'mcp':
         return (
           <div className="settings-content">
-            <div className="content-header">
-              <h2>MCP服务</h2>
-              <p>管理MCP服务的配置和连接</p>
-            </div>
-            
-            <div className="mcp-service-container">
-              <div className="setting-card">
-                <div className="setting-header">
-                  <h3>MCP服务设置</h3>
-                  <p>MCP服务页面内容暂空</p>
-                </div>
-                
-                <div className="empty-state">
-                  <div className="empty-icon">🔗</div>
-                  <h4>MCP服务配置</h4>
-                  <p>页面内容正在建设中...</p>
-                </div>
-              </div>
-            </div>
+            <MCPSettings />
           </div>
         );
            

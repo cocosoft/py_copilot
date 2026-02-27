@@ -2,9 +2,14 @@ from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
 import logging
 import traceback
+import json
+import asyncio
 from app.services.knowledge.knowledge_graph_service import KnowledgeGraphService
 from app.services.knowledge.semantic_search_service import SemanticSearchService
 from app.services.knowledge.advanced_text_processor import AdvancedTextProcessor
+
+# 导入 MCP 客户端
+from app.mcp.client.tool_proxy import tool_proxy_registry, execute_mcp_tool
 
 # 导入性能监控装饰器
 from app.core.logging_config import log_execution
@@ -646,3 +651,107 @@ class ProcessNodeExecutor(BaseNodeExecutor):
             "processed_value": processed_value,
             "process_type": process_type
         }
+
+
+class MCPNodeExecutor(BaseNodeExecutor):
+    """MCP 节点执行器
+    
+    执行 MCP 工具调用节点，支持调用外部 MCP 服务提供的工具。
+    """
+    
+    @log_execution
+    def _execute_impl(self, config: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+        """执行 MCP 工具调用
+        
+        Args:
+            config: 节点配置，包含 tool_name, arguments 等
+            context: 工作流上下文
+            
+        Returns:
+            执行结果
+        """
+        logger.debug(f"MCP 节点执行: 配置={config}")
+        
+        # 获取工具名称
+        tool_name = config.get("tool_name")
+        if not tool_name:
+            raise ValueError("工具名称不能为空")
+        
+        # 获取工具参数
+        arguments = config.get("arguments", {})
+        
+        # 支持从上下文动态获取参数值
+        resolved_arguments = self._resolve_arguments(arguments, context)
+        
+        # 获取超时设置
+        timeout = config.get("timeout", 30)
+        
+        logger.info(f"执行 MCP 工具: {tool_name}, 参数={resolved_arguments}")
+        
+        try:
+            # 执行工具调用（异步）
+            loop = asyncio.get_event_loop()
+            result = loop.run_until_complete(
+                asyncio.wait_for(
+                    execute_mcp_tool(tool_name, resolved_arguments),
+                    timeout=timeout
+                )
+            )
+            
+            # 检查结果
+            if isinstance(result, dict) and "error" in result:
+                logger.error(f"MCP 工具执行失败: {result['error']}")
+                return {
+                    "success": False,
+                    "error": result["error"],
+                    "tool_name": tool_name,
+                    "arguments": resolved_arguments
+                }
+            
+            logger.info(f"MCP 工具执行成功: {tool_name}")
+            
+            return {
+                "success": True,
+                "result": result,
+                "tool_name": tool_name,
+                "arguments": resolved_arguments
+            }
+            
+        except asyncio.TimeoutError:
+            logger.error(f"MCP 工具执行超时: {tool_name}")
+            return {
+                "success": False,
+                "error": f"工具执行超时（{timeout}秒）",
+                "tool_name": tool_name,
+                "arguments": resolved_arguments
+            }
+        except Exception as e:
+            logger.error(f"MCP 工具执行失败: {tool_name}, 错误: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "tool_name": tool_name,
+                "arguments": resolved_arguments
+            }
+    
+    def _resolve_arguments(self, arguments: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+        """解析参数，支持从上下文获取值
+        
+        Args:
+            arguments: 参数定义
+            context: 工作流上下文
+            
+        Returns:
+            解析后的参数
+        """
+        resolved = {}
+        
+        for key, value in arguments.items():
+            if isinstance(value, str) and value.startswith("$"):
+                # 从上下文获取值
+                context_key = value[1:]  # 移除 $ 前缀
+                resolved[key] = context.get(context_key, value)
+            else:
+                resolved[key] = value
+        
+        return resolved

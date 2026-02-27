@@ -102,6 +102,9 @@ ROUTE_GROUPS: Dict[str, List[Dict]] = {
         {'module': 'app.api.v1.settings', 'prefix': '/settings', 'tags': ['settings']},
         {'module': 'app.api.v1.config_management', 'tags': ['config-management']}
     ],
+    'mcp': [
+        {'module': 'app.api.v1.mcp', 'prefix': '/mcp', 'tags': ['mcp']}
+    ],
     'workspaces': [
         {'module': 'app.api.v1.workspaces', 'prefix': '/workspaces', 'tags': ['workspaces']}
     ]
@@ -214,7 +217,7 @@ async def load_route_group(group_name: str) -> bool:
     return True
 
 # 预加载核心路由组（启动时加载）
-CORE_ROUTE_GROUPS = ['auth', 'conversation', 'llm', 'memory', 'models', 'tasks', 'agents', 'skills', 'capabilities', 'knowledge', 'tools', 'settings', 'workflow', 'search', 'workspaces', 'file']
+CORE_ROUTE_GROUPS = ['auth', 'conversation', 'llm', 'memory', 'models', 'tasks', 'agents', 'skills', 'capabilities', 'knowledge', 'tools', 'settings', 'workflow', 'search', 'workspaces', 'file', 'mcp']
 
 async def preload_core_routes():
     """预加载核心路由组"""
