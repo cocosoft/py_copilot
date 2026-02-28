@@ -1,7 +1,7 @@
 /**
  * 能力卡片组件
  *
- * 展示单个能力的详细信息，包括名称、描述、分类、状态等
+ * 展示单个能力的详细信息，包括名称、描述、分类、状态、来源市场等
  */
 import React from 'react';
 import { useTranslation } from 'react-i18next';
@@ -27,6 +27,9 @@ export function CapabilityCard({ capability, onToggle }) {
     status,
     is_official,
     is_builtin,
+    source,
+    marketplace,
+    marketplace_url,
     icon,
     version,
     author,
@@ -83,6 +86,7 @@ export function CapabilityCard({ capability, onToggle }) {
    * 获取来源标签
    */
   const getSourceLabel = () => {
+    if (source) return source;
     if (is_builtin) return t('capabilityCenter.sources.builtin');
     if (is_official) return t('capabilityCenter.sources.official');
     return t('capabilityCenter.sources.user');
@@ -92,9 +96,29 @@ export function CapabilityCard({ capability, onToggle }) {
    * 获取来源样式类
    */
   const getSourceClass = () => {
+    if (source === 'marketplace') return 'source-marketplace';
     if (is_builtin) return 'source-builtin';
     if (is_official) return 'source-official';
     return 'source-user';
+  };
+
+  /**
+   * 获取市场名称
+   */
+  const getMarketplaceName = () => {
+    if (!marketplace) return null;
+
+    const marketplaceNames = {
+      'mcpmarket': 'MCP Market',
+      'modelscope': 'ModelScope',
+      'claude': 'Claude Skills',
+      'skillsmp': 'Skills MP',
+      'skillhub': 'SkillHub',
+      'github': 'GitHub',
+      'custom': t('capabilityCenter.sources.custom', '自定义')
+    };
+
+    return marketplaceNames[marketplace] || marketplace;
   };
 
   return (
@@ -154,6 +178,27 @@ export function CapabilityCard({ capability, onToggle }) {
         <div className="capability-author">
           <span className="author-label">{t('capabilityCenter.author')}:</span>
           <span className="author-value">{author}</span>
+        </div>
+      )}
+
+      {/* 来源市场信息 */}
+      {marketplace && (
+        <div className="capability-marketplace">
+          <span className="marketplace-label">{t('capabilityCenter.marketplace', '来源市场')}:</span>
+          <span className="marketplace-value">
+            {marketplace_url ? (
+              <a
+                href={marketplace_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="marketplace-link"
+              >
+                {getMarketplaceName()}
+              </a>
+            ) : (
+              getMarketplaceName()
+            )}
+          </span>
         </div>
       )}
 

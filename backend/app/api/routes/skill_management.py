@@ -1,10 +1,11 @@
 """
 技能管理API路由
 提供技能的安装、卸载、更新和管理功能
+支持主流技能市场：Claude Skills, Skills MP, SkillHub等
 """
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Query
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import logging
 
 from app.schemas.skill_metadata import (
@@ -14,6 +15,7 @@ from app.schemas.skill_metadata import (
 )
 from app.services.skill_installer import skill_installer
 from app.skills.skill_registry import SkillRegistry
+from app.services.skill_marketplace import skill_marketplace_service, SkillMarketplace
 
 logger = logging.getLogger(__name__)
 
@@ -456,23 +458,146 @@ async def check_skill_health(skill_id: str):
 async def get_categories():
     """获取技能分类列表"""
     try:
-        # 这里应该从技能数据中提取分类
-        # 暂时返回模拟数据
-        categories = [
-            "数据分析",
-            "数据采集", 
-            "文档处理",
-            "自动化",
-            "开发工具",
-            "多媒体",
-            "网络",
-            "安全",
-            "机器学习",
-            "通用"
-        ]
-        
+        # 从技能市场服务获取所有分类
+        categories = skill_marketplace_service.get_all_categories()
+
         return {"categories": categories}
-        
+
     except Exception as e:
         logger.error(f"获取分类列表失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取分类失败: {str(e)}")
+
+
+@router.get("/marketplace/list")
+async def get_marketplaces():
+    """获取所有技能市场列表"""
+    try:
+        marketplaces = skill_marketplace_service.get_all_marketplaces()
+
+        return {
+            "success": True,
+            "data": [
+                {
+                    "id": mp.id,
+                    "name": mp.name,
+                    "name_zh": mp.name_zh,
+                    "url": mp.url,
+                    "description": mp.description,
+                    "description_zh": mp.description_zh,
+                    "icon": mp.icon,
+                    "enabled": mp.enabled,
+                    "supports_search": mp.supports_search,
+                    "supports_install": mp.supports_install,
+                    "categories": mp.categories
+                }
+                for mp in marketplaces
+            ]
+        }
+
+    except Exception as e:
+        logger.error(f"获取技能市场列表失败: {e}")
+        raise HTTPException(status_code=500, detail=f"获取市场列表失败: {str(e)}")
+
+
+@router.get("/marketplace/skills")
+async def get_marketplace_skills(
+    marketplace: Optional[str] = Query(None, description="市场ID"),
+    category: Optional[str] = Query(None, description="分类筛选"),
+    search: Optional[str] = Query(None, description="搜索关键词")
+):
+    """从指定市场获取技能列表"""
+    try:
+        skills = skill_marketplace_service.get_marketplace_skills(
+            marketplace_id=marketplace,
+            category=category,
+            search=search
+        )
+
+        return {
+            "success": True,
+            "data": [
+                {
+                    "id": skill.id,
+                    "name": skill.name,
+                    "description": skill.description,
+                    "category": skill.category,
+                    "marketplace": skill.marketplace,
+                    "marketplace_url": skill.marketplace_url,
+                    "author": skill.author,
+                    "version": skill.version,
+                    "rating": skill.rating,
+                    "downloads": skill.downloads,
+                    "installed": skill.installed,
+                    "official": skill.official,
+                    "popular": skill.popular,
+                    "icon": skill.icon,
+                    "tags": skill.tags,
+                    "last_updated": skill.last_updated
+                }
+                for skill in skills
+            ],
+            "total": len(skills)
+        }
+
+    except Exception as e:
+        logger.error(f"获取市场技能列表失败: {e}")
+        raise HTTPException(status_code=500, detail=f"获取技能列表失败: {str(e)}")
+
+
+@router.post("/marketplace/custom")
+async def add_custom_marketplace(marketplace_data: Dict[str, Any]):
+    """添加自定义技能市场"""
+    try:
+        marketplace = SkillMarketplace(
+            id=marketplace_data.get("id"),
+            name=marketplace_data.get("name"),
+            name_zh=marketplace_data.get("name_zh", marketplace_data.get("name")),
+            url=marketplace_data.get("url", ""),
+            description=marketplace_data.get("description", ""),
+            description_zh=marketplace_data.get("description_zh", marketplace_data.get("description", "")),
+            icon=marketplace_data.get("icon", "🌐"),
+            enabled=True,
+            supports_search=marketplace_data.get("supports_search", False),
+            supports_install=marketplace_data.get("supports_install", False),
+            categories=marketplace_data.get("categories", [])
+        )
+
+        success = skill_marketplace_service.add_custom_marketplace(marketplace)
+
+        if success:
+            return {
+                "success": True,
+                "message": f"成功添加自定义市场: {marketplace.name}",
+                "data": {"id": marketplace.id, "name": marketplace.name}
+            }
+        else:
+            return {
+                "success": False,
+                "message": "添加自定义市场失败"
+            }
+
+    except Exception as e:
+        logger.error(f"添加自定义技能市场失败: {e}")
+        raise HTTPException(status_code=500, detail=f"添加市场失败: {str(e)}")
+
+
+@router.delete("/marketplace/custom/{marketplace_id}")
+async def remove_custom_marketplace(marketplace_id: str):
+    """移除自定义技能市场"""
+    try:
+        success = skill_marketplace_service.remove_custom_marketplace(marketplace_id)
+
+        if success:
+            return {
+                "success": True,
+                "message": f"成功移除自定义市场: {marketplace_id}"
+            }
+        else:
+            return {
+                "success": False,
+                "message": "移除自定义市场失败，市场不存在或不是自定义市场"
+            }
+
+    except Exception as e:
+        logger.error(f"移除自定义技能市场失败: {e}")
+        raise HTTPException(status_code=500, detail=f"移除市场失败: {str(e)}")

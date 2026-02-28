@@ -1,5 +1,5 @@
 /**
- * 开发中心页面样式
+ * 维护中心页面样式
  */
 
 .dev-center-container {
@@ -276,6 +276,514 @@
   background: #40a9ff;
 }
 
+/* 标签切换 */
+.dev-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding: 4px;
+  background: #f5f5f5;
+  border-radius: 12px;
+  width: fit-content;
+}
+
+.dev-tab {
+  padding: 10px 24px;
+  border: none;
+  background: transparent;
+  color: #666;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dev-tab:hover {
+  color: #1890ff;
+}
+
+.dev-tab.active {
+  background: white;
+  color: #1890ff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* 市场模态框 */
+.market-modal {
+  max-width: 900px;
+}
+
+/* 市场筛选 */
+.market-filters {
+  margin-bottom: 20px;
+}
+
+.category-select {
+  padding: 10px 16px;
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  font-size: 14px;
+  background: white;
+  min-width: 200px;
+  cursor: pointer;
+}
+
+.category-select:focus {
+  outline: none;
+  border-color: #1890ff;
+  box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.1);
+}
+
+/* 市场服务网格 */
+.market-servers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  max-height: 500px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+/* 市场服务卡片 */
+.market-server-card {
+  padding: 20px;
+  background: white;
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+  transition: all 0.2s;
+}
+
+.market-server-card:hover {
+  border-color: #1890ff;
+  box-shadow: 0 4px 16px rgba(24, 144, 255, 0.1);
+}
+
+.server-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.server-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.server-category {
+  padding: 4px 10px;
+  background: #f0f5ff;
+  color: #1890ff;
+  font-size: 12px;
+  border-radius: 4px;
+}
+
+.server-description {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.5;
+  margin: 0 0 12px 0;
+}
+
+.server-meta {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: #888;
+}
+
+.server-popularity {
+  color: #ff6b6b;
+}
+
+.server-auth {
+  color: #faad14;
+}
+
+.server-env-vars {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: #f6ffed;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.server-env-vars small {
+  display: block;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.server-env-vars code {
+  color: #52c41a;
+  font-family: monospace;
+  word-break: break-all;
+}
+
+.install-button {
+  width: 100%;
+  padding: 10px;
+  background: #1890ff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.install-button:hover:not(:disabled) {
+  background: #40a9ff;
+}
+
+.install-button:disabled {
+  background: #d9d9d9;
+  cursor: not-allowed;
+}
+
+/* 市场加载和空状态 */
+.market-loading,
+.market-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: #999;
+  font-size: 14px;
+}
+
+/* 市场占位符 */
+.market-placeholder {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.placeholder-icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+}
+
+.market-placeholder h3 {
+  font-size: 20px;
+  color: #1a1a1a;
+  margin: 0 0 12px 0;
+}
+
+.market-placeholder p {
+  font-size: 14px;
+  color: #666;
+  margin: 0 0 32px 0;
+}
+
+.market-preview {
+  text-align: left;
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 24px;
+  background: #f8f9fa;
+  border-radius: 12px;
+}
+
+.market-preview h4 {
+  font-size: 14px;
+  color: #333;
+  margin: 0 0 16px 0;
+}
+
+.market-preview ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.market-preview li {
+  padding: 8px 0;
+  font-size: 14px;
+  color: #666;
+  border-bottom: 1px solid #eee;
+}
+
+.market-preview li:last-child {
+  border-bottom: none;
+}
+
+/* 技能市场样式 */
+.market-skills-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  max-height: 500px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.market-skill-card {
+  padding: 20px;
+  background: white;
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+  transition: all 0.2s;
+}
+
+.market-skill-card:hover {
+  border-color: #52c41a;
+  box-shadow: 0 4px 16px rgba(82, 196, 26, 0.1);
+}
+
+.skill-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.skill-icon {
+  font-size: 32px;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f6ffed;
+  border-radius: 12px;
+}
+
+.skill-info {
+  flex: 1;
+}
+
+.skill-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 4px 0;
+}
+
+.skill-category {
+  padding: 2px 8px;
+  background: #f0f5ff;
+  color: #1890ff;
+  font-size: 11px;
+  border-radius: 4px;
+}
+
+.skill-description {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.5;
+  margin: 0 0 12px 0;
+}
+
+.skill-meta {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: #888;
+}
+
+.skill-rating {
+  color: #faad14;
+}
+
+.skill-downloads {
+  color: #1890ff;
+}
+
+.skill-official {
+  color: #52c41a;
+}
+
+.skill-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: #999;
+}
+
+.skill-marketplace a {
+  color: #1890ff;
+  text-decoration: none;
+}
+
+.skill-marketplace a:hover {
+  text-decoration: underline;
+}
+
+/* 工具市场样式 */
+.market-tools-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  max-height: 500px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.market-tool-card {
+  padding: 20px;
+  background: white;
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+  transition: all 0.2s;
+}
+
+.market-tool-card:hover {
+  border-color: #1890ff;
+  box-shadow: 0 4px 16px rgba(24, 144, 255, 0.1);
+}
+
+.tool-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.tool-icon {
+  font-size: 32px;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e6f7ff;
+  border-radius: 12px;
+}
+
+.tool-info {
+  flex: 1;
+}
+
+.tool-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 4px 0;
+}
+
+.tool-category {
+  padding: 2px 8px;
+  background: #f0f5ff;
+  color: #1890ff;
+  font-size: 11px;
+  border-radius: 4px;
+}
+
+.tool-description {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.5;
+  margin: 0 0 12px 0;
+}
+
+.tool-meta {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: #888;
+}
+
+.tool-rating {
+  color: #faad14;
+}
+
+.tool-downloads {
+  color: #1890ff;
+}
+
+.tool-official {
+  color: #52c41a;
+}
+
+.tool-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: #999;
+}
+
+.tool-marketplace a {
+  color: #1890ff;
+  text-decoration: none;
+}
+
+.tool-marketplace a:hover {
+  text-decoration: underline;
+}
+
+/* 市场筛选器增强 */
+.market-filters {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 200px;
+  padding: 10px 16px;
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #1890ff;
+  box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.1);
+}
+
+.add-marketplace-btn {
+  padding: 10px 20px;
+  background: #52c41a;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.add-marketplace-btn:hover {
+  background: #73d13d;
+}
+
+/* 添加市场表单 */
+.add-marketplace-form {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.add-marketplace-form h4 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  color: #1a1a1a;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 600px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* 响应式 */
 @media (max-width: 768px) {
   .dev-center-container {
@@ -310,5 +818,33 @@
 
   .modal-body {
     padding: 16px;
+  }
+
+  .market-modal {
+    max-width: 100%;
+  }
+
+  .market-servers-grid,
+  .market-skills-grid,
+  .market-tools-grid {
+    grid-template-columns: 1fr;
+    max-height: 60vh;
+  }
+
+  .dev-tabs {
+    width: 100%;
+  }
+
+  .dev-tab {
+    flex: 1;
+    text-align: center;
+  }
+
+  .market-filters {
+    flex-direction: column;
+  }
+
+  .search-input {
+    width: 100%;
   }
 }

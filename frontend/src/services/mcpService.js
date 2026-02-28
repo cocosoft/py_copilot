@@ -183,10 +183,20 @@ export const mcpService = {
   },
 
   // ==================== Marketplace APIs ====================
-  
+
+  /**
+   * 获取 MCP 市场列表
+   *
+   * @returns {Promise<Object>} 市场列表响应
+   */
+  async getMarketplaceList() {
+    const response = await api.get(`${MCP_BASE_URL}/marketplace/list`);
+    return response.data;
+  },
+
   /**
    * 获取 MCP 市场服务列表
-   * 
+   *
    * @param {string} source - 市场源 (mcpmarket, modelscope)
    * @param {string} category - 可选的类别筛选
    * @returns {Promise<Object>} 服务列表响应
@@ -200,7 +210,7 @@ export const mcpService = {
 
   /**
    * 获取 MCP 市场服务类别
-   * 
+   *
    * @param {string} source - 市场源
    * @returns {Promise<Object>} 类别列表响应
    */
@@ -213,7 +223,7 @@ export const mcpService = {
 
   /**
    * 从 MCP 市场安装服务
-   * 
+   *
    * @param {string} serverId - 服务ID
    * @param {string} source - 市场源
    * @param {string} name - 可选的自定义名称
@@ -223,6 +233,28 @@ export const mcpService = {
     const params = { server_id: serverId, source };
     if (name) params.name = name;
     const response = await api.post(`${MCP_BASE_URL}/marketplace/install`, null, { params });
+    return response.data;
+  },
+
+  /**
+   * 添加自定义 MCP 市场
+   *
+   * @param {Object} marketplaceData - 市场配置数据
+   * @returns {Promise<Object>} 添加响应
+   */
+  async addCustomMarketplace(marketplaceData) {
+    const response = await api.post(`${MCP_BASE_URL}/marketplace/custom`, marketplaceData);
+    return response.data;
+  },
+
+  /**
+   * 移除自定义 MCP 市场
+   *
+   * @param {string} marketplaceId - 市场ID
+   * @returns {Promise<Object>} 移除响应
+   */
+  async removeCustomMarketplace(marketplaceId) {
+    const response = await api.delete(`${MCP_BASE_URL}/marketplace/custom/${marketplaceId}`);
     return response.data;
   }
 };

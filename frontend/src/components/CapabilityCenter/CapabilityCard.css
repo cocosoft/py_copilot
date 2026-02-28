@@ -208,6 +208,39 @@
   font-weight: 500;
 }
 
+/* 市场来源样式 */
+.capability-marketplace {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.marketplace-label {
+  color: #999;
+}
+
+.marketplace-value {
+  color: #333;
+  font-weight: 500;
+}
+
+.marketplace-link {
+  color: #1890ff;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.marketplace-link:hover {
+  color: #40a9ff;
+  text-decoration: underline;
+}
+
+.source-badge.source-marketplace {
+  background: #e6fffb;
+  color: #13c2c2;
+}
+
 /* 操作按钮样式 */
 .capability-actions {
   display: flex;

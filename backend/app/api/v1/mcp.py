@@ -615,15 +615,47 @@ async def list_mcp_tools(
         )
 
 
-# ==================== Third-party MCP Services API ====================
+# ==================== MCP Marketplace Management ====================
+
+# 自定义MCP市场存储
+_custom_mcp_marketplaces: Dict[str, Dict[str, Any]] = {}
+
+
+class MCPMarketplace:
+    """MCP市场配置类"""
+
+    def __init__(
+        self,
+        id: str,
+        name: str,
+        name_zh: str,
+        url: str,
+        description: str,
+        description_zh: str,
+        icon: str = "🌐",
+        enabled: bool = True,
+        api_endpoint: Optional[str] = None,
+        api_key_required: bool = False
+    ):
+        self.id = id
+        self.name = name
+        self.name_zh = name_zh
+        self.url = url
+        self.description = description
+        self.description_zh = description_zh
+        self.icon = icon
+        self.enabled = enabled
+        self.api_endpoint = api_endpoint
+        self.api_key_required = api_key_required
+
 
 def _get_marketplace_servers_data() -> Dict[str, List[Dict[str, Any]]]:
     """获取预定义的 MCP 市场服务数据
-    
+
     Returns:
         市场服务器数据字典
     """
-    return {
+    data = {
         "mcpmarket": [
             {
                 "id": "github",
@@ -738,6 +770,229 @@ def _get_marketplace_servers_data() -> Dict[str, List[Dict[str, Any]]]:
                 "auth_required": False,
                 "env_vars": [],
                 "popularity": 17359
+            },
+            {
+                "id": "slack",
+                "name": "Slack MCP",
+                "description": "Slack 集成，支持消息发送、频道管理、用户查询等",
+                "category": "Productivity & Workflow",
+                "install_command": "npx -y @modelcontextprotocol/server-slack",
+                "transport": "stdio",
+                "auth_required": True,
+                "auth_type": "token",
+                "env_vars": ["SLACK_BOT_TOKEN", "SLACK_TEAM_ID"],
+                "popularity": 16000
+            },
+            {
+                "id": "google-maps",
+                "name": "Google Maps MCP",
+                "description": "Google Maps 集成，支持地理编码、路线规划、地点搜索",
+                "category": "Productivity & Workflow",
+                "install_command": "npx -y @modelcontextprotocol/server-google-maps",
+                "transport": "stdio",
+                "auth_required": True,
+                "auth_type": "api_key",
+                "env_vars": ["GOOGLE_MAPS_API_KEY"],
+                "popularity": 14500
+            },
+            {
+                "id": "memory",
+                "name": "Memory MCP",
+                "description": "知识图谱记忆服务，支持长期记忆存储和知识检索",
+                "category": "Productivity & Workflow",
+                "install_command": "npx -y @modelcontextprotocol/server-memory",
+                "transport": "stdio",
+                "auth_required": False,
+                "env_vars": [],
+                "popularity": 13500
+            },
+            {
+                "id": "sentry",
+                "name": "Sentry MCP",
+                "description": "Sentry 错误监控集成，支持错误追踪和问题管理",
+                "category": "Developer Tools",
+                "install_command": "npx -y @modelcontextprotocol/server-sentry",
+                "transport": "stdio",
+                "auth_required": True,
+                "auth_type": "token",
+                "env_vars": ["SENTRY_AUTH_TOKEN"],
+                "popularity": 11000
+            },
+            {
+                "id": "redis",
+                "name": "Redis MCP",
+                "description": "Redis 缓存操作，支持键值操作和数据结构操作",
+                "category": "Database Management",
+                "install_command": "npx -y @modelcontextprotocol/server-redis",
+                "transport": "stdio",
+                "auth_required": True,
+                "auth_type": "connection_string",
+                "env_vars": ["REDIS_URL"],
+                "popularity": 10500
+            },
+            {
+                "id": "git",
+                "name": "Git MCP",
+                "description": "Git 版本控制操作，支持仓库操作、提交管理、分支操作",
+                "category": "Developer Tools",
+                "install_command": "npx -y @modelcontextprotocol/server-git",
+                "transport": "stdio",
+                "auth_required": False,
+                "env_vars": [],
+                "popularity": 15500
+            },
+            {
+                "id": "aws-s3",
+                "name": "AWS S3 MCP",
+                "description": "AWS S3 对象存储操作，支持文件上传下载和存储桶管理",
+                "category": "API Development",
+                "install_command": "npx -y @modelcontextprotocol/server-aws-s3",
+                "transport": "stdio",
+                "auth_required": True,
+                "auth_type": "aws_credentials",
+                "env_vars": ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION"],
+                "popularity": 12500
+            },
+            {
+                "id": "command",
+                "name": "Command MCP",
+                "description": "命令行执行，支持系统命令执行和脚本运行（谨慎使用）",
+                "category": "Developer Tools",
+                "install_command": "npx -y @modelcontextprotocol/server-command",
+                "transport": "stdio",
+                "auth_required": False,
+                "env_vars": [],
+                "popularity": 9000
+            },
+            {
+                "id": "sequentialthinking",
+                "name": "Sequential Thinking MCP",
+                "description": "动态思维链工具，支持结构化的问题解决和思考过程",
+                "category": "Productivity & Workflow",
+                "install_command": "npx -y @modelcontextprotocol/server-sequentialthinking",
+                "transport": "stdio",
+                "auth_required": False,
+                "env_vars": [],
+                "popularity": 11500
+            },
+            {
+                "id": "time",
+                "name": "Time MCP",
+                "description": "时间工具，支持时区转换和时间计算",
+                "category": "Productivity & Workflow",
+                "install_command": "npx -y @modelcontextprotocol/server-time",
+                "transport": "stdio",
+                "auth_required": False,
+                "env_vars": [],
+                "popularity": 8500
+            },
+            {
+                "id": "everart",
+                "name": "EverArt MCP",
+                "description": "AI 图像生成，支持通过文字描述生成图像",
+                "category": "API Development",
+                "install_command": "npx -y @modelcontextprotocol/server-everart",
+                "transport": "stdio",
+                "auth_required": True,
+                "auth_type": "api_key",
+                "env_vars": ["EVERART_API_KEY"],
+                "popularity": 13000
+            },
+            {
+                "id": "tavily",
+                "name": "Tavily MCP",
+                "description": "AI 搜索引擎，支持智能网页搜索和信息检索",
+                "category": "Productivity & Workflow",
+                "install_command": "npx -y @modelcontextprotocol/server-tavily",
+                "transport": "stdio",
+                "auth_required": True,
+                "auth_type": "api_key",
+                "env_vars": ["TAVILY_API_KEY"],
+                "popularity": 11800
+            },
+            {
+                "id": "exa",
+                "name": "Exa MCP",
+                "description": "神经网络搜索引擎，支持语义搜索和内容发现",
+                "category": "Productivity & Workflow",
+                "install_command": "npx -y @modelcontextprotocol/server-exa",
+                "transport": "stdio",
+                "auth_required": True,
+                "auth_type": "api_key",
+                "env_vars": ["EXA_API_KEY"],
+                "popularity": 9500
+            },
+            {
+                "id": "notion",
+                "name": "Notion MCP",
+                "description": "Notion 集成，支持页面管理、数据库查询和内容编辑",
+                "category": "Productivity & Workflow",
+                "install_command": "npx -y @modelcontextprotocol/server-notion",
+                "transport": "stdio",
+                "auth_required": True,
+                "auth_type": "token",
+                "env_vars": ["NOTION_TOKEN"],
+                "popularity": 14000
+            },
+            {
+                "id": "discord",
+                "name": "Discord MCP",
+                "description": "Discord 集成，支持消息发送和服务器管理",
+                "category": "Productivity & Workflow",
+                "install_command": "npx -y @modelcontextprotocol/server-discord",
+                "transport": "stdio",
+                "auth_required": True,
+                "auth_type": "token",
+                "env_vars": ["DISCORD_BOT_TOKEN"],
+                "popularity": 10000
+            },
+            {
+                "id": "mysql",
+                "name": "MySQL MCP",
+                "description": "MySQL 数据库操作，支持查询和管理",
+                "category": "Database Management",
+                "install_command": "npx -y @modelcontextprotocol/server-mysql",
+                "transport": "stdio",
+                "auth_required": True,
+                "auth_type": "connection_string",
+                "env_vars": ["MYSQL_URL"],
+                "popularity": 12000
+            },
+            {
+                "id": "mongodb",
+                "name": "MongoDB MCP",
+                "description": "MongoDB 数据库操作，支持文档查询和管理",
+                "category": "Database Management",
+                "install_command": "npx -y @modelcontextprotocol/server-mongodb",
+                "transport": "stdio",
+                "auth_required": True,
+                "auth_type": "connection_string",
+                "env_vars": ["MONGODB_URL"],
+                "popularity": 11000
+            },
+            {
+                "id": "jira",
+                "name": "Jira MCP",
+                "description": "Jira 项目管理集成，支持问题跟踪和项目监控",
+                "category": "Productivity & Workflow",
+                "install_command": "npx -y @modelcontextprotocol/server-jira",
+                "transport": "stdio",
+                "auth_required": True,
+                "auth_type": "token",
+                "env_vars": ["JIRA_API_TOKEN", "JIRA_BASE_URL"],
+                "popularity": 10800
+            },
+            {
+                "id": "confluence",
+                "name": "Confluence MCP",
+                "description": "Confluence 集成，支持页面管理和内容协作",
+                "category": "Productivity & Workflow",
+                "install_command": "npx -y @modelcontextprotocol/server-confluence",
+                "transport": "stdio",
+                "auth_required": True,
+                "auth_type": "token",
+                "env_vars": ["CONFLUENCE_API_TOKEN", "CONFLUENCE_BASE_URL"],
+                "popularity": 9200
             }
         ],
         "modelscope": [
@@ -757,6 +1012,192 @@ def _get_marketplace_servers_data() -> Dict[str, List[Dict[str, Any]]]:
         ]
     }
 
+    # 添加自定义市场的服务器数据
+    for market_id, market_data in _custom_mcp_marketplaces.items():
+        if market_data.get("enabled", True) and "servers" in market_data:
+            data[market_id] = market_data["servers"]
+
+    return data
+
+
+# ==================== MCP Marketplace Management APIs ====================
+
+@router.get("/marketplace/list", response_model=Dict[str, Any])
+async def list_mcp_marketplaces(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    """获取所有 MCP 市场列表
+
+    返回预定义和自定义的 MCP 市场列表。
+
+    Returns:
+        市场列表
+    """
+    try:
+        # 预定义市场
+        predefined = [
+            {
+                "id": "mcpmarket",
+                "name": "MCP Market",
+                "name_zh": "MCP市场",
+                "url": "https://github.com/modelcontextprotocol/servers",
+                "description": "Official MCP servers collection",
+                "description_zh": "官方MCP服务器集合",
+                "icon": "📦",
+                "enabled": True,
+                "supports_search": True,
+                "supports_install": True,
+                "categories": ["Developer Tools", "Database Management", "Productivity & Workflow", "API Development"]
+            },
+            {
+                "id": "modelscope",
+                "name": "ModelScope",
+                "name_zh": "魔搭社区",
+                "url": "https://modelscope.cn",
+                "description": "Alibaba ModelScope MCP marketplace",
+                "description_zh": "阿里魔搭社区MCP市场",
+                "icon": "🤖",
+                "enabled": True,
+                "supports_search": True,
+                "supports_install": True,
+                "categories": ["生活服务", "AI服务", "数据处理"]
+            }
+        ]
+
+        # 自定义市场
+        custom = [
+            {
+                "id": market_id,
+                "name": data.get("name", market_id),
+                "name_zh": data.get("name_zh", data.get("name", market_id)),
+                "url": data.get("url", ""),
+                "description": data.get("description", ""),
+                "description_zh": data.get("description_zh", data.get("description", "")),
+                "icon": data.get("icon", "🌐"),
+                "enabled": data.get("enabled", True),
+                "supports_search": data.get("supports_search", False),
+                "supports_install": data.get("supports_install", False),
+                "categories": data.get("categories", []),
+                "is_custom": True
+            }
+            for market_id, data in _custom_mcp_marketplaces.items()
+        ]
+
+        return {
+            "success": True,
+            "data": predefined + custom
+        }
+
+    except Exception as e:
+        logger.error(f"获取 MCP 市场列表失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_ERROR,
+            detail=f"获取市场列表失败: {str(e)}"
+        )
+
+
+@router.post("/marketplace/custom", response_model=Dict[str, Any])
+async def add_custom_mcp_marketplace(
+    marketplace_data: Dict[str, Any],
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    """添加自定义 MCP 市场
+
+    Args:
+        marketplace_data: 市场配置数据
+
+    Returns:
+        添加结果
+    """
+    try:
+        market_id = marketplace_data.get("id")
+        if not market_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="市场ID不能为空"
+            )
+
+        # 检查是否已存在
+        if market_id in ["mcpmarket", "modelscope"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="不能使用保留的市场ID"
+            )
+
+        _custom_mcp_marketplaces[market_id] = {
+            "name": marketplace_data.get("name", market_id),
+            "name_zh": marketplace_data.get("name_zh", marketplace_data.get("name", market_id)),
+            "url": marketplace_data.get("url", ""),
+            "description": marketplace_data.get("description", ""),
+            "description_zh": marketplace_data.get("description_zh", marketplace_data.get("description", "")),
+            "icon": marketplace_data.get("icon", "🌐"),
+            "enabled": True,
+            "supports_search": marketplace_data.get("supports_search", False),
+            "supports_install": marketplace_data.get("supports_install", False),
+            "categories": marketplace_data.get("categories", []),
+            "servers": marketplace_data.get("servers", [])
+        }
+
+        logger.info(f"添加自定义 MCP 市场: {market_id}")
+
+        return {
+            "success": True,
+            "message": f"成功添加自定义市场: {market_id}",
+            "data": {"id": market_id, "name": marketplace_data.get("name", market_id)}
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"添加自定义 MCP 市场失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_ERROR,
+            detail=f"添加市场失败: {str(e)}"
+        )
+
+
+@router.delete("/marketplace/custom/{marketplace_id}", response_model=Dict[str, Any])
+async def remove_custom_mcp_marketplace(
+    marketplace_id: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    """移除自定义 MCP 市场
+
+    Args:
+        marketplace_id: 市场ID
+
+    Returns:
+        移除结果
+    """
+    try:
+        if marketplace_id not in _custom_mcp_marketplaces:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"未找到自定义市场: {marketplace_id}"
+            )
+
+        del _custom_mcp_marketplaces[marketplace_id]
+        logger.info(f"移除自定义 MCP 市场: {marketplace_id}")
+
+        return {
+            "success": True,
+            "message": f"成功移除自定义市场: {marketplace_id}"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"移除自定义 MCP 市场失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_ERROR,
+            detail=f"移除市场失败: {str(e)}"
+        )
+
+
+# ==================== Third-party MCP Services API ====================
 
 @router.get("/marketplace/servers", response_model=Dict[str, Any])
 async def list_marketplace_servers(
@@ -938,10 +1379,10 @@ async def list_marketplace_categories(
     try:
         categories = {
             "mcpmarket": [
-                {"id": "Developer Tools", "name": "开发工具", "count": 4},
-                {"id": "Database Management", "name": "数据库管理", "count": 2},
-                {"id": "Productivity & Workflow", "name": "生产力与工作流程", "count": 2},
-                {"id": "API Development", "name": "API 开发", "count": 2}
+                {"id": "Developer Tools", "name": "开发工具", "count": 8},
+                {"id": "Database Management", "name": "数据库管理", "count": 5},
+                {"id": "Productivity & Workflow", "name": "生产力与工作流程", "count": 14},
+                {"id": "API Development", "name": "API 开发", "count": 4}
             ],
             "modelscope": [
                 {"id": "生活服务", "name": "生活服务", "count": 1}
