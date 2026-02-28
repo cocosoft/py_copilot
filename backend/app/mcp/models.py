@@ -1,6 +1,7 @@
 """MCP 数据库模型定义"""
 
 from sqlalchemy import Column, Integer, String, Text, Boolean, JSON, DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.models.base import Base
 
@@ -56,6 +57,9 @@ class MCPClientConfigModel(Base):
     error_message = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
+    
+    # 关系 - 暂时注释掉，避免循环导入问题
+    # tools = relationship("Tool", back_populates="mcp_client")
     
     def __repr__(self):
         return f"<MCPClientConfig(id={self.id}, name='{self.name}', status='{self.status}')>"

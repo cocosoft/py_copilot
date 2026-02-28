@@ -64,5 +64,212 @@
         "description": "个性化设置和模型管理"
       }
     }
+  },
+  "capabilityCenter": {
+    "title": "能力中心",
+    "description": "统一管理工具、技能和MCP能力",
+    "subtitle": "统一管理工具、技能和MCP能力",
+    "allCapabilities": "全部能力",
+    "tools": "工具",
+    "skills": "技能",
+    "searchPlaceholder": "搜索能力名称、描述...",
+    "source": "来源",
+    "status": "状态",
+    "category": "分类",
+    "allSources": "全部来源",
+    "official": "官方",
+    "user": "用户",
+    "marketplace": "市场",
+    "allStatus": "全部状态",
+    "active": "已启用",
+    "disabled": "已禁用",
+    "allCategories": "全部分类",
+    "total": "总计",
+    "page": "页码",
+    "loading": "加载中...",
+    "noCapabilities": "暂无能力",
+    "tryAdjustFilters": "尝试调整筛选条件",
+    "refresh": "刷新",
+    "loadError": "加载能力列表失败",
+    "enabledSuccess": "启用成功",
+    "disabledSuccess": "禁用成功",
+    "toggleError": "操作失败",
+    "deleteSuccess": "删除成功",
+    "deleteError": "删除失败",
+    "deleteConfirm": "确定要删除此能力吗？此操作不可恢复。",
+    "tabs": {
+      "all": "全部",
+      "tools": "工具",
+      "skills": "技能",
+      "mcp": "MCP"
+    },
+    "filters": {
+      "allSources": "全部来源",
+      "official": "官方",
+      "user": "用户",
+      "marketplace": "市场",
+      "allStatus": "全部状态",
+      "active": "已启用",
+      "disabled": "已禁用",
+      "allCategories": "全部分类"
+    },
+    "types": {
+      "tool": "工具",
+      "skill": "技能",
+      "mcp": "MCP"
+    },
+    "sources": {
+      "official": "官方",
+      "builtin": "内置",
+      "user": "用户",
+      "marketplace": "市场"
+    },
+    "status": {
+      "active": "已启用",
+      "disabled": "已禁用"
+    },
+    "actions": {
+      "enable": "启用",
+      "disable": "禁用",
+      "configure": "配置",
+      "delete": "删除"
+    },
+    "category": "分类",
+    "author": "作者",
+    "toggleSuccess": {
+      "active": "启用成功",
+      "disabled": "禁用成功"
+    }
+  },
+  "capabilityCard": {
+    "official": "官方",
+    "builtin": "内置",
+    "user": "用户创建",
+    "marketplace": "市场",
+    "local": "本地",
+    "tool": "工具",
+    "skill": "技能",
+    "noDescription": "暂无描述",
+    "version": "版本",
+    "usage": "使用次数",
+    "active": "已启用",
+    "disabled": "已禁用",
+    "enable": "启用",
+    "disable": "禁用",
+    "configure": "配置",
+    "delete": "删除",
+    "detail": "详情"
+  },
+  "devCenter": {
+    "title": "开发中心",
+    "description": "创建自定义能力，扩展系统功能",
+    "createSkill": "创建技能",
+    "createSkillDesc": "创建自定义技能，定义技能的输入输出和行为逻辑",
+    "createTool": "创建工具",
+    "createToolDesc": "创建自定义工具，集成外部API或本地功能",
+    "configMCP": "配置MCP",
+    "configMCPDesc": "配置MCP客户端，连接外部模型上下文协议服务",
+    "toolName": "工具名称",
+    "toolNamePlaceholder": "请输入工具名称（英文标识）",
+    "displayName": "显示名称",
+    "displayNamePlaceholder": "请输入显示名称",
+    "description": "描述",
+    "descriptionPlaceholder": "请输入描述",
+    "category": "分类",
+    "categories": {
+      "general": "通用",
+      "search": "搜索",
+      "file": "文件",
+      "data": "数据",
+      "api": "API"
+    },
+    "toolType": "工具类型",
+    "toolTypes": {
+      "local": "本地工具",
+      "api": "API工具",
+      "script": "脚本工具"
+    },
+    "icon": "图标",
+    "mcpName": "MCP名称",
+    "mcpNamePlaceholder": "请输入MCP配置名称",
+    "mcpDescription": "MCP描述",
+    "mcpDescriptionPlaceholder": "请输入MCP描述",
+    "mcpServerUrl": "服务器地址",
+    "mcpServerUrlPlaceholder": "请输入MCP服务器URL",
+    "mcpApiKey": "API密钥",
+    "mcpApiKeyPlaceholder": "请输入API密钥（可选）",
+    "mcpTimeout": "超时时间（秒）",
+    "mcpEnabled": "启用此MCP配置",
+    "createSkillSuccess": "技能创建成功",
+    "createSkillError": "技能创建失败",
+    "createToolSuccess": "工具创建成功",
+    "createToolError": "工具创建失败",
+    "configMCPSuccess": "MCP配置成功",
+    "configMCPError": "MCP配置失败"
+  },
+  "agentManagement": {
+    "title": "智能体管理",
+    "description": "创建和管理单一功能或复合智能体",
+    "tabs": {
+      "myAgents": "我的智能体",
+      "marketplace": "智能体市场"
+    },
+    "filters": {
+      "all": "全部",
+      "single": "单一功能",
+      "composite": "复合智能体"
+    },
+    "types": {
+      "single": "单一功能",
+      "composite": "复合智能体"
+    },
+    "createTitle": "创建智能体",
+    "createSingle": "创建单一功能智能体",
+    "createSingleDesc": "专注于单一任务，使用单一能力，简单快速",
+    "createComposite": "创建复合智能体",
+    "createCompositeDesc": "具备多种能力，可完成复杂任务，灵活强大",
+    "myAgentsTitle": "我的智能体",
+    "noAgents": "暂无智能体",
+    "createHint": "点击上方创建按钮开始创建您的第一个智能体",
+    "noDescription": "暂无描述",
+    "official": "官方",
+    "template": "模板",
+    "loadError": "加载智能体列表失败",
+    "createError": "创建智能体失败",
+    "marketplace": {
+      "all": "全部",
+      "official": "官方智能体",
+      "singleTemplates": "单一功能模板",
+      "compositeTemplates": "复合智能体模板",
+      "comingSoon": "智能体市场即将上线",
+      "comingSoonDesc": "敬请期待官方和社区提供的智能体模板"
+    },
+    "wizard": {
+      "singleTitle": "创建单一功能智能体",
+      "compositeTitle": "创建复合智能体",
+      "step1Title": "选择主能力",
+      "step1Desc": "选择智能体要专注的核心能力",
+      "step2Title": "配置参数",
+      "step2Desc": "设置智能体的基本信息",
+      "step1CompositeTitle": "选择能力组合",
+      "step1CompositeDesc": "选择智能体需要具备的多种能力",
+      "step2CompositeTitle": "配置能力编排",
+      "step2CompositeDesc": "设置能力之间的协作规则",
+      "step3CompositeTitle": "设置触发条件",
+      "step3CompositeDesc": "配置智能体的激活条件",
+      "step4CompositeTitle": "测试验证",
+      "step4CompositeDesc": "测试智能体的各项功能",
+      "finalStepTitle": "确认并创建",
+      "finalStepDesc": "检查配置信息并创建智能体",
+      "agentName": "智能体名称",
+      "agentNamePlaceholder": "请输入智能体名称",
+      "agentDescription": "智能体描述",
+      "agentDescriptionPlaceholder": "请输入智能体描述（可选）",
+      "agentAvatar": "智能体头像",
+      "reviewName": "名称",
+      "reviewType": "类型",
+      "reviewAvatar": "头像",
+      "comingSoon": "此功能即将上线"
+    }
   }
 }

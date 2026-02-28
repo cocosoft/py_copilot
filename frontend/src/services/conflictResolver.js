@@ -313,7 +313,6 @@ class ConflictResolver {
   resolveConflict(conflict) {
     const strategy = this.strategies.get(conflict.type) || RESOLUTION_STRATEGIES.LAST_WRITE_WINS;
     
-    console.log('解决冲突:', conflict.type, '使用策略:', strategy);
     
     switch (strategy) {
       case RESOLUTION_STRATEGIES.LAST_WRITE_WINS:

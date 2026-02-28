@@ -88,15 +88,10 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
       ]);
       
       // 调试：输出各API响应数据
-      console.log('层次结构数据:', hierarchyData);
-      console.log('分类API数据:', categoriesApiData);
-      console.log('分类API数据类型:', typeof categoriesApiData);
-      console.log('分类API数据键:', categoriesApiData ? Object.keys(categoriesApiData) : '无数据');
-      // 输出每个维度的分类数量
+     // 输出每个维度的分类数量
       if (categoriesApiData && typeof categoriesApiData === 'object') {
         Object.keys(categoriesApiData).forEach(dimension => {
           const categoryCount = Array.isArray(categoriesApiData[dimension]) ? categoriesApiData[dimension].length : 0;
-          console.log(`维度 ${dimension} 的分类数量: ${categoryCount}`);
         });
       }
       
@@ -106,7 +101,6 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
       
       // 首先检查分类API数据，如果有数据，优先使用它来构建维度和分类信息
       if (categoriesApiData && typeof categoriesApiData === 'object' && Object.keys(categoriesApiData).length > 0) {
-        console.log('优先使用分类API数据构建维度信息');
         dimensionsData = Object.keys(categoriesApiData);
         
         // 构建按维度组织的分类数据
@@ -116,7 +110,6 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
       } 
       // 如果分类API数据为空，再尝试使用层次结构数据
       else if (hierarchyData && hierarchyData.dimensions && typeof hierarchyData.dimensions === 'object') {
-        console.log('使用层次结构数据构建维度信息');
         dimensionsData = Object.keys(hierarchyData.dimensions);
         
         // 构建按维度组织的分类数据
@@ -125,7 +118,7 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
           categoriesData[dimension] = dimData && dimData.categories ? dimData.categories : [];
         });
       } else {
-        console.warn('维度层次结构数据格式不正确，使用默认维度:', hierarchyData);
+
         // 使用默认维度
         dimensionsData = ['tasks', 'languages', 'licenses', 'technologies'];
         dimensionsData.forEach(dimension => {
@@ -142,7 +135,6 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
       });
       
       if (hasEmptyCategories && categoriesApiData && typeof categoriesApiData === 'object') {
-        console.log('使用分类API数据补充空维度分类');
         // 合并分类API数据到现有分类数据中
         for (const dimension in categoriesApiData) {
           if (categoriesApiData[dimension] && Array.isArray(categoriesApiData[dimension])) {
@@ -169,7 +161,6 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
       });
       
       if (stillHasEmptyCategories) {
-        console.log('尝试从分类API获取所有分类并按维度分组');
         try {
           const allCategories = await categoryApi.getAll();
           
@@ -212,9 +203,7 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
         }
       }
       
-      // 调试：输出维度和分类数据
-      console.log('维度数据:', dimensionsData);
-      console.log('分类数据:', categoriesData);
+
       
       setDimensions(dimensionsData);
       setCategoriesByDimension(categoriesData);
@@ -230,7 +219,7 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
           processedTemplates = templatesData.data;
         }
       }
-      console.log('处理后的参数模板:', processedTemplates);
+
       setParameterTemplates(processedTemplates);
       
       // 初始化维度配置并获取配置对象
@@ -244,7 +233,7 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
       // 如果是编辑模式，加载模型数据
       if (mode === 'edit' && model) {
         // 确保维度配置已初始化后再加载模型数据
-        console.log('在编辑模式下加载模型数据:', model);
+
         await loadModelData(model, initialConfigs);
       }
       
@@ -274,8 +263,7 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
       }
     });
     
-    // 记录维度配置初始化状态
-    console.log(`初始化维度配置: ${Object.keys(configs).length} 个维度`);
+
     
     setDimensionConfigs(configs);
     return configs; // 返回配置对象用于后续处理
@@ -295,8 +283,7 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
         is_active: true
       };
       
-      // 调试：输出接收到的模型数据
-      console.log('接收到的模型数据:', modelData);
+
       
       // 确保模型数据是一个对象
       if (modelData && typeof modelData === 'object') {
@@ -309,9 +296,7 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
         formData.isDefault = modelData.is_default || modelData.isDefault || false;
         formData.is_active = modelData.is_active || modelData.isActive || true;
         
-        console.log('从模型数据中提取的字段:');
-        console.log('model_id:', modelData.model_id, modelData.id, modelData.modelId);
-        console.log('model_name:', modelData.model_name, modelData.name, modelData.modelName);
+
       }
       
       // 设置LOGO预览
@@ -335,20 +320,16 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
         setLogoPreview(null);
       }
 
-      // 调试：输出设置到表单的数据
-      console.log('设置到表单的数据:', formData);
-      
       setFormData(formData);
 
       // 获取模型ID用于加载维度配置
       const modelId = modelData.model_id || modelData.id || modelData.modelId;
-      console.log('用于加载维度配置的模型ID:', modelId);
       
       // 加载模型的维度配置
       if (modelId) {
         await loadModelDimensionConfigs(modelId, initialConfigs);
       } else {
-        console.warn('没有可用的模型ID，跳过维度配置加载');
+
       }
       
     } catch (error) {
@@ -365,13 +346,12 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
       
       // 确保configs是有效的对象
       if (!configs || typeof configs !== 'object') {
-        console.warn('维度配置无效，使用空配置');
+
         configs = {};
       }
       
       // 首先检查model.categories字段（根据修复文档，分类信息现在应该存储在这里）
       if (model && model.categories && Array.isArray(model.categories)) {
-        console.log('从model.categories加载分类信息:', model.categories);
         
         // 按维度分组分类
         const categoriesByDimension = {};
@@ -417,7 +397,6 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
         try {
           // 获取模型的维度信息
           const modelDimensions = await dimensionHierarchyApi.getModelDimensions(modelId);
-          console.log('模型维度信息:', modelDimensions);
           
           // 处理每个维度的配置
           for (const dimension of Object.keys(configs)) {
@@ -463,7 +442,6 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
                 }
                 configs[dimension].parameters = paramsObj;
               } catch (paramError) {
-                console.warn(`获取维度 ${dimension} 参数失败:`, paramError);
                 configs[dimension].parameters = {};
               }
             } else {
@@ -473,10 +451,8 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
             }
           }
         } catch (modelDimensionsError) {
-          console.error('获取模型维度信息失败:', modelDimensionsError);
           // 如果获取模型维度信息失败，尝试从模型数据本身获取
           if (model && model.dimensionConfigs) {
-            console.log('尝试从模型数据中获取维度配置:', model.dimensionConfigs);
             Object.keys(model.dimensionConfigs).forEach(dimension => {
               if (configs[dimension]) {
                 // 确保与新的配置结构兼容
@@ -498,9 +474,7 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
         configs[dimension].isActive = true;
       }
       
-      // 记录维度配置加载状态
-      const activeDimensions = Object.values(configs).filter(config => config.isActive).length;
-      console.log(`维度配置加载完成: ${Object.keys(configs).length} 个维度，${activeDimensions} 个已激活`);
+
       
       setDimensionConfigs(configs);
       setCategorySelections(selections);
@@ -598,14 +572,12 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
 
   // 辅助函数：显示错误信息
   const showError = (message) => {
-    console.error(message);
     // 这里可以使用UI库的提示组件，如Ant Design的message.error
     alert(`错误: ${message}`);
   };
 
   // 辅助函数：显示成功信息
   const showSuccess = (message) => {
-    console.log(message);
     // 这里可以使用UI库的提示组件，如Ant Design的message.success
     alert(`成功: ${message}`);
   };
@@ -752,7 +724,6 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
   // 编辑模板（跳转到模板管理页面）
   const editTemplate = (template) => {
     // 这里可以跳转到模板编辑页面
-    console.log('编辑模板:', template);
     // window.location.href = `/template-management/${template.id}`;
   };
 
@@ -890,7 +861,6 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
       onClose();
       
     } catch (error) {
-      console.error('保存模型失败:', error);
       alert(t('settings.modelModalV2.messages.saveFailed') + '：' + (error.message || t('settings.modelModalV2.messages.unknownError')));
     } finally {
       setSaving(false);
@@ -901,7 +871,6 @@ const ModelModalV2 = ({ isOpen, onClose, onSave, model = null, mode = 'add', isF
   const renderDimensionConfig = (dimension) => {
     // 确保维度配置存在
     if (!dimensionConfigs[dimension]) {
-      console.warn(`维度 ${dimension} 的配置不存在，使用默认配置`);
       handleDimensionConfigChange(dimension, 'isActive', true);
     }
     

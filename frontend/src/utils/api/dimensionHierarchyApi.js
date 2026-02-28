@@ -18,16 +18,13 @@ const dimensionHierarchyApi = {
       for (const endpoint of endpoints) {
         try {
           response = await request(endpoint, { method: 'GET' });
-          console.log(`维度层次结构API响应 (${endpoint}):`, response);
           return response;
         } catch (err) {
-          console.warn(`尝试端点 ${endpoint} 失败:`, err.message);
           // 继续尝试下一个端点
         }
       }
       
       // 如果所有端点都失败，返回默认数据而不是抛出错误
-      console.warn('所有维度API端点都失败，返回默认维度数据');
       return {
         dimensions: {
           tasks: {
@@ -53,7 +50,6 @@ const dimensionHierarchyApi = {
         }
       };
     } catch (error) {
-      console.error('获取维度层次结构失败:', error);
       // 出错时返回默认维度数据
       return {
         dimensions: {
@@ -100,16 +96,13 @@ const dimensionHierarchyApi = {
           response = await request(endpoint, { method: 'GET' });
           return response.models || [];
         } catch (err) {
-          console.warn(`尝试端点 ${endpoint} 失败:`, err.message);
           // 继续尝试下一个端点
         }
       }
       
       // 如果所有端点都失败，返回空数组
-      console.warn('所有获取模型列表API端点都失败，返回空数组');
       return [];
     } catch (error) {
-      console.error('获取模型列表失败:', error);
       return [];
     }
   },
@@ -132,7 +125,6 @@ const dimensionHierarchyApi = {
       for (const endpoint of endpoints) {
         try {
           response = await request(endpoint, { method: 'GET' });
-          console.log(`模型维度信息API响应 (${endpoint}):`, response);
           
           // 处理不同的响应格式
           if (response && response.dimensions) {
@@ -158,16 +150,13 @@ const dimensionHierarchyApi = {
             return { dimensions };
           }
         } catch (err) {
-          console.warn(`尝试端点 ${endpoint} 失败:`, err.message);
           // 继续尝试下一个端点
         }
       }
       
       // 如果所有端点都失败，返回默认数据
-      console.warn('所有模型维度API端点都失败，返回默认数据');
       return { dimensions: {} };
     } catch (error) {
-      console.error('获取模型维度信息失败:', error);
       // 出错时返回默认数据
       return { dimensions: {} };
     }
@@ -178,7 +167,6 @@ const dimensionHierarchyApi = {
     try {
       // 检查模型ID是否包含斜杠（如供应商/模型ID格式）
       if (typeof modelId === 'string' && modelId.includes('/')) {
-        console.log('检测到包含斜杠的模型ID，返回空响应');
         return {};
       }
       
@@ -193,10 +181,8 @@ const dimensionHierarchyApi = {
     } catch (error) {
       // 如果是409错误（关联已存在），不抛出异常，返回空对象
       if (error.message && error.message.includes('409')) {
-        console.warn(`模型 ${modelId} 与分类 ${categoryId} 的关联已存在，跳过重复添加`);
         return {};
       }
-      console.error('添加模型到维度分类失败:', error);
       throw error;
     }
   },
@@ -206,14 +192,12 @@ const dimensionHierarchyApi = {
     try {
       // 检查模型ID是否包含斜杠（如供应商/模型ID格式）
       if (typeof modelId === 'string' && modelId.includes('/')) {
-        console.log('检测到包含斜杠的模型ID，返回空响应');
         return {};
       }
       
       const response = await request(`/v1/dimension-hierarchy/models/${modelId}/categories/${categoryId}`, { method: 'DELETE' });
       return response;
     } catch (error) {
-      console.error('从维度分类中移除模型失败:', error);
       throw error;
     }
   },
@@ -223,7 +207,6 @@ const dimensionHierarchyApi = {
     try {
       // 检查模型ID是否包含斜杠（如供应商/模型ID格式）
       if (typeof modelId === 'string' && modelId.includes('/')) {
-        console.log('检测到包含斜杠的模型ID，返回默认验证结果');
         return { valid: true, message: '包含斜杠的模型ID跳过约束验证' };
       }
       
@@ -240,19 +223,15 @@ const dimensionHierarchyApi = {
       for (const endpoint of endpoints) {
         try {
           response = await request(endpoint, { method: 'GET' });
-          console.log(`验证维度约束API响应 (${endpoint}):`, response);
           return response;
         } catch (err) {
-          console.warn(`尝试端点 ${endpoint} 失败:`, err.message);
           // 继续尝试下一个端点
         }
       }
       
       // 如果所有端点都失败，返回默认验证结果
-      console.warn('所有验证维度约束API端点都失败，返回默认验证结果');
       return { valid: true, message: '约束验证失败，默认通过' };
     } catch (error) {
-      console.error('验证维度约束失败:', error);
       // 出错时返回默认验证结果
       return { valid: true, message: '约束验证失败，默认通过' };
     }
@@ -263,7 +242,6 @@ const dimensionHierarchyApi = {
     try {
       // 检查模型ID是否包含斜杠（如供应商/模型ID格式）
       if (typeof modelId === 'string' && modelId.includes('/')) {
-        console.log('检测到包含斜杠的模型ID，返回空响应');
         return {};
       }
       
@@ -279,19 +257,15 @@ const dimensionHierarchyApi = {
       for (const endpoint of endpoints) {
         try {
           response = await request(endpoint, { method: 'DELETE' });
-          console.log(`删除模型所有分类关联API响应 (${endpoint}):`, response);
           return response;
         } catch (err) {
-          console.warn(`尝试端点 ${endpoint} 失败:`, err.message);
           // 继续尝试下一个端点
         }
       }
       
       // 如果所有端点都失败，返回空对象
-      console.warn('所有删除模型分类关联API端点都失败，返回空对象');
       return {};
     } catch (error) {
-      console.error('删除模型所有分类关联失败:', error);
       throw error;
     }
   }

@@ -205,7 +205,6 @@ const ModelsPage = () => {
     setSelectedModel(model);
     setSelectedItem('model', model);
     // Navigate to detail view or open modal
-    console.log('View model:', model);
   };
 
   const handleDelete = async (id) => {

@@ -24,40 +24,31 @@ import skill_enUS from './locales/en-US/skill.json';
 import errors_enUS from './locales/en-US/errors.json';
 
 
-// 合并所有翻译到一个命名空间，使用嵌套对象的结构
-const translation_zhCN = {
-  common: common_zhCN,
-  settings: settings_zhCN,
-  nav: nav_zhCN,
-  agent: agent_zhCN,
-  chat: chat_zhCN,
-  model: model_zhCN,
-  knowledge: knowledge_zhCN,
-  workflow: workflow_zhCN,
-  skill: skill_zhCN,
-  errors: errors_zhCN
-};
-
-const translation_enUS = {
-  common: common_enUS,
-  settings: settings_enUS,
-  nav: nav_enUS,
-  agent: agent_enUS,
-  chat: chat_enUS,
-  model: model_enUS,
-  knowledge: knowledge_enUS,
-  workflow: workflow_enUS,
-  skill: skill_enUS,
-  errors: errors_enUS
-};
-
-
+// 定义资源，每个命名空间单独加载
 const resources = {
   'zh-CN': {
-    translation: translation_zhCN
+    common: common_zhCN,
+    settings: settings_zhCN,
+    nav: nav_zhCN,
+    agent: agent_zhCN,
+    chat: chat_zhCN,
+    model: model_zhCN,
+    knowledge: knowledge_zhCN,
+    workflow: workflow_zhCN,
+    skill: skill_zhCN,
+    errors: errors_zhCN
   },
   'en-US': {
-    translation: translation_enUS
+    common: common_enUS,
+    settings: settings_enUS,
+    nav: nav_enUS,
+    agent: agent_enUS,
+    chat: chat_enUS,
+    model: model_enUS,
+    knowledge: knowledge_enUS,
+    workflow: workflow_enUS,
+    skill: skill_enUS,
+    errors: errors_enUS
   }
 };
 
@@ -70,17 +61,30 @@ i18n
     resources,
     lng: savedLanguage,
     fallbackLng: 'zh-CN',
-    defaultNS: 'translation',
-    ns: ['translation'],
+    defaultNS: 'common',
+    ns: ['common', 'settings', 'nav', 'agent', 'chat', 'model', 'knowledge', 'workflow', 'skill', 'errors'],
     interpolation: {
       escapeValue: false
     },
-    debug: true
+    debug: true,
+    // 支持嵌套键名，如 settings.general.title
+    parseMissingKeyHandler: (key) => {
+      // 如果键包含命名空间前缀（如 settings.xxx），尝试从对应命名空间查找
+      const nsSeparator = key.indexOf('.');
+      if (nsSeparator > 0) {
+        const ns = key.substring(0, nsSeparator);
+        const actualKey = key.substring(nsSeparator + 1);
+        if (i18n.hasResourceBundle(i18n.language, ns)) {
+          const translation = i18n.getResource(i18n.language, ns, actualKey);
+          if (translation) return translation;
+        }
+      }
+      return key;
+    }
   }, (err) => {
     if (err) {
       console.error('i18n initialization error:', err);
     } else {
-
     }
   });
 

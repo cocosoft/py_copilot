@@ -60,5 +60,212 @@
         "description": "Personalized settings and model management"
       }
     }
+  },
+  "capabilityCenter": {
+    "title": "Capability Center",
+    "description": "Unified management of tools, skills and MCP capabilities",
+    "subtitle": "Unified management of tools, skills and MCP capabilities",
+    "allCapabilities": "All Capabilities",
+    "tools": "Tools",
+    "skills": "Skills",
+    "searchPlaceholder": "Search capability name, description...",
+    "source": "Source",
+    "status": "Status",
+    "category": "Category",
+    "allSources": "All Sources",
+    "official": "Official",
+    "user": "User",
+    "marketplace": "Marketplace",
+    "allStatus": "All Status",
+    "active": "Active",
+    "disabled": "Disabled",
+    "allCategories": "All Categories",
+    "total": "Total",
+    "page": "Page",
+    "loading": "Loading...",
+    "noCapabilities": "No Capabilities",
+    "tryAdjustFilters": "Try adjusting the filters",
+    "refresh": "Refresh",
+    "loadError": "Failed to load capabilities",
+    "enabledSuccess": "Enabled successfully",
+    "disabledSuccess": "Disabled successfully",
+    "toggleError": "Operation failed",
+    "deleteSuccess": "Deleted successfully",
+    "deleteError": "Delete failed",
+    "deleteConfirm": "Are you sure you want to delete this capability? This action cannot be undone.",
+    "tabs": {
+      "all": "All",
+      "tools": "Tools",
+      "skills": "Skills",
+      "mcp": "MCP"
+    },
+    "filters": {
+      "allSources": "All Sources",
+      "official": "Official",
+      "user": "User",
+      "marketplace": "Marketplace",
+      "allStatus": "All Status",
+      "active": "Active",
+      "disabled": "Disabled",
+      "allCategories": "All Categories"
+    },
+    "types": {
+      "tool": "Tool",
+      "skill": "Skill",
+      "mcp": "MCP"
+    },
+    "sources": {
+      "official": "Official",
+      "builtin": "Built-in",
+      "user": "User",
+      "marketplace": "Marketplace"
+    },
+    "status": {
+      "active": "Active",
+      "disabled": "Disabled"
+    },
+    "actions": {
+      "enable": "Enable",
+      "disable": "Disable",
+      "configure": "Configure",
+      "delete": "Delete"
+    },
+    "category": "Category",
+    "author": "Author",
+    "toggleSuccess": {
+      "active": "Enabled successfully",
+      "disabled": "Disabled successfully"
+    }
+  },
+  "capabilityCard": {
+    "official": "Official",
+    "builtin": "Built-in",
+    "user": "User Created",
+    "marketplace": "Marketplace",
+    "local": "Local",
+    "tool": "Tool",
+    "skill": "Skill",
+    "noDescription": "No description",
+    "version": "Version",
+    "usage": "Usage",
+    "active": "Active",
+    "disabled": "Disabled",
+    "enable": "Enable",
+    "disable": "Disable",
+    "configure": "Configure",
+    "delete": "Delete",
+    "detail": "Detail"
+  },
+  "devCenter": {
+    "title": "Dev Center",
+    "description": "Create custom capabilities to extend system functionality",
+    "createSkill": "Create Skill",
+    "createSkillDesc": "Create custom skills with defined inputs, outputs, and behavior logic",
+    "createTool": "Create Tool",
+    "createToolDesc": "Create custom tools to integrate external APIs or local functions",
+    "configMCP": "Configure MCP",
+    "configMCPDesc": "Configure MCP client to connect external Model Context Protocol services",
+    "toolName": "Tool Name",
+    "toolNamePlaceholder": "Enter tool name (English identifier)",
+    "displayName": "Display Name",
+    "displayNamePlaceholder": "Enter display name",
+    "description": "Description",
+    "descriptionPlaceholder": "Enter description",
+    "category": "Category",
+    "categories": {
+      "general": "General",
+      "search": "Search",
+      "file": "File",
+      "data": "Data",
+      "api": "API"
+    },
+    "toolType": "Tool Type",
+    "toolTypes": {
+      "local": "Local Tool",
+      "api": "API Tool",
+      "script": "Script Tool"
+    },
+    "icon": "Icon",
+    "mcpName": "MCP Name",
+    "mcpNamePlaceholder": "Enter MCP configuration name",
+    "mcpDescription": "MCP Description",
+    "mcpDescriptionPlaceholder": "Enter MCP description",
+    "mcpServerUrl": "Server URL",
+    "mcpServerUrlPlaceholder": "Enter MCP server URL",
+    "mcpApiKey": "API Key",
+    "mcpApiKeyPlaceholder": "Enter API key (optional)",
+    "mcpTimeout": "Timeout (seconds)",
+    "mcpEnabled": "Enable this MCP configuration",
+    "createSkillSuccess": "Skill created successfully",
+    "createSkillError": "Failed to create skill",
+    "createToolSuccess": "Tool created successfully",
+    "createToolError": "Failed to create tool",
+    "configMCPSuccess": "MCP configured successfully",
+    "configMCPError": "Failed to configure MCP"
+  },
+  "agentManagement": {
+    "title": "Agent Management",
+    "description": "Create and manage single-purpose or composite agents",
+    "tabs": {
+      "myAgents": "My Agents",
+      "marketplace": "Agent Marketplace"
+    },
+    "filters": {
+      "all": "All",
+      "single": "Single-Purpose",
+      "composite": "Composite"
+    },
+    "types": {
+      "single": "Single-Purpose",
+      "composite": "Composite"
+    },
+    "createTitle": "Create Agent",
+    "createSingle": "Create Single-Purpose Agent",
+    "createSingleDesc": "Focus on a single task with one capability, simple and fast",
+    "createComposite": "Create Composite Agent",
+    "createCompositeDesc": "Multiple capabilities for complex tasks, flexible and powerful",
+    "myAgentsTitle": "My Agents",
+    "noAgents": "No agents yet",
+    "createHint": "Click the create button above to create your first agent",
+    "noDescription": "No description",
+    "official": "Official",
+    "template": "Template",
+    "loadError": "Failed to load agents",
+    "createError": "Failed to create agent",
+    "marketplace": {
+      "all": "All",
+      "official": "Official Agents",
+      "singleTemplates": "Single-Purpose Templates",
+      "compositeTemplates": "Composite Templates",
+      "comingSoon": "Agent Marketplace Coming Soon",
+      "comingSoonDesc": "Stay tuned for official and community agent templates"
+    },
+    "wizard": {
+      "singleTitle": "Create Single-Purpose Agent",
+      "compositeTitle": "Create Composite Agent",
+      "step1Title": "Select Primary Capability",
+      "step1Desc": "Choose the core capability for your agent to focus on",
+      "step2Title": "Configure Parameters",
+      "step2Desc": "Set the basic information for your agent",
+      "step1CompositeTitle": "Select Capability Combination",
+      "step1CompositeDesc": "Choose multiple capabilities for your agent",
+      "step2CompositeTitle": "Configure Orchestration",
+      "step2CompositeDesc": "Set collaboration rules between capabilities",
+      "step3CompositeTitle": "Set Trigger Conditions",
+      "step3CompositeDesc": "Configure activation conditions for your agent",
+      "step4CompositeTitle": "Test & Verify",
+      "step4CompositeDesc": "Test all functions of your agent",
+      "finalStepTitle": "Review & Create",
+      "finalStepDesc": "Review configuration and create agent",
+      "agentName": "Agent Name",
+      "agentNamePlaceholder": "Enter agent name",
+      "agentDescription": "Agent Description",
+      "agentDescriptionPlaceholder": "Enter agent description (optional)",
+      "agentAvatar": "Agent Avatar",
+      "reviewName": "Name",
+      "reviewType": "Type",
+      "reviewAvatar": "Avatar",
+      "comingSoon": "This feature is coming soon"
+    }
   }
 }

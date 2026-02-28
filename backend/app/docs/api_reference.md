@@ -783,7 +783,6 @@ client.executeSkill('data-analysis', {
     parameters: {operation: 'sum'}
 }).then(result => {
     if (result.success) {
-        console.log('执行结果:', result.data.result);
     } else {
         console.error('执行失败:', result.error);
     }

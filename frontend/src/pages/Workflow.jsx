@@ -43,7 +43,6 @@ const Workflow = () => {
       setWorkflows(workflowsWithSteps);
     } catch (err) {
       setError('加载工作流失败: ' + err.message);
-      console.error('加载工作流失败:', err);
     } finally {
       setLoading(false);
     }
@@ -54,7 +53,6 @@ const Workflow = () => {
       const data = await workflowService.getWorkflowExecutions();
       setExecutions(data);
     } catch (err) {
-      console.error('加载工作流执行历史失败:', err);
       // 不设置全局错误，因为这不是关键功能
     }
   };
@@ -91,7 +89,6 @@ const Workflow = () => {
 
   const handleSaveWorkflow = async (workflowData) => {
     try {
-      console.log('保存工作流:', workflowData);
       
       if (workflowData.id) {
         // 更新现有工作流
@@ -106,15 +103,12 @@ const Workflow = () => {
       // 重新加载工作流列表
       await loadWorkflows();
     } catch (error) {
-      console.error('保存工作流失败:', error);
       alert('保存工作流失败: ' + error.message);
     }
   };
 
   const handleExecuteWorkflow = async (executionData) => {
     try {
-      console.log('执行工作流:', executionData);
-      
       const result = await workflowService.executeWorkflow(
         executionData.workflowId, 
         executionData.inputData
@@ -122,7 +116,6 @@ const Workflow = () => {
       
       alert(`工作流执行已启动！执行ID: ${result.execution_id}`);
     } catch (error) {
-      console.error('执行工作流失败:', error);
       alert('执行工作流失败: ' + error.message);
     }
   };
@@ -147,7 +140,6 @@ const Workflow = () => {
         }
       }
     } catch (error) {
-      console.error('删除工作流失败:', error);
       alert('删除工作流失败: ' + error.message);
     }
   };
@@ -177,7 +169,6 @@ const Workflow = () => {
       alert('工作流自动生成成功！');
       
     } catch (error) {
-      console.error('自动生成工作流失败:', error);
       alert('工作流生成失败: ' + error.message);
     } finally {
       setAutoComposeLoading(false);

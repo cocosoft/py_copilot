@@ -1159,9 +1159,6 @@ const WorkflowDesigner = ({ workflow, onSave, onExecute }) => {
       
       if (isValidConnection()) {
         setEdges((eds) => addEdge(params, eds));
-      } else {
-        console.log('无效的连接：' + sourceNode.type + ' -> ' + targetNode.type);
-        // 可以添加用户友好的错误提示
       }
     },
     [nodes, setEdges]

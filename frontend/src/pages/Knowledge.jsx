@@ -672,7 +672,6 @@ const Knowledge = () => {
       if (doc.file_path && doc.file_path.includes('frontend/public')) {
         // 从完整路径中提取前端可访问的相对路径
         fileUrl = doc.file_path.split('frontend/public')[1];
-        console.log('转换后的文件URL:', fileUrl);
       } else {
         // 如果不是前端目录中的文件，仍使用下载API
         fileUrl = `/api/v1/knowledge/documents/${documentId}/download`;
@@ -681,15 +680,12 @@ const Knowledge = () => {
       if (doc.file_type === '.pdf') {
         // PDF文件预览 - 使用后端下载API
         try {
-          console.log('开始PDF预览流程...');
           
           // 1. 下载PDF文件
           const response = await fetch(fileUrl);
           if (!response.ok) throw new Error(`下载PDF失败: ${response.status} ${response.statusText}`);
-          console.log('PDF下载成功');
           
           const arrayBuffer = await response.arrayBuffer();
-          console.log('PDF文件大小:', arrayBuffer.byteLength, 'bytes');
           
           // 2. 加载PDF文档
           const pdf = await pdfjsLib.getDocument({
@@ -697,7 +693,6 @@ const Knowledge = () => {
             cMapUrl: new URL('pdfjs-dist/cmaps/', import.meta.url).href + '/',
             cMapPacked: true
           }).promise;
-          console.log('PDF文档加载成功，总页数:', pdf.numPages);
           
           // 保存PDF文档和总页数
           setPdfDocument(pdf);
@@ -705,7 +700,6 @@ const Knowledge = () => {
           
           // 3. 渲染第一页 - 直接使用加载的pdf对象，避免状态更新延迟问题
           await renderPdfPageWithDocument(pdf, 1);
-          console.log('PDF预览设置成功');
           
         } catch (pdfError) {
           console.error('PDF预览失败:', pdfError);
@@ -1072,7 +1066,6 @@ const Knowledge = () => {
       if (selectedDocument.file_path && selectedDocument.file_path.includes('frontend/public')) {
         // 从完整路径中提取前端可访问的相对路径
         fileUrl = selectedDocument.file_path.split('frontend/public')[1];
-        console.log('转换后的文件下载URL:', fileUrl);
         
         // 创建下载链接，直接指向前端文件
         const a = document.createElement('a');
@@ -1119,7 +1112,6 @@ const Knowledge = () => {
       if (doc.file_path && doc.file_path.includes('frontend/public')) {
         // 从完整路径中提取前端可访问的相对路径
         fileUrl = doc.file_path.split('frontend/public')[1];
-        console.log('转换后的文件下载URL:', fileUrl);
         
         // 创建下载链接，直接指向前端文件
         const a = document.createElement('a');

@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
-  FaHome, FaComments, FaImage, FaVideo, FaMicrophoneAlt,
-  FaLanguage, FaCog, FaAngleLeft, FaAngleRight, FaTasks
+  FaHome, FaComments, FaAngleLeft, FaAngleRight,
+  FaToolbox, FaRobot, FaProjectDiagram, FaBrain
 } from 'react-icons/fa';
 
 // 简化的导航栏组件，确保图标能正确显示
 const Navbar = () => {
   // 使用 i18n 翻译
-  const { t } = useTranslation();
+  const { t } = useTranslation('nav');
 
   // 添加导航栏收缩/展开状态
   const [collapsed, setCollapsed] = useState(false);
@@ -20,49 +20,45 @@ const Navbar = () => {
   };
   
   // 主要导航项，使用React Icons库
+  // 根据 SETTINGS_MERGE_PROPOSAL_V8.md 的导航结构重构规划
   const mainNavItems = [
-    { 
-      path: '/', 
-      name: t('nav.home'), 
+    {
+      path: '/',
+      name: t('home'),
       icon: <FaHome className="nav-svg" />,
       iconCollapsed: <FaHome className="nav-svg" />
     },
-    { 
-      path: '/chat', 
-      name: t('nav.chat'), 
+    {
+      path: '/chat',
+      name: t('chat'),
       icon: <FaComments className="nav-svg" />,
       iconCollapsed: <FaComments className="nav-svg" />
     },
-    { 
-      path: '/task', 
-      name: t('nav.tasks'), 
-      icon: <FaTasks className="nav-svg" />,
-      iconCollapsed: <FaTasks className="nav-svg" />
+    {
+      path: '/capability-center',
+      name: t('capabilityCenter'),
+      icon: <FaToolbox className="nav-svg" />,
+      iconCollapsed: <FaToolbox className="nav-svg" />
     },
-    { 
-      path: '/image', 
-      name: t('nav.image'), 
-      icon: <FaImage className="nav-svg" />,
-      iconCollapsed: <FaImage className="nav-svg" />
+    {
+      path: '/agents',
+      name: t('agents'),
+      icon: <FaRobot className="nav-svg" />,
+      iconCollapsed: <FaRobot className="nav-svg" />
     },
-    { 
-      path: '/video', 
-      name: t('nav.video'), 
-      icon: <FaVideo className="nav-svg" />,
-      iconCollapsed: <FaVideo className="nav-svg" />
+    {
+      path: '/workflow',
+      name: t('workflow'),
+      icon: <FaProjectDiagram className="nav-svg" />,
+      iconCollapsed: <FaProjectDiagram className="nav-svg" />
     },
-    { 
-      path: '/voice', 
-      name: t('nav.voice'), 
-      icon: <FaMicrophoneAlt className="nav-svg" />,
-      iconCollapsed: <FaMicrophoneAlt className="nav-svg" />
-    },
-    { 
-      path: '/translate', 
-      name: t('nav.translate'), 
-      icon: <FaLanguage className="nav-svg" />,
-      iconCollapsed: <FaLanguage className="nav-svg" />
+    {
+      path: '/knowledge',
+      name: t('knowledge'),
+      icon: <FaBrain className="nav-svg" />,
+      iconCollapsed: <FaBrain className="nav-svg" />
     }
+    // 注意：设置已在顶部标题栏中，不在导航栏重复显示
   ];
   
 
@@ -73,7 +69,7 @@ const Navbar = () => {
         <button 
           className="collapse-toggle" 
           onClick={toggleCollapse}
-          title={collapsed ? t('nav.expand') : t('nav.collapse')}
+          title={collapsed ? t('expand') : t('collapse')}
         >
           {collapsed ? (
             <FaAngleRight className="nav-svg" />
@@ -91,15 +87,14 @@ const Navbar = () => {
                 className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
                 title={collapsed ? item.name : ''}
               >
-                {collapsed ? item.iconCollapsed : item.icon}
-                <span>{item.name}</span>
+                <span className="nav-icon">
+                  {collapsed ? item.iconCollapsed : item.icon}
+                </span>
+                <span className="nav-text">{item.name}</span>
               </NavLink>
             </li>
           ))}
         </ul>
-        
-
-
       </div>
     </nav>
   );

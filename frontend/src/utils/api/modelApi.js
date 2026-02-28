@@ -62,19 +62,15 @@ const modelApi = {
             body: JSON.stringify(parameterData),
             headers: { 'Content-Type': 'application/json' }
           });
-          console.log(`参数创建API响应 (${endpointConfig.method} ${endpoint}):`, response);
           return response;
         } catch (err) {
-          console.warn(`尝试端点 ${endpointConfig.method} ${endpointConfig.path} 失败:`, err.message);
           // 继续尝试下一个端点
         }
       }
       
       // 如果所有尝试都失败，返回默认数据
-      console.warn('所有参数创建API端点都失败，返回默认数据');
       return {};
     } catch (error) {
-      console.error('创建参数失败:', error);
       // 出错时返回默认数据
       return {};
     }
@@ -177,15 +173,7 @@ const modelApi = {
    */
   async applyParameterTemplate(supplierId, modelId, templateId) {
     try {
-      console.log('applyParameterTemplate调用参数:', { supplierId, modelId, templateId });
-      
-      // 验证参数类型
-      console.log('参数类型检查:', { 
-        supplierIdType: typeof supplierId, 
-        modelIdType: typeof modelId, 
-        templateIdType: typeof templateId 
-      });
-      
+
       // 尝试使用不同的API端点
       const endpoints = [];
       
@@ -193,9 +181,6 @@ const modelApi = {
       if (supplierId && modelId && templateId) {
         const syncEndpoint = `/v1/suppliers/${supplierId}/models/${modelId}/sync-parameters`;
         endpoints.push(syncEndpoint);
-        console.log('添加sync-parameters端点:', syncEndpoint);
-      } else {
-        console.warn('跳过sync-parameters端点，因为参数不完整:', { supplierId, modelId, templateId });
       }
       
       // 添加传统端点
@@ -205,12 +190,9 @@ const modelApi = {
         `/v1/model-management/templates/${templateId}/apply`,
         `/v1/templates/${templateId}/apply`
       );
-      
-      console.log('将尝试的API端点:', endpoints);
-      
+
       for (const endpoint of endpoints) {
         try {
-          console.log(`正在尝试端点: ${endpoint}`);
           let requestOptions = { method: 'POST' };
           let fullEndpoint = endpoint;
           
@@ -219,7 +201,7 @@ const modelApi = {
             // 使用sync-parameters端点的请求体格式
             requestOptions.body = JSON.stringify({ template_id: templateId });
             requestOptions.headers = { 'Content-Type': 'application/json' };
-            console.log(`sync-parameters请求配置:`, { fullEndpoint, requestOptions });
+
           } else {
             // 使用旧的查询参数格式
             const params = new URLSearchParams();
@@ -229,14 +211,12 @@ const modelApi = {
             if (paramsString) {
               fullEndpoint += `?${paramsString}`;
             }
-            console.log(`传统端点请求配置:`, { fullEndpoint, requestOptions });
+
           }
           
           const response = await request(fullEndpoint, requestOptions);
-          console.log(`应用参数模板成功 (${fullEndpoint}):`, response);
           return response;
         } catch (err) {
-          console.warn(`尝试端点 ${endpoint} 失败:`, err.message);
           // 继续尝试下一个端点
         }
       }
@@ -244,7 +224,6 @@ const modelApi = {
       // 如果所有端点都失败，抛出最后一个错误
       throw new Error('所有应用参数模板的API端点都失败');
     } catch (error) {
-      console.error('应用参数模板失败:', error);
       throw error;
     }
   },
@@ -290,7 +269,6 @@ const modelApi = {
     try {
       // 检查模型ID是否包含斜杠（如供应商/模型ID格式）
       if (typeof modelId === 'string' && modelId.includes('/')) {
-        console.log('检测到包含斜杠的模型ID，直接返回空参数数组');
         return [];
       }
       
@@ -303,19 +281,15 @@ const modelApi = {
       for (const endpoint of endpoints) {
         try {
           response = await request(endpoint, { method: 'GET' });
-          console.log(`模型维度参数API响应 (${endpoint}):`, response);
           return response.parameters || [];
         } catch (err) {
-          console.warn(`尝试端点 ${endpoint} 失败:`, err.message);
           // 继续尝试下一个端点
         }
       }
       
       // 如果所有端点都失败，返回默认数据
-      console.warn('所有模型维度参数API端点都失败，返回空数组');
       return [];
     } catch (error) {
-      console.error('获取模型维度参数失败:', error);
       // 出错时返回默认数据
       return [];
     }
@@ -340,7 +314,6 @@ const modelApi = {
       const response = await request('/v1/models', { method: 'GET' });
       return response;
     } catch (error) {
-      console.error('获取模型列表失败:', error);
       return { models: [] };
     }
   },

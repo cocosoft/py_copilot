@@ -119,13 +119,6 @@ const ChatMain = ({
     if (!files || files.length === 0) return;
 
     const file = files[0];
-    
-    console.log('========== 文件上传开始 ==========');
-    console.log('文件名:', file.name);
-    console.log('文件大小:', file.size);
-    console.log('文件类型:', file.type);
-    console.log('================================');
-    
     // 检查文件大小（50MB限制）
     const maxSize = 50 * 1024 * 1024;
     if (file.size > maxSize) {
@@ -139,23 +132,17 @@ const ChatMain = ({
       const formData = new FormData();
       formData.append('file', file);
 
-      console.log('开始上传文件到:', `${API_BASE_URL}/v1/file-upload/upload`);
-      
       const response = await fetch(`${API_BASE_URL}/v1/file-upload/upload`, {
         method: 'POST',
         body: formData
       });
 
-      console.log('上传响应状态:', response.status, response.statusText);
-
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('上传失败响应:', errorData);
         throw new Error(errorData.detail || t('settings.chat.uploadFailed'));
       }
 
       const result = await response.json();
-      console.log('上传成功响应:', result);
 
       const newFile = {
         id: result.file_id,
@@ -164,18 +151,13 @@ const ChatMain = ({
         type: result.file_type,
         path: result.upload_path
       };
-      
-      console.log('新文件对象:', newFile);
-      console.log('当前 uploadedFiles:', uploadedFiles);
-      console.log('调用 setUploadedFiles');
+
       
       setUploadedFiles(prev => {
         const newFiles = [...prev, newFile];
-        console.log('更新后的文件列表:', newFiles);
         return newFiles;
       });
     } catch (error) {
-      console.error('文件上传错误:', error);
     } finally {
       setIsUploading(false);
       // 清空input，允许重复上传同一文件
@@ -198,7 +180,6 @@ const ChatMain = ({
 
       setUploadedFiles(prev => prev.filter(f => f.id !== fileId));
     } catch (error) {
-      console.error('删除文件错误:', error);
     }
   };
 
@@ -312,7 +293,7 @@ const ChatMain = ({
             style={{ display: 'none' }}
             onChange={handleFileSelect}
           />
-          <button type="button" className={`input-btn ${enableWebSearch ? 'active' : ''}`} title="联网搜索（开关按钮）" onClick={() => {
+          <button type="button" className={`input-btn ${enableWebSearch ? 'active' : ''}`} title="联网搜索" onClick={() => {
             if (!enableWebSearch) {
               setEnableWebSearch(true);
               setEnableKnowledgeSearch(false);
@@ -320,7 +301,7 @@ const ChatMain = ({
               setEnableWebSearch(false);
             }
           }}>🌐</button>
-          <button type="button" className={`input-btn ${enableKnowledgeSearch ? 'active' : ''}`} title="知识库搜索（开关按钮）" onClick={() => {
+          <button type="button" className={`input-btn ${enableKnowledgeSearch ? 'active' : ''}`} title="知识库搜索" onClick={() => {
             if (!enableKnowledgeSearch) {
               setEnableKnowledgeSearch(true);
               setEnableWebSearch(false);
@@ -328,9 +309,9 @@ const ChatMain = ({
               setEnableKnowledgeSearch(false);
             }
           }}>📚</button>
-          <button type="button" className={`input-btn ${enableStreaming ? 'active' : ''}`} title="流式输出（开关按钮）" onClick={() => setEnableStreaming(!enableStreaming)}>💧</button>
-          <button type="button" className={`input-btn ${enableThinkingChain ? 'active' : ''}`} title="思考模式（开关按钮）" onClick={() => setEnableThinkingChain(!enableThinkingChain)}>🧠</button>
-          <button type="button" className={`input-btn ${enableFunctionCalling ? 'active' : ''}`} title="工具调用（开关按钮）" onClick={() => setEnableFunctionCalling(!enableFunctionCalling)}>🔧</button>
+          <button type="button" className={`input-btn ${enableStreaming ? 'active' : ''}`} title="流式输出" onClick={() => setEnableStreaming(!enableStreaming)}>💧</button>
+          <button type="button" className={`input-btn ${enableThinkingChain ? 'active' : ''}`} title="思考模式" onClick={() => setEnableThinkingChain(!enableThinkingChain)}>🧠</button>
+          <button type="button" className={`input-btn ${enableFunctionCalling ? 'active' : ''}`} title="工具调用" onClick={() => setEnableFunctionCalling(!enableFunctionCalling)}>🔧</button>
           <button type="button" className="input-btn" title="翻译">🔤</button>
           <div className="input-divider"></div>
           <button type="button" className="input-btn" title="录音">🎤</button>

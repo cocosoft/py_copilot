@@ -59,6 +59,7 @@ function App() {
 // 主应用组件（需要认证）
 function MainApp() {
   const { t, i18n } = useTranslation();
+  const { t: tNav } = useTranslation('nav');
   const [isLanguageLoaded, setIsLanguageLoaded] = useState(false);
   
   // 从后端加载语言设置
@@ -121,10 +122,10 @@ function MainApp() {
           <NavLink
             to="/personal"
             className="header-user-button"
-            title={t('nav.personal')}
+            title={tNav('personal')}
           >
             <span className="user-icon">👤</span>
-            <span className="user-text">{t('nav.personal')}</span>
+            <span className="user-text">{tNav('personal')}</span>
           </NavLink>
           {/* 工作空间选择器 */}
           <div className="header-workspace-selector">
@@ -133,18 +134,18 @@ function MainApp() {
           <NavLink
             to="/settings"
             className="header-user-button"
-            title={t('nav.settings')}
+            title={tNav('settings')}
           >
             <span className="user-icon">⚙️</span>
-            <span className="user-text">{t('nav.settings')}</span>
+            <span className="user-text">{tNav('settings')}</span>
           </NavLink>
           <NavLink
             to="/help"
             className="header-user-button"
-            title={t('nav.help')}
+            title={tNav('help')}
           >
             <span className="user-icon">❓</span>
-            <span className="user-text">{t('nav.help')}</span>
+            <span className="user-text">{tNav('help')}</span>
           </NavLink>
         </div>
       </header>

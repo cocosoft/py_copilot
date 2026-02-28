@@ -216,7 +216,6 @@ class ErrorService {
     try {
       // 这里可以实现错误报告逻辑
       // 例如：发送错误到后端错误监控服务
-      console.log('Reporting error:', error, context);
       
       // 模拟错误报告
       return {

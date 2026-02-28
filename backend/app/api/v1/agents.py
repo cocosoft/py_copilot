@@ -101,6 +101,10 @@ def get_agents_api(
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=100),
     category_id: Optional[int] = Query(None, description="分类ID"),
+    agent_type: Optional[str] = Query(None, description="智能体类型: single/composite"),
+    is_official: Optional[bool] = Query(None, description="是否官方智能体"),
+    is_template: Optional[bool] = Query(None, description="是否模板智能体"),
+    template_category: Optional[str] = Query(None, description="模板分类"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> Any:
@@ -111,6 +115,10 @@ def get_agents_api(
         skip: 跳过数量
         limit: 限制数量
         category_id: 分类ID（可选）
+        agent_type: 智能体类型（可选）
+        is_official: 是否官方智能体（可选）
+        is_template: 是否模板智能体（可选）
+        template_category: 模板分类（可选）
         current_user: 当前用户
         request: FastAPI请求对象
         db: 数据库会话
@@ -118,7 +126,17 @@ def get_agents_api(
     Returns:
         智能体列表信息
     """
-    agents, total = get_agents(db=db, skip=skip, limit=limit, user_id=current_user.id, category_id=category_id)
+    agents, total = get_agents(
+        db=db, 
+        skip=skip, 
+        limit=limit, 
+        user_id=current_user.id, 
+        category_id=category_id,
+        agent_type=agent_type,
+        is_official=is_official,
+        is_template=is_template,
+        template_category=template_category
+    )
     
     base_url = str(request.base_url).rstrip('/')
     

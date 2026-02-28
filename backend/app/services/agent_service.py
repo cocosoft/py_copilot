@@ -87,13 +87,45 @@ def get_agent(db: Session, agent_id: int) -> Optional[Agent]:
     return db.query(Agent).filter(Agent.id == agent_id, Agent.is_deleted == False).first()
 
 
-def get_agents(db: Session, skip: int = 0, limit: int = 100, user_id: Optional[int] = None, category_id: Optional[int] = None) -> tuple[List[Agent], int]:
-    """获取智能体列表"""
+def get_agents(
+    db: Session, 
+    skip: int = 0, 
+    limit: int = 100, 
+    user_id: Optional[int] = None, 
+    category_id: Optional[int] = None,
+    agent_type: Optional[str] = None,
+    is_official: Optional[bool] = None,
+    is_template: Optional[bool] = None,
+    template_category: Optional[str] = None
+) -> tuple[List[Agent], int]:
+    """获取智能体列表
+    
+    Args:
+        db: 数据库会话
+        skip: 跳过数量
+        limit: 限制数量
+        user_id: 用户ID筛选
+        category_id: 分类ID筛选
+        agent_type: 智能体类型筛选 (single/composite)
+        is_official: 是否官方智能体筛选
+        is_template: 是否模板智能体筛选
+        template_category: 模板分类筛选
+    """
     query = db.query(Agent).options(joinedload(Agent.category)).filter(Agent.is_deleted == False)
+    
     if user_id is not None:
         query = query.filter(Agent.user_id == user_id)
     if category_id is not None:
         query = query.filter(Agent.category_id == category_id)
+    if agent_type is not None:
+        query = query.filter(Agent.agent_type == agent_type)
+    if is_official is not None:
+        query = query.filter(Agent.is_official == is_official)
+    if is_template is not None:
+        query = query.filter(Agent.is_template == is_template)
+    if template_category is not None:
+        query = query.filter(Agent.template_category == template_category)
+    
     total = query.count()
     agents = query.offset(skip).limit(limit).all()
     return agents, total

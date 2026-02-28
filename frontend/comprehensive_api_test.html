@@ -53,8 +53,6 @@
             sectionDiv.classList.remove('success', 'error');
             
             try {
-                // 测试通过Vite代理的API
-                console.log(`测试: ${endpoint}`);
                 
                 const startTime = Date.now();
                 const response = await fetch(endpoint, {
@@ -63,18 +61,13 @@
                 });
                 const endTime = Date.now();
                 
-                console.log('响应状态:', response.status);
-                console.log('响应头:', Object.fromEntries(response.headers));
-                
+
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 
                 const data = await response.json();
-                console.log('响应数据:', data);
-                console.log('数据类型:', typeof data);
-                console.log('是数组吗:', Array.isArray(data));
-                
+
                 // 分析数据结构
                 const analysis = analyzeDataStructure(data);
                 
@@ -95,7 +88,6 @@
                 sectionDiv.classList.add('success');
                 
             } catch (error) {
-                console.error(`测试失败: ${endpoint}`, error);
                 
                 resultDiv.innerHTML = `
                     <strong>测试结果:</strong>

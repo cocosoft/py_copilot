@@ -4,14 +4,10 @@ import { request, requestWithRetry } from '../utils/apiUtils';
 import * as d3 from 'd3';
 import './settings.css';
 import IntegratedModelManagement from '../components/ModelManagement/IntegratedModelManagement';
-import Agent from './Agent';
 import Knowledge from './Knowledge';
 import Workflow from './Workflow';
-import Tool from './Tool';
 import ModelSelectDropdown from '../components/ModelManagement/ModelSelectDropdown';
-import SkillManagement from '../components/SkillManagement/SkillManagement';
 import SettingsManager from '../components/SettingsManagement/SettingsManager';
-import MCPSettings from '../components/MCPSettings';
 
 // 防抖函数
 const debounce = (func, wait) => {
@@ -64,12 +60,6 @@ const Settings = () => {
     };
   }, []);
   
-  // 搜索设置的状态（仅保留基础配置）
-  const [defaultSearchEngine, setDefaultSearchEngine] = useState('google');
-  const [safeSearch, setSafeSearch] = useState(true);
-  const [isLoadingSearch, setIsLoadingSearch] = useState(false);
-  const [isSavingSearch, setIsSavingSearch] = useState(false);
-
   // 默认模型管理的状态 - 移到组件顶层
   const [globalDefaultModel, setGlobalDefaultModel] = useState('');
   const [sceneDefaultModels, setSceneDefaultModels] = useState({
@@ -907,53 +897,6 @@ const Settings = () => {
     setSidebarExpanded(!sidebarExpanded);
   };
 
-  // 加载搜索设置
-  const loadSearchSettings = async () => {
-    setIsLoadingSearch(true);
-    try {
-      // 使用/v1/search/settings路径，与后端的路由匹配
-      const data = await request('/v1/search/settings', { method: 'GET' });
-      setDefaultSearchEngine(data.default_search_engine);
-      setSafeSearch(data.safe_search);
-    } catch (error) {
-      console.error('加载搜索设置失败:', error);
-      // 加载失败时使用默认值
-      setDefaultSearchEngine('google');
-      setSafeSearch(true);
-    } finally {
-      setIsLoadingSearch(false);
-    }
-  };
-
-  // 保存搜索设置
-  const saveSearchSettings = async () => {
-    setIsSavingSearch(true);
-    try {
-      // 这里只需要使用/v1/search/settings路径，因为request函数会自动添加API_BASE_URL（即/api）
-      // 所以实际请求的URL是/api/v1/search/settings，与后端的路由匹配
-      await request('/v1/search/settings', {
-        method: 'PUT',
-        data: {
-          default_search_engine: defaultSearchEngine,
-          safe_search: safeSearch
-        }
-      });
-      alert('搜索设置已保存');
-    } catch (error) {
-      console.error('保存搜索设置失败:', error);
-      alert('保存失败，请重试');
-    } finally {
-      setIsSavingSearch(false);
-    }
-  };
-
-  // 页面加载时获取搜索设置
-  useEffect(() => {
-    if (activeSection === 'search') {
-      loadSearchSettings();
-    }
-  }, [activeSection]);
-
   // 根据选中的二级菜单渲染对应内容
   const renderContent = () => {
     switch (activeSection) {
@@ -985,13 +928,6 @@ const Settings = () => {
           </div>
         );
         
-      case 'agents':
-        return (
-          <div className="settings-content">
-            <Agent />
-          </div>
-        );
-        
       case 'knowledge':
         return (
           <div className="settings-content">
@@ -1006,71 +942,7 @@ const Settings = () => {
           </div>
         );
         
-      case 'tool':
-        return (
-          <div className="settings-content">
-            <Tool />
-          </div>
-        );
-      
-      case 'skill':
-        return (
-          <div className="settings-content">
-            <SkillManagement />
-          </div>
-        );
-      
-      case 'search':
-        return (
-          <div className="settings-content">
-            <div className="content-header">
-              <h2>{t('settings.search.title')}</h2>
-              <p>{t('settings.search.description')}</p>
-            </div>
-            
-            {isLoadingSearch ? (
-              <div className="loading">{t('common.loading')}</div>
-            ) : (
-              <div className="search-section">
-                <div className="setting-card">
-                  <div className="setting-item">
-                    <label htmlFor="defaultSearchEngine">{t('settings.search.defaultEngine')}</label>
-                    <select 
-                      id="defaultSearchEngine"
-                      className="search-select"
-                      value={defaultSearchEngine}
-                      onChange={(e) => setDefaultSearchEngine(e.target.value)}
-                    >
-                      <option value="google">{t('settings.search.engines.google')}</option>
-                      <option value="bing">{t('settings.search.engines.bing')}</option>
-                      <option value="baidu">{t('settings.search.engines.baidu')}</option>
-                    </select>
-                  </div>
-                  
-                  <div className="setting-item">
-                    <label htmlFor="safeSearch">{t('settings.search.safeSearch')}</label>
-                    <input 
-                      type="checkbox" 
-                      id="safeSearch" 
-                      checked={safeSearch}
-                      onChange={(e) => setSafeSearch(e.target.checked)}
-                    />
-                  </div>
-                  
-                  <div className="setting-actions">
-                    <button 
-                      className="save-btn" 
-                      onClick={saveSearchSettings}
-                      disabled={isSavingSearch}
-                    >
-                      {isSavingSearch ? t('common.loading') : t('common.save')}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        );
+
         
       case 'defaultModel':
         return (
@@ -1744,13 +1616,6 @@ const Settings = () => {
           </div>
         );
            
-      case 'mcp':
-        return (
-          <div className="settings-content">
-            <MCPSettings />
-          </div>
-        );
-           
       default:
         return (
           <div className="settings-content">
@@ -1790,15 +1655,7 @@ const Settings = () => {
               <span className="nav-text">{t('settings.navigation.modelManagement')}</span>
             </button>
             
-            <button 
-              className={`nav-item ${activeSection === 'agents' ? 'active' : ''}`}
-              onClick={() => setActiveSection('agents')}
-            >
-              <span className="nav-icon">🤖</span>
-              <span className="nav-text">{t('nav.agents')}</span>
-            </button>
-            
-            <button 
+            <button
               className={`nav-item ${activeSection === 'knowledge' ? 'active' : ''}`}
               onClick={() => setActiveSection('knowledge')}
             >
@@ -1815,45 +1672,11 @@ const Settings = () => {
             </button>
             
             <button 
-              className={`nav-item ${activeSection === 'tool' ? 'active' : ''}`}
-              onClick={() => setActiveSection('tool')}
-            >
-              <span className="nav-icon">🔧</span>
-              <span className="nav-text">{t('nav.tools')}</span>
-            </button>
-            
-            <button 
-              className={`nav-item ${activeSection === 'skill' ? 'active' : ''}`}
-              onClick={() => setActiveSection('skill')}
-            >
-              <span className="nav-icon">🎯</span>
-              <span className="nav-text">{t('nav.skills')}</span>
-            </button>
-            
-            <button 
-              className={`nav-item ${activeSection === 'search' ? 'active' : ''}`}
-              onClick={() => setActiveSection('search')}
-            >
-              <span className="nav-icon">🔍</span>
-              <span className="nav-text">{t('settings.navigation.search')}</span>
-            </button>
-            
-
-            
-            <button 
               className={`nav-item ${activeSection === 'globalMemory' ? 'active' : ''}`}
               onClick={() => setActiveSection('globalMemory')}
             >
               <span className="nav-icon">💾</span>
               <span className="nav-text">{t('settings.navigation.memory')}</span>
-            </button>
-            
-            <button 
-              className={`nav-item ${activeSection === 'mcp' ? 'active' : ''}`}
-              onClick={() => setActiveSection('mcp')}
-            >
-              <span className="nav-icon">🔗</span>
-              <span className="nav-text">{t('settings.navigation.mcp')}</span>
             </button>
               
 

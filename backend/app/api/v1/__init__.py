@@ -39,7 +39,8 @@ ROUTE_GROUPS: Dict[str, List[Dict]] = {
         {'module': 'app.api.v1.capability_types', 'prefix': '/capability-types', 'tags': ['capability_types']},
         {'module': 'app.api.v1.capability_dimensions', 'prefix': '/model-capability/dimensions', 'tags': ['capability_dimensions']},
         {'module': 'app.modules.capability_category.api.model_categories', 'prefix': '/categories', 'tags': ['model_categories']},
-        {'module': 'app.modules.capability_category.api.category_templates', 'prefix': '/category-templates', 'tags': ['category_templates']}
+        {'module': 'app.modules.capability_category.api.category_templates', 'prefix': '/category-templates', 'tags': ['category_templates']},
+        {'module': 'app.api.v1.capability_center', 'prefix': '/capability-center', 'tags': ['capability-center']}
     ],
     'agents': [
         {'module': 'app.api.v1.agents', 'prefix': '/agents', 'tags': ['agents']},
@@ -80,7 +81,8 @@ ROUTE_GROUPS: Dict[str, List[Dict]] = {
         {'module': 'app.api.v1.dimension_hierarchy', 'prefix': '/dimension-hierarchy', 'tags': ['dimension-hierarchy']}
     ],
     'search': [
-        {'module': 'app.api.v1.search_management', 'tags': ['search']}
+        {'module': 'app.api.v1.search_management', 'tags': ['search']},
+        {'module': 'app.api.v1.search_management_deprecated', 'prefix': '/search-deprecated', 'tags': ['search-deprecated']}
     ],
     'file': [
         {'module': 'app.api.v1.file_upload', 'prefix': '/file-upload', 'tags': ['file-upload']},

@@ -64,13 +64,6 @@ export const StoreMonitor = ({ enabled = false, maxEntries = 50 }) => {
         const newEntries = [entry, ...prev].slice(0, maxEntries);
         return newEntries;
       });
-
-      // 输出到控制台
-      console.group('🔄 Store State Changed');
-      console.log('Timestamp:', entry.timestamp);
-      console.log('Changes:', entry.changes);
-      console.log('Full State:', state);
-      console.groupEnd();
     });
 
     return unsubscribe;
@@ -119,10 +112,8 @@ export class StatePersistence {
       };
       
       localStorage.setItem(this.storageKey, JSON.stringify(backup));
-      console.log('✅ 状态备份成功');
       return backup;
     } catch (error) {
-      console.error('❌ 状态备份失败:', error);
       return null;
     }
   };
@@ -132,7 +123,6 @@ export class StatePersistence {
     try {
       const backupData = localStorage.getItem(this.storageKey);
       if (!backupData) {
-        console.warn('⚠️ 没有找到状态备份');
         return null;
       }
 
@@ -140,31 +130,24 @@ export class StatePersistence {
       
       // 验证备份数据格式
       if (!backup.timestamp || !backup.state) {
-        console.error('❌ 备份数据格式无效');
         return null;
       }
 
       // 检查备份是否过期（7天）
       const sevenDays = 7 * 24 * 60 * 60 * 1000;
       if (Date.now() - backup.timestamp > sevenDays) {
-        console.warn('⚠️ 备份数据已过期');
         localStorage.removeItem(this.storageKey);
         return null;
       }
 
-      console.log('🔄 正在恢复状态...');
-      
       // 恢复各个store的状态
       const { app, auth, model, supplier, api } = backup.state;
       
       if (app) {
         Object.assign(useRootStore.getState(), app);
       }
-      
-      console.log('✅ 状态恢复成功');
       return backup;
     } catch (error) {
-      console.error('❌ 状态恢复失败:', error);
       return null;
     }
   };
@@ -172,7 +155,6 @@ export class StatePersistence {
   // 清除备份
   clearBackup = () => {
     localStorage.removeItem(this.storageKey);
-    console.log('🗑️ 状态备份已清除');
   };
 
   // 启动自动备份
@@ -184,8 +166,6 @@ export class StatePersistence {
     this.autoSaveInterval = setInterval(() => {
       this.backupState();
     }, intervalMs);
-
-    console.log(`⏰ 自动备份已启动，间隔: ${intervalMs / 1000}秒`);
   };
 
   // 停止自动备份
@@ -193,7 +173,6 @@ export class StatePersistence {
     if (this.autoSaveInterval) {
       clearInterval(this.autoSaveInterval);
       this.autoSaveInterval = null;
-      console.log('⏸️ 自动备份已停止');
     }
   };
 }

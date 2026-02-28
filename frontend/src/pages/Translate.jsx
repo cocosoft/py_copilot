@@ -227,7 +227,6 @@ const Translate = () => {
     // 如果选择了模型，可以自动设置一些默认参数
     if (model && model.capabilities) {
       // 根据模型能力调整翻译参数
-      console.log('选择了模型:', model.model_name, '能力:', model.capabilities);
     }
   }, []);
 

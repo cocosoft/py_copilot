@@ -680,15 +680,6 @@ const Chat = () => {
     };
     
     try {
-      console.log('========== 开始发送消息 ==========');
-      console.log('消息内容:', inputText);
-      console.log('已上传文件数量:', uploadedFiles.length);
-      console.log('已上传文件列表:', uploadedFiles);
-      console.log('================================');
-      
-      // 只记录关键步骤的日志
-      console.log(`开始发送消息: ${inputText.substring(0, 50)}${inputText.length > 50 ? '...' : ''}`);
-      
       // 添加到消息列表并更新总tokens数量
       setMessages(prev => {
         const newMessages = [...prev, tempMessage];
@@ -700,7 +691,6 @@ const Chat = () => {
       
       // 检查网络连接
       if (!navigator.onLine) {
-        console.warn('网络离线，将消息加入离线队列');
         // 离线状态，加入离线消息队列
         setOfflineMessages(prev => [...prev, { text: inputText.trim() }]);
         // 更新消息状态为离线
@@ -716,14 +706,12 @@ const Chat = () => {
       // 在线状态，发送消息
       if (enableStreaming) {
         // 流式响应已在handleStreamingResponse中记录日志
-        console.log('使用流式响应发送消息');
         // 清空输入框和已上传文件列表
         setInputText('');
         setUploadedFiles([]);
         await handleStreamingResponse(inputText.trim(), conversationId, activeTopic?.id, tempMessage);
       } else {
         // 普通响应
-        console.log('使用普通响应发送消息');
         const messageData = {
           content: inputText.trim(),
           use_llm: true,
@@ -738,8 +726,6 @@ const Chat = () => {
           messageData.topic_id = activeTopic.id;
         }
         
-        console.log('发送消息数据:', JSON.stringify(messageData, null, 2));
-        
         const response = await fetch(`${API_BASE_URL}/v1/conversations/${conversationId}/messages`, {
           method: 'POST',
           headers: {
@@ -753,7 +739,6 @@ const Chat = () => {
         }
         
         const result = await response.json();
-        console.log('消息发送响应:', result);
         
         // 计算AI回复的tokens数量
         const aiTokens = calculateTokens(result.assistant_message.content);
@@ -824,12 +809,6 @@ const Chat = () => {
   // 流式响应处理
   const handleStreamingResponse = useCallback(async (text, conversationId = 1, topicId = null, tempMessage = null) => {
     try {
-      console.log('========== 流式响应处理 ==========');
-      console.log('消息内容:', text);
-      console.log('已上传文件数量:', uploadedFiles.length);
-      console.log('已上传文件列表:', uploadedFiles);
-      console.log('================================');
-      
       // 构建消息数据，在新话题状态下不传递topic_id
       const messageData = {
         content: text,
@@ -840,8 +819,6 @@ const Chat = () => {
         use_file_upload: null,  // null表示自动选择，true表示强制使用文件上传，false表示强制使用文本解析
         enable_function_calling: enableFunctionCalling  // 启用Function Calling
       };
-      
-      console.log('流式响应消息数据:', JSON.stringify(messageData, null, 2));
       
       // 只有在有活跃话题时才添加topic_id
       if (topicId || activeTopic?.id) {
@@ -982,7 +959,6 @@ const Chat = () => {
               );
             } else if (data.status === 'streaming' && data.thinking) {
               // 处理后端返回的思维链内容
-              console.log('[流式响应] 收到思维链数据:', data.thinking.substring(0, 50));
               fullThinkingChain += data.thinking;
               
               // 更新思维链显示
@@ -1193,7 +1169,6 @@ const Chat = () => {
                 case 'topic':
                   // 更新话题信息
                   if (data.topic) {
-                    console.log(`收到话题信息: ${data.topic.title}`);
                     setActiveTopic(data.topic);
                     streamingMessage.topic = data.topic;
                     // 不要立即刷新话题列表，避免覆盖更新后的话题信息
@@ -1289,7 +1264,6 @@ const Chat = () => {
               }
             }
           } catch (parseError) {
-            console.error('解析流式响应数据失败:', parseError, '原始数据:', jsonData);
           }
         }
       }
@@ -1328,7 +1302,6 @@ const Chat = () => {
         
         // 如果有话题信息，更新活跃话题
         if (streamingMessage.topic) {
-          console.log(`流结束时使用streamingMessage中的话题信息: ${streamingMessage.topic.title}`);
           setActiveTopic(streamingMessage.topic);
           // 不再刷新话题列表，避免无限递归
           // 话题列表的刷新已经在complete事件中处理
@@ -1357,7 +1330,6 @@ const Chat = () => {
       }
 
     } catch (error) {
-      console.error('流式响应处理失败:', error);
       setCurrentStreamingMessage(null);
       
       // 获取错误详情和恢复建议
@@ -1415,13 +1387,11 @@ const Chat = () => {
   // 重新生成消息
   const regenerateMessage = useCallback((message) => {
     // 这里可以实现重新生成逻辑
-    console.log('重新生成消息:', message);
   }, []);
 
   // 翻译消息
   const translateMessage = useCallback((message) => {
     // 这里可以实现翻译逻辑
-    console.log('翻译消息:', message);
   }, []);
 
   // 删除消息
@@ -1437,7 +1407,6 @@ const Chat = () => {
   // 保存消息
   const saveMessage = useCallback((message) => {
     // 这里可以实现保存逻辑
-    console.log('保存消息:', message);
   }, []);
 
   // 引用消息
@@ -1498,7 +1467,6 @@ const Chat = () => {
   // 刷新话题
   const refreshTopics = useCallback(() => {
     // 这里可以实现刷新话题的逻辑
-    console.log('刷新话题列表');
   }, []);
 
   // 切换emoji选择器

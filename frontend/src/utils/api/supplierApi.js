@@ -39,9 +39,6 @@ export const supplierApi = {
       }));
       return formattedSuppliers;
     } catch (error) {
-      // 处理500错误或其他API错误
-      console.error('获取供应商列表失败:', error);
-      
       // 如果是500错误，返回空数组以避免组件崩溃
       // 但也允许其他类型的错误抛出，以便更高级别的错误处理
       if (error.status === 500 || error.message.includes('状态码: 500')) {
@@ -302,8 +299,6 @@ export const supplierApi = {
       apiUrl: apiConfig.apiUrl,
       apiKey: apiConfig.apiKey ? `${apiConfig.apiKey.substring(0, 8)}...` : ''
     };
-    console.log('调用fetchModelsFromApi，传递的apiConfig:', JSON.stringify(maskedConfig, null, 2));
-    
     const endpoint = `/v1/suppliers/${numericId}/fetch-models`;
     const response = await request(endpoint, {
       method: 'POST',
@@ -355,7 +350,6 @@ export const supplierApi = {
       
       return modelsData;
     } catch (error) {
-      console.error('获取模型列表失败:', error);
       throw error;
     }
   },
@@ -385,7 +379,6 @@ export const supplierApi = {
       
       return modelsData;
     } catch (error) {
-      console.error(`获取场景 ${scene} 的模型列表失败:`, error);
       throw error;
     }
   },
@@ -399,7 +392,6 @@ export const supplierApi = {
       
       return response;
     } catch (error) {
-      console.error(`获取模型 ${modelId} 在场景 ${scene} 的能力分数失败:`, error);
       throw error;
     }
   },
@@ -429,7 +421,6 @@ export const supplierApi = {
       
       return modelsData;
     } catch (error) {
-      console.error('获取本地模型列表失败:', error);
       throw error;
     }
   }

@@ -16,6 +16,9 @@ from app.models.supplier_db import SupplierDB, ModelDB
 from app.models.default_model import DefaultModel
 from app.models.parameter_template import ParameterTemplate, ParameterTemplateVersion
 from app.models.skill import Skill, SkillSession, SkillModelBinding, SkillExecutionLog, SkillRepository, RemoteSkill
+from app.models.tool import Tool as CapabilityTool, ToolExecutionLog as CapabilityToolExecutionLog
+from app.models.agent_tool_association import AgentToolAssociation
+from app.models.agent_skill_association import AgentSkillAssociation
 from app.models.memory import GlobalMemory, ConversationMemoryMapping, KnowledgeMemoryMapping, MemoryAssociation, MemoryAccessLog, UserMemoryConfig
 from app.models.translation_history import TranslationHistory
 from app.models.platform_config import PlatformConfig
@@ -38,6 +41,8 @@ __all__ = [
     "Agent",
     "AgentCategory",
     "AgentParameter",
+    "AgentToolAssociation",
+    "AgentSkillAssociation",
     "SearchSetting",
     "ModelDB",
     "SupplierDB",
@@ -50,6 +55,8 @@ __all__ = [
     "SkillExecutionLog",
     "SkillRepository",
     "RemoteSkill",
+    "CapabilityTool",
+    "CapabilityToolExecutionLog",
     "GlobalMemory",
     "ConversationMemoryMapping",
     "KnowledgeMemoryMapping",

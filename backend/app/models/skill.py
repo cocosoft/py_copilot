@@ -36,11 +36,22 @@ class Skill(Base):
     last_used_at = Column(DateTime(timezone=True), nullable=True, index=True)
     usage_count = Column(Integer, default=0)
     config = Column(JSON, default=dict)
+    
+    # 能力中心扩展字段 - 官方能力标识
+    is_official = Column(Boolean, default=False, index=True)
+    is_builtin = Column(Boolean, default=False, index=True)
+    official_badge = Column(String(50), nullable=True)
+    is_protected = Column(Boolean, default=False, index=True)
+    allow_disable = Column(Boolean, default=True)
+    allow_edit = Column(Boolean, default=True)
+    min_app_version = Column(String(50), nullable=True)
+    update_mode = Column(String(20), default='manual')
 
     skill_sessions = relationship("SkillSession", back_populates="skill", cascade="all, delete-orphan")
     skill_model_bindings = relationship("SkillModelBinding", back_populates="skill", cascade="all, delete-orphan")
     versions = relationship("SkillVersion", back_populates="skill", cascade="all, delete-orphan")
     dependencies = relationship("SkillDependency", back_populates="skill", cascade="all, delete-orphan", foreign_keys="[SkillDependency.skill_id]")
+    agent_associations = relationship("AgentSkillAssociation", back_populates="skill", cascade="all, delete-orphan")
 
 
 class SkillSession(Base):

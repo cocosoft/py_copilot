@@ -1,0 +1,270 @@
+/**
+ * 能力卡片样式 - 优化版
+ */
+
+.capability-card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid #f0f0f0;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  height: 100%;
+}
+
+.capability-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  transform: translateY(-4px);
+  border-color: #e8e8e8;
+}
+
+.capability-card.status-disabled {
+  opacity: 0.75;
+  background: #fafafa;
+}
+
+.capability-card.status-disabled .capability-icon {
+  filter: grayscale(0.5);
+}
+
+/* 头部样式 */
+.capability-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.capability-icon {
+  font-size: 28px;
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 14px;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.capability-title-section {
+  flex: 1;
+  min-width: 0;
+}
+
+.capability-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 6px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.3;
+}
+
+.capability-version {
+  font-size: 12px;
+  color: #999;
+  font-weight: 400;
+  background: #f5f5f5;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* 徽章样式 */
+.capability-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.type-badge {
+  background: #e6f7ff;
+  color: #1890ff;
+}
+
+.type-badge.type-skill {
+  background: #f6ffed;
+  color: #52c41a;
+}
+
+.type-badge.type-mcp {
+  background: #fff7e6;
+  color: #fa8c16;
+}
+
+.source-badge {
+  background: #fff2e8;
+  color: #fa541c;
+}
+
+.source-badge.source-official {
+  background: #f6ffed;
+  color: #52c41a;
+}
+
+.source-badge.source-builtin {
+  background: #fff0f6;
+  color: #eb2f96;
+}
+
+.status-badge {
+  background: #f5f5f5;
+  color: #999;
+}
+
+.status-badge.status-active {
+  background: #f6ffed;
+  color: #52c41a;
+}
+
+.status-badge.status-disabled {
+  background: #fff1f0;
+  color: #f5222d;
+}
+
+/* 描述样式 */
+.capability-description {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.6;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 42px;
+}
+
+/* 分类样式 */
+.capability-category {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.category-label {
+  color: #999;
+}
+
+.category-value {
+  color: #333;
+  font-weight: 500;
+}
+
+/* 标签样式 */
+.capability-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.capability-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  background: #f5f5f5;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #666;
+  transition: all 0.2s;
+}
+
+.capability-tag:hover {
+  background: #e8e8e8;
+}
+
+/* 作者样式 */
+.capability-author {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #666;
+}
+
+.author-label {
+  color: #999;
+}
+
+.author-value {
+  color: #333;
+  font-weight: 500;
+}
+
+/* 操作按钮样式 */
+.capability-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.action-button {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.toggle-button {
+  background: #f5f5f5;
+  color: #666;
+  border-color: #e8e8e8;
+}
+
+.toggle-button:hover {
+  background: #e8e8e8;
+}
+
+.toggle-button.enable {
+  background: #f6ffed;
+  color: #52c41a;
+  border-color: #b7eb8f;
+}
+
+.toggle-button.enable:hover {
+  background: #d9f7be;
+}
+
+.toggle-button.disable {
+  background: #fff1f0;
+  color: #f5222d;
+  border-color: #ffa39e;
+}
+
+.toggle-button.disable:hover {
+  background: #ffccc7;
+}
+
+.config-button {
+  background: white;
+  color: #1890ff;
+  border-color: #d9d9d9;
+}
+
+.config-button:hover {
+  background: #e6f7ff;
+  border-color: #1890ff;
+}

@@ -50,19 +50,18 @@ class Agent(Base):
     # 与翻译历史的关系
     translation_history = relationship("TranslationHistory", back_populates="agent", cascade="all, delete-orphan")
     
-    # 模型关联字段 - 暂时移除，因为数据库中没有这个字段
-    # model_id = Column(Integer, ForeignKey("models.id", ondelete="SET NULL"), nullable=True)
-    # model = relationship("ModelDB", backref="agents")
-    # model_version = Column(String(50), nullable=True)
+    # 能力中心扩展字段 - 智能体分类
+    agent_type = Column(String(50), default='single', index=True)  # single/composite
+    primary_capability_id = Column(Integer, nullable=True)
+    primary_capability_type = Column(String(50), nullable=True)  # skill/tool
+    capability_orchestration = Column(JSON, default=dict)
+    is_official = Column(Boolean, default=False, index=True)
+    is_template = Column(Boolean, default=False, index=True)
+    template_category = Column(String(50), nullable=True)
     
-    # 能力映射字段 - 暂时移除，因为数据库中没有这个字段
-    # capabilities = Column(JSON, default=list)
-    
-    # 技能关联字段 - 暂时移除，因为数据库中没有这个字段
-    # skills = Column(JSON, default=list)
-    
-    # 执行配置字段 - 暂时移除，因为数据库中没有这个字段
-    # execution_config = Column(JSON, default=dict)
+    # 关系
+    skill_associations = relationship("AgentSkillAssociation", back_populates="agent", cascade="all, delete-orphan")
+    tool_associations = relationship("AgentToolAssociation", back_populates="agent", cascade="all, delete-orphan")
     
     def __repr__(self):
-        return f"<Agent(id={self.id}, name='{self.name}')>"
+        return f"<Agent(id={self.id}, name='{self.name}', type='{self.agent_type}')>"

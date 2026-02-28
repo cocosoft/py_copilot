@@ -31,7 +31,6 @@ const getCurrentUserId = () => {
       }
     }
   } catch (error) {
-    console.error('获取用户ID失败:', error);
   }
   return null;
 };
@@ -81,9 +80,7 @@ export const request = async (endpoint, options = {}) => {
   const userId = getCurrentUserId();
   if (userId) {
     defaultHeaders['X-User-Id'] = userId.toString();
-    console.log(`[API] 添加用户ID到请求头: ${userId}`);
   } else {
-    console.log('[API] 未找到用户ID，请求头未添加');
   }
   
   const defaultOptions = {
@@ -210,18 +207,7 @@ export const request = async (endpoint, options = {}) => {
         errorMessage += ` 响应文本: ${responseText}`;
       }
       
-      // 特别处理500错误，提供更详细的错误日志
-      if (statusCode === 500) {
-        console.error('❌ 服务器内部错误(500):', {
-          status: statusCode,
-          message: errorMessage,
-          url: url,
-          options: mergedOptions,
-          response: errorData
-        });
-      } else {
-        console.error('❌ API响应错误:', statusCode, errorMessage);
-      }
+
       
       throw errorObj;
     }
@@ -241,13 +227,9 @@ export const request = async (endpoint, options = {}) => {
     const contentType = response.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
       const data = await response.json();
-      // 生产环境中移除调试日志
-      // console.log('API响应数据:', JSON.stringify(data, null, 2));
       return data;
     } else {
       const text = await response.text();
-      // 生产环境中移除调试日志
-      // console.log('API响应文本:', text);
       return text;
     }
   } catch (error) {
@@ -264,7 +246,7 @@ export const request = async (endpoint, options = {}) => {
       throw timeoutError;
     }
     
-    console.error('❌ API请求异常:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+
     
     // 处理连接错误，提供更清晰的错误信息
     if (error.message && (error.message.includes('Failed to fetch') || error.message.includes('ERR_CONNECTION_REFUSED'))) {
@@ -337,7 +319,6 @@ export const requestWithRetry = async (endpoint, options = {}, maxRetries = 3) =
       
       // 计算延迟时间（指数退避）
       const delayTime = initialDelay * Math.pow(2, i);
-      console.warn(`请求失败，${delayTime}ms后进行第${i + 2}次重试...`, error.message);
       await delay(delayTime);
     }
   }

@@ -43,7 +43,6 @@ apiClient.interceptors.response.use(
     // Calculate request duration in development
     if (import.meta.env.DEV && response.config.metadata?.startTime) {
       const duration = new Date() - response.config.metadata.startTime;
-      console.log(`API Request: ${response.config.method?.toUpperCase()} ${response.config.url} - ${duration}ms`);
     }
 
     return response;
