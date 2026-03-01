@@ -69,14 +69,14 @@ function TaskList() {
 
   const getStatusColor = (status) => {
     const colors = {
-      pending: 'bg-gray-100 text-gray-800',
-      analyzing: 'bg-blue-100 text-blue-800',
-      running: 'bg-yellow-100 text-yellow-800',
-      completed: 'bg-green-100 text-green-800',
-      failed: 'bg-red-100 text-red-800',
-      cancelled: 'bg-gray-100 text-gray-800'
+      pending: 'badge-pending',
+      analyzing: 'badge-analyzing',
+      running: 'badge-running',
+      completed: 'badge-completed',
+      failed: 'badge-failed',
+      cancelled: 'badge-cancelled'
     };
-    return colors[status] || 'bg-gray-100 text-gray-800';
+    return colors[status] || 'badge-pending';
   };
 
   const getStatusText = (status) => {
@@ -93,11 +93,11 @@ function TaskList() {
 
   const getPriorityColor = (priority) => {
     const colors = {
-      low: 'text-green-600',
-      medium: 'text-yellow-600',
-      high: 'text-red-600'
+      low: 'priority-low',
+      medium: 'priority-medium',
+      high: 'priority-high'
     };
-    return colors[priority] || 'text-gray-600';
+    return colors[priority] || 'priority-medium';
   };
 
   const getPriorityText = (priority) => {

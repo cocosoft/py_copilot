@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   FaHome, FaComments, FaAngleLeft, FaAngleRight,
-  FaToolbox, FaRobot, FaProjectDiagram, FaBrain
+  FaToolbox, FaRobot, FaProjectDiagram, FaBrain, FaTasks
 } from 'react-icons/fa';
 
 // 简化的导航栏组件，确保图标能正确显示
@@ -33,6 +33,12 @@ const Navbar = () => {
       name: t('chat'),
       icon: <FaComments className="nav-svg" />,
       iconCollapsed: <FaComments className="nav-svg" />
+    },
+    {
+      path: '/task',
+      name: t('tasks'),
+      icon: <FaTasks className="nav-svg" />,
+      iconCollapsed: <FaTasks className="nav-svg" />
     },
     {
       path: '/capability-center',

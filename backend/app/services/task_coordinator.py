@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.models.task import Task, TaskSkill
 from app.services.skill_execution_engine import SkillExecutionEngine
+from app.services.task_execution_tracker import TaskExecutionTracker
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,7 @@ class TaskCoordinator:
         """
         self.db = db
         self.skill_engine = SkillExecutionEngine(db)
+        self.execution_tracker = TaskExecutionTracker(db)
     
     async def coordinate_execution(self, task: Task) -> Dict[str, Any]:
         """
@@ -33,6 +35,17 @@ class TaskCoordinator:
         Returns:
             执行结果
         """
+        # 开始执行追踪
+        self.execution_tracker.start_trace(
+            task_id=task.id,
+            task_title=task.title,
+            input_data={
+                'title': task.title,
+                'description': task.description,
+                'task_type': task.task_type
+            }
+        )
+        
         try:
             # 更新任务状态为执行中
             task.status = "running"
@@ -76,10 +89,10 @@ class TaskCoordinator:
                 else:
                     raise ValueError(f"任务 {task.id} 没有关联的技能")
             
-            # 执行技能链
+            # 执行技能链（带追踪）
             results = []
             for task_skill in task_skills:
-                result = await self._execute_skill(task, task_skill)
+                result = await self._execute_skill_with_tracking(task, task_skill)
                 results.append(result)
             
             # 导入结果整合服务
@@ -126,9 +139,9 @@ class TaskCoordinator:
             
             raise
     
-    async def _execute_skill(self, task: Task, task_skill: TaskSkill) -> Dict[str, Any]:
+    async def _execute_skill_with_tracking(self, task: Task, task_skill: TaskSkill) -> Dict[str, Any]:
         """
-        执行技能
+        执行技能（带追踪）
         
         Args:
             task: 任务对象
@@ -137,6 +150,9 @@ class TaskCoordinator:
         Returns:
             执行结果
         """
+        # 开始节点追踪
+        self.execution_tracker.start_node(task_skill.id)
+        
         try:
             # 更新技能状态为执行中
             task_skill.status = "running"
@@ -153,11 +169,17 @@ class TaskCoordinator:
                 }
             )
             
-            # 更新技能状态
+            # 结束节点追踪
             if execution_log.status == "completed":
+                self.execution_tracker.end_node(
+                    task_skill.id, execution_log.id, "completed"
+                )
                 task_skill.status = "completed"
                 task_skill.result_data = execution_log.output_result
             else:
+                self.execution_tracker.end_node(
+                    task_skill.id, execution_log.id, "failed", execution_log.error_message
+                )
                 task_skill.status = "failed"
                 task_skill.error_message = execution_log.error_message
             

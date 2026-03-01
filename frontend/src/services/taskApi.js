@@ -126,6 +126,36 @@ const taskApi = {
       console.error('取消任务失败:', error);
       throw error;
     }
+  },
+
+  /**
+   * 获取任务执行追踪数据
+   * @param {number} taskId - 任务ID
+   * @returns {Promise<Object>} 执行追踪数据
+   */
+  getExecutionTrace: async (taskId) => {
+    try {
+      const response = await apiClient.get(`/api/v1/tasks/${taskId}/execution-trace`);
+      return response.data;
+    } catch (error) {
+      console.error('获取执行追踪数据失败:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * 获取任务执行进度（用于轮询）
+   * @param {number} taskId - 任务ID
+   * @returns {Promise<Object>} 执行进度数据
+   */
+  getExecutionProgress: async (taskId) => {
+    try {
+      const response = await apiClient.get(`/api/v1/tasks/${taskId}/execution-progress`);
+      return response.data;
+    } catch (error) {
+      console.error('获取执行进度失败:', error);
+      throw error;
+    }
   }
 };
 

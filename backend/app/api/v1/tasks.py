@@ -421,3 +421,101 @@ async def cancel_task(
     result = task_service.cancel_task(task_id, current_user.id)
     
     return result
+
+
+# ==================== 执行可视化API ====================
+
+@router.get("/{task_id}/execution-trace")
+async def get_task_execution_trace(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    获取任务执行追踪数据
+    
+    Args:
+        task_id: 任务ID
+        db: 数据库会话
+        current_user: 当前用户
+        
+    Returns:
+        执行追踪数据
+    """
+    from app.services.task_execution_tracker import TaskExecutionTracker
+    
+    # 验证任务存在
+    task = db.query(Task).filter(
+        Task.id == task_id,
+        Task.user_id == current_user.id
+    ).first()
+    
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="任务不存在"
+        )
+    
+    tracker = TaskExecutionTracker(db)
+    trace_data = tracker.get_execution_trace(task_id)
+    
+    if not trace_data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="执行追踪数据不存在"
+        )
+    
+    return trace_data
+
+
+@router.get("/{task_id}/execution-progress")
+async def get_task_execution_progress(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    获取任务执行进度（用于轮询）
+    
+    Args:
+        task_id: 任务ID
+        db: 数据库会话
+        current_user: 当前用户
+        
+    Returns:
+        执行进度数据
+    """
+    task = db.query(Task).filter(
+        Task.id == task_id,
+        Task.user_id == current_user.id
+    ).first()
+    
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="任务不存在"
+        )
+    
+    # 获取任务技能执行状态
+    task_skills = db.query(TaskSkill).filter_by(task_id=task_id).all()
+    
+    total_skills = len(task_skills)
+    completed_skills = sum(1 for ts in task_skills if ts.node_status == "completed")
+    failed_skills = sum(1 for ts in task_skills if ts.node_status == "failed")
+    running_skills = sum(1 for ts in task_skills if ts.node_status == "running")
+    
+    progress_percentage = 0
+    if total_skills > 0:
+        progress_percentage = int((completed_skills + failed_skills) / total_skills * 100)
+    
+    return {
+        "task_id": task_id,
+        "task_status": task.status,
+        "progress_percentage": progress_percentage,
+        "total_skills": total_skills,
+        "completed_skills": completed_skills,
+        "failed_skills": failed_skills,
+        "running_skills": running_skills,
+        "execution_time_ms": task.execution_time_ms,
+        "error_message": task.error_message
+    }

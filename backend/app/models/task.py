@@ -48,6 +48,9 @@ class Task(Base):
     # 错误信息
     error_message = Column(Text)
     
+    # 执行追踪ID（新增）
+    execution_trace_id = Column(String(36), nullable=True, index=True)
+    
     # 关联信息
     conversation_id = Column(Integer, ForeignKey("conversations.id"))
     agent_id = Column(Integer, ForeignKey("agents.id"))
@@ -84,8 +87,15 @@ class TaskSkill(Base):
     result_data = Column(Text)
     error_message = Column(Text)
     
+    # 执行追踪字段（新增）
+    execution_log_id = Column(Integer, ForeignKey("skill_execution_logs.id"), nullable=True)
+    node_status = Column(String(20), default="pending")  # pending, running, completed, failed
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    
     # 时间戳
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # 关系定义
     task = relationship("Task", back_populates="task_skills")
+    execution_log = relationship("SkillExecutionLog", backref="task_skill")
