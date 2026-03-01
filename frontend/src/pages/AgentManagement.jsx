@@ -238,10 +238,27 @@ function AgentCard({ agent, onClick }) {
     return agent.agent_type === 'single' ? 'type-single' : 'type-composite';
   };
 
+  // 获取头像URL
+  const getAvatarUrl = () => {
+    if (!agent.avatar) return null;
+    if (agent.avatar.startsWith('http')) return agent.avatar;
+    // 使用本地SVG图标
+    return `/logos/agents/${agent.avatar}`;
+  };
+
+  // 获取头像显示内容
+  const renderAvatar = () => {
+    const avatarUrl = getAvatarUrl();
+    if (avatarUrl && avatarUrl.endsWith('.svg')) {
+      return <img src={avatarUrl} alt={agent.name} className="agent-avatar-image" />;
+    }
+    return <span className="agent-avatar-fallback">{agent.avatar || '🤖'}</span>;
+  };
+
   return (
     <div className="agent-card" onClick={onClick}>
       <div className="agent-card-header">
-        <div className="agent-avatar">{agent.avatar || '🤖'}</div>
+        <div className="agent-avatar">{renderAvatar()}</div>
         <div className={`agent-type-badge ${getTypeClass()}`}>
           <span className="type-icon">{getTypeIcon()}</span>
           {getTypeLabel()}
@@ -270,14 +287,57 @@ function AgentCard({ agent, onClick }) {
  */
 function AgentMarketplace() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState('all');
+  const [agents, setAgents] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const categories = [
-    { id: 'all', label: t('agentManagement.marketplace.all'), icon: '🔍' },
-    { id: 'official', label: t('agentManagement.marketplace.official'), icon: '🏛️' },
-    { id: 'single', label: t('agentManagement.marketplace.singleTemplates'), icon: '🎯' },
-    { id: 'composite', label: t('agentManagement.marketplace.compositeTemplates'), icon: '🔧' }
+    { id: 'all', label: t('agentManagement.marketplace.all') || '全部', icon: '🔍' },
+    { id: 'official', label: t('agentManagement.marketplace.official') || '官方', icon: '🏛️' },
+    { id: 'single', label: t('agentManagement.marketplace.singleTemplates') || '单一功能', icon: '🎯' },
+    { id: 'composite', label: t('agentManagement.marketplace.compositeTemplates') || '复合智能体', icon: '🔧' }
   ];
+
+  // 加载公开智能体
+  const loadPublicAgents = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/v1/agents/public/list?skip=0&limit=100', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAgents(data.agents || []);
+      } else {
+        setError(t('agentManagement.loadError') || '加载失败');
+      }
+    } catch (err) {
+      console.error('Failed to load public agents:', err);
+      setError(t('agentManagement.loadError') || '加载失败');
+    } finally {
+      setLoading(false);
+    }
+  }, [t]);
+
+  useEffect(() => {
+    loadPublicAgents();
+  }, [loadPublicAgents]);
+
+  // 根据分类筛选智能体
+  const filteredAgents = agents.filter(agent => {
+    if (activeCategory === 'all') return true;
+    if (activeCategory === 'official') return agent.is_official;
+    if (activeCategory === 'single') return agent.agent_type === 'single';
+    if (activeCategory === 'composite') return agent.agent_type === 'composite';
+    return true;
+  });
 
   return (
     <div className="marketplace-section">
@@ -295,13 +355,26 @@ function AgentMarketplace() {
         ))}
       </div>
 
-      {/* 模板列表 */}
+      {/* 智能体列表 */}
       <div className="templates-grid">
-        <div className="coming-soon">
-          <div className="coming-soon-icon">🏪</div>
-          <h3>{t('agentManagement.marketplace.comingSoon')}</h3>
-          <p>{t('agentManagement.marketplace.comingSoonDesc')}</p>
-        </div>
+        {loading ? (
+          <div className="loading-state">{t('loading') || '加载中...'}</div>
+        ) : error ? (
+          <div className="error-state">{error}</div>
+        ) : filteredAgents.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-icon">🏪</div>
+            <p>{t('agentManagement.noAgents') || '暂无智能体'}</p>
+          </div>
+        ) : (
+          filteredAgents.map((agent) => (
+            <AgentCard
+              key={agent.id}
+              agent={agent}
+              onClick={() => navigate(`/agents/${agent.id}`)}
+            />
+          ))
+        )}
       </div>
     </div>
   );

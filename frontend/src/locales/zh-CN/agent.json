@@ -6,5 +6,39 @@
   "agentList": "智能体列表",
   "agentName": "智能体名称",
   "agentType": "智能体类型",
-  "agentStatus": "状态"
+  "agentStatus": "状态",
+  "noAgents": "暂无智能体",
+  "createHint": "点击上方按钮创建您的第一个智能体",
+  "noDescription": "暂无描述",
+  "official": "官方",
+  "template": "模板",
+  "loadError": "加载失败",
+  "createError": "创建失败",
+  "types": {
+    "single": "单一功能",
+    "composite": "复合智能体"
+  },
+  "tabs": {
+    "myAgents": "我的智能体",
+    "marketplace": "智能体市场"
+  },
+  "filters": {
+    "all": "全部",
+    "single": "单一功能",
+    "composite": "复合智能体"
+  },
+  "createTitle": "创建新智能体",
+  "createSingle": "创建单一功能智能体",
+  "createSingleDesc": "专注于特定任务的智能体",
+  "createComposite": "创建复合智能体",
+  "createCompositeDesc": "组合多个能力的复杂智能体",
+  "myAgentsTitle": "我的智能体",
+  "marketplace": {
+    "all": "全部",
+    "official": "官方",
+    "singleTemplates": "单一功能",
+    "compositeTemplates": "复合智能体",
+    "comingSoon": "即将推出",
+    "comingSoonDesc": "智能体市场正在建设中，敬请期待"
+  }
 }

@@ -280,6 +280,17 @@
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 12px;
   font-size: 24px;
+  overflow: hidden;
+}
+
+.agent-avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.agent-avatar-fallback {
+  font-size: 24px;
 }
 
 .agent-type-badge {

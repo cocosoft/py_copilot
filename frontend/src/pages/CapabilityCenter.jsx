@@ -293,9 +293,9 @@ export function CapabilityCenter() {
         ) : capabilities.length === 0 ? (
           <div className="empty-state">{t('capabilityCenter.noCapabilities')}</div>
         ) : (
-          capabilities.map((capability) => (
+          capabilities.map((capability, index) => (
             <CapabilityCard
-              key={`${capability.type}-${capability.id}`}
+              key={`${capability.type}-${capability.id}-${capability.name || ''}-${index}`}
               capability={capability}
               onToggle={() => handleToggleCapability(capability)}
             />

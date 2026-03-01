@@ -1,10 +1,15 @@
-"""服务层模块"""
-from app.modules.capability_category.services.model_category_service import model_category_service
-from app.services.model_capability_service import model_capability_service
-from app.services.agent_category_service import agent_category_service
+"""
+服务层模块
+
+本模块提供业务逻辑服务，包括：
+- 编排服务：处理智能编排相关业务逻辑
+- 能力服务：处理能力管理相关业务逻辑
+"""
+
+from app.services.orchestration_service import OrchestrationService
+from app.services.capability_service import CapabilityService
 
 __all__ = [
-    "model_category_service",
-    "model_capability_service",
-    "agent_category_service",
+    'OrchestrationService',
+    'CapabilityService',
 ]

@@ -6,5 +6,39 @@
   "agentList": "Agent List",
   "agentName": "Agent Name",
   "agentType": "Agent Type",
-  "agentStatus": "Status"
+  "agentStatus": "Status",
+  "noAgents": "No agents yet",
+  "createHint": "Click the button above to create your first agent",
+  "noDescription": "No description",
+  "official": "Official",
+  "template": "Template",
+  "loadError": "Failed to load",
+  "createError": "Failed to create",
+  "types": {
+    "single": "Single Purpose",
+    "composite": "Composite"
+  },
+  "tabs": {
+    "myAgents": "My Agents",
+    "marketplace": "Marketplace"
+  },
+  "filters": {
+    "all": "All",
+    "single": "Single Purpose",
+    "composite": "Composite"
+  },
+  "createTitle": "Create New Agent",
+  "createSingle": "Create Single Purpose Agent",
+  "createSingleDesc": "Agent focused on specific tasks",
+  "createComposite": "Create Composite Agent",
+  "createCompositeDesc": "Complex agent combining multiple capabilities",
+  "myAgentsTitle": "My Agents",
+  "marketplace": {
+    "all": "All",
+    "official": "Official",
+    "singleTemplates": "Single Purpose",
+    "compositeTemplates": "Composite",
+    "comingSoon": "Coming Soon",
+    "comingSoonDesc": "Agent marketplace is under construction, stay tuned"
+  }
 }

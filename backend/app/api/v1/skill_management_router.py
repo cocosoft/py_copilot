@@ -6,8 +6,12 @@
 from fastapi import APIRouter
 
 from app.api.v1.skill_management import router as skill_management_router
+from app.api.v1.endpoints import agents
 
 router = APIRouter()
 
 # 包含技能管理API路由
 router.include_router(skill_management_router, prefix="/skill-management", tags=["skill-management"])
+
+# 包含Agent API路由
+router.include_router(agents.router, prefix="/agents", tags=["agents"])

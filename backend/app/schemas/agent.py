@@ -42,6 +42,7 @@ class AgentUpdate(AgentBase):
 
 class AgentResponse(BaseModel):
     """智能体响应"""
+    id: int
     name: str = Field(..., min_length=1, max_length=100, description="智能体名称")
     description: Optional[str] = Field(None, description="智能体描述")
     avatar: Optional[str] = Field(None, description="智能体头像")
@@ -53,7 +54,10 @@ class AgentResponse(BaseModel):
     is_public: Optional[bool] = Field(False, description="是否公开")
     is_recommended: Optional[bool] = Field(False, description="是否推荐")
     is_favorite: Optional[bool] = Field(False, description="是否收藏")
-    id: int
+    is_official: Optional[bool] = Field(False, description="是否官方智能体")
+    is_template: Optional[bool] = Field(False, description="是否模板")
+    agent_type: Optional[str] = Field("single", description="智能体类型")
+    template_category: Optional[str] = Field(None, description="模板分类")
     user_id: int
     created_at: datetime
     updated_at: datetime
