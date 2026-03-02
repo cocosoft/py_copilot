@@ -1,56 +1,26 @@
-"""Function Calling工具基类"""
+"""
+Function Calling工具基类
+
+提供工具的基础抽象类和通用功能
+"""
+
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional
-from pydantic import BaseModel, Field, validator
 from datetime import datetime
 import logging
-import json
+import time
+
+from app.modules.function_calling.tool_schemas import (
+    ToolParameter,
+    ToolMetadata,
+    ToolExecutionResult,
+    ToolDefinition,
+    ToolExecutionContext,
+    ToolValidationResult,
+    ToolValidationError
+)
 
 logger = logging.getLogger(__name__)
-
-
-class ToolParameter(BaseModel):
-    """工具参数定义"""
-    name: str = Field(..., description="参数名称")
-    type: str = Field(..., description="参数类型：string, integer, number, boolean, array, object")
-    description: str = Field(..., description="参数描述")
-    required: bool = Field(True, description="是否必需")
-    default: Optional[Any] = Field(None, description="默认值")
-    enum: Optional[List[Any]] = Field(None, description="枚举值列表")
-    
-    @validator('type')
-    def validate_type(cls, v):
-        """验证参数类型"""
-        valid_types = ['string', 'integer', 'number', 'boolean', 'array', 'object']
-        if v not in valid_types:
-            raise ValueError(f"无效的参数类型: {v}，必须是: {', '.join(valid_types)}")
-        return v
-
-
-class ToolMetadata(BaseModel):
-    """工具元数据"""
-    name: str = Field(..., description="工具名称，全局唯一")
-    display_name: str = Field(..., description="工具显示名称")
-    description: str = Field(..., description="工具描述，用于大模型理解工具用途")
-    category: str = Field(..., description="工具分类")
-    version: str = Field("1.0.0", description="工具版本")
-    author: Optional[str] = Field(None, description="工具作者")
-    icon: str = Field("🔧", description="工具图标")
-    tags: List[str] = Field(default_factory=list, description="工具标签")
-    is_active: bool = Field(True, description="是否激活")
-    created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
-
-
-class ToolExecutionResult(BaseModel):
-    """工具执行结果"""
-    success: bool = Field(..., description="执行是否成功")
-    result: Optional[Any] = Field(None, description="执行结果")
-    error: Optional[str] = Field(None, description="错误信息")
-    error_code: Optional[str] = Field(None, description="错误码")
-    execution_time: float = Field(..., description="执行时间（秒）")
-    tool_name: str = Field(..., description="工具名称")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="附加元数据")
 
 
 class BaseTool(ABC):
@@ -83,12 +53,12 @@ class BaseTool(ABC):
         pass
     
     @abstractmethod
-    async def execute(self, **kwargs) -> ToolExecutionResult:
+    async def execute(self, parameters: Dict[str, Any]) -> ToolExecutionResult:
         """
         执行工具
         
         Args:
-            **kwargs: 工具参数
+            parameters: 工具参数字典
             
         Returns:
             执行结果
@@ -145,3 +115,158 @@ class BaseTool(ABC):
             raise ValueError(f"工具参数名称不能重复: {self._metadata.name}")
         
         logger.info(f"工具定义验证通过: {self._metadata.name}")
+    
+    def validate_parameters(self, **kwargs) -> ToolValidationResult:
+        """
+        验证工具参数
+        
+        Args:
+            **kwargs: 待验证的参数
+            
+        Returns:
+            验证结果
+        """
+        result = ToolValidationResult(is_valid=True)
+        
+        # 检查必需参数
+        for param in self._parameters:
+            if param.required and param.name not in kwargs:
+                result.add_error(
+                    field=param.name,
+                    message=f"缺少必需参数: {param.name}"
+                )
+        
+        # 检查参数类型
+        for param_name, param_value in kwargs.items():
+            param_def = next((p for p in self._parameters if p.name == param_name), None)
+            if param_def:
+                if not self._validate_parameter_type(param_def.type, param_value):
+                    result.add_error(
+                        field=param_name,
+                        message=f"参数类型错误，期望: {param_def.type}，实际: {type(param_value).__name__}",
+                        value=param_value
+                    )
+        
+        return result
+    
+    def _validate_parameter_type(self, expected_type: str, value: Any) -> bool:
+        """
+        验证参数类型
+        
+        Args:
+            expected_type: 期望的类型
+            value: 待验证的值
+            
+        Returns:
+            是否验证通过
+        """
+        type_mapping = {
+            'string': str,
+            'integer': int,
+            'number': (int, float),
+            'boolean': bool,
+            'array': list,
+            'object': dict
+        }
+        
+        expected = type_mapping.get(expected_type)
+        if expected is None:
+            return True
+        
+        return isinstance(value, expected)
+    
+    def get_tool_definition(self) -> ToolDefinition:
+        """
+        获取工具定义对象
+        
+        Returns:
+            工具定义对象
+        """
+        properties = {}
+        for param in self._parameters:
+            prop = {
+                "type": param.type,
+                "description": param.description
+            }
+            if param.enum:
+                prop["enum"] = param.enum
+            properties[param.name] = prop
+        
+        return ToolDefinition(
+            name=self._metadata.name,
+            description=self._metadata.description,
+            parameters={
+                "type": "object",
+                "properties": properties,
+                "required": [p.name for p in self._parameters if p.required],
+                "additionalProperties": False
+            }
+        )
+    
+    def get_openai_schema(self) -> Dict[str, Any]:
+        """
+        获取OpenAI格式的工具定义
+        
+        Returns:
+            OpenAI格式的工具定义
+        """
+        return self.get_tool_definition().to_openai_format()
+    
+    async def execute_with_timing(self, **kwargs) -> ToolExecutionResult:
+        """
+        带计时的工具执行
+        
+        Args:
+            **kwargs: 工具参数
+            
+        Returns:
+            执行结果
+        """
+        start_time = time.time()
+        try:
+            result = await self.execute(**kwargs)
+            result.execution_time = time.time() - start_time
+            return result
+        except Exception as e:
+            execution_time = time.time() - start_time
+            logger.error(f"工具执行异常: {self._metadata.name}, 错误: {str(e)}")
+            return ToolExecutionResult.error_result(
+                tool_name=self._metadata.name,
+                error=str(e),
+                error_code="EXECUTION_ERROR",
+                execution_time=execution_time
+            )
+
+
+class ServiceTool(BaseTool):
+    """
+    基于服务的工具基类
+    
+    用于包装现有服务为工具
+    """
+    
+    def __init__(self):
+        """初始化服务工具"""
+        self._service = None
+        super().__init__()
+    
+    @abstractmethod
+    def _get_service(self):
+        """
+        获取服务实例
+        
+        Returns:
+            服务实例
+        """
+        pass
+    
+    def get_service(self):
+        """
+        获取或创建服务实例（懒加载）
+        
+        Returns:
+            服务实例
+        """
+        if self._service is None:
+            self._service = self._get_service()
+        return self._service

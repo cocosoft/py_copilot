@@ -647,3 +647,499 @@ async def remove_capability_from_agent(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"移除失败: {str(e)}"
         )
+
+
+# ==================== 能力测试接口 ====================
+
+class CapabilityTestRequest(BaseModel):
+    """能力测试请求"""
+    parameters: Dict[str, Any] = Field(default_factory=dict, description="测试参数")
+
+
+class CapabilityTestResponse(BaseModel):
+    """能力测试响应"""
+    success: bool
+    result: Optional[Any] = None
+    error: Optional[str] = None
+    execution_time: Optional[float] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+
+@router.post("/capabilities/{capability_type}/{capability_id}/test", response_model=Dict[str, Any])
+async def test_capability(
+    capability_type: str,
+    capability_id: int,
+    request: CapabilityTestRequest,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """
+    测试能力
+    
+    - capability_type: skill 或 tool
+    - capability_id: 能力ID
+    """
+    try:
+        import time
+        start_time = time.time()
+        
+        if capability_type == "tool":
+            # 获取工具信息
+            tool = db.query(Tool).filter(Tool.id == capability_id).first()
+            if not tool:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="工具不存在"
+                )
+            
+            # 检查工具是否启用
+            if tool.status != "active":
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="工具未启用，无法测试"
+                )
+            
+            # 根据工具类型选择测试方式
+            if tool.tool_type == "mcp":
+                # MCP工具测试
+                from app.mcp.client.client import MCPClient
+                mcp_client = MCPClient()
+                
+                try:
+                    result = await mcp_client.call_tool(
+                        server_id=tool.mcp_server_id,
+                        tool_name=tool.name,
+                        arguments=request.parameters
+                    )
+                    
+                    execution_time = time.time() - start_time
+                    
+                    return {
+                        "success": True,
+                        "data": {
+                            "success": True,
+                            "result": result,
+                            "execution_time": round(execution_time, 3),
+                            "tool_name": tool.name,
+                            "tool_type": "mcp"
+                        }
+                    }
+                except Exception as e:
+                    execution_time = time.time() - start_time
+                    return {
+                        "success": False,
+                        "message": f"MCP工具测试失败: {str(e)}",
+                        "data": {
+                            "success": False,
+                            "error": str(e),
+                            "execution_time": round(execution_time, 3),
+                            "tool_name": tool.name,
+                            "tool_type": "mcp"
+                        }
+                    }
+            else:
+                # 普通工具测试
+                from app.modules.function_calling.tool_registry import ToolRegistry
+                registry = ToolRegistry()
+                tool_instance = registry.get_tool(tool.name)
+                
+                if not tool_instance:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"工具 '{tool.name}' 未在注册表中找到"
+                    )
+                
+                # 执行工具
+                result = await tool_instance.execute(request.parameters)
+                execution_time = time.time() - start_time
+                
+                return {
+                    "success": result.success,
+                    "data": {
+                        "success": result.success,
+                        "result": result.result if result.success else None,
+                        "error": result.error if not result.success else None,
+                        "execution_time": round(execution_time, 3),
+                        "metadata": result.metadata,
+                        "tool_name": tool.name,
+                        "tool_type": "standard"
+                    },
+                    "message": "测试成功" if result.success else f"测试失败: {result.error}"
+                }
+                
+        elif capability_type == "skill":
+            # 技能测试 - 执行技能逻辑
+            skill = db.query(Skill).filter(Skill.id == capability_id).first()
+            if not skill:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="技能不存在"
+                )
+            
+            # 检查技能是否启用
+            if skill.status != "active":
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="技能未启用，无法测试"
+                )
+            
+            # 构建测试上下文
+            test_context = {
+                "skill_name": skill.name,
+                "skill_id": skill.id,
+                "test_mode": True,
+                "input": request.parameters.get("input", ""),
+                "parameters": request.parameters
+            }
+            
+            execution_time = time.time() - start_time
+            
+            # 返回技能信息作为测试结果
+            return {
+                "success": True,
+                "data": {
+                    "success": True,
+                    "result": {
+                        "skill_info": {
+                            "name": skill.name,
+                            "display_name": skill.display_name,
+                            "description": skill.description,
+                            "version": skill.version,
+                            "author": skill.author,
+                            "tags": skill.tags
+                        },
+                        "test_context": test_context,
+                        "note": "技能测试模式 - 实际执行需要在智能体上下文中进行"
+                    },
+                    "execution_time": round(execution_time, 3),
+                    "skill_name": skill.name,
+                    "skill_type": skill.skill_type or "standard"
+                },
+                "message": "技能信息获取成功"
+            }
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"不支持的能力类型: {capability_type}"
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"能力测试失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"测试失败: {str(e)}"
+        )
+
+
+# ==================== 能力详情接口 ====================
+
+@router.get("/capabilities/{capability_type}/{capability_id}/detail", response_model=Dict[str, Any])
+async def get_capability_detail(
+    capability_type: str,
+    capability_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """
+    获取能力详细信息
+    
+    - capability_type: skill 或 tool
+    - capability_id: 能力ID
+    """
+    try:
+        if capability_type == "tool":
+            tool = db.query(Tool).filter(Tool.id == capability_id).first()
+            if not tool:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="工具不存在"
+                )
+            
+            # 获取工具参数定义
+            parameters = []
+            if getattr(tool, 'parameters_schema', None):
+                try:
+                    if isinstance(tool.parameters_schema, str):
+                        parameters = json.loads(tool.parameters_schema)
+                    else:
+                        parameters = tool.parameters_schema
+                except:
+                    parameters = []
+            
+            # 如果数据库中没有参数定义，尝试从 ToolIntegrationService 获取
+            if not parameters:
+                try:
+                    from app.services.tool_integration_service import ToolIntegrationService
+                    tool_service = ToolIntegrationService()
+                    tool_def = tool_service.get_tool(tool.name)
+                    if tool_def and tool_def.parameters:
+                        parameters = [
+                            {
+                                "name": p.name,
+                                "type": p.type,
+                                "description": p.description,
+                                "required": p.required,
+                                "default": p.default,
+                                "enum": p.enum if hasattr(p, 'enum') else None
+                            }
+                            for p in tool_def.parameters
+                        ]
+                except Exception as e:
+                    logger.warning(f"从 ToolIntegrationService 获取工具参数失败: {tool.name}, 错误: {str(e)}")
+            
+            # 如果还没有参数定义，尝试从 ToolRegistry 获取
+            if not parameters:
+                try:
+                    from app.modules.function_calling.tool_registry import ToolRegistry
+                    registry = ToolRegistry()
+                    tool_instance = registry.get_tool(tool.name)
+                    if tool_instance:
+                        tool_params = tool_instance.get_parameters()
+                        if tool_params:
+                            parameters = [
+                                {
+                                    "name": p.name,
+                                    "type": p.type,
+                                    "description": p.description,
+                                    "required": p.required,
+                                    "default": p.default,
+                                    "enum": p.enum if hasattr(p, 'enum') else None
+                                }
+                                for p in tool_params
+                            ]
+                except Exception as e:
+                    logger.warning(f"从 ToolRegistry 获取工具参数失败: {tool.name}, 错误: {str(e)}")
+            
+            # 获取工具配置
+            config = {}
+            if tool.config:
+                try:
+                    if isinstance(tool.config, str):
+                        config = json.loads(tool.config)
+                    else:
+                        config = tool.config
+                except:
+                    config = {}
+            
+            # 获取关联的智能体
+            agent_associations = db.query(AgentToolAssociation).filter(
+                AgentToolAssociation.tool_id == capability_id
+            ).all()
+            
+            linked_agents = []
+            for assoc in agent_associations:
+                agent = db.query(Agent).filter(Agent.id == assoc.agent_id).first()
+                if agent:
+                    linked_agents.append({
+                        "id": agent.id,
+                        "name": agent.name,
+                        "enabled": assoc.enabled,
+                        "priority": assoc.priority
+                    })
+            
+            detail = {
+                "id": tool.id,
+                "type": "tool",
+                "name": tool.name,
+                "display_name": tool.display_name,
+                "description": tool.description,
+                "category": tool.category,
+                "tool_type": tool.tool_type,
+                "version": tool.version,
+                "icon": tool.icon,
+                "tags": tool.tags if isinstance(tool.tags, list) else [],
+                "source": tool.source,
+                "is_official": tool.is_official,
+                "is_builtin": tool.is_builtin,
+                "is_protected": tool.is_protected,
+                "status": tool.status,
+                "is_active": tool.is_active,
+                "author": tool.author,
+                "parameters": parameters,
+                "config": config,
+                "created_at": tool.created_at.isoformat() if tool.created_at else None,
+                "updated_at": tool.updated_at.isoformat() if tool.updated_at else None,
+                "usage_count": tool.usage_count or 0,
+                "linked_agents": linked_agents,
+                "mcp_server_id": tool.mcp_server_id if tool.tool_type == "mcp" else None
+            }
+            
+        elif capability_type == "skill":
+            skill = db.query(Skill).filter(Skill.id == capability_id).first()
+            if not skill:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="技能不存在"
+                )
+            
+            # 获取技能配置
+            config = {}
+            if skill.config:
+                try:
+                    if isinstance(skill.config, str):
+                        config = json.loads(skill.config)
+                    else:
+                        config = skill.config
+                except:
+                    config = {}
+            
+            # 获取技能元数据
+            metadata = {}
+            if skill.metadata:
+                try:
+                    if isinstance(skill.metadata, str):
+                        metadata = json.loads(skill.metadata)
+                    else:
+                        metadata = skill.metadata
+                except:
+                    metadata = {}
+            
+            detail = {
+                "id": skill.id,
+                "type": "skill",
+                "name": skill.name,
+                "display_name": skill.display_name,
+                "description": skill.description,
+                "skill_type": getattr(skill, 'skill_type', None) or "standard",
+                "version": skill.version,
+                "icon": skill.icon,
+                "tags": skill.tags if isinstance(skill.tags, list) else [],
+                "source": skill.source,
+                "is_official": skill.is_official,
+                "is_builtin": skill.is_builtin,
+                "is_protected": skill.is_protected,
+                "status": skill.status,
+                "is_active": skill.status == "active",
+                "author": skill.author,
+                "config": config,
+                "metadata": metadata,
+                "created_at": skill.created_at.isoformat() if skill.created_at else None,
+                "updated_at": skill.updated_at.isoformat() if skill.updated_at else None,
+                "usage_count": skill.usage_count or 0,
+                "code_preview": getattr(skill, 'code', None)[:500] + "..." if getattr(skill, 'code', None) and len(skill.code) > 500 else getattr(skill, 'code', None)
+            }
+            
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"不支持的能力类型: {capability_type}"
+            )
+        
+        return {
+            "success": True,
+            "data": detail
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取能力详情失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取详情失败: {str(e)}"
+        )
+
+
+# ==================== 能力配置接口 ====================
+
+class CapabilityConfigRequest(BaseModel):
+    """能力配置请求"""
+    config: Dict[str, Any] = Field(default_factory=dict, description="配置数据")
+    parameters: Optional[Dict[str, Any]] = Field(None, description="参数定义（仅工具）")
+
+
+@router.put("/capabilities/{capability_type}/{capability_id}/config", response_model=Dict[str, Any])
+async def update_capability_config(
+    capability_type: str,
+    capability_id: int,
+    request: CapabilityConfigRequest,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """
+    更新能力配置
+    
+    - capability_type: skill 或 tool
+    - capability_id: 能力ID
+    """
+    try:
+        if capability_type == "tool":
+            tool = db.query(Tool).filter(Tool.id == capability_id).first()
+            if not tool:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="工具不存在"
+                )
+            
+            # 检查是否允许编辑
+            if tool.is_protected:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="该工具受保护，无法修改配置"
+                )
+            
+            # 更新配置
+            tool.config = json.dumps(request.config) if request.config else None
+            
+            # 更新参数定义
+            if request.parameters is not None:
+                tool.parameters = json.dumps(request.parameters)
+            
+            db.commit()
+            
+            return {
+                "success": True,
+                "message": "工具配置已更新",
+                "data": {
+                    "id": capability_id,
+                    "type": capability_type,
+                    "config": request.config
+                }
+            }
+            
+        elif capability_type == "skill":
+            skill = db.query(Skill).filter(Skill.id == capability_id).first()
+            if not skill:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="技能不存在"
+                )
+            
+            # 检查是否允许编辑
+            if skill.is_protected:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="该技能受保护，无法修改配置"
+                )
+            
+            # 更新配置
+            skill.config = json.dumps(request.config) if request.config else None
+            db.commit()
+            
+            return {
+                "success": True,
+                "message": "技能配置已更新",
+                "data": {
+                    "id": capability_id,
+                    "type": capability_type,
+                    "config": request.config
+                }
+            }
+            
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"不支持的能力类型: {capability_type}"
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"更新能力配置失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"更新配置失败: {str(e)}"
+        )

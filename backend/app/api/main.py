@@ -169,7 +169,6 @@ app.exception_handler(AppException)(app_exception_handler)
 app.exception_handler(HTTPException)(http_exception_handler)
 app.exception_handler(RequestValidationError)(validation_exception_handler)
 app.exception_handler(Exception)(general_exception_handler)
-app.exception_handler(404)(not_found_handler)
 app.exception_handler(UnicodeDecodeError)(unicode_decode_error_handler)
 
 # 自定义请求验证异常处理器 - 覆盖默认处理器

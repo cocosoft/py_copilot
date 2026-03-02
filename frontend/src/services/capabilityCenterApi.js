@@ -133,6 +133,57 @@ export const capabilityCenterApi = {
       }
     );
     return response.data;
+  },
+
+  /**
+   * 测试能力
+   *
+   * @param {string} type - 能力类型: skill/tool
+   * @param {number} id - 能力ID
+   * @param {Object} parameters - 测试参数
+   * @returns {Promise<Object>} 测试结果
+   */
+  async testCapability(type, id, parameters = {}) {
+    const response = await apiClient.post(
+      `${BASE_URL}/capabilities/${type}/${id}/test`,
+      { parameters }
+    );
+    return response.data;
+  },
+
+  /**
+   * 获取能力详情
+   *
+   * @param {string} type - 能力类型: skill/tool
+   * @param {number} id - 能力ID
+   * @returns {Promise<Object>} 能力详情
+   */
+  async getCapabilityDetail(type, id) {
+    const response = await apiClient.get(
+      `${BASE_URL}/capabilities/${type}/${id}/detail`
+    );
+    return response.data;
+  },
+
+  /**
+   * 更新能力配置
+   *
+   * @param {string} type - 能力类型: skill/tool
+   * @param {number} id - 能力ID
+   * @param {Object} config - 配置数据
+   * @param {Object} parameters - 参数定义（仅工具）
+   * @returns {Promise<Object>} 更新结果
+   */
+  async updateCapabilityConfig(type, id, config, parameters = null) {
+    const data = { config };
+    if (parameters !== null) {
+      data.parameters = parameters;
+    }
+    const response = await apiClient.put(
+      `${BASE_URL}/capabilities/${type}/${id}/config`,
+      data
+    );
+    return response.data;
   }
 };
 

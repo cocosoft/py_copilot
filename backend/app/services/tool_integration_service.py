@@ -188,6 +188,45 @@ class ToolIntegrationService:
             ],
             function=self._content_generator
         )
+
+        # 时间日期工具
+        self.register_tool(
+            name="datetime_tool",
+            display_name="时间日期工具",
+            description="获取当前时间、日期计算、时区转换等功能",
+            category=ToolCategory.UTILITY,
+            parameters=[
+                ToolParameter(
+                    name="action",
+                    type="string",
+                    description="操作类型",
+                    required=True,
+                    enum=["now", "format", "parse", "add", "diff", "timezone_convert"]
+                ),
+                ToolParameter(
+                    name="datetime_str",
+                    type="string",
+                    description="日期时间字符串（用于parse、format等操作）",
+                    required=False
+                ),
+                ToolParameter(
+                    name="format",
+                    type="string",
+                    description="日期时间格式",
+                    required=False,
+                    default="%Y-%m-%d %H:%M:%S"
+                ),
+                ToolParameter(
+                    name="timezone",
+                    type="string",
+                    description="时区",
+                    required=False,
+                    default="UTC"
+                )
+            ],
+            function=self._datetime_tool,
+            icon="📅"
+        )
     
     def register_tool(self, name: str, display_name: str, description: str, 
                      category: ToolCategory, parameters: List[ToolParameter], 
@@ -424,3 +463,56 @@ class ToolIntegrationService:
             return f"关于'{keywords}'的诗歌（{length}字）: 这是一个示例诗歌内容。"
         else:
             return f"关于'{keywords}'的{content_type}内容（{length}字）: 这是一个示例内容。"
+
+    def _datetime_tool(self, action: str, datetime_str: str = None, format: str = "%Y-%m-%d %H:%M:%S",
+                      timezone: str = "UTC") -> Dict[str, Any]:
+        """时间日期工具"""
+        from datetime import datetime, timedelta
+        import time
+
+        result = {"action": action, "timezone": timezone}
+
+        if action == "now":
+            now = datetime.now()
+            result["datetime"] = now.strftime(format)
+            result["timestamp"] = int(time.time())
+            result["date"] = now.strftime("%Y-%m-%d")
+            result["time"] = now.strftime("%H:%M:%S")
+
+        elif action == "format":
+            if datetime_str:
+                try:
+                    dt = datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
+                    result["formatted"] = dt.strftime(format)
+                except:
+                    result["error"] = "无法解析日期时间字符串"
+            else:
+                result["error"] = "缺少 datetime_str 参数"
+
+        elif action == "parse":
+            if datetime_str:
+                try:
+                    dt = datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
+                    result["year"] = dt.year
+                    result["month"] = dt.month
+                    result["day"] = dt.day
+                    result["hour"] = dt.hour
+                    result["minute"] = dt.minute
+                    result["second"] = dt.second
+                    result["weekday"] = dt.weekday()
+                except:
+                    result["error"] = "无法解析日期时间字符串"
+            else:
+                result["error"] = "缺少 datetime_str 参数"
+
+        elif action == "diff":
+            result["message"] = "日期差计算功能需要两个日期参数"
+
+        elif action == "timezone_convert":
+            result["message"] = f"时区转换: {timezone}"
+            result["note"] = "时区转换功能需要额外的时区库支持"
+
+        else:
+            result["error"] = f"不支持的操作: {action}"
+
+        return result

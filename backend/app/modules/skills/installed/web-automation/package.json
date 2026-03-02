@@ -1,0 +1,21 @@
+{
+  "name": "web-automation",
+  "version": "1.0.0",
+  "description": "网页自动化技能 - 支持网页抓取、表单填写、截图等功能",
+  "main": "index.js",
+  "author": "Py Copilot Team",
+  "license": "MIT",
+  "dependencies": {
+    "puppeteer": "^21.0.0",
+    "cheerio": "^1.0.0-rc.12"
+  },
+  "scripts": {
+    "test": "node test.js"
+  },
+  "keywords": [
+    "web",
+    "automation",
+    "scraping",
+    "puppeteer"
+  ]
+}

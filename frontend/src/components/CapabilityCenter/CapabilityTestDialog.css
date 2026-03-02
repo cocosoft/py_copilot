@@ -1,0 +1,339 @@
+/**
+ * 能力测试对话框样式
+ */
+
+.capability-test-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.capability-test-dialog {
+  background: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 700px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: dialogSlideIn 0.3s ease;
+}
+
+@keyframes dialogSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 对话框头部 */
+.test-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.test-dialog-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.test-dialog-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #999;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.test-dialog-close:hover {
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+/* 对话框内容 */
+.test-dialog-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+/* 分区标题 */
+.test-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 16px 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+/* 参数区域 */
+.test-params-section {
+  margin-bottom: 24px;
+}
+
+.test-loading {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+}
+
+.test-params-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.test-param-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.test-param-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.required-mark {
+  color: #ff4d4f;
+}
+
+.param-type {
+  color: #666;
+  font-weight: normal;
+  font-size: 12px;
+}
+
+.param-description {
+  font-size: 12px;
+  color: #888;
+}
+
+.test-param-input {
+  padding: 10px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.test-param-input:focus {
+  outline: none;
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.test-param-textarea {
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+}
+
+.test-no-params {
+  text-align: center;
+  padding: 20px;
+  color: #888;
+  background: #f5f5f5;
+  border-radius: 6px;
+}
+
+/* 操作按钮 */
+.test-actions {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.test-button {
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.test-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.test-button-primary {
+  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+  color: white;
+}
+
+.test-button-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #40a9ff 0%, #1890ff 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.4);
+}
+
+.test-button-secondary {
+  background: #f5f5f5;
+  color: #333;
+  border: 1px solid #d9d9d9;
+}
+
+.test-button-secondary:hover:not(:disabled) {
+  background: #e8e8e8;
+}
+
+/* 错误提示 */
+.test-error-alert {
+  background: #fff2f0;
+  border: 1px solid #ffccc7;
+  border-radius: 6px;
+  padding: 12px 16px;
+  color: #ff4d4f;
+  margin-bottom: 16px;
+}
+
+/* 结果区域 */
+.test-result-section {
+  margin-top: 16px;
+}
+
+.test-result {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.test-result.success {
+  border: 1px solid #b7eb8f;
+}
+
+.test-result.error {
+  border: 1px solid #ffccc7;
+}
+
+.test-result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  font-size: 13px;
+}
+
+.test-result.success .test-result-header {
+  background: #f6ffed;
+}
+
+.test-result.error .test-result-header {
+  background: #fff2f0;
+}
+
+.test-result-status {
+  font-weight: 600;
+}
+
+.test-result.success .test-result-status {
+  color: #52c41a;
+}
+
+.test-result.error .test-result-status {
+  color: #ff4d4f;
+}
+
+.test-execution-time {
+  color: #666;
+}
+
+.test-error-message {
+  padding: 12px 16px;
+  background: #fff2f0;
+  color: #ff4d4f;
+  border-top: 1px solid #ffccc7;
+}
+
+.test-result-content,
+.test-result-metadata {
+  padding: 16px;
+  background: #fafafa;
+  border-top: 1px solid #f0f0f0;
+}
+
+.test-result-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.test-result-json {
+  background: #1e1e1e;
+  color: #d4d4d4;
+  padding: 12px;
+  border-radius: 6px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* 响应式 */
+@media (max-width: 600px) {
+  .capability-test-dialog-overlay {
+    padding: 10px;
+  }
+
+  .capability-test-dialog {
+    max-height: 95vh;
+  }
+
+  .test-dialog-header {
+    padding: 16px 20px;
+  }
+
+  .test-dialog-content {
+    padding: 16px;
+  }
+
+  .test-actions {
+    flex-direction: column;
+  }
+
+  .test-button {
+    width: 100%;
+  }
+}

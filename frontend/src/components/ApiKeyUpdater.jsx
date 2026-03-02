@@ -17,7 +17,6 @@ const ApiKeyUpdater = () => {
         const STORAGE_PREFIX = 'model_management_';
         const suppliersKey = `${STORAGE_PREFIX}suppliers`;
         localStorage.setItem(suppliersKey, JSON.stringify(suppliersArray));
-        console.log('✅ 供应商数据已从API更新到localStorage');
       } catch (error) {
         console.error('❌ 获取供应商数据失败:', error.message);
         console.error('请检查后端服务是否正常运行');

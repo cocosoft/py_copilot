@@ -1,0 +1,519 @@
+/**
+ * 能力配置对话框样式
+ */
+
+.capability-config-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.capability-config-dialog {
+  background: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 700px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: dialogSlideIn 0.3s ease;
+}
+
+@keyframes dialogSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 对话框头部 */
+.config-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.config-dialog-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.config-dialog-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #999;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.config-dialog-close:hover {
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+/* 标签页 */
+.config-dialog-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 24px;
+  border-bottom: 1px solid #e8e8e8;
+  background: #fafafa;
+}
+
+.config-tab {
+  padding: 12px 16px;
+  border: none;
+  background: none;
+  font-size: 14px;
+  color: #666;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.config-tab:hover {
+  color: #1890ff;
+}
+
+.config-tab.active {
+  color: #1890ff;
+  border-bottom-color: #1890ff;
+  background: white;
+  font-weight: 500;
+}
+
+/* 对话框内容 */
+.config-dialog-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+/* 提示信息 */
+.config-success-alert {
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  border-radius: 6px;
+  padding: 12px 16px;
+  color: #52c41a;
+  margin-bottom: 16px;
+}
+
+.config-error-alert {
+  background: #fff2f0;
+  border: 1px solid #ffccc7;
+  border-radius: 6px;
+  padding: 12px 16px;
+  color: #ff4d4f;
+  margin-bottom: 16px;
+}
+
+/* 加载状态 */
+.config-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #666;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #f0f0f0;
+  border-top-color: #1890ff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 错误状态 */
+.config-error {
+  text-align: center;
+  padding: 40px 20px;
+  color: #ff4d4f;
+}
+
+.retry-button {
+  margin-top: 16px;
+  padding: 8px 20px;
+  background: #1890ff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.retry-button:hover {
+  background: #40a9ff;
+}
+
+/* 配置编辑器 */
+.config-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.config-editor-header,
+.parameters-editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.config-editor-header h4,
+.parameters-editor-header h4 {
+  margin: 0;
+  font-size: 14px;
+  color: #333;
+}
+
+.config-add-button {
+  padding: 6px 12px;
+  background: #f6ffed;
+  color: #52c41a;
+  border: 1px solid #b7eb8f;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.config-add-button:hover {
+  background: #52c41a;
+  color: white;
+}
+
+.config-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: #888;
+  background: #fafafa;
+  border-radius: 8px;
+  border: 2px dashed #e8e8e8;
+}
+
+.config-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.config-item-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.config-item-key {
+  flex: 0 0 150px;
+  padding: 8px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.config-item-value {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.config-item-key:focus,
+.config-item-value:focus {
+  outline: none;
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.config-item-delete {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff1f0;
+  color: #ff4d4f;
+  border: none;
+  border-radius: 6px;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.config-item-delete:hover {
+  background: #ff4d4f;
+  color: white;
+}
+
+.config-preview {
+  margin-top: 8px;
+}
+
+.config-preview h4 {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  color: #666;
+}
+
+.config-preview-json {
+  background: #1e1e1e;
+  color: #d4d4d4;
+  padding: 12px;
+  border-radius: 6px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* 参数编辑器 */
+.parameters-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.parameters-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.parameter-editor-row {
+  padding: 16px;
+  background: #fafafa;
+  border-radius: 8px;
+  border: 1px solid #e8e8e8;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.parameter-editor-header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.parameter-name-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.parameter-type-select {
+  width: 100px;
+  padding: 8px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  font-size: 13px;
+  background: white;
+}
+
+.parameter-required-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: #666;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.parameter-required-label input {
+  margin: 0;
+}
+
+.parameter-delete-button {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff1f0;
+  color: #ff4d4f;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.parameter-delete-button:hover {
+  background: #ff4d4f;
+  color: white;
+}
+
+.parameter-description-input,
+.parameter-default-input {
+  padding: 8px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.parameter-name-input:focus,
+.parameter-type-select:focus,
+.parameter-description-input:focus,
+.parameter-default-input:focus {
+  outline: none;
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.config-not-available {
+  text-align: center;
+  padding: 60px 20px;
+  color: #888;
+}
+
+/* 对话框底部 */
+.config-dialog-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-top: 1px solid #e8e8e8;
+  background: #fafafa;
+}
+
+.config-footer-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.config-button {
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.config-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.config-button-primary {
+  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+  color: white;
+}
+
+.config-button-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #40a9ff 0%, #1890ff 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.4);
+}
+
+.config-button-secondary {
+  background: white;
+  color: #333;
+  border: 1px solid #d9d9d9;
+}
+
+.config-button-secondary:hover:not(:disabled) {
+  background: #f5f5f5;
+  border-color: #1890ff;
+  color: #1890ff;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .capability-config-dialog-overlay {
+    padding: 10px;
+  }
+
+  .capability-config-dialog {
+    max-height: 95vh;
+  }
+
+  .config-dialog-header {
+    padding: 16px 20px;
+  }
+
+  .config-dialog-tabs {
+    padding: 0 16px;
+  }
+
+  .config-dialog-content {
+    padding: 16px;
+  }
+
+  .config-dialog-footer {
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px 20px;
+  }
+
+  .config-footer-actions {
+    width: 100%;
+  }
+
+  .config-button {
+    flex: 1;
+  }
+
+  .config-item-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .config-item-key {
+    flex: none;
+  }
+
+  .parameter-editor-header {
+    flex-wrap: wrap;
+  }
+
+  .parameter-name-input {
+    flex: 1 1 100%;
+    margin-bottom: 8px;
+  }
+}

@@ -434,6 +434,82 @@ class WebSearchService:
             "cache_timeout": str(self.cache_timeout),
             "cached_queries": list(self.search_cache.keys())
         }
+    
+    # ==================== 工具兼容接口 ====================
+    
+    async def search_async(
+        self,
+        query: str,
+        engine: str = "google",
+        safe_search: bool = True,
+        num_results: int = 5,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """
+        异步搜索接口（供工具调用）
+        
+        Args:
+            query: 搜索查询词
+            engine: 搜索引擎名称
+            safe_search: 是否启用安全搜索
+            num_results: 返回结果数量
+            **kwargs: 其他参数
+            
+        Returns:
+            搜索结果
+        """
+        import asyncio
+        
+        # 在事件循环中运行同步方法
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            None,
+            lambda: self.search(
+                query=query,
+                engine=engine,
+                safe_search=safe_search,
+                num_results=num_results,
+                **kwargs
+            )
+        )
+    
+    def get_search_engines(self) -> List[str]:
+        """
+        获取支持的搜索引擎列表
+        
+        Returns:
+            搜索引擎名称列表
+        """
+        return list(self.search_engines.keys())
+    
+    def is_engine_available(self, engine: str) -> bool:
+        """
+        检查搜索引擎是否可用
+        
+        Args:
+            engine: 搜索引擎名称
+            
+        Returns:
+            是否可用
+        """
+        engine = engine.lower()
+        if engine not in self.search_engines:
+            return False
+        
+        # 检查API密钥
+        return bool(self.api_keys.get(engine))
+    
+    def get_available_engines(self) -> List[str]:
+        """
+        获取可用的搜索引擎列表
+        
+        Returns:
+            可用的搜索引擎名称列表
+        """
+        return [
+            engine for engine in self.search_engines.keys()
+            if self.is_engine_available(engine)
+        ]
 
 
 # 创建全局搜索服务实例

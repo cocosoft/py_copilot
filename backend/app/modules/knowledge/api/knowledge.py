@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Query, Depends
+from fastapi import APIRouter, UploadFile, File, HTTPException, Query, Depends, BackgroundTasks
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -114,29 +114,56 @@ async def delete_knowledge_base(
 async def upload_document(
     knowledge_base_id: int = Query(..., description="目标知识库ID"),
     file: UploadFile = File(...),
+    background_tasks: BackgroundTasks = None,
     db: Session = Depends(get_db)
 ):
-    """上传文档到指定知识库"""
+    """
+    上传文档到指定知识库
+
+    采用异步处理方式：
+    1. 文件上传后立即返回响应
+    2. 文档解析、向量化、图谱化等耗时操作在后台异步执行
+    """
     try:
         # 检查文件格式支持
         if not knowledge_service.is_supported_format(file.filename):
             raise HTTPException(status_code=400, detail="不支持的文件格式")
-        
+
         # 检查文件大小（限制50MB）
         if file.size > 50 * 1024 * 1024:
             raise HTTPException(status_code=400, detail="文件大小超过50MB限制")
-        
+
         # 检查知识库是否存在
         knowledge_base = knowledge_service.get_knowledge_base(knowledge_base_id, db)
         if not knowledge_base:
             raise HTTPException(status_code=404, detail="知识库不存在")
-        
-        result = await knowledge_service.process_uploaded_file(file, knowledge_base_id, db)
-        return {"message": "文档上传成功", "document_id": result.id}
+
+        # 保存文件并创建文档记录（同步执行，快速返回）
+        document = await knowledge_service.save_document(file, knowledge_base_id, db)
+
+        # 文档处理（解析、向量化、图谱化）在后台异步执行
+        if background_tasks:
+            background_tasks.add_task(
+                knowledge_service.process_document_async,
+                document.id,
+                knowledge_base_id
+            )
+        else:
+            # 如果没有background_tasks，使用线程池异步执行
+            import asyncio
+            asyncio.create_task(
+                knowledge_service.process_document_async(document.id, knowledge_base_id)
+            )
+
+        return {
+            "message": "文档上传成功，正在后台处理中",
+            "document_id": document.id,
+            "status": "processing"
+        }
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail="文档处理失败")
+        raise HTTPException(status_code=500, detail=f"文档上传失败: {str(e)}")
 
 @router.get("/search", response_model=SearchResponse)
 async def search_documents(

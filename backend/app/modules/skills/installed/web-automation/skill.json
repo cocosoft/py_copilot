@@ -1,0 +1,60 @@
+{
+  "metadata": {
+    "name": "web-automation",
+    "displayName": "网页自动化",
+    "description": "网页自动化技能 - 支持网页抓取、表单填写、截图等功能",
+    "version": "1.0.0",
+    "author": "Py Copilot Team",
+    "category": "browser",
+    "tags": ["web", "automation", "scraping", "screenshot"],
+    "icon": "🌐"
+  },
+  "config": {
+    "entryPoint": "index.js",
+    "runtime": "node",
+    "timeout": 60,
+    "permissions": [
+      "network",
+      "filesystem"
+    ]
+  },
+  "parameters": [
+    {
+      "name": "action",
+      "type": "string",
+      "description": "操作类型",
+      "required": true,
+      "enum": ["scrape", "screenshot", "fill_form", "click", "navigate"]
+    },
+    {
+      "name": "url",
+      "type": "string",
+      "description": "目标网页URL",
+      "required": true
+    },
+    {
+      "name": "selector",
+      "type": "string",
+      "description": "CSS选择器（用于scrape、click操作）",
+      "required": false
+    },
+    {
+      "name": "formData",
+      "type": "object",
+      "description": "表单数据（用于fill_form操作）",
+      "required": false
+    },
+    {
+      "name": "waitFor",
+      "type": "string",
+      "description": "等待选择器",
+      "required": false
+    },
+    {
+      "name": "viewport",
+      "type": "object",
+      "description": "视口大小",
+      "required": false
+    }
+  ]
+}

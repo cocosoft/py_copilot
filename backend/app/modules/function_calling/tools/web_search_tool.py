@@ -50,16 +50,16 @@ class WebSearchTool(BaseTool):
             )
         ]
     
-    async def execute(self, **kwargs) -> ToolExecutionResult:
+    async def execute(self, parameters: Dict[str, Any]) -> ToolExecutionResult:
         """执行Web搜索"""
         import time
         
         start_time = time.time()
         
         try:
-            query = kwargs.get("query")
-            engine = kwargs.get("engine", "google")
-            num_results = kwargs.get("num_results", 5)
+            query = parameters.get("query")
+            engine = parameters.get("engine", "google")
+            num_results = parameters.get("num_results", 5)
             
             if not query:
                 return ToolExecutionResult(

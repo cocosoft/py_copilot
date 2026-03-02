@@ -12,6 +12,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+logger = logging.getLogger(__name__)
+
 
 async def initialize_tools():
     """
@@ -55,13 +57,17 @@ async def _register_builtin_tools(registry: ToolRegistry):
     Args:
         registry: 工具注册中心
     """
+    # 延迟导入 FileReaderTool 避免循环导入
+    from app.tools.official.file_reader import FileReaderTool
+    
     builtin_tools = [
         WebSearchTool(),
         KnowledgeSearchTool(),
         MemoryTool(),
         TextProcessingTool(),
         DataProcessingTool(),
-        CalculatorTool()
+        CalculatorTool(),
+        FileReaderTool()
     ]
     
     for tool in builtin_tools:

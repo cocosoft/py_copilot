@@ -244,14 +244,99 @@
 /* 操作按钮样式 */
 .capability-actions {
   display: flex;
-  gap: 10px;
+  flex-direction: column;
+  gap: 12px;
   margin-top: auto;
   padding-top: 16px;
   border-top: 1px solid #f0f0f0;
 }
 
-.action-button {
+/* 主要操作按钮组 */
+.capability-main-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.capability-main-actions .action-button {
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  background: white;
+}
+
+.action-icon {
+  font-size: 14px;
+}
+
+.action-text {
+  white-space: nowrap;
+}
+
+/* 测试按钮 */
+.test-button {
+  color: #52c41a;
+  border-color: #b7eb8f;
+}
+
+.test-button:hover:not(:disabled) {
+  background: #f6ffed;
+  border-color: #52c41a;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(82, 196, 26, 0.2);
+}
+
+.test-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  color: #999;
+  border-color: #d9d9d9;
+}
+
+/* 配置按钮 */
+.config-button {
+  color: #1890ff;
+  border-color: #91d5ff;
+}
+
+.config-button:hover:not(:disabled) {
+  background: #e6f7ff;
+  border-color: #1890ff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.2);
+}
+
+.config-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  color: #999;
+  border-color: #d9d9d9;
+}
+
+/* 详情按钮 */
+.detail-button {
+  color: #722ed1;
+  border-color: #d3adf7;
+}
+
+.detail-button:hover {
+  background: #f9f0ff;
+  border-color: #722ed1;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(114, 46, 209, 0.2);
+}
+
+/* 启用/禁用切换按钮 */
+.toggle-button {
+  width: 100%;
   padding: 10px 16px;
   border-radius: 8px;
   font-size: 13px;
@@ -261,14 +346,9 @@
   border: 1px solid transparent;
 }
 
-.toggle-button {
-  background: #f5f5f5;
-  color: #666;
-  border-color: #e8e8e8;
-}
-
-.toggle-button:hover {
-  background: #e8e8e8;
+.toggle-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .toggle-button.enable {
@@ -277,8 +357,11 @@
   border-color: #b7eb8f;
 }
 
-.toggle-button.enable:hover {
-  background: #d9f7be;
+.toggle-button.enable:hover:not(:disabled) {
+  background: #52c41a;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(82, 196, 26, 0.3);
 }
 
 .toggle-button.disable {
@@ -287,17 +370,55 @@
   border-color: #ffa39e;
 }
 
-.toggle-button.disable:hover {
-  background: #ffccc7;
+.toggle-button.disable:hover:not(:disabled) {
+  background: #f5222d;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(245, 34, 45, 0.3);
 }
 
-.config-button {
-  background: white;
-  color: #1890ff;
-  border-color: #d9d9d9;
+/* 响应式样式 */
+@media (max-width: 768px) {
+  .capability-card {
+    padding: 16px;
+  }
+
+  .capability-icon {
+    width: 44px;
+    height: 44px;
+    font-size: 22px;
+  }
+
+  .capability-name {
+    font-size: 14px;
+  }
+
+  .badge {
+    padding: 3px 8px;
+    font-size: 10px;
+  }
+
+  .capability-main-actions {
+    flex-wrap: wrap;
+  }
+
+  .capability-main-actions .action-button {
+    flex: 1 1 calc(33.333% - 6px);
+    min-width: 70px;
+    padding: 8px;
+  }
+
+  .action-text {
+    font-size: 12px;
+  }
+
+  .toggle-button {
+    padding: 10px;
+  }
 }
 
-.config-button:hover {
-  background: #e6f7ff;
-  border-color: #1890ff;
+@media (max-width: 480px) {
+  .capability-main-actions .action-button {
+    flex: 1 1 100%;
+  }
 }

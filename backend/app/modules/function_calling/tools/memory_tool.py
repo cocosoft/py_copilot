@@ -58,25 +58,25 @@ class MemoryTool(BaseTool):
             )
         ]
     
-    async def execute(self, **kwargs) -> ToolExecutionResult:
+    async def execute(self, parameters: Dict[str, Any]) -> ToolExecutionResult:
         """执行内存管理操作"""
         import time
         from sqlalchemy.orm import Session
         from app.core.database import get_db
-        
+
         start_time = time.time()
-        
+
         try:
-            action = kwargs.get("action")
-            
+            action = parameters.get("action")
+
             if action == "store":
-                return await self._store_memory(**kwargs)
+                return await self._store_memory(**parameters)
             elif action == "retrieve":
-                return await self._retrieve_memory(**kwargs)
+                return await self._retrieve_memory(**parameters)
             elif action == "search":
-                return await self._search_memory(**kwargs)
+                return await self._search_memory(**parameters)
             elif action == "clear":
-                return await self._clear_memory(**kwargs)
+                return await self._clear_memory(**parameters)
             else:
                 return ToolExecutionResult(
                     success=False,

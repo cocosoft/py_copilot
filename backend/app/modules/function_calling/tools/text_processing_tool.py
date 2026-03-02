@@ -1,5 +1,5 @@
 """文本处理工具"""
-from typing import List, Optional
+from typing import Dict, Any, List, Optional
 from app.modules.function_calling.base_tool import BaseTool, ToolMetadata, ToolParameter, ToolExecutionResult
 import logging
 

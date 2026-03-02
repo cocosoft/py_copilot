@@ -79,22 +79,13 @@ class KnowledgeService:
         logger.info(f"成功删除知识库: ID={knowledge_base_id}, 名称={knowledge_base.name}")
         return True
     
-    async def process_uploaded_file(self, file: UploadFile, knowledge_base_id: int, db: Session) -> KnowledgeDocument:
-        """处理上传的文件"""
-        # 检查文件格式
-        if not self.is_supported_format(file.filename):
-            raise HTTPException(status_code=400, detail="不支持的文件格式")
-        
-        # 检查文件大小（限制50MB）
-        if file.size > 50 * 1024 * 1024:
-            raise HTTPException(status_code=400, detail="文件大小超过50MB限制")
-        
-        # 检查知识库是否存在
-        knowledge_base = self.get_knowledge_base(knowledge_base_id, db)
-        if not knowledge_base:
-            raise HTTPException(status_code=404, detail="知识库不存在")
-        
-        # 保存文件到前端的public/knowledges目录
+    def _get_storage_paths(self, knowledge_base_id: int) -> tuple:
+        """
+        获取存储路径
+
+        @param knowledge_base_id: 知识库ID
+        @returns: (knowledges_dir, knowledge_base_dir) 路径元组
+        """
         # 获取当前文件所在目录
         current_dir = os.path.dirname(os.path.abspath(__file__))
         # 构建frontend/public/knowledges目录路径
@@ -104,21 +95,181 @@ class KnowledgeService:
         project_root = os.path.abspath(os.path.join(backend_dir, ".."))
         frontend_dir = os.path.join(project_root, "frontend")
         public_dir = os.path.join(frontend_dir, "public")
-        
+
         # 创建知识库专用文件夹
         knowledges_dir = os.path.join(public_dir, "knowledges")
         knowledge_base_dir = os.path.join(knowledges_dir, f"knowledge_base_{knowledge_base_id}")
         os.makedirs(knowledge_base_dir, exist_ok=True)
-        
+
+        return knowledges_dir, knowledge_base_dir
+
+    async def save_document(self, file: UploadFile, knowledge_base_id: int, db: Session) -> KnowledgeDocument:
+        """
+        保存文档文件并创建数据库记录（仅保存，不处理）
+
+        @param file: 上传的文件
+        @param knowledge_base_id: 知识库ID
+        @param db: 数据库会话
+        @returns: 创建的文档对象
+        """
+        # 检查知识库是否存在
+        knowledge_base = self.get_knowledge_base(knowledge_base_id, db)
+        if not knowledge_base:
+            raise HTTPException(status_code=404, detail="知识库不存在")
+
+        # 获取存储路径
+        _, knowledge_base_dir = self._get_storage_paths(knowledge_base_id)
+
         # 保存文件，使用UUID前缀避免文件名冲突
         file_path = os.path.join(knowledge_base_dir, f"{uuid.uuid4()}_{file.filename}")
-        
+
         try:
             # 保存文件
             content = await file.read()
             with open(file_path, 'wb') as f:
                 f.write(content)
-            
+
+            # 创建数据库记录
+            document = KnowledgeDocument(
+                title=file.filename,
+                knowledge_base_id=knowledge_base_id,
+                file_path=file_path,
+                file_type=os.path.splitext(file.filename)[1].lower(),
+                content="",  # 初始为空，将在处理过程中填充
+                is_vectorized=0,  # 标记为未向量化
+                document_metadata={
+                    "original_filename": file.filename,
+                    "file_size": file.size,
+                    "knowledge_base_id": knowledge_base_id,
+                    "knowledge_base_name": knowledge_base.name,
+                    "processing_status": "pending"  # 处理状态：pending/processing/completed/failed
+                }
+            )
+
+            db.add(document)
+            db.commit()
+            db.refresh(document)
+
+            logger.info(f"文档保存成功: {document.id} - {file.filename}")
+            return document
+
+        except Exception as e:
+            # 清理文件
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            raise HTTPException(status_code=500, detail=f"文档保存失败: {str(e)}")
+
+    async def process_document_async(self, document_id: int, knowledge_base_id: int):
+        """
+        异步处理文档（解析、向量化、图谱化）
+
+        @param document_id: 文档ID
+        @param knowledge_base_id: 知识库ID
+        """
+        from app.core.database import SessionLocal
+
+        db = SessionLocal()
+        try:
+            logger.info(f"开始异步处理文档: {document_id}")
+
+            # 获取文档
+            document = db.query(KnowledgeDocument).filter(KnowledgeDocument.id == document_id).first()
+            if not document:
+                logger.error(f"文档不存在: {document_id}")
+                return
+
+            # 更新处理状态
+            document.document_metadata["processing_status"] = "processing"
+            db.commit()
+
+            # 使用DocumentProcessor进行完整文档处理
+            from app.services.knowledge.document_processor import DocumentProcessor
+            document_processor = DocumentProcessor()
+
+            # 处理文档
+            processing_result = document_processor.process_document(
+                document.file_path,
+                document.file_type,
+                document.id,
+                document.knowledge_base_id,
+                db
+            )
+
+            if processing_result.get("success"):
+                # 更新文档内容
+                document.content = processing_result.get("text", "")
+                document.is_vectorized = 1  # 标记为已向量化
+                document.vector_id = f"doc_{document.id}"
+                document.document_metadata["chunks_count"] = len(processing_result.get("chunks", []))
+                document.document_metadata["entities_count"] = len(processing_result.get("entities", []))
+                document.document_metadata["relationships_count"] = len(processing_result.get("relationships", []))
+                document.document_metadata["graph_data_available"] = processing_result.get("graph_data") is not None
+                document.document_metadata["processing_status"] = "completed"
+                db.commit()
+
+                logger.info(f"文档异步处理完成: {document_id}，包含 {len(processing_result.get('chunks', []))} 个片段")
+
+                if processing_result.get("graph_data"):
+                    logger.info(f"图谱化完成: {document_id}，构建了包含 {len(processing_result['graph_data'].get('nodes', []))} 个节点的知识图谱")
+            else:
+                # 处理失败，记录错误信息
+                error_msg = processing_result.get("error", "未知错误")
+                document.document_metadata["processing_error"] = error_msg
+                document.document_metadata["processing_status"] = "failed"
+                db.commit()
+                logger.error(f"文档异步处理失败: {document_id} - {error_msg}")
+
+        except Exception as e:
+            logger.error(f"文档异步处理异常: {document_id} - {str(e)}")
+            import traceback
+            logger.error(f"错误堆栈: {traceback.format_exc()}")
+
+            # 更新处理状态为失败
+            try:
+                document = db.query(KnowledgeDocument).filter(KnowledgeDocument.id == document_id).first()
+                if document:
+                    document.document_metadata["processing_status"] = "failed"
+                    document.document_metadata["processing_error"] = str(e)
+                    db.commit()
+            except:
+                pass
+        finally:
+            db.close()
+
+    async def process_uploaded_file(self, file: UploadFile, knowledge_base_id: int, db: Session) -> KnowledgeDocument:
+        """
+        处理上传的文件（同步方式，保留用于兼容）
+
+        @param file: 上传的文件
+        @param knowledge_base_id: 知识库ID
+        @param db: 数据库会话
+        @returns: 创建的文档对象
+        """
+        # 检查文件格式
+        if not self.is_supported_format(file.filename):
+            raise HTTPException(status_code=400, detail="不支持的文件格式")
+
+        # 检查文件大小（限制50MB）
+        if file.size > 50 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="文件大小超过50MB限制")
+
+        # 检查知识库是否存在
+        knowledge_base = self.get_knowledge_base(knowledge_base_id, db)
+        if not knowledge_base:
+            raise HTTPException(status_code=404, detail="知识库不存在")
+
+        # 获取存储路径
+        _, knowledge_base_dir = self._get_storage_paths(knowledge_base_id)
+
+        # 保存文件，使用UUID前缀避免文件名冲突
+        file_path = os.path.join(knowledge_base_dir, f"{uuid.uuid4()}_{file.filename}")
+
+        try:
+            # 保存文件
+            content = await file.read()
+            with open(file_path, 'wb') as f:
+                f.write(content)
+
             # 创建数据库记录
             document = KnowledgeDocument(
                 title=file.filename,
@@ -133,24 +284,24 @@ class KnowledgeService:
                     "knowledge_base_name": knowledge_base.name
                 }
             )
-            
+
             db.add(document)
             db.commit()
             db.refresh(document)
-            
+
             # 使用DocumentProcessor进行完整文档处理（包括图谱化）
             from app.services.knowledge.document_processor import DocumentProcessor
             document_processor = DocumentProcessor()
-            
+
             # 处理文档
             processing_result = document_processor.process_document(
-                file_path, 
-                document.file_type, 
-                document.id, 
+                file_path,
+                document.file_type,
+                document.id,
                 document.knowledge_base_id,  # 传递knowledge_base_id
                 db
             )
-            
+
             if processing_result.get("success"):
                 # 更新文档内容
                 document.content = processing_result.get("text", "")
@@ -158,13 +309,13 @@ class KnowledgeService:
                 document.document_metadata["entities_count"] = len(processing_result.get("entities", []))
                 document.document_metadata["relationships_count"] = len(processing_result.get("relationships", []))
                 document.document_metadata["graph_data_available"] = processing_result.get("graph_data") is not None
-                
+
                 # 更新向量ID
                 document.vector_id = f"doc_{document.id}"
                 db.commit()
-                
+
                 logger.info(f"文档处理完成，包含 {len(processing_result.get('chunks', []))} 个片段和 {len(processing_result.get('entities', []))} 个实体")
-                
+
                 if processing_result.get("graph_data"):
                     logger.info(f"图谱化完成，构建了包含 {len(processing_result['graph_data'].get('nodes', []))} 个节点的知识图谱")
             else:
@@ -174,9 +325,9 @@ class KnowledgeService:
                 document.vector_id = None
                 db.commit()
                 logger.error(f"文档处理失败: {error_msg}")
-            
+
             return document
-            
+
         except Exception as e:
             # 清理文件
             if os.path.exists(file_path):
@@ -855,3 +1006,87 @@ class KnowledgeService:
         db.refresh(restored_version)
         
         return restored_version
+    
+    # ==================== 工具兼容接口 ====================
+    
+    async def search_documents_async(
+        self,
+        query: str,
+        limit: int = 10,
+        knowledge_base_id: Optional[int] = None,
+        db: Session = None
+    ) -> List[Dict[str, Any]]:
+        """
+        异步搜索文档接口（供工具调用）
+        
+        Args:
+            query: 搜索查询词
+            limit: 返回结果数量
+            knowledge_base_id: 知识库ID
+            db: 数据库会话
+            
+        Returns:
+            搜索结果列表
+        """
+        import asyncio
+        
+        # 在事件循环中运行同步方法
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            None,
+            lambda: self.search_documents(
+                query=query,
+                limit=limit,
+                knowledge_base_id=knowledge_base_id,
+                db=db
+            )
+        )
+    
+    def get_knowledge_base_info(self, knowledge_base_id: int, db: Session) -> Optional[Dict[str, Any]]:
+        """
+        获取知识库信息
+        
+        Args:
+            knowledge_base_id: 知识库ID
+            db: 数据库会话
+            
+        Returns:
+            知识库信息字典
+        """
+        kb = self.get_knowledge_base(knowledge_base_id, db)
+        if not kb:
+            return None
+        
+        return {
+            "id": kb.id,
+            "name": kb.name,
+            "description": kb.description,
+            "created_at": kb.created_at,
+            "updated_at": kb.updated_at,
+            "document_count": self.get_document_count(db, knowledge_base_id)
+        }
+    
+    def list_knowledge_bases_info(self, db: Session, skip: int = 0, limit: int = 10) -> List[Dict[str, Any]]:
+        """
+        获取知识库列表信息
+        
+        Args:
+            db: 数据库会话
+            skip: 跳过数量
+            limit: 限制数量
+            
+        Returns:
+            知识库信息列表
+        """
+        kbs = self.list_knowledge_bases(db, skip, limit)
+        return [
+            {
+                "id": kb.id,
+                "name": kb.name,
+                "description": kb.description,
+                "created_at": kb.created_at,
+                "updated_at": kb.updated_at,
+                "document_count": self.get_document_count(db, kb.id)
+            }
+            for kb in kbs
+        ]

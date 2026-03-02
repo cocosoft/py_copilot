@@ -1,8 +1,20 @@
-"""工具注册中心"""
+"""
+工具注册中心
+
+管理所有可用的工具，提供工具注册、查询、执行等功能
+"""
+
 from typing import Dict, List, Optional, Type, Any
-from app.modules.function_calling.base_tool import BaseTool, ToolMetadata
-from app.modules.function_calling.tool_integration_adapter import ToolIntegrationAdapter
 import logging
+
+from app.modules.function_calling.base_tool import BaseTool
+from app.modules.function_calling.tool_schemas import (
+    ToolMetadata,
+    ToolExecutionResult,
+    ToolExecutionContext,
+    ToolCategory
+)
+from app.modules.function_calling.tool_integration_adapter import ToolIntegrationAdapter
 
 logger = logging.getLogger(__name__)
 

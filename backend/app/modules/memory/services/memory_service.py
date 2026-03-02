@@ -2085,3 +2085,159 @@ class MemoryService:
         ).order_by(desc(GlobalMemory.created_at))
         
         return db_query.offset(offset).limit(limit).all()
+    
+    # ==================== 工具兼容接口 ====================
+    
+    @staticmethod
+    async def search_memories_async(
+        db: Session,
+        query: str,
+        user_id: int,
+        memory_types: Optional[List[str]] = None,
+        memory_categories: Optional[List[str]] = None,
+        limit: int = 10,
+        min_importance: float = 0.0
+    ) -> List[Dict[str, Any]]:
+        """
+        异步搜索记忆接口（供工具调用）
+        
+        Args:
+            db: 数据库会话
+            query: 搜索查询词
+            user_id: 用户ID
+            memory_types: 记忆类型列表
+            memory_categories: 记忆类别列表
+            limit: 返回结果数量
+            min_importance: 最小重要性分数
+            
+        Returns:
+            记忆列表
+        """
+        import asyncio
+        
+        # 在事件循环中运行同步方法
+        loop = asyncio.get_event_loop()
+        memories = await loop.run_in_executor(
+            None,
+            lambda: MemoryService.search_memories_by_text(db, query, user_id, limit)
+        )
+        
+        # 转换为字典列表
+        result = []
+        for memory in memories:
+            # 过滤
+            if memory_types and memory.memory_type not in memory_types:
+                continue
+            if memory_categories and memory.memory_category not in memory_categories:
+                continue
+            if min_importance > 0 and (memory.importance_score or 0) < min_importance:
+                continue
+            
+            result.append({
+                "id": memory.id,
+                "title": memory.title,
+                "content": memory.content,
+                "memory_type": memory.memory_type,
+                "memory_category": memory.memory_category,
+                "importance_score": memory.importance_score,
+                "created_at": memory.created_at.isoformat() if memory.created_at else None,
+                "tags": memory.tags
+            })
+        
+        return result
+    
+    @staticmethod
+    async def create_memory_async(
+        db: Session,
+        memory_data: MemoryCreate,
+        user_id: int
+    ) -> Dict[str, Any]:
+        """
+        异步创建记忆接口（供工具调用）
+        
+        Args:
+            db: 数据库会话
+            memory_data: 记忆数据
+            user_id: 用户ID
+            
+        Returns:
+            创建的记忆信息
+        """
+        memory = await MemoryService.create_memory(db, memory_data, user_id)
+        
+        return {
+            "id": memory.id,
+            "title": memory.title,
+            "content": memory.content,
+            "memory_type": memory.memory_type,
+            "created_at": memory.created_at.isoformat() if memory.created_at else None
+        }
+    
+    @staticmethod
+    def get_memory_info(db: Session, memory_id: int, user_id: int) -> Optional[Dict[str, Any]]:
+        """
+        获取记忆信息
+        
+        Args:
+            db: 数据库会话
+            memory_id: 记忆ID
+            user_id: 用户ID
+            
+        Returns:
+            记忆信息字典
+        """
+        memory = MemoryService.get_memory(db, memory_id, user_id)
+        if not memory:
+            return None
+        
+        return {
+            "id": memory.id,
+            "title": memory.title,
+            "content": memory.content,
+            "summary": memory.summary,
+            "memory_type": memory.memory_type,
+            "memory_category": memory.memory_category,
+            "importance_score": memory.importance_score,
+            "tags": memory.tags,
+            "created_at": memory.created_at.isoformat() if memory.created_at else None,
+            "updated_at": memory.updated_at.isoformat() if memory.updated_at else None,
+            "access_count": memory.access_count
+        }
+    
+    @staticmethod
+    def list_memories_info(
+        db: Session,
+        user_id: int,
+        memory_type: Optional[str] = None,
+        limit: int = 20,
+        offset: int = 0
+    ) -> List[Dict[str, Any]]:
+        """
+        获取记忆列表信息
+        
+        Args:
+            db: 数据库会话
+            user_id: 用户ID
+            memory_type: 记忆类型过滤
+            limit: 返回数量
+            offset: 偏移量
+            
+        Returns:
+            记忆信息列表
+        """
+        memories = MemoryService.get_user_memories(
+            db, user_id, memory_type, limit, offset
+        )
+        
+        return [
+            {
+                "id": m.id,
+                "title": m.title,
+                "content": m.content[:200] + "..." if len(m.content) > 200 else m.content,
+                "memory_type": m.memory_type,
+                "memory_category": m.memory_category,
+                "importance_score": m.importance_score,
+                "created_at": m.created_at.isoformat() if m.created_at else None
+            }
+            for m in memories
+        ]

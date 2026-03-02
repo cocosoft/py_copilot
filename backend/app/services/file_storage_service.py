@@ -9,7 +9,7 @@ import hashlib
 import shutil
 from pathlib import Path
 from datetime import datetime
-from typing import BinaryIO, Dict, Any, Optional, Union
+from typing import BinaryIO, Dict, Any, List, Optional, Union
 import aiofiles
 
 from app.services.storage_path_manager import (
@@ -504,6 +504,98 @@ class FileStorageService:
             target_category=target_category,
             target_related_id=target_related_id
         )
+    
+    # ==================== 工具兼容接口 ====================
+    
+    async def read_text_file(self, file_path: Union[str, Path], encoding: str = 'utf-8') -> str:
+        """
+        读取文本文件内容
+        
+        Args:
+            file_path: 文件路径
+            encoding: 文件编码
+            
+        Returns:
+            str: 文件内容
+        """
+        content = await self.read_file(file_path)
+        return content.decode(encoding)
+    
+    async def write_text_file(
+        self,
+        content: str,
+        filename: str,
+        user_id: int,
+        category: FileCategory = FileCategory.CONVERSATION_ATTACHMENT,
+        encoding: str = 'utf-8'
+    ) -> Dict[str, Any]:
+        """
+        写入文本文件
+        
+        Args:
+            content: 文本内容
+            filename: 文件名
+            user_id: 用户ID
+            category: 文件分类
+            encoding: 文件编码
+            
+        Returns:
+            Dict[str, Any]: 文件信息
+        """
+        return await self.save_file(
+            file_data=content.encode(encoding),
+            filename=filename,
+            user_id=user_id,
+            category=category
+        )
+    
+    def list_files(
+        self,
+        user_id: int,
+        category: Optional[FileCategory] = None,
+        pattern: str = "*"
+    ) -> List[Dict[str, Any]]:
+        """
+        列出用户文件
+        
+        Args:
+            user_id: 用户ID
+            category: 文件分类过滤
+            pattern: 文件名匹配模式
+            
+        Returns:
+            List[Dict[str, Any]]: 文件信息列表
+        """
+        if category:
+            storage_dir = self.path_manager.get_storage_path(user_id, category)
+        else:
+            storage_dir = self.path_manager.base_path / "users" / str(user_id)
+        
+        files = []
+        if storage_dir.exists():
+            for file_path in storage_dir.rglob(pattern):
+                if file_path.is_file():
+                    try:
+                        files.append(self.get_file_info(file_path))
+                    except Exception:
+                        pass
+        
+        return files
+    
+    def get_file_size(self, file_path: Union[str, Path]) -> int:
+        """
+        获取文件大小
+        
+        Args:
+            file_path: 文件路径
+            
+        Returns:
+            int: 文件大小（字节）
+        """
+        path = Path(file_path)
+        if not path.exists():
+            return 0
+        return path.stat().st_size
 
 
 # 全局实例

@@ -2,13 +2,16 @@
  * 能力中心页面
  *
  * 统一管理工具、技能和MCP能力的中心页面
- * 提供统一的展示、筛选、启用/禁用功能
+ * 提供统一的展示、筛选、启用/禁用、测试、配置、查看详情功能
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { capabilityCenterApi } from '../services/capabilityCenterApi';
 import { CapabilityCard } from '../components/CapabilityCenter/CapabilityCard';
+import { CapabilityTestDialog } from '../components/CapabilityCenter/CapabilityTestDialog';
+import { CapabilityConfigDialog } from '../components/CapabilityCenter/CapabilityConfigDialog';
+import { CapabilityDetailDialog } from '../components/CapabilityCenter/CapabilityDetailDialog';
 import './capability-center.css';
 
 /**
@@ -48,6 +51,12 @@ export function CapabilityCenter() {
 
   // 分类列表
   const [categories, setCategories] = useState([]);
+
+  // 对话框状态
+  const [testDialogOpen, setTestDialogOpen] = useState(false);
+  const [configDialogOpen, setConfigDialogOpen] = useState(false);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [selectedCapability, setSelectedCapability] = useState(null);
 
   /**
    * 加载能力列表
@@ -175,6 +184,61 @@ export function CapabilityCenter() {
   };
 
   /**
+   * 处理测试能力
+   */
+  const handleTestCapability = (capability) => {
+    setSelectedCapability(capability);
+    setTestDialogOpen(true);
+  };
+
+  /**
+   * 处理配置能力
+   */
+  const handleConfigCapability = (capability) => {
+    setSelectedCapability(capability);
+    setConfigDialogOpen(true);
+  };
+
+  /**
+   * 处理查看详情
+   */
+  const handleDetailCapability = (capability) => {
+    setSelectedCapability(capability);
+    setDetailDialogOpen(true);
+  };
+
+  /**
+   * 关闭测试对话框
+   */
+  const handleCloseTestDialog = () => {
+    setTestDialogOpen(false);
+    setSelectedCapability(null);
+  };
+
+  /**
+   * 关闭配置对话框
+   */
+  const handleCloseConfigDialog = () => {
+    setConfigDialogOpen(false);
+    setSelectedCapability(null);
+  };
+
+  /**
+   * 关闭详情对话框
+   */
+  const handleCloseDetailDialog = () => {
+    setDetailDialogOpen(false);
+    setSelectedCapability(null);
+  };
+
+  /**
+   * 处理配置保存成功
+   */
+  const handleConfigSave = () => {
+    loadCapabilities();
+  };
+
+  /**
    * 关闭通知
    */
   const handleCloseSnackbar = () => {
@@ -297,7 +361,10 @@ export function CapabilityCenter() {
             <CapabilityCard
               key={`${capability.type}-${capability.id}-${capability.name || ''}-${index}`}
               capability={capability}
-              onToggle={() => handleToggleCapability(capability)}
+              onToggle={handleToggleCapability}
+              onTest={handleTestCapability}
+              onConfig={handleConfigCapability}
+              onDetail={handleDetailCapability}
             />
           ))
         )}
@@ -335,6 +402,28 @@ export function CapabilityCenter() {
           </button>
         </div>
       )}
+
+      {/* 测试对话框 */}
+      <CapabilityTestDialog
+        isOpen={testDialogOpen}
+        capability={selectedCapability}
+        onClose={handleCloseTestDialog}
+      />
+
+      {/* 配置对话框 */}
+      <CapabilityConfigDialog
+        isOpen={configDialogOpen}
+        capability={selectedCapability}
+        onClose={handleCloseConfigDialog}
+        onSave={handleConfigSave}
+      />
+
+      {/* 详情对话框 */}
+      <CapabilityDetailDialog
+        isOpen={detailDialogOpen}
+        capability={selectedCapability}
+        onClose={handleCloseDetailDialog}
+      />
     </div>
   );
 }

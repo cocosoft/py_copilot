@@ -52,18 +52,18 @@ class KnowledgeSearchTool(BaseTool):
             )
         ]
     
-    async def execute(self, **kwargs) -> ToolExecutionResult:
+    async def execute(self, parameters: Dict[str, Any]) -> ToolExecutionResult:
         """执行知识库搜索"""
         import time
         from sqlalchemy.orm import Session
         from app.core.database import get_db
-        
+
         start_time = time.time()
-        
+
         try:
-            query = kwargs.get("query")
-            knowledge_base_id = kwargs.get("knowledge_base_id")
-            top_k = kwargs.get("top_k", 5)
+            query = parameters.get("query")
+            knowledge_base_id = parameters.get("knowledge_base_id")
+            top_k = parameters.get("top_k", 5)
             
             if not query:
                 return ToolExecutionResult(

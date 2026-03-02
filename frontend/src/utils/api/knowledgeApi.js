@@ -37,10 +37,18 @@ export const deleteKnowledgeBase = async (knowledgeBaseId) => {
 };
 
 // Knowledge Document API
+
+/**
+ * 上传文档到知识库
+ *
+ * @param {File} file - 文件对象
+ * @param {number} knowledgeBaseId - 知识库ID
+ * @returns {Promise<Object>} 上传结果
+ */
 export const uploadDocument = async (file, knowledgeBaseId) => {
     const formData = new FormData();
     formData.append('file', file);
-    
+
     const response = await request('/v1/knowledge/documents', {
         method: 'POST',
         params: { knowledge_base_id: knowledgeBaseId },
@@ -48,8 +56,10 @@ export const uploadDocument = async (file, knowledgeBaseId) => {
         headers: {
             'Content-Type': 'multipart/form-data',
         },
+        // 设置较长的超时时间（5分钟），因为后端需要处理文档解析、分块、向量化和图谱化
+        timeout: 300000
     });
-    
+
     return response;
 };
 
