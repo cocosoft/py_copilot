@@ -66,7 +66,7 @@ class DocumentProcessor:
                 "正在进行语义分块...",
                 {"cleaned_text_length": len(cleaned_text)}
             )
-            chunks = self.text_processor.semantic_chunking(cleaned_text)
+            chunks = self.text_processor.semantic_chunking_sync(cleaned_text)
             logger.info(f"文档分块完成，共 {len(chunks)} 个块")
 
             # 4. 实体识别与关系提取
@@ -75,7 +75,7 @@ class DocumentProcessor:
                 "正在识别实体和提取关系...",
                 {"chunks_count": len(chunks)}
             )
-            entities, relationships = self.text_processor.extract_entities_relationships(cleaned_text)
+            entities, relationships = self.text_processor.extract_entities_relationships_sync(cleaned_text)
             logger.info(f"实体识别完成，识别到 {len(entities)} 个实体和 {len(relationships)} 个关系")
             
             # 5. 向量化处理 - 分批次批量处理优化版
@@ -226,8 +226,10 @@ class DocumentProcessor:
                     # 获取文档对象
                     document = db.query(KnowledgeDocument).filter(KnowledgeDocument.id == document_id).first()
                     if document:
-                        # 提取并存储实体关系
-                        entity_result = self.knowledge_graph_service.extract_and_store_entities(db, document)
+                        # 提取并存储实体关系（传递已提取的实体，避免重复提取）
+                        entity_result = self.knowledge_graph_service.extract_and_store_entities(
+                            db, document, entities, relationships
+                        )
 
                         if entity_result.get("success"):
                             # 构建知识图谱
@@ -310,11 +312,11 @@ class DocumentProcessor:
     
     def extract_keywords(self, text: str, top_n: int = 10) -> List[Dict[str, Any]]:
         """提取关键词"""
-        return self.text_processor.extract_keywords(text, top_n)
-    
+        return self.text_processor.extract_keywords_sync(text, top_n)
+
     def calculate_similarity(self, text1: str, text2: str) -> float:
         """计算文本相似度"""
-        return self.text_processor.calculate_similarity(text1, text2)
+        return self.text_processor.calculate_similarity_sync(text1, text2)
     
     def get_document_chunks(self, document_id: int) -> List[Dict[str, Any]]:
         """获取文档的分块信息"""
@@ -366,7 +368,7 @@ class DocumentProcessor:
             
             # 2. 重新处理文档内容
             # 智能分块
-            chunks = self.text_processor.semantic_chunking(new_content)
+            chunks = self.text_processor.semantic_chunking_sync(new_content)
             
             # 3. 重新向量化（带验证）
             vector_results = []

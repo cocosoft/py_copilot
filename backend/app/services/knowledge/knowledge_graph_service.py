@@ -20,16 +20,30 @@ class KnowledgeGraphService:
         self.text_processor = AdvancedTextProcessor()
         self.graph_builder = KnowledgeGraphBuilder()
     
-    def extract_and_store_entities(self, db: Session, document: KnowledgeDocument) -> Dict[str, Any]:
-        """从文档中提取实体并存储到数据库"""
+    def extract_and_store_entities(self, db: Session, document: KnowledgeDocument,
+                                   entities: List[Dict[str, Any]] = None,
+                                   relationships: List[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """从文档中提取实体并存储到数据库
+
+        Args:
+            db: 数据库会话
+            document: 知识文档对象
+            entities: 已提取的实体列表（可选，如果提供则不再重新提取）
+            relationships: 已提取的关系列表（可选，如果提供则不再重新提取）
+        """
         try:
             if not document.content:
                 logger.warning(f"文档 {document.id} 没有内容，无法提取实体")
                 return {"success": False, "error": "文档内容为空"}
-            
-            # 提取实体和关系
-            entities, relationships = self.text_processor.extract_entities_relationships(document.content)
-            
+
+            # 如果没有提供实体和关系，则进行提取
+            if entities is None or relationships is None:
+                logger.info(f"文档 {document.id} 未提供实体，开始提取...")
+                entities, relationships = self.text_processor.extract_entities_relationships_sync(document.content)
+                logger.info(f"文档 {document.id} 提取完成: {len(entities)} 个实体, {len(relationships)} 个关系")
+            else:
+                logger.info(f"文档 {document.id} 使用已提供的实体: {len(entities)} 个实体, {len(relationships)} 个关系")
+
             # 存储实体到数据库
             stored_entities = []
             for entity_info in entities:

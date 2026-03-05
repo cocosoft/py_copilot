@@ -15,9 +15,9 @@ from typing import List, Dict, Any, Optional
 class EntityExtractionRequest(BaseModel):
     document_id: Optional[int] = None
     text: Optional[str] = None
-    
+
     class Config:
-        extra = "forbid"  # 禁止额外的字段
+        extra = "ignore"  # 忽略额外的字段，提高兼容性
 
 
 class EntityExtractionResponse(BaseModel):
@@ -55,9 +55,10 @@ class GraphBuildRequest(BaseModel):
     document_id: Optional[int] = None
     knowledge_base_id: Optional[int] = None
     rebuild: bool = False
-    
+
     class Config:
-        extra = "forbid"  # 禁止额外的字段
+        extra = "ignore"  # 忽略额外的字段，提高兼容性
+        populate_by_name = True  # 允许通过字段名填充
 
 
 class GraphBuildResponse(BaseModel):
@@ -558,3 +559,152 @@ async def get_knowledge_graph_statistics(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取统计信息失败: {str(e)}")
+
+
+# ==================== 批量处理API ====================
+
+class BatchEntityExtractionRequest(BaseModel):
+    """批量实体提取请求"""
+    texts: List[str]
+    max_workers: int = 5
+    batch_size: int = 10
+    use_cache: bool = True
+
+
+class BatchEntityExtractionResponse(BaseModel):
+    """批量实体提取响应"""
+    success: bool
+    items_processed: int
+    items_failed: int
+    cache_hits: int
+    processing_time: float
+    results: List[Dict[str, Any]]
+    errors: List[str]
+
+
+class BatchDocumentProcessingRequest(BaseModel):
+    """批量文档处理请求"""
+    documents: List[Dict[str, Any]]
+    max_workers: int = 3
+
+
+class BatchDocumentProcessingResponse(BaseModel):
+    """批量文档处理响应"""
+    success: bool
+    items_processed: int
+    items_failed: int
+    processing_time: float
+    results: List[Dict[str, Any]]
+    errors: List[str]
+
+
+class BatchGraphBuildingRequest(BaseModel):
+    """批量图谱构建请求"""
+    document_ids: List[int]
+    max_workers: int = 5
+
+
+class BatchGraphBuildingResponse(BaseModel):
+    """批量图谱构建响应"""
+    success: bool
+    items_processed: int
+    items_failed: int
+    processing_time: float
+    results: List[Dict[str, Any]]
+    errors: List[str]
+
+
+@router.post("/batch/extract-entities", response_model=BatchEntityExtractionResponse)
+async def batch_extract_entities(
+    request: BatchEntityExtractionRequest
+):
+    """
+    批量提取实体和关系
+
+    支持并发批量处理多个文本，自动使用缓存减少LLM调用。
+    """
+    try:
+        from app.services.knowledge.batch_processor import extract_entities_batch
+
+        result = await extract_entities_batch(
+            texts=request.texts,
+            max_workers=request.max_workers,
+            batch_size=request.batch_size,
+            use_cache=request.use_cache
+        )
+
+        return BatchEntityExtractionResponse(
+            success=result.success,
+            items_processed=result.items_processed,
+            items_failed=result.items_failed,
+            cache_hits=result.cache_hits,
+            processing_time=result.processing_time,
+            results=result.results,
+            errors=result.errors
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"批量实体提取失败: {str(e)}")
+
+
+@router.post("/batch/process-documents", response_model=BatchDocumentProcessingResponse)
+async def batch_process_documents(
+    request: BatchDocumentProcessingRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    批量处理文档
+
+    并发处理多个文档，包括解析、分块、向量化和图谱化。
+    """
+    try:
+        from app.services.knowledge.batch_processor import process_documents_batch
+
+        result = await process_documents_batch(
+            documents=request.documents,
+            max_workers=request.max_workers
+        )
+
+        return BatchDocumentProcessingResponse(
+            success=result.success,
+            items_processed=result.items_processed,
+            items_failed=result.items_failed,
+            processing_time=result.processing_time,
+            results=result.results,
+            errors=result.errors
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"批量文档处理失败: {str(e)}")
+
+
+@router.post("/batch/build-graphs", response_model=BatchGraphBuildingResponse)
+async def batch_build_graphs(
+    request: BatchGraphBuildingRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    批量构建知识图谱
+
+    为多个文档并发构建知识图谱。
+    """
+    try:
+        from app.services.knowledge.batch_processor import build_knowledge_graphs_batch
+
+        result = await build_knowledge_graphs_batch(
+            document_ids=request.document_ids,
+            db=db,
+            max_workers=request.max_workers
+        )
+
+        return BatchGraphBuildingResponse(
+            success=result.success,
+            items_processed=result.items_processed,
+            items_failed=result.items_failed,
+            processing_time=result.processing_time,
+            results=result.results,
+            errors=result.errors
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"批量图谱构建失败: {str(e)}")

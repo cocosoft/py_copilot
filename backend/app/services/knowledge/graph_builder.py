@@ -1,5 +1,6 @@
 """知识图谱构建器模块"""
 import logging
+import json
 from typing import List, Dict, Any, Optional, Tuple
 from sqlalchemy.orm import Session
 import networkx as nx
@@ -297,6 +298,185 @@ class KnowledgeGraphBuilder:
         clusters = list(text_to_entities.values())
         logger.info(f"精确匹配聚类完成: {len(entities)} 个实体分为 {len(clusters)} 个集群")
         return clusters
+
+    async def _entity_linking_with_llm(self, entities: List[DocumentEntity]) -> List[Dict]:
+        """使用LLM进行语义实体链接
+
+        当传统TF-IDF方法无法识别语义相同但表述不同的实体时，使用LLM进行判断。
+        例如："人工智能"和"AI"、"阿里巴巴"和"Alibaba"
+
+        Args:
+            entities: 实体列表
+
+        Returns:
+            链接后的实体组列表
+        """
+        if not entities or len(entities) <= 1:
+            return []
+
+        try:
+            from app.services.knowledge.llm_extractor import LLMEntityExtractor
+
+            extractor = LLMEntityExtractor()
+
+            # 按实体类型分组
+            entities_by_type = {}
+            for entity in entities:
+                if entity.entity_type not in entities_by_type:
+                    entities_by_type[entity.entity_type] = []
+                entities_by_type[entity.entity_type].append(entity)
+
+            linked_entities = []
+            cluster_id = 0
+
+            for entity_type, type_entities in entities_by_type.items():
+                if len(type_entities) <= 1:
+                    # 只有一个实体，直接作为集群
+                    linked_entities.append({
+                        "cluster_id": cluster_id,
+                        "entity_type": entity_type,
+                        "representative_text": type_entities[0].entity_text,
+                        "entities": type_entities,
+                        "confidence": type_entities[0].confidence
+                    })
+                    cluster_id += 1
+                    continue
+
+                # 如果实体数量不多，使用LLM进行语义链接
+                if len(type_entities) <= 50:
+                    clusters = await self._cluster_with_llm(type_entities, entity_type, extractor)
+                else:
+                    # 实体数量过多，先使用TF-IDF聚类，再对每簇使用LLM验证
+                    tfidf_clusters = self._cluster_similar_entities(type_entities)
+                    clusters = []
+                    for tfidf_cluster in tfidf_clusters:
+                        if len(tfidf_cluster) > 1:
+                            # 对TF-IDF聚类结果使用LLM验证
+                            llm_clusters = await self._cluster_with_llm(tfidf_cluster, entity_type, extractor)
+                            clusters.extend(llm_clusters)
+                        else:
+                            clusters.append(tfidf_cluster)
+
+                for cluster in clusters:
+                    if cluster:
+                        representative = max(cluster, key=lambda e: len(e.entity_text))
+                        linked_entities.append({
+                            "cluster_id": cluster_id,
+                            "entity_type": entity_type,
+                            "representative_text": representative.entity_text,
+                            "entities": cluster,
+                            "confidence": np.mean([e.confidence for e in cluster])
+                        })
+                        cluster_id += 1
+
+            return linked_entities
+
+        except Exception as e:
+            logger.error(f"LLM实体链接失败: {e}")
+            # 失败时回退到传统方法
+            return self._entity_linking(entities)
+
+    async def _cluster_with_llm(self, entities: List[DocumentEntity], entity_type: str,
+                                 extractor: 'LLMEntityExtractor') -> List[List[DocumentEntity]]:
+        """使用LLM对实体进行聚类
+
+        Args:
+            entities: 同类型的实体列表
+            entity_type: 实体类型
+            extractor: LLM实体提取器
+
+        Returns:
+            聚类后的实体列表
+        """
+        if len(entities) <= 1:
+            return [entities]
+
+        # 构建实体列表文本
+        entity_list_text = "\n".join([f"{i}. {e.entity_text}" for i, e in enumerate(entities)])
+
+        prompt = f"""请判断以下{entity_type}类型的实体是否指向同一实体，并将它们分组。
+
+实体列表：
+{entity_list_text}
+
+任务要求：
+1. 识别指代同一实体的不同表述（如"人工智能"和"AI"、"阿里巴巴"和"Alibaba"）
+2. 将指向同一实体的表述分到同一组
+3. 为每组选择最标准的名称作为代表
+
+请返回JSON格式：
+{{
+    "groups": [
+        {{
+            "entity_indices": [0, 2],
+            "canonical_name": "标准名称"
+        }},
+        {{
+            "entity_indices": [1],
+            "canonical_name": "另一个实体"
+        }}
+    ]
+}}
+
+注意：
+- entity_indices是实体在列表中的索引（从0开始）
+- 每个实体必须且只能属于一个组
+- 如果某个实体无法确定归属，单独成组"""
+
+        try:
+            response = await extractor.llm_service.chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.3,
+                max_tokens=2000
+            )
+
+            if response and "choices" in response:
+                content = response["choices"][0]["message"]["content"]
+
+                # 提取JSON
+                try:
+                    # 尝试直接解析
+                    result = json.loads(content)
+                except json.JSONDecodeError:
+                    # 尝试从文本中提取JSON
+                    if '```json' in content:
+                        json_str = content.split('```json')[1].split('```')[0]
+                    elif '```' in content:
+                        json_str = content.split('```')[1].split('```')[0]
+                    else:
+                        start = content.find('{')
+                        end = content.rfind('}')
+                        json_str = content[start:end+1] if start != -1 and end != -1 else content
+
+                    result = json.loads(json_str.strip())
+
+                groups = result.get("groups", [])
+                clusters = []
+
+                used_indices = set()
+                for group in groups:
+                    indices = group.get("entity_indices", [])
+                    cluster = []
+                    for idx in indices:
+                        if 0 <= idx < len(entities) and idx not in used_indices:
+                            cluster.append(entities[idx])
+                            used_indices.add(idx)
+                    if cluster:
+                        clusters.append(cluster)
+
+                # 处理未被分组的实体
+                for i, entity in enumerate(entities):
+                    if i not in used_indices:
+                        clusters.append([entity])
+
+                logger.info(f"LLM聚类完成: {len(entities)} 个实体分为 {len(clusters)} 个组")
+                return clusters
+
+        except Exception as e:
+            logger.error(f"LLM聚类失败: {e}")
+
+        # 失败时返回每个实体单独成组
+        return [[e] for e in entities]
     
     def _find_entity_cluster(self, linked_entities: List[Dict], entity_id: int) -> Optional[int]:
         """查找实体所属的集群"""
