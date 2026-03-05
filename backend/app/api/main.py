@@ -270,6 +270,43 @@ async def startup_event():
     except Exception as e:
         logger.error(f"初始化 MCP 服务失败: {e}")
 
+    # 预加载知识库处理模型（spaCy和jieba）
+    try:
+        logger.info("正在预加载知识库处理模型...")
+        # 在后台线程中预加载，避免阻塞启动
+        def preload_models():
+            try:
+                # 预加载jieba
+                import jieba
+                jieba.initialize()
+                logger.info("jieba中文分词器预加载完成")
+
+                # 预加载spaCy
+                import spacy
+                nlp = spacy.load("zh_core_web_sm")
+                logger.info("spaCy NER模型预加载完成")
+            except Exception as e:
+                logger.warning(f"模型预加载失败（不影响使用，将在首次处理时加载）: {e}")
+
+        # 启动后台线程预加载模型
+        preload_thread = threading.Thread(target=preload_models, daemon=True)
+        preload_thread.start()
+        logger.info("知识库处理模型预加载任务已启动（后台执行）")
+    except Exception as e:
+        logger.error(f"启动模型预加载任务失败: {e}")
+
+    # 初始化文档处理队列
+    try:
+        from app.services.knowledge.document_processing_queue import document_processing_queue
+        from app.modules.knowledge.services.knowledge_service import KnowledgeService
+
+        knowledge_service = KnowledgeService()
+        document_processing_queue.set_processor(knowledge_service.process_document_async)
+        await document_processing_queue.start()
+        logger.info("文档处理队列已启动")
+    except Exception as e:
+        logger.error(f"启动文档处理队列失败: {e}")
+
 # 应用关闭事件
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -298,6 +335,14 @@ async def shutdown_event():
         logger.info("MCP 服务已关闭")
     except Exception as e:
         logger.error(f"关闭 MCP 服务失败: {e}")
+
+    # 关闭文档处理队列
+    try:
+        from app.services.knowledge.document_processing_queue import document_processing_queue
+        await document_processing_queue.stop()
+        logger.info("文档处理队列已关闭")
+    except Exception as e:
+        logger.error(f"关闭文档处理队列失败: {e}")
 
 def get_monitoring_service():
     """获取监控服务实例（简化版，避免数据库依赖）"""
@@ -534,4 +579,8 @@ app.include_router(conversations_router, prefix="/api/v1/conversations", tags=["
 app.include_router(tools_router, prefix="/api/v1", tags=["tools"])
 app.include_router(function_calling_router, prefix="/api/v1", tags=["function_calling"])
 app.include_router(settings_router, prefix="/api/v1/settings", tags=["settings"])
+
+# 注册WebSocket路由
+from app.websocket.websocket_router import router as websocket_router
+app.include_router(websocket_router, prefix="/api/v1")
 

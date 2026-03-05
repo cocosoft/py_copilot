@@ -237,46 +237,66 @@ class KnowledgeGraphBuilder:
         return linked_entities
     
     def _cluster_similar_entities(self, entities: List[DocumentEntity], similarity_threshold: float = 0.7) -> List[List[DocumentEntity]]:
-        """基于文本相似度对实体进行聚类"""
+        """基于文本相似度对实体进行聚类 - 优化版本"""
         if len(entities) <= 1:
             return [entities]
-        
+
+        # 如果实体数量过多，使用简单的文本匹配来减少计算量
+        if len(entities) > 1000:
+            logger.warning(f"实体数量过多 ({len(entities)})，使用简化聚类算法")
+            return self._cluster_by_exact_match(entities)
+
         # 提取实体文本
         texts = [entity.entity_text for entity in entities]
-        
+
         # 使用TF-IDF计算相似度
-        vectorizer = TfidfVectorizer()
+        vectorizer = TfidfVectorizer(max_features=1000)  # 限制特征数量以提高性能
         try:
             tfidf_matrix = vectorizer.fit_transform(texts)
             similarity_matrix = cosine_similarity(tfidf_matrix)
-            
+
             # 使用简单的聚类算法
             clusters = []
             used_indices = set()
-            
+
             for i in range(len(entities)):
                 if i in used_indices:
                     continue
-                
+
                 cluster = [entities[i]]
                 used_indices.add(i)
-                
+
                 for j in range(i + 1, len(entities)):
                     if j in used_indices:
                         continue
-                    
+
                     if similarity_matrix[i][j] >= similarity_threshold:
                         cluster.append(entities[j])
                         used_indices.add(j)
-                
+
                 clusters.append(cluster)
-            
+
             return clusters
-            
+
         except Exception as e:
             logger.warning(f"实体聚类失败，使用简单分组: {e}")
-            # 如果聚类失败，每个实体单独成组
-            return [[entity] for entity in entities]
+            # 如果聚类失败，使用精确匹配分组
+            return self._cluster_by_exact_match(entities)
+
+    def _cluster_by_exact_match(self, entities: List[DocumentEntity]) -> List[List[DocumentEntity]]:
+        """使用精确文本匹配对实体进行快速聚类"""
+        text_to_entities = {}
+
+        for entity in entities:
+            # 使用小写文本作为键进行分组
+            key = entity.entity_text.lower().strip()
+            if key not in text_to_entities:
+                text_to_entities[key] = []
+            text_to_entities[key].append(entity)
+
+        clusters = list(text_to_entities.values())
+        logger.info(f"精确匹配聚类完成: {len(entities)} 个实体分为 {len(clusters)} 个集群")
+        return clusters
     
     def _find_entity_cluster(self, linked_entities: List[Dict], entity_id: int) -> Optional[int]:
         """查找实体所属的集群"""
@@ -287,16 +307,35 @@ class KnowledgeGraphBuilder:
         return None
     
     def _apply_graph_operations(self, graph: Dict[str, Any]) -> Dict[str, Any]:
-        """应用图谱优化算法"""
+        """应用图谱优化算法 - 带性能限制"""
+        node_count = len(graph.get("nodes", []))
+        edge_count = len(graph.get("edges", []))
+
+        # 如果图太大，跳过复杂的算法
+        if node_count > 5000 or edge_count > 10000:
+            logger.warning(f"图谱过大 ({node_count} 节点, {edge_count} 边)，跳过复杂算法")
+            # 只设置默认值
+            for node in graph["nodes"]:
+                node["community"] = 0
+                node["centrality"] = {"degree": 0, "closeness": 0, "betweenness": 0}
+            graph["metadata"]["communities"] = 1
+            graph["metadata"]["diameter"] = 0
+            graph["metadata"]["avg_shortest_path_length"] = 0
+            return graph
+
         # 社区发现
         graph = self._detect_communities(graph)
-        
+
         # 中心性分析
         graph = self._calculate_centrality(graph)
-        
-        # 路径分析
-        graph = self._find_shortest_paths(graph)
-        
+
+        # 路径分析（仅对小图执行）
+        if node_count <= 1000:
+            graph = self._find_shortest_paths(graph)
+        else:
+            graph["metadata"]["diameter"] = 0
+            graph["metadata"]["avg_shortest_path_length"] = 0
+
         return graph
     
     def _detect_communities(self, graph: Dict[str, Any]) -> Dict[str, Any]:

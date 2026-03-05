@@ -83,7 +83,7 @@ class Settings(BaseSettings):
     server_host: str = Field(default="127.0.0.1", env="SERVER_HOST")
     
     # 功能开关配置
-    enable_knowledge_graph: bool = Field(default=False, env="ENABLE_KNOWLEDGE_GRAPH", description="是否启用知识图谱功能")
+    enable_knowledge_graph: bool = Field(default=True, env="ENABLE_KNOWLEDGE_GRAPH", description="是否启用知识图谱功能")
     server_port: int = Field(default=8001, env="SERVER_PORT")
     server_reload: bool = Field(default=False, env="SERVER_RELOAD")
     server_workers: int = Field(default=1, env="SERVER_WORKERS")

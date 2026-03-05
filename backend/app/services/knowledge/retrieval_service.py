@@ -1,6 +1,7 @@
 from typing import List, Dict, Any, Optional
 import logging
 from .chroma_service import ChromaService
+from .rerank_service import RerankService
 
 logger = logging.getLogger(__name__)
 
@@ -65,14 +66,30 @@ class RetrievalService:
         if not results or not results.get('ids'):
             return formatted
         
-        for i, chunk_id in enumerate(results['ids']):
-            formatted.append({
-                'id': chunk_id,
-                'title': results['metadatas'][i].get('title', '无标题'),
-                'content': results['documents'][i],
-                'chunk_index': results['metadatas'][i].get('chunk_index', 0),
-                'total_chunks': results['metadatas'][i].get('total_chunks', 0)
-            })
+        # 处理ChromaDB返回的数据结构
+        # collection.get() 返回: {'ids': [...], 'documents': [...], 'metadatas': [...]}
+        # search_similar 返回: {'ids': [[...]], 'documents': [[...]], 'metadatas': [[...]]}
+        ids = results['ids']
+        documents = results.get('documents', [])
+        metadatas = results.get('metadatas', [])
+        
+        # 统一数据结构（处理嵌套列表的情况）
+        if ids and isinstance(ids[0], list):
+            ids = ids[0]
+        if documents and isinstance(documents[0], list):
+            documents = documents[0]
+        if metadatas and isinstance(metadatas[0], list):
+            metadatas = metadatas[0]
+        
+        for i, chunk_id in enumerate(ids):
+            if i < len(documents) and i < len(metadatas):
+                formatted.append({
+                    'id': chunk_id,
+                    'title': metadatas[i].get('title', '无标题') if metadatas[i] else '无标题',
+                    'content': documents[i] if documents[i] else '',
+                    'chunk_index': metadatas[i].get('chunk_index', 0) if metadatas[i] else 0,
+                    'total_chunks': metadatas[i].get('total_chunks', 0) if metadatas[i] else 0
+                })
         
         # 按片段索引排序
         formatted.sort(key=lambda x: x['chunk_index'])
@@ -80,19 +97,32 @@ class RetrievalService:
 
 
 class AdvancedRetrievalService:
-    """高级检索服务，提供增强的搜索功能"""
+    """高级检索服务，提供增强的搜索功能，支持重排序"""
     
     def __init__(self):
         self.retrieval_service = RetrievalService()
         self.chroma_service = ChromaService()
+        self.rerank_service = RerankService()  # 新增: 重排序服务
     
     def advanced_search(self, query: str, n_results: int = 10, 
                        knowledge_base_id: Optional[int] = None, 
                        tags: Optional[List[str]] = None, 
                        filters: Optional[Dict[str, Any]] = None, 
                        sort_by: str = "relevance", 
-                       entity_filter: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
-        """高级搜索功能"""
+                       entity_filter: Optional[Dict[str, Any]] = None,
+                       use_rerank: bool = True) -> List[Dict[str, Any]]:
+        """高级搜索功能 - 支持重排序
+        
+        Args:
+            query: 查询文本
+            n_results: 返回结果数量
+            knowledge_base_id: 知识库ID过滤
+            tags: 标签过滤
+            filters: 其他过滤条件
+            sort_by: 排序方式
+            entity_filter: 实体过滤
+            use_rerank: 是否使用重排序
+        """
         
         # 1. 构建基础搜索条件
         where_filter = {}
@@ -107,16 +137,23 @@ class AdvancedRetrievalService:
         if filters:
             where_filter.update(filters)
         
-        # 4. 执行向量搜索
-        results = self.chroma_service.search_similar(query, n_results, where_filter)
+        # 4. 执行向量搜索（获取更多结果用于重排序）
+        search_n = n_results * 3 if use_rerank else n_results
+        results = self.chroma_service.search_similar(query, search_n, where_filter)
         
         # 5. 结果后处理与排序
         processed_results = self._post_process_results(results)
         
-        # 6. 按指定条件排序
+        # 6. 重排序（如果启用）
+        if use_rerank and len(processed_results) > 1:
+            processed_results = self.rerank_service.rerank(
+                query, processed_results, top_k=n_results * 2
+            )
+        
+        # 7. 按指定条件排序
         sorted_results = self._sort_results(processed_results, sort_by)
         
-        return sorted_results
+        return sorted_results[:n_results]
     
     def hybrid_search(self, query: str, n_results: int = 10, 
                      keyword_weight: float = 0.3, 

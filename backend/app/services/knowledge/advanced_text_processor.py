@@ -6,8 +6,12 @@ from .entity_config_manager import EntityConfigManager
 
 logger = logging.getLogger(__name__)
 
+
 class AdvancedTextProcessor:
-    """高级文本处理模块，提供智能分块、实体识别等功能"""
+    """高级文本处理模块，提供智能分块、实体识别等功能
+    
+    支持jieba分词和spaCy NER模型进行实体识别
+    """
     
     def __init__(self, config_file: str = "entity_config.json"):
         # 初始化配置管理器
@@ -16,7 +20,28 @@ class AdvancedTextProcessor:
         # 延迟初始化jieba中文分词器，避免启动时耗时
         self.use_jieba = False
         self.jieba_initialized = False
-        logger.info("高级文本处理器初始化成功，jieba分词器将在首次使用时加载")
+        
+        # 延迟初始化spaCy NER模型
+        self.nlp = None
+        self.nlp_initialized = False
+        self.use_spacy = False
+        
+        logger.info("高级文本处理器初始化成功，jieba分词器和spaCy将在首次使用时加载")
+    
+    def _initialize_spacy(self):
+        """延迟初始化spaCy NER模型"""
+        if not self.nlp_initialized:
+            try:
+                import spacy
+                # 加载中文NER模型
+                self.nlp = spacy.load("zh_core_web_sm")
+                self.use_spacy = True
+                self.nlp_initialized = True
+                logger.info("spaCy NER模型加载成功")
+            except Exception as e:
+                logger.warning(f"spaCy NER模型加载失败: {e}，将使用基于规则的实体识别")
+                self.use_spacy = False
+                self.nlp_initialized = True
     
     def _initialize_jieba(self):
         """延迟初始化jieba中文分词器"""
@@ -168,9 +193,92 @@ class AdvancedTextProcessor:
         return chunks
     
     def extract_entities_relationships(self, text: str) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-        """提取实体和关系"""
-        # 使用基于规则的实体识别，结合jieba分词优化
+        """提取实体和关系
+        
+        优先使用spaCy NER模型，如果不可用则使用基于规则的实体识别
+        """
+        # 尝试使用spaCy NER模型
+        self._initialize_spacy()
+        if self.use_spacy:
+            try:
+                return self._spacy_entity_extraction(text)
+            except Exception as e:
+                logger.warning(f"spaCy实体提取失败: {e}，回退到基于规则的识别")
+        
+        # 使用基于规则的实体识别
         return self._rule_based_entity_extraction(text)
+    
+    def _spacy_entity_extraction(self, text: str) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """使用spaCy NER模型提取实体和关系
+        
+        Args:
+            text: 输入文本
+            
+        Returns:
+            (实体列表, 关系列表)
+        """
+        entities = []
+        relationships = []
+        
+        try:
+            # 使用spaCy进行NER
+            doc = self.nlp(text)
+            
+            # 提取实体
+            for ent in doc.ents:
+                entity = {
+                    "text": ent.text,
+                    "type": ent.label_,
+                    "start_pos": ent.start_char,
+                    "end_pos": ent.end_char,
+                    "source": "spacy"
+                }
+                entities.append(entity)
+            
+            # 使用依存句法分析提取关系
+            sentences = list(doc.sents)
+            for sent in sentences:
+                sent_entities = [ent for ent in doc.ents 
+                               if ent.start_char >= sent.start_char 
+                               and ent.end_char <= sent.end_char]
+                
+                # 基于依存句法的关系提取
+                for token in sent:
+                    if token.dep_ in ("nsubj", "nsubjpass") and token.head.pos_ == "VERB":
+                        # 找到主语和宾语
+                        subject = None
+                        object_ = None
+                        
+                        # 主语
+                        for ent in sent_entities:
+                            if ent.start_char <= token.idx < ent.end_char:
+                                subject = ent
+                                break
+                        
+                        # 宾语
+                        for child in token.head.children:
+                            if child.dep_ in ("dobj", "attr", "pobj"):
+                                for ent in sent_entities:
+                                    if ent.start_char <= child.idx < ent.end_char:
+                                        object_ = ent
+                                        break
+                        
+                        if subject and object_:
+                            relationships.append({
+                                "subject": subject.text,
+                                "relation": token.head.text,
+                                "object": object_.text,
+                                "confidence": 0.8,
+                                "source": "spacy_dep"
+                            })
+            
+            logger.info(f"spaCy提取到 {len(entities)} 个实体和 {len(relationships)} 个关系")
+            
+        except Exception as e:
+            logger.error(f"spaCy实体提取失败: {e}")
+            raise
+        
+        return entities, relationships
     
     def _jieba_keyword_extraction(self, text: str, top_n: int = 10) -> List[Dict[str, Any]]:
         """使用jieba提取关键词"""
@@ -732,4 +840,53 @@ class AdvancedTextProcessor:
                 "medium": len([s for s in chunk_sizes if 200 <= s <= 800]),
                 "large": len([s for s in chunk_sizes if s > 800])
             }
+        }
+    
+    def get_entity_extraction_info(self) -> Dict[str, Any]:
+        """获取实体识别模块信息
+        
+        Returns:
+            实体识别模块的状态信息
+        """
+        return {
+            "jieba_available": self.jieba_initialized and self.use_jieba,
+            "spacy_available": self.nlp_initialized and self.use_spacy,
+            "spacy_model": "zh_core_web_sm" if self.use_spacy else None,
+            "fallback_enabled": True  # 始终启用基于规则的回退
+        }
+    
+    def analyze_entity_quality(self, entities: List[Dict[str, Any]], text: str) -> Dict[str, Any]:
+        """分析实体识别质量
+        
+        Args:
+            entities: 实体列表
+            text: 原始文本
+            
+        Returns:
+            实体质量分析结果
+        """
+        if not entities:
+            return {"error": "没有实体数据"}
+        
+        # 统计实体类型分布
+        type_distribution = {}
+        source_distribution = {}
+        
+        for entity in entities:
+            entity_type = entity.get('type', 'UNKNOWN')
+            source = entity.get('source', 'rule_based')
+            
+            type_distribution[entity_type] = type_distribution.get(entity_type, 0) + 1
+            source_distribution[source] = source_distribution.get(source, 0) + 1
+        
+        # 计算实体覆盖率（实体文本占总文本比例）
+        total_entity_length = sum(ent.get('end_pos', 0) - ent.get('start_pos', 0) for ent in entities)
+        coverage = total_entity_length / len(text) if text else 0
+        
+        return {
+            "total_entities": len(entities),
+            "type_distribution": type_distribution,
+            "source_distribution": source_distribution,
+            "entity_coverage": round(coverage, 3),
+            "average_entity_length": round(total_entity_length / len(entities), 2) if entities else 0
         }

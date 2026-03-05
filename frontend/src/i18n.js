@@ -1,3 +1,13 @@
+// 屏蔽 i18next 的 Locize 赞助信息
+const originalConsoleLog = console.log;
+console.log = function(...args) {
+  const message = args.join(' ');
+  if (message.includes('Locize') || message.includes('locize.com') || message.includes('💙')) {
+    return;
+  }
+  originalConsoleLog.apply(console, args);
+};
+
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
@@ -66,7 +76,7 @@ i18n
     interpolation: {
       escapeValue: false
     },
-    debug: true,
+    debug: false,
     // 支持嵌套键名，如 settings.general.title
     parseMissingKeyHandler: (key) => {
       // 如果键包含命名空间前缀（如 settings.xxx），尝试从对应命名空间查找

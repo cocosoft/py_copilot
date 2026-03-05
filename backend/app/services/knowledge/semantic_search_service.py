@@ -5,8 +5,10 @@ from datetime import datetime
 from app.services.knowledge.chroma_service import ChromaService
 from app.services.knowledge.retrieval_service import RetrievalService, AdvancedRetrievalService
 from app.services.knowledge.knowledge_graph_service import KnowledgeGraphService
+from app.services.knowledge.rerank_service import RerankService
 
 logger = logging.getLogger(__name__)
+
 
 class SemanticSearchService:
     """语义搜索服务，提供增强的语义理解和搜索功能"""
@@ -16,6 +18,7 @@ class SemanticSearchService:
         self.advanced_retrieval_service = AdvancedRetrievalService()
         self.chroma_service = ChromaService()
         self.knowledge_graph_service = KnowledgeGraphService()
+        self.rerank_service = RerankService()  # 新增: 重排序服务
         
         # 搜索优化参数
         self.semantic_boost_factors = {
@@ -69,16 +72,27 @@ class SemanticSearchService:
             )
             vector_search_time = time.time() - vector_search_start
             
-            # 3. 语义重排序
+            # 3. 语义重排序（使用CrossEncoder模型）
             reranking_start = time.time()
-            if base_results and semantic_boost > 0:
-                reordered_results = self._semantic_reranking(
-                    base_results, query, processed_query, 
-                    use_entities, boost_recent, semantic_boost
+            if base_results:
+                # 使用专业的重排序模型
+                reranked_results = self.rerank_service.rerank(
+                    query=query,
+                    documents=base_results,
+                    top_k=n_results * 2  # 获取更多结果用于后续语义增强
                 )
-                final_results = reordered_results[:n_results]
+                
+                # 应用语义增强
+                if semantic_boost > 0:
+                    reordered_results = self._semantic_reranking(
+                        reranked_results, query, processed_query, 
+                        use_entities, boost_recent, semantic_boost
+                    )
+                    final_results = reordered_results[:n_results]
+                else:
+                    final_results = reranked_results[:n_results]
             else:
-                final_results = base_results[:n_results]
+                final_results = []
             reranking_time = time.time() - reranking_start
             
             total_time = time.time() - start_time

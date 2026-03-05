@@ -1,238 +1,341 @@
-import chromadb
+"""
+ChromaDB服务 - 通过HTTP API调用独立服务
+避免在主应用中直接加载PyTorch模型，解决Windows DLL冲突问题
+"""
 import os
-from pathlib import Path
+import time
 from typing import List, Dict, Any, Optional
 import logging
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 logger = logging.getLogger(__name__)
 
+
+def create_retry_session(
+    retries=3,
+    backoff_factor=1,
+    status_forcelist=(500, 502, 503, 504),
+    timeout=60
+):
+    """
+    创建带重试机制的HTTP会话
+    
+    Args:
+        retries: 最大重试次数
+        backoff_factor: 重试间隔指数退避因子
+        status_forcelist: 需要重试的HTTP状态码
+        timeout: 请求超时时间（秒）
+    
+    Returns:
+        requests.Session: 配置好的会话对象
+    """
+    session = requests.Session()
+    retry = Retry(
+        total=retries,
+        read=retries,
+        connect=retries,
+        backoff_factor=backoff_factor,
+        status_forcelist=status_forcelist,
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
+    session.timeout = timeout
+    return session
+
+
 class ChromaService:
-    def __init__(self, storage_path: Optional[str] = None, default_collection: str = "documents"):
-        # 前端可配置的存储路径，默认为前端public目录下的knowledge文件夹
-        if storage_path is None:
-            # 确保使用正确的绝对路径，无论从哪个目录启动
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            # 获取backend目录
-            backend_dir = os.path.abspath(os.path.join(current_dir, "../../../.."))  # 从当前文件向上4级: knowledge -> services -> app -> backend
-            # 获取项目根目录（backend的父目录）
-            project_root = os.path.abspath(os.path.join(backend_dir, ".."))
-            # 构建完整的存储路径
-            storage_path = os.path.join(
-                project_root, 
-                "frontend",
-                "public",
-                "knowledges", 
-                "chromadb"
-            )
-            storage_path = os.path.normpath(storage_path)  # 规范化路径
+    """ChromaDB向量数据库服务客户端，通过HTTP API与独立服务通信"""
+    
+    def __init__(self, server_url: str = "http://localhost:8008", default_collection: str = "documents"):
+        """
+        初始化ChromaDB服务客户端
         
-        self.storage_path = storage_path
+        Args:
+            server_url: ChromaDB独立服务地址
+            default_collection: 默认集合名称
+        """
+        self.server_url = server_url.rstrip('/')
         self.default_collection = default_collection
-        self.client = None
-        self.collections = {}  # 存储多个集合
         self.available = False
-        self.initialized = False
+        self.session = create_retry_session(retries=3, timeout=60)
         
-        logger.info("ChromaDB服务初始化完成，向量数据库将在首次使用时加载")
+        # 检查服务是否可用
+        self._check_health()
+        
+        logger.info(f"ChromaDB服务客户端初始化完成，服务器地址: {server_url}")
     
-    def _initialize(self):
-        """延迟初始化ChromaDB"""
-        if self.initialized:
-            return
-            
+    def _check_health(self) -> bool:
+        """检查ChromaDB服务是否可用"""
         try:
-            # 确保路径存在
-            os.makedirs(self.storage_path, exist_ok=True)
-            
-            self.client = chromadb.PersistentClient(path=self.storage_path)
-            # 初始化默认集合
-            self.collections[self.default_collection] = self.client.get_or_create_collection(self.default_collection)
-            self.available = True
-            logger.info("ChromaDB向量数据库加载成功")
-        except Exception as e:
-            logger.error(f"ChromaDB初始化失败: {str(e)}")
-            self.available = False
-            self.collections = {}
-        finally:
-            self.initialized = True
-    
-    def _get_collection(self, collection_name: Optional[str] = None):
-        """获取指定的集合，如果不存在则创建"""
-        self._initialize()
-        if not self.available:
-            return None
-        
-        target_collection = collection_name or self.default_collection
-        if target_collection not in self.collections:
-            self.collections[target_collection] = self.client.get_or_create_collection(target_collection)
-        
-        return self.collections[target_collection]
-    
-    def add_document(self, document_id: str, text: str, metadata: Dict[str, Any], collection_name: Optional[str] = None) -> None:
-        """添加文档到向量数据库"""
-        collection = self._get_collection(collection_name)
-        if not collection:
-            logger.warning("ChromaDB不可用，跳过文档添加")
-            return
-        
-        try:
-            collection.add(
-                documents=[text],
-                metadatas=[metadata],
-                ids=[document_id]
-            )
-        except Exception as e:
-            logger.error(f"添加文档到向量数据库失败: {str(e)}")
-    
-    def search_similar(self, query: str, n_results: int = 5, where_filter: Optional[Dict[str, Any]] = None, collection_name: Optional[str] = None) -> Dict[str, Any]:
-        """相似性搜索"""
-        collection = self._get_collection(collection_name)
-        if not collection:
-            logger.warning("ChromaDB不可用，返回空搜索结果")
-            return {"ids": [[]], "documents": [[]], "metadatas": [[]], "distances": [[]]}
-        
-        try:
-            query_params = {
-                "query_texts": [query],
-                "n_results": n_results
-            }
-            
-            if where_filter:
-                query_params["where"] = where_filter
-            
-            results = collection.query(**query_params)
-            return results
-        except Exception as e:
-            logger.error(f"向量搜索失败: {str(e)}")
-            return {"ids": [[]], "documents": [[]], "metadatas": [[]], "distances": [[]]}
-    
-    def delete_document(self, document_id: str, collection_name: Optional[str] = None) -> None:
-        """删除文档"""
-        collection = self._get_collection(collection_name)
-        if not collection:
-            logger.warning("ChromaDB不可用，跳过文档删除")
-            return
-        
-        try:
-            collection.delete(ids=[document_id])
-        except Exception as e:
-            logger.error(f"从向量数据库删除文档失败: {str(e)}")
-    
-    def update_document(self, document_id: str, text: str, metadata: Dict[str, Any], collection_name: Optional[str] = None) -> None:
-        """更新文档"""
-        collection = self._get_collection(collection_name)
-        if not collection:
-            logger.warning("ChromaDB不可用，跳过文档更新")
-            return
-        
-        try:
-            collection.update(
-                documents=[text],
-                metadatas=[metadata],
-                ids=[document_id]
-            )
-        except Exception as e:
-            logger.error(f"更新向量数据库文档失败: {str(e)}")
-    
-    def get_document_count(self, collection_name: Optional[str] = None) -> int:
-        """获取文档数量"""
-        try:
-            collection = self._get_collection(collection_name)
-            if not collection:
-                return 0
-            
-            # 尝试获取文档数量，添加超时保护
-            import time
-            start_time = time.time()
-            count = collection.count()
-            elapsed = time.time() - start_time
-            if elapsed > 1:
-                logger.warning(f"获取向量数据库文档数量耗时较长: {elapsed:.2f}秒")
-            return count
-        except Exception as e:
-            logger.error(f"获取向量数据库文档数量失败: {str(e)}")
-            import traceback
-            logger.error(f"错误堆栈: {traceback.format_exc()}")
-            return 0
-    
-    def list_documents(self, limit: int = 100, collection_name: Optional[str] = None) -> List[Dict[str, Any]]:
-        """列出所有文档"""
-        collection = self._get_collection(collection_name)
-        if not collection:
-            return []
-        
-        try:
-            results = collection.get(limit=limit)
-            documents = []
-            for i, doc_id in enumerate(results['ids']):
-                documents.append({
-                    'id': doc_id,
-                    'content': results['documents'][i],
-                    'metadata': results['metadatas'][i]
-                })
-            return documents
-        except Exception as e:
-            logger.error(f"列出向量数据库文档失败: {str(e)}")
-            return []
-    
-    def delete_documents_by_metadata(self, where_filter: Dict[str, Any], collection_name: Optional[str] = None) -> int:
-        """根据元数据删除文档，返回删除的文档数量"""
-        collection = self._get_collection(collection_name)
-        if not collection:
-            logger.warning("ChromaDB不可用，跳过文档删除")
-            return 0
-        
-        try:
-            # 先查询所有匹配的文档
-            matching_docs = collection.get(where=where_filter, limit=10000)  # 增加limit以获取所有匹配文档
-            
-            if not matching_docs or not matching_docs.get('ids'):
-                logger.info(f"没有找到匹配元数据 {where_filter} 的文档")
-                return 0
-            
-            doc_ids = matching_docs['ids']
-            logger.info(f"找到 {len(doc_ids)} 个匹配的文档，准备删除")
-            
-            # 批量删除（ChromaDB支持一次性删除多个ID）
-            collection.delete(ids=doc_ids)
-            
-            logger.info(f"成功从向量数据库删除 {len(doc_ids)} 个文档")
-            return len(doc_ids)
-            
-        except Exception as e:
-            logger.error(f"根据元数据删除文档失败: {str(e)}")
-            import traceback
-            logger.error(f"错误详情: {traceback.format_exc()}")
-            return 0
-    
-    def search_documents_by_metadata(self, where_filter: Dict[str, Any], limit: int = 100, collection_name: Optional[str] = None) -> Dict[str, Any]:
-        """根据元数据查询文档"""
-        collection = self._get_collection(collection_name)
-        if not collection:
-            logger.warning("ChromaDB不可用，返回空搜索结果")
-            return {"ids": [[]], "documents": [[]], "metadatas": [[]]}
-        
-        try:
-            results = collection.get(where=where_filter, limit=limit)
-            return results
-        except Exception as e:
-            logger.error(f"根据元数据查询文档失败: {str(e)}")
-            return {"ids": [[]], "documents": [[]], "metadatas": [[]]}
-    
-    def delete_all_documents(self, collection_name: Optional[str] = None) -> None:
-        """删除所有文档"""
-        collection = self._get_collection(collection_name)
-        if not collection:
-            logger.warning("ChromaDB不可用，跳过文档删除")
-            return
-        
-        try:
-            # 获取所有文档的ID
-            all_documents = collection.get()
-            if all_documents['ids']:
-                collection.delete(ids=all_documents['ids'])
-                logger.info(f"向量数据库所有 {len(all_documents['ids'])} 个文档已成功删除")
+            response = self.session.get(f"{self.server_url}/health", timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                self.available = data.get("client_initialized", False)
+                if self.available:
+                    logger.info("ChromaDB独立服务连接成功")
+                else:
+                    logger.warning("ChromaDB独立服务未初始化")
             else:
-                logger.info("向量数据库已经是空的")
+                self.available = False
+                logger.warning(f"ChromaDB独立服务健康检查失败: {response.status_code}")
         except Exception as e:
-            logger.error(f"删除向量数据库所有文档失败: {str(e)}")
+            self.available = False
+            logger.warning(f"ChromaDB独立服务连接失败: {e}")
+        
+        return self.available
+    
+    def add_document(self, document_id: str, text: str, metadata: Dict[str, Any],
+                     collection_name: Optional[str] = None) -> bool:
+        """
+        添加单个文档到向量数据库
+
+        Args:
+            document_id: 文档唯一标识
+            text: 文档文本内容
+            metadata: 文档元数据
+            collection_name: 集合名称，默认使用default_collection
+
+        Returns:
+            bool: 是否添加成功
+        """
+        if not self.available and not self._check_health():
+            logger.warning("ChromaDB服务不可用，跳过文档添加")
+            return False
+
+        collection = collection_name or self.default_collection
+
+        try:
+            response = self.session.post(
+                f"{self.server_url}/collections/{collection}/documents",
+                json={
+                    "collection_name": collection,
+                    "document_id": document_id,
+                    "text": text,
+                    "metadata": metadata
+                },
+                timeout=60
+            )
+
+            if response.status_code == 200:
+                logger.info(f"文档添加成功: {document_id}")
+                return True
+            else:
+                logger.error(f"文档添加失败: {response.text}")
+                return False
+        except Exception as e:
+            logger.error(f"文档添加异常: {e}")
+            return False
+
+    def add_documents_batch(self, documents: List[Dict[str, Any]],
+                            collection_name: Optional[str] = None) -> Dict[str, Any]:
+        """
+        批量添加文档到向量数据库 - 性能优化版
+
+        Args:
+            documents: 文档列表，每个文档包含 id, text, metadata
+            collection_name: 集合名称，默认使用default_collection
+
+        Returns:
+            Dict: 包含 success (bool) 和 count (int) 的结果
+        """
+        if not self.available and not self._check_health():
+            logger.warning("ChromaDB服务不可用，跳过批量文档添加")
+            return {"success": False, "count": 0, "error": "服务不可用"}
+
+        if not documents:
+            return {"success": True, "count": 0}
+
+        collection = collection_name or self.default_collection
+
+        try:
+            # 准备批量请求数据
+            batch_docs = [
+                {
+                    "id": doc["document_id"],
+                    "text": doc["text"],
+                    "metadata": doc["metadata"]
+                }
+                for doc in documents
+            ]
+
+            response = self.session.post(
+                f"{self.server_url}/collections/{collection}/documents/batch",
+                json={
+                    "collection_name": collection,
+                    "documents": batch_docs
+                },
+                timeout=180  # 批量操作需要更长的超时时间，增加到180秒
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                logger.info(f"批量文档添加成功: {data.get('count', len(documents))} 个")
+                return {"success": True, "count": data.get('count', len(documents))}
+            else:
+                logger.error(f"批量文档添加失败: {response.text}")
+                return {"success": False, "count": 0, "error": response.text}
+        except Exception as e:
+            logger.error(f"批量文档添加异常: {e}")
+            return {"success": False, "count": 0, "error": str(e)}
+    
+    def search_similar(self, query: str, top_k: int = 5, 
+                       filters: Optional[Dict[str, Any]] = None,
+                       collection_name: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        搜索相似文档
+        
+        Args:
+            query: 查询文本
+            top_k: 返回结果数量
+            filters: 过滤条件
+            collection_name: 集合名称
+            
+        Returns:
+            List[Dict]: 搜索结果列表
+        """
+        if not self.available and not self._check_health():
+            logger.warning("ChromaDB服务不可用，返回空结果")
+            return []
+        
+        collection = collection_name or self.default_collection
+        
+        try:
+            response = self.session.post(
+                f"{self.server_url}/collections/{collection}/search",
+                json={
+                    "collection_name": collection,
+                    "query": query,
+                    "top_k": top_k,
+                    "filters": filters
+                },
+                timeout=60
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                results = data.get("results", [])
+                logger.info(f"搜索完成，找到 {len(results)} 个结果")
+                return results
+            else:
+                logger.error(f"搜索失败: {response.text}")
+                return []
+        except Exception as e:
+            logger.error(f"搜索异常: {e}")
+            return []
+    
+    def delete_documents(self, document_ids: Optional[List[str]] = None,
+                        filters: Optional[Dict[str, Any]] = None,
+                        collection_name: Optional[str] = None) -> bool:
+        """
+        删除文档
+        
+        Args:
+            document_ids: 要删除的文档ID列表
+            filters: 过滤条件
+            collection_name: 集合名称
+            
+        Returns:
+            bool: 是否删除成功
+        """
+        if not self.available and not self._check_health():
+            logger.warning("ChromaDB服务不可用，跳过删除")
+            return False
+        
+        collection = collection_name or self.default_collection
+        
+        try:
+            response = self.session.delete(
+                f"{self.server_url}/collections/{collection}/documents",
+                json={
+                    "collection_name": collection,
+                    "document_ids": document_ids,
+                    "filters": filters
+                },
+                timeout=60
+            )
+            
+            if response.status_code == 200:
+                logger.info("文档删除成功")
+                return True
+            else:
+                logger.error(f"文档删除失败: {response.text}")
+                return False
+        except Exception as e:
+            logger.error(f"文档删除异常: {e}")
+            return False
+    
+    def count_documents(self, collection_name: Optional[str] = None) -> int:
+        """
+        获取文档数量
+
+        Args:
+            collection_name: 集合名称
+
+        Returns:
+            int: 文档数量
+        """
+        if not self.available and not self._check_health():
+            logger.warning("ChromaDB服务不可用，返回0")
+            return 0
+
+        collection = collection_name or self.default_collection
+
+        try:
+            response = self.session.get(
+                f"{self.server_url}/collections/{collection}/count",
+                timeout=30
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                count = data.get("count", 0)
+                logger.info(f"文档数量: {count}")
+                return count
+            else:
+                logger.error(f"获取文档数量失败: {response.text}")
+                return 0
+        except Exception as e:
+            logger.error(f"获取文档数量异常: {e}")
+            return 0
+
+    def search_documents_by_metadata(self, filters: Dict[str, Any],
+                                      collection_name: Optional[str] = None) -> Dict[str, Any]:
+        """
+        根据元数据搜索文档
+
+        Args:
+            filters: 过滤条件
+            collection_name: 集合名称
+
+        Returns:
+            Dict: 包含 ids, documents, metadatas 的结果字典
+        """
+        if not self.available and not self._check_health():
+            logger.warning("ChromaDB服务不可用，返回空结果")
+            return {"ids": [], "documents": [], "metadatas": []}
+
+        collection = collection_name or self.default_collection
+
+        try:
+            response = self.session.post(
+                f"{self.server_url}/collections/{collection}/documents/get",
+                json={
+                    "collection_name": collection,
+                    "filters": filters
+                },
+                timeout=60
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                logger.info(f"根据元数据搜索完成，找到 {len(data.get('ids', []))} 个结果")
+                return data
+            else:
+                logger.error(f"根据元数据搜索失败: {response.text}")
+                return {"ids": [], "documents": [], "metadatas": []}
+        except Exception as e:
+            logger.error(f"根据元数据搜索异常: {e}")
+            return {"ids": [], "documents": [], "metadatas": []}

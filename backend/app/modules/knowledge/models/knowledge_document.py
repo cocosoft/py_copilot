@@ -22,13 +22,17 @@ class KnowledgeBase(Base):
     
     # 关系：一个知识库包含多个文档
     documents = relationship("KnowledgeDocument", back_populates="knowledge_base", cascade="all, delete-orphan")
+    # 关系：一个知识库包含多个KB级实体
+    kb_entities = relationship("KBEntity", back_populates="knowledge_base", cascade="all, delete-orphan")
+    # 关系：一个知识库包含多个KB级关系
+    kb_relationships = relationship("KBRelationship", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<KnowledgeBase(id={self.id}, name='{self.name}')>"
 
 class KnowledgeDocument(Base):
     __tablename__ = "knowledge_documents"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     knowledge_base_id = Column(Integer, ForeignKey("knowledge_bases.id"), nullable=False)
     title = Column(String(255), nullable=False)
@@ -42,6 +46,7 @@ class KnowledgeDocument(Base):
     is_vectorized = Column(Integer, nullable=False, default=0)  # 0: 未向量化, 1: 已向量化
     version = Column(Integer, default=1)  # 文档版本
     is_current = Column(Boolean, nullable=False, default=True)  # 是否为当前版本 (True: 是, False: 历史版本)
+    file_hash = Column(String(64), nullable=True, index=True)  # 文件MD5哈希值，用于去重检测
     
     # 关系：一个文档属于一个知识库
     knowledge_base = relationship("KnowledgeBase", back_populates="documents")
@@ -82,8 +87,17 @@ class DocumentEntity(Base):
     confidence = Column(Float, nullable=False, default=0.0)  # 识别置信度
     created_at = Column(DateTime, nullable=False, default=func.now())  # 创建时间
     
+    # 层级关联：关联到KB级实体
+    kb_entity_id = Column(Integer, ForeignKey("kb_entities.id"), nullable=True, index=True)
+    # 层级关联：关联到全局级实体
+    global_entity_id = Column(Integer, ForeignKey("global_entities.id"), nullable=True, index=True)
+    
     # 关系：一个实体属于一个文档
     document = relationship("KnowledgeDocument", back_populates="entities")
+    # 关系：关联到KB级实体
+    kb_entity = relationship("KBEntity", back_populates="document_entities")
+    # 关系：关联到全局级实体
+    global_entity = relationship("GlobalEntity")
     
     def __repr__(self):
         return f"<DocumentEntity(id={self.id}, entity_text='{self.entity_text}', entity_type='{self.entity_type}')>"
@@ -130,3 +144,137 @@ class DocumentChunk(Base):
     
     def __repr__(self):
         return f"<DocumentChunk(id={self.id}, document_id={self.document_id}, chunk_index={self.chunk_index})>"
+
+
+class KBEntity(Base):
+    """
+    知识库级实体 - 跨文档整合
+    
+    用于聚合同一知识库内不同文档中的相同实体
+    """
+    __tablename__ = "kb_entities"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    knowledge_base_id = Column(Integer, ForeignKey("knowledge_bases.id"), nullable=False, index=True)
+    
+    # 实体信息
+    canonical_name = Column(String(200), nullable=False)  # 规范名称
+    entity_type = Column(String(50), nullable=False, index=True)  # 实体类型
+    aliases = Column(JSON, default=list)  # 别名列表 ["别名1", "别名2"]
+    
+    # 统计信息
+    document_count = Column(Integer, default=0)  # 出现文档数
+    occurrence_count = Column(Integer, default=0)  # 总出现次数
+    
+    # 层级关联
+    global_entity_id = Column(Integer, ForeignKey("global_entities.id"), nullable=True, index=True)
+    
+    # 元数据
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    updated_at = Column(DateTime, nullable=True, onupdate=func.now())
+    
+    # 关系
+    knowledge_base = relationship("KnowledgeBase", back_populates="kb_entities")
+    global_entity = relationship("GlobalEntity", back_populates="kb_entities")
+    document_entities = relationship("DocumentEntity", back_populates="kb_entity")
+    
+    def __repr__(self):
+        return f"<KBEntity(id={self.id}, name='{self.canonical_name}', type='{self.entity_type}')>"
+
+
+class GlobalEntity(Base):
+    """
+    全局级实体 - 跨知识库统一
+    
+    用于聚合不同知识库中的相同实体，提供全局视角
+    """
+    __tablename__ = "global_entities"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    
+    # 实体信息
+    global_name = Column(String(200), nullable=False)  # 全局规范名称
+    entity_type = Column(String(50), nullable=False, index=True)  # 实体类型
+    all_aliases = Column(JSON, default=list)  # 所有别名（跨知识库）
+    
+    # 统计信息
+    kb_count = Column(Integer, default=0)  # 出现知识库数
+    document_count = Column(Integer, default=0)  # 出现文档数
+    
+    # 元数据
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    updated_at = Column(DateTime, nullable=True, onupdate=func.now())
+    
+    # 关系
+    kb_entities = relationship("KBEntity", back_populates="global_entity")
+    
+    def __repr__(self):
+        return f"<GlobalEntity(id={self.id}, name='{self.global_name}', type='{self.entity_type}')>"
+
+
+class KBRelationship(Base):
+    """
+    知识库级关系 - 跨文档聚合
+    
+    聚合同一知识库内不同文档中的相同关系
+    """
+    __tablename__ = "kb_relationships"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    knowledge_base_id = Column(Integer, ForeignKey("knowledge_bases.id"), nullable=False, index=True)
+    
+    # 关联的KB级实体
+    source_kb_entity_id = Column(Integer, ForeignKey("kb_entities.id"), nullable=False, index=True)
+    target_kb_entity_id = Column(Integer, ForeignKey("kb_entities.id"), nullable=False, index=True)
+    
+    # 关系信息
+    relationship_type = Column(String(100), nullable=False)  # 关系类型
+    aggregated_count = Column(Integer, default=0)  # 聚合的关系数量
+    
+    # 来源文档关系ID列表
+    source_relationships = Column(JSON, default=list)  # [doc_rel_id1, doc_rel_id2, ...]
+    
+    # 元数据
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    updated_at = Column(DateTime, nullable=True, onupdate=func.now())
+    
+    # 关系
+    knowledge_base = relationship("KnowledgeBase")
+    source_entity = relationship("KBEntity", foreign_keys=[source_kb_entity_id])
+    target_entity = relationship("KBEntity", foreign_keys=[target_kb_entity_id])
+    
+    def __repr__(self):
+        return f"<KBRelationship(id={self.id}, type='{self.relationship_type}')>"
+
+
+class GlobalRelationship(Base):
+    """
+    全局级关系 - 跨知识库发现
+    
+    发现不同知识库中实体间的关联关系
+    """
+    __tablename__ = "global_relationships"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    
+    # 关联的全局实体
+    source_global_entity_id = Column(Integer, ForeignKey("global_entities.id"), nullable=False, index=True)
+    target_global_entity_id = Column(Integer, ForeignKey("global_entities.id"), nullable=False, index=True)
+    
+    # 关系信息
+    relationship_type = Column(String(100), nullable=False)  # 关系类型
+    aggregated_count = Column(Integer, default=0)  # 聚合的关系数量
+    
+    # 来源知识库ID列表
+    source_kbs = Column(JSON, default=list)  # [kb_id1, kb_id2, ...]
+    
+    # 元数据
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    updated_at = Column(DateTime, nullable=True, onupdate=func.now())
+    
+    # 关系
+    source_entity = relationship("GlobalEntity", foreign_keys=[source_global_entity_id])
+    target_entity = relationship("GlobalEntity", foreign_keys=[target_global_entity_id])
+    
+    def __repr__(self):
+        return f"<GlobalRelationship(id={self.id}, type='{self.relationship_type}')>"

@@ -5,13 +5,14 @@ from typing import List, Optional
 
 from app.core.database import get_db
 from app.modules.knowledge.services.knowledge_service import KnowledgeService
-from app.modules.knowledge.models.knowledge_document import KnowledgeBase as KnowledgeBaseModel
+from app.modules.knowledge.models.knowledge_document import KnowledgeBase as KnowledgeBaseModel, KnowledgeDocument as KnowledgeDocumentModel
 from app.services.knowledge.retrieval_service import AdvancedRetrievalService
+from app.services.knowledge.document_processing_queue import document_processing_queue
 from app.modules.knowledge.schemas.knowledge import (
     KnowledgeDocument, SearchResponse, DocumentListResponse,
     KnowledgeBase, KnowledgeBaseCreate, KnowledgeBaseUpdate,
     KnowledgeTag, DocumentTagRequest, DocumentTagsResponse, TagListResponse,
-    KnowledgeDocumentChunk, AdvancedSearchRequest, HybridSearchRequest, 
+    KnowledgeDocumentChunk, AdvancedSearchRequest, HybridSearchRequest,
     AdvancedSearchResponse
 )
 
@@ -108,21 +109,35 @@ async def delete_knowledge_base(
     except Exception as e:
         raise HTTPException(status_code=500, detail="删除知识库失败")
 
+# 初始化文档处理队列
+from app.services.knowledge.document_processing_queue import document_processing_queue
+
+# 设置文档处理器并启动队列
+async def init_document_processing_queue():
+    """初始化文档处理队列"""
+    document_processing_queue.set_processor(knowledge_service.process_document_async)
+    await document_processing_queue.start()
+
+# 在应用启动时初始化队列
+# 注意：这需要在应用启动时调用
+
 # Knowledge Document API Endpoints
 @router.post("/documents", response_model=dict)
 @router.post("/documents/upload")
 async def upload_document(
     knowledge_base_id: int = Query(..., description="目标知识库ID"),
     file: UploadFile = File(...),
+    auto_process: bool = Query(False, description="是否自动处理文档（向量化、图谱化）"),
     background_tasks: BackgroundTasks = None,
     db: Session = Depends(get_db)
 ):
     """
     上传文档到指定知识库
 
-    采用异步处理方式：
-    1. 文件上传后立即返回响应
-    2. 文档解析、向量化、图谱化等耗时操作在后台异步执行
+    分离上传与处理：
+    1. 文件上传后立即返回响应，仅保存文件和创建记录
+    2. 向量化、图谱化等耗时操作需要前端手动触发
+    3. 如需自动处理，设置 auto_process=true（向后兼容）
     """
     try:
         # 检查文件格式支持
@@ -139,27 +154,83 @@ async def upload_document(
             raise HTTPException(status_code=404, detail="知识库不存在")
 
         # 保存文件并创建文档记录（同步执行，快速返回）
-        document = await knowledge_service.save_document(file, knowledge_base_id, db)
+        save_result = await knowledge_service.save_document(file, knowledge_base_id, db)
 
-        # 文档处理（解析、向量化、图谱化）在后台异步执行
-        if background_tasks:
-            background_tasks.add_task(
-                knowledge_service.process_document_async,
-                document.id,
-                knowledge_base_id
-            )
+        # 检查是否是重复文件
+        if save_result.get("duplicate"):
+            existing_doc = save_result.get("document")
+            return {
+                "message": save_result.get("message", "该文件已存在于知识库中"),
+                "document_id": existing_doc.id,
+                "status": "duplicate",
+                "is_vectorized": existing_doc.is_vectorized == 1,
+                "warning": "系统检测到您上传的文件与知识库中现有文件内容完全相同"
+            }
+
+        document = save_result.get("document")
+
+        # 如果不自动处理，直接返回上传成功
+        if not auto_process:
+            return {
+                "message": "文档上传成功，请手动启动处理",
+                "document_id": document.id,
+                "status": "uploaded",
+                "is_vectorized": False
+            }
+
+        # 以下代码仅在 auto_process=true 时执行（向后兼容）
+        # 将文档添加到处理队列
+        queue_status = document_processing_queue.get_queue_status()
+
+        # 如果队列已满（处理中+队列中超过5个），提示用户稍后再试
+        if queue_status["queue_size"] + queue_status["processing_count"] >= 5:
+            document.document_metadata["processing_status"] = "queued"
+            db.commit()
+
+            return {
+                "message": "文档上传成功，但处理队列已满，请稍后再试",
+                "document_id": document.id,
+                "status": "queue_full",
+                "queue_status": queue_status
+            }
+
+        # 添加到处理队列
+        added = await document_processing_queue.add_document(
+            document_id=document.id,
+            knowledge_base_id=knowledge_base_id,
+            document_name=document.title,
+            priority=0
+        )
+
+        if added:
+            document.document_metadata["processing_status"] = "queued"
+            db.commit()
+
+            return {
+                "message": "文档上传成功，已加入处理队列",
+                "document_id": document.id,
+                "status": "queued",
+                "queue_position": queue_status["queue_size"] + 1
+            }
         else:
-            # 如果没有background_tasks，使用线程池异步执行
-            import asyncio
-            asyncio.create_task(
-                knowledge_service.process_document_async(document.id, knowledge_base_id)
-            )
+            if background_tasks:
+                background_tasks.add_task(
+                    knowledge_service.process_document_async,
+                    document.id,
+                    knowledge_base_id
+                )
+            else:
+                import asyncio
+                asyncio.create_task(
+                    knowledge_service.process_document_async(document.id, knowledge_base_id)
+                )
 
-        return {
-            "message": "文档上传成功，正在后台处理中",
-            "document_id": document.id,
-            "status": "processing"
-        }
+            return {
+                "message": "文档上传成功，正在后台处理中",
+                "document_id": document.id,
+                "status": "processing"
+            }
+
     except HTTPException:
         raise
     except Exception as e:
@@ -249,28 +320,48 @@ async def list_documents(
     knowledge_base_id: Optional[int] = Query(None, description="指定知识库ID")
     , db: Session = Depends(get_db)
 ):
-    """获取知识库文档列表"""
+    """获取知识库文档列表 - 自动修复状态不一致的文档"""
     try:
         documents = knowledge_service.list_documents(db, skip, limit, knowledge_base_id)
         total = knowledge_service.get_document_count(db, knowledge_base_id)
-        
-        # 转换为Pydantic模型
-        document_models = [
-            KnowledgeDocument(
-                id=doc.id,
-                title=doc.title,
-                knowledge_base_id=doc.knowledge_base_id,
-                file_path=doc.file_path,
-                file_type=doc.file_type,
-                content=doc.content,
-                document_metadata=doc.document_metadata,
-                created_at=doc.created_at,
-                updated_at=doc.updated_at,
-                vector_id=doc.vector_id,
-                is_vectorized=doc.is_vectorized
-            ) for doc in documents
-        ]
-        
+
+        # 获取队列状态（同步方法，不需要await）
+        queue_status = document_processing_queue.get_queue_status()
+        processing_ids = {task["document_id"] for task in queue_status.get("processing_documents", [])}
+        # 注意：queued_documents 不在返回结果中，只检查 processing_documents
+        all_active_ids = processing_ids
+
+        # 转换为Pydantic模型，并修复状态不一致的文档
+        document_models = []
+        for doc in documents:
+            # 检查文档状态是否与队列状态一致
+            doc_metadata = doc.document_metadata or {}
+            doc_status = doc_metadata.get("processing_status")
+
+            # 如果文档标记为processing或queued，但不在队列中，重置状态
+            if doc_status in ["processing", "queued"] and doc.id not in all_active_ids:
+                print(f"修复文档状态不一致: 文档 {doc.id} ({doc.title}) 标记为 {doc_status} 但不在队列中，重置为空闲状态")
+                doc_metadata["processing_status"] = "idle"
+                doc_metadata["processing_error"] = "服务重启，处理中断"
+                doc.document_metadata = doc_metadata
+                db.commit()
+
+            document_models.append(
+                KnowledgeDocument(
+                    id=doc.id,
+                    title=doc.title,
+                    knowledge_base_id=doc.knowledge_base_id,
+                    file_path=doc.file_path,
+                    file_type=doc.file_type,
+                    content=doc.content,
+                    document_metadata=doc.document_metadata,
+                    created_at=doc.created_at,
+                    updated_at=doc.updated_at,
+                    vector_id=doc.vector_id,
+                    is_vectorized=doc.is_vectorized
+                )
+            )
+
         return {
             "documents": document_models,
             "skip": skip,
@@ -328,6 +419,90 @@ async def delete_document(
     except Exception as e:
         raise HTTPException(status_code=500, detail="删除失败")
 
+
+@router.get("/documents/{document_id}/progress")
+async def get_document_processing_progress(
+    document_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    获取文档处理进度
+
+    用于前端轮询查询文档处理状态
+    """
+    try:
+        from app.services.knowledge.processing_progress_service import processing_progress_service
+
+        # 首先检查文档是否存在
+        document = knowledge_service.get_document_by_id(document_id, db)
+        if not document:
+            raise HTTPException(status_code=404, detail="文档不存在")
+
+        # 如果文档已向量化，直接返回完成状态
+        if document.is_vectorized:
+            return {
+                "document_id": document_id,
+                "status": "completed",
+                "progress_percent": 100,
+                "step_name": "完成",
+                "message": "文档处理已完成"
+            }
+
+        # 获取处理进度
+        progress = processing_progress_service.get_progress(str(document_id))
+
+        if progress:
+            return progress
+
+        # 如果没有进度记录，根据文档状态返回
+        doc_status = document.document_metadata.get("processing_status") if document.document_metadata else None
+
+        if doc_status == "processing":
+            return {
+                "document_id": document_id,
+                "status": "processing",
+                "progress_percent": 0,
+                "step_name": "初始化",
+                "message": "文档处理初始化中..."
+            }
+        elif doc_status == "queued":
+            return {
+                "document_id": document_id,
+                "status": "queued",
+                "progress_percent": 0,
+                "step_name": "排队中",
+                "message": "文档在队列中等待处理"
+            }
+        else:
+            return {
+                "document_id": document_id,
+                "status": "pending",
+                "progress_percent": 0,
+                "step_name": "等待处理",
+                "message": "文档等待处理，请手动启动"
+            }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"获取处理进度错误: {str(e)}")
+        print(f"错误堆栈: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"获取处理进度失败: {str(e)}")
+
+@router.get("/processing-queue/status")
+async def get_processing_queue_status():
+    """
+    获取文档处理队列状态
+
+    用于前端查看当前处理队列的情况
+    """
+    try:
+        queue_status = document_processing_queue.get_queue_status()
+        return queue_status
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取队列状态失败: {str(e)}")
+
 @router.get("/documents/{document_id}/download")
 async def download_document(
     document_id: int,
@@ -364,14 +539,22 @@ async def get_document_chunks(
         raise HTTPException(status_code=500, detail="获取文档向量片段失败")
 
 @router.get("/stats")
-async def get_knowledge_stats():
+async def get_knowledge_stats(db: Session = Depends(get_db)):
     """获取知识库统计信息"""
     try:
-        # 暂时返回一个基本的响应，避免数据库和ChromaDB操作
+        # 查询文档总数
+        total_documents = db.query(KnowledgeDocumentModel).count()
+
+        # 查询已向量化文档数
+        vector_documents = db.query(KnowledgeDocumentModel).filter(KnowledgeDocumentModel.is_vectorized == 1).count()
+
+        # 查询知识库数量
+        knowledge_bases_count = db.query(KnowledgeBaseModel).count()
+
         return {
-            "total_documents": 0,
-            "vector_documents": 0,
-            "knowledge_bases_count": 0,
+            "total_documents": total_documents,
+            "vector_documents": vector_documents,
+            "knowledge_bases_count": knowledge_bases_count,
             "supported_formats": [".pdf", ".docx", ".doc", ".txt"]
         }
     except Exception as e:
@@ -405,32 +588,116 @@ async def get_document_tags(
     except Exception as e:
         raise HTTPException(status_code=500, detail="获取文档标签失败")
 
-@router.post("/documents/{document_id}/vectorize")
-async def vectorize_document(
+@router.post("/documents/{document_id}/process")
+async def process_document(
     document_id: int,
+    background_tasks: BackgroundTasks = None,
     db: Session = Depends(get_db)
 ):
-    """启动文档向量化处理"""
+    """
+    手动启动文档处理（向量化、图谱化）
+
+    上传文档后，调用此接口启动后续处理流程
+    """
     try:
         # 检查文档是否存在
         document = knowledge_service.get_document_by_id(document_id, db)
         if not document:
             raise HTTPException(status_code=404, detail="文档不存在")
-        
+
         # 检查文档是否已向量化
         if document.is_vectorized == 1:
-            return {"message": "文档已向量化", "document_id": document_id, "is_vectorized": True}
-        
-        # 启动向量化
-        success = knowledge_service.vectorize_document(document_id, db)
-        if success:
-            return {"message": "文档向量化成功", "document_id": document_id, "is_vectorized": True}
+            return {
+                "message": "文档已处理完成",
+                "document_id": document_id,
+                "status": "completed",
+                "is_vectorized": True
+            }
+
+        # 检查是否已经在处理中
+        current_status = document.document_metadata.get("processing_status") if document.document_metadata else None
+        if current_status == "processing":
+            return {
+                "message": "文档正在处理中",
+                "document_id": document_id,
+                "status": "processing"
+            }
+
+        if current_status == "queued":
+            return {
+                "message": "文档已在队列中等待处理",
+                "document_id": document_id,
+                "status": "queued"
+            }
+
+        # 检查处理队列状态
+        queue_status = document_processing_queue.get_queue_status()
+
+        # 如果队列已满，提示用户稍后再试
+        if queue_status["queue_size"] + queue_status["processing_count"] >= 5:
+            document.document_metadata["processing_status"] = "queued"
+            db.commit()
+
+            return {
+                "message": "处理队列已满，请稍后再试",
+                "document_id": document_id,
+                "status": "queue_full",
+                "queue_status": queue_status
+            }
+
+        # 添加到处理队列
+        added = await document_processing_queue.add_document(
+            document_id=document.id,
+            knowledge_base_id=document.knowledge_base_id,
+            document_name=document.title,
+            priority=0
+        )
+
+        if added:
+            # 更新文档状态为排队中
+            document.document_metadata["processing_status"] = "queued"
+            db.commit()
+
+            return {
+                "message": "文档已加入处理队列",
+                "document_id": document.id,
+                "status": "queued",
+                "queue_position": queue_status["queue_size"] + 1
+            }
         else:
-            raise HTTPException(status_code=500, detail="文档向量化失败")
+            # 如果添加失败，使用后台任务处理
+            if background_tasks:
+                background_tasks.add_task(
+                    knowledge_service.process_document_async,
+                    document.id,
+                    document.knowledge_base_id
+                )
+            else:
+                import asyncio
+                asyncio.create_task(
+                    knowledge_service.process_document_async(document.id, document.knowledge_base_id)
+                )
+
+            return {
+                "message": "文档处理已启动",
+                "document_id": document.id,
+                "status": "processing"
+            }
+
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"文档向量化失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"文档处理启动失败: {str(e)}")
+
+@router.post("/documents/{document_id}/vectorize")
+async def vectorize_document(
+    document_id: int,
+    background_tasks: BackgroundTasks = None,
+    db: Session = Depends(get_db)
+):
+    """启动文档向量化处理 - 异步后台执行（兼容旧接口）"""
+    # 直接调用新的处理接口
+    return await process_document(document_id, background_tasks, db)
 
 @router.post("/documents/{document_id}/tags", response_model=KnowledgeTag)
 async def add_document_tag(

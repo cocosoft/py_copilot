@@ -9,6 +9,7 @@ from app.modules.knowledge.models.knowledge_document import KnowledgeBase, Knowl
 from app.services.knowledge.document_parser import DocumentParser
 from app.services.knowledge.text_processor import KnowledgeTextProcessor
 from app.services.knowledge.retrieval_service import RetrievalService
+from app.services.knowledge.processing_progress_service import processing_progress_service
 
 logger = logging.getLogger(__name__)
 
@@ -62,12 +63,18 @@ class KnowledgeService:
         if not knowledge_base:
             return False
         
-        # 1. 从向量索引中删除该知识库的所有文档
+        # 1. 从向量索引中删除该知识库的所有文档（如果向量化服务可用）
         try:
-            deleted_count = self.retrieval_service.delete_documents_by_metadata({
-                "knowledge_base_id": knowledge_base_id
-            })
-            logger.info(f"成功从向量索引中删除知识库 {knowledge_base_id} 的 {deleted_count} 个向量文档")
+            # 检查向量化服务是否可用
+            if hasattr(self.retrieval_service, 'chroma_service') and \
+               hasattr(self.retrieval_service.chroma_service, 'available') and \
+               self.retrieval_service.chroma_service.available:
+                deleted_count = self.retrieval_service.delete_documents_by_metadata({
+                    "knowledge_base_id": knowledge_base_id
+                })
+                logger.info(f"成功从向量索引中删除知识库 {knowledge_base_id} 的 {deleted_count} 个向量文档")
+            else:
+                logger.warning(f"向量化服务不可用，跳过向量索引删除")
         except Exception as e:
             logger.error(f"向量索引删除失败: {str(e)}")
             import traceback
@@ -126,6 +133,29 @@ class KnowledgeService:
         try:
             # 保存文件
             content = await file.read()
+
+            # 计算文件MD5哈希
+            import hashlib
+            file_hash = hashlib.md5(content).hexdigest()
+
+            # 检查是否存在相同哈希的文件（去重）
+            existing_doc = db.query(KnowledgeDocument).filter(
+                KnowledgeDocument.file_hash == file_hash,
+                KnowledgeDocument.knowledge_base_id == knowledge_base_id,
+                KnowledgeDocument.is_vectorized == 1
+            ).first()
+
+            if existing_doc:
+                logger.info(f"检测到重复文件: {file.filename} (与文档 {existing_doc.id} 相同)")
+                # 返回已存在的文档，但更新文件名信息
+                return {
+                    "duplicate": True,
+                    "existing_document_id": existing_doc.id,
+                    "message": "该文件已存在于知识库中",
+                    "document": existing_doc
+                }
+
+            # 保存文件到磁盘
             with open(file_path, 'wb') as f:
                 f.write(content)
 
@@ -137,6 +167,7 @@ class KnowledgeService:
                 file_type=os.path.splitext(file.filename)[1].lower(),
                 content="",  # 初始为空，将在处理过程中填充
                 is_vectorized=0,  # 标记为未向量化
+                file_hash=file_hash,  # 保存文件哈希
                 document_metadata={
                     "original_filename": file.filename,
                     "file_size": file.size,
@@ -151,7 +182,7 @@ class KnowledgeService:
             db.refresh(document)
 
             logger.info(f"文档保存成功: {document.id} - {file.filename}")
-            return document
+            return {"duplicate": False, "document": document}
 
         except Exception as e:
             # 清理文件
@@ -161,66 +192,85 @@ class KnowledgeService:
 
     async def process_document_async(self, document_id: int, knowledge_base_id: int):
         """
-        异步处理文档（解析、向量化、图谱化）
+        异步处理文档（解析、向量化、图谱化）- 带重试机制
 
         @param document_id: 文档ID
         @param knowledge_base_id: 知识库ID
         """
         from app.core.database import SessionLocal
+        import asyncio
 
         db = SessionLocal()
+        max_retries = 3
+        retry_count = 0
+        
         try:
-            logger.info(f"开始异步处理文档: {document_id}")
+            while retry_count < max_retries:
+                try:
+                    logger.info(f"开始异步处理文档: {document_id}, 尝试 {retry_count + 1}/{max_retries}")
 
-            # 获取文档
-            document = db.query(KnowledgeDocument).filter(KnowledgeDocument.id == document_id).first()
-            if not document:
-                logger.error(f"文档不存在: {document_id}")
-                return
+                    # 获取文档
+                    document = db.query(KnowledgeDocument).filter(KnowledgeDocument.id == document_id).first()
+                    if not document:
+                        logger.error(f"文档不存在: {document_id}")
+                        return
 
-            # 更新处理状态
-            document.document_metadata["processing_status"] = "processing"
-            db.commit()
+                    # 更新处理状态
+                    document.document_metadata["processing_status"] = "processing"
+                    document.document_metadata["retry_count"] = retry_count
+                    db.commit()
 
-            # 使用DocumentProcessor进行完整文档处理
-            from app.services.knowledge.document_processor import DocumentProcessor
-            document_processor = DocumentProcessor()
+                    # 使用DocumentProcessor进行完整文档处理
+                    from app.services.knowledge.document_processor import DocumentProcessor
+                    document_processor = DocumentProcessor()
 
-            # 处理文档
-            processing_result = document_processor.process_document(
-                document.file_path,
-                document.file_type,
-                document.id,
-                document.knowledge_base_id,
-                db
-            )
+                    # 处理文档
+                    processing_result = document_processor.process_document(
+                        document.file_path,
+                        document.file_type,
+                        document.id,
+                        document.knowledge_base_id,
+                        db
+                    )
 
-            if processing_result.get("success"):
-                # 更新文档内容
-                document.content = processing_result.get("text", "")
-                document.is_vectorized = 1  # 标记为已向量化
-                document.vector_id = f"doc_{document.id}"
-                document.document_metadata["chunks_count"] = len(processing_result.get("chunks", []))
-                document.document_metadata["entities_count"] = len(processing_result.get("entities", []))
-                document.document_metadata["relationships_count"] = len(processing_result.get("relationships", []))
-                document.document_metadata["graph_data_available"] = processing_result.get("graph_data") is not None
-                document.document_metadata["processing_status"] = "completed"
-                db.commit()
+                    if processing_result.get("success"):
+                        # 更新文档内容
+                        document.content = processing_result.get("text", "")
+                        document.is_vectorized = 1  # 标记为已向量化
+                        document.vector_id = f"doc_{document.id}"
+                        document.document_metadata["chunks_count"] = len(processing_result.get("chunks", []))
+                        document.document_metadata["entities_count"] = len(processing_result.get("entities", []))
+                        document.document_metadata["relationships_count"] = len(processing_result.get("relationships", []))
+                        document.document_metadata["graph_data_available"] = processing_result.get("graph_data") is not None
+                        document.document_metadata["processing_status"] = "completed"
+                        document.document_metadata["vectorization_rate"] = processing_result.get("vectorization_rate", 0)
+                        document.document_metadata["success_count"] = processing_result.get("success_count", 0)
+                        document.document_metadata["total_chunks"] = processing_result.get("total_chunks", 0)
+                        db.commit()
 
-                logger.info(f"文档异步处理完成: {document_id}，包含 {len(processing_result.get('chunks', []))} 个片段")
+                        logger.info(f"文档异步处理完成: {document_id}，向量化成功率: {processing_result.get('vectorization_rate', 0):.2%}")
 
-                if processing_result.get("graph_data"):
-                    logger.info(f"图谱化完成: {document_id}，构建了包含 {len(processing_result['graph_data'].get('nodes', []))} 个节点的知识图谱")
-            else:
-                # 处理失败，记录错误信息
-                error_msg = processing_result.get("error", "未知错误")
-                document.document_metadata["processing_error"] = error_msg
-                document.document_metadata["processing_status"] = "failed"
-                db.commit()
-                logger.error(f"文档异步处理失败: {document_id} - {error_msg}")
+                        if processing_result.get("graph_data"):
+                            logger.info(f"图谱化完成: {document_id}，构建了包含 {len(processing_result['graph_data'].get('nodes', []))} 个节点的知识图谱")
+                        
+                        # 处理成功，跳出重试循环
+                        break
+                    else:
+                        # 处理失败，抛出异常进行重试
+                        raise Exception(processing_result.get("error", "处理失败"))
+                        
+                except Exception as e:
+                    retry_count += 1
+                    if retry_count >= max_retries:
+                        raise
+                    
+                    # 指数退避等待
+                    wait_time = 2 ** retry_count
+                    logger.warning(f"文档处理失败，{wait_time}秒后重试: {e}")
+                    await asyncio.sleep(wait_time)
 
         except Exception as e:
-            logger.error(f"文档异步处理异常: {document_id} - {str(e)}")
+            logger.error(f"文档异步处理最终失败: {document_id} - {str(e)}")
             import traceback
             logger.error(f"错误堆栈: {traceback.format_exc()}")
 
@@ -230,6 +280,7 @@ class KnowledgeService:
                 if document:
                     document.document_metadata["processing_status"] = "failed"
                     document.document_metadata["processing_error"] = str(e)
+                    document.document_metadata["retry_count"] = retry_count
                     db.commit()
             except:
                 pass
@@ -464,14 +515,24 @@ class KnowledgeService:
         return db.query(KnowledgeDocument).filter(KnowledgeDocument.id == document_id).first()
     
     def vectorize_document(self, document_id: int, db: Session) -> bool:
-        """对文档进行向量化处理"""
+        """对文档进行向量化处理 - 带进度报告"""
         # 获取文档信息
         document = self.get_document_by_id(document_id, db)
         if not document:
             print(f"文档向量化失败: 文档ID {document_id} 不存在")
             return False
-        
+
+        doc_id_str = str(document_id)
+
         try:
+            # 初始化进度服务
+            processing_progress_service.start_processing(doc_id_str, total_steps=5)
+            processing_progress_service.update_progress(
+                doc_id_str, 1, "准备处理",
+                f"开始处理文档: {document.title}",
+                {"document_name": document.title}
+            )
+
             # 检查文件是否存在，支持多种路径格式
             file_path = document.file_path
             
@@ -563,38 +624,115 @@ class KnowledgeService:
             
             print(f"开始向量化文档: {document.title} (ID: {document_id})")
             print(f"文件路径: {file_path}")
-            
+
+            processing_progress_service.update_progress(
+                doc_id_str, 2, "解析文档",
+                f"正在解析文档内容...",
+                {"file_path": file_path}
+            )
+
             # 重新解析文档
             text_content = self.document_parser.parse_document(file_path)
             print(f"文档解析成功，内容长度: {len(text_content)}")
-            
+
+            processing_progress_service.update_progress(
+                doc_id_str, 3, "文本分块",
+                f"正在处理文本，生成chunks...",
+                {"content_length": len(text_content)}
+            )
+
             # 处理文本为chunks
             chunks = self.text_processor.process_document_text(text_content)
             print(f"文本处理成功，生成 {len(chunks)} 个chunks")
-            
-            # 添加到向量索引
-            for i, chunk in enumerate(chunks):
-                chunk_id = f"{document.id}_chunk_{i}"
-                metadata = {
-                    "title": document.title,
-                    "document_id": document.id,
-                    "chunk_index": i,
-                    "total_chunks": len(chunks)
-                }
-                print(f"添加chunk {i+1}/{len(chunks)} 到向量索引")
-                self.retrieval_service.add_document_to_index(chunk_id, chunk, metadata)
-            
+
+            # 分批次添加到向量索引 - 优化版
+            total_chunks = len(chunks)
+            batch_size = 50 if total_chunks > 50 else total_chunks
+            total_batches = (total_chunks + batch_size - 1) // batch_size
+
+            print(f"开始分批次向量化处理: {total_chunks} 个块, 分成 {total_batches} 批, 每批 {batch_size} 个")
+
+            processing_progress_service.update_progress(
+                doc_id_str, 4, "向量化处理",
+                f"开始向量化，共 {total_chunks} 个块，分 {total_batches} 批处理...",
+                {"total_chunks": total_chunks, "total_batches": total_batches}
+            )
+
+            success_count = 0
+            for batch_idx in range(total_batches):
+                start_idx = batch_idx * batch_size
+                end_idx = min(start_idx + batch_size, total_chunks)
+                current_batch_chunks = chunks[start_idx:end_idx]
+
+                print(f"处理批次 {batch_idx + 1}/{total_batches}: {len(current_batch_chunks)} 个块")
+
+                # 批量添加当前批次
+                for i, chunk in enumerate(current_batch_chunks):
+                    global_idx = start_idx + i
+                    chunk_id = f"{document.id}_chunk_{global_idx}"
+                    metadata = {
+                        "title": document.title,
+                        "document_id": document.id,
+                        "chunk_index": global_idx,
+                        "total_chunks": total_chunks
+                    }
+                    try:
+                        self.retrieval_service.add_document_to_index(chunk_id, chunk, metadata)
+                        success_count += 1
+
+                        # 每处理完一个chunk就更新进度，实时显示
+                        progress_percent = int((success_count / total_chunks) * 100)
+                        processing_progress_service.update_progress(
+                            doc_id_str, 4, "向量化处理",
+                            f"正在向量化... ({success_count}/{total_chunks} 块)",
+                            {
+                                "batch": batch_idx + 1,
+                                "total_batches": total_batches,
+                                "current_chunk": success_count,
+                                "total_chunks": total_chunks,
+                                "progress": f"{success_count}/{total_chunks}",
+                                "progress_percent": progress_percent
+                            }
+                        )
+                    except Exception as e:
+                        print(f"添加chunk {global_idx} 失败: {e}")
+
+                # 每处理完一批，短暂释放资源
+                if batch_idx < total_batches - 1:
+                    import gc
+                    gc.collect()
+                    import time
+                    time.sleep(0.5)
+
+            print(f"文档向量化完成: {success_count}/{total_chunks} 个chunks成功")
+
+            processing_progress_service.update_progress(
+                doc_id_str, 5, "完成",
+                f"向量化完成: {success_count}/{total_chunks} 个块成功",
+                {"success_count": success_count, "total_chunks": total_chunks}
+            )
+
             # 更新文档信息
             document.vector_id = f"doc_{document.id}"
             document.is_vectorized = 1
             db.commit()
             print(f"文档向量化成功: {document.title} (ID: {document_id})")
-            
+
+            # 完成处理
+            processing_progress_service.complete_processing(
+                doc_id_str, success=True,
+                result={"success_count": success_count, "total_chunks": total_chunks}
+            )
+
             return True
         except Exception as e:
             print(f"文档向量化失败: {str(e)}")
             import traceback
             traceback.print_exc()
+            # 报告失败
+            processing_progress_service.complete_processing(
+                doc_id_str, success=False, result={"error": str(e)}
+            )
             return False
     
     def download_document(self, db: Session, document_id: int) -> tuple[str, str]:

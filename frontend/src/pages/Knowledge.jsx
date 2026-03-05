@@ -5,11 +5,13 @@ import mammoth from 'mammoth';
 import { FaDownload } from 'react-icons/fa';
 import KnowledgeGraph from '../components/KnowledgeGraph';
 import EntityConfigManagement from '../components/EntityConfigManagement';
-import {  
-  uploadDocument, 
-  searchDocuments, 
-  listDocuments, 
-  deleteDocument, 
+import EntityMaintenanceSimple from '../components/EntityMaintenanceSimple';
+import websocketService from '../services/websocketService';
+import {
+  uploadDocument,
+  searchDocuments,
+  listDocuments,
+  deleteDocument,
   getKnowledgeStats,
   createKnowledgeBase,
   getKnowledgeBases,
@@ -27,6 +29,7 @@ import {
   getAllTags,
   searchDocumentsByTag,
   vectorizeDocument,
+  processDocument,
   getDocumentChunks,
   exportKnowledgeBase,
   importKnowledgeBase,
@@ -34,7 +37,9 @@ import {
   getDocumentGraphData,
   getKnowledgeBaseGraphData,
   analyzeKnowledgeGraph,
-  getGraphStatistics
+  getGraphStatistics,
+  getDocumentProcessingProgress,
+  getProcessingQueueStatus
 } from '../utils/api/knowledgeApi';
 
 // 设置PDF.js工作路径 - 使用本地worker文件
@@ -113,7 +118,7 @@ const Knowledge = () => {
   const [activeTab, setActiveTab] = useState('basic'); // 'basic' 或 'permissions'
   
   // 主界面标签页状态
-  const [mainActiveTab, setMainActiveTab] = useState('documents'); // 'documents' 或 'entity-config'
+  const [mainActiveTab, setMainActiveTab] = useState('documents'); // 'documents', 'knowledge-graph', 'entity-config', 'entity-maintenance'
   
   // 标签管理相关状态
   const [tags, setTags] = useState([]);
@@ -150,12 +155,184 @@ const Knowledge = () => {
   const [graphAnalysis, setGraphAnalysis] = useState(null);
   const [graphBuildError, setGraphBuildError] = useState('');
   const [graphBuildSuccess, setGraphBuildSuccess] = useState('');
+
+  // 文档处理进度追踪状态
+  const [processingDocuments, setProcessingDocuments] = useState(new Map()); // 正在处理的文档
+  const [processingProgress, setProcessingProgress] = useState(new Map()); // 处理进度
+  const processingIntervals = useRef(new Map()); // 存储轮询interval
+
+  // 队列状态
+  const [queueStatus, setQueueStatus] = useState(null);
+  const queueStatusInterval = useRef(null);
   
   // 初始化加载
   useEffect(() => {
     loadKnowledgeBases();
     loadStats();
   }, []);
+
+  // 初始化WebSocket连接
+  useEffect(() => {
+    let isMounted = true;
+
+    // 组件挂载时连接WebSocket
+    websocketService.connect()
+      .then(() => {
+        if (isMounted) {
+          console.log('WebSocket连接成功');
+        }
+      })
+      .catch(error => {
+        if (isMounted) {
+          console.error('WebSocket连接失败:', error);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+      // 组件卸载时断开WebSocket
+      websocketService.disconnect();
+    };
+  }, []);
+
+  // 清理文档处理追踪
+  useEffect(() => {
+    return () => {
+      // 组件卸载时清理所有追踪
+      processingIntervals.current.forEach((cleanup) => {
+        if (typeof cleanup === 'function') {
+          cleanup();
+        }
+      });
+      processingIntervals.current.clear();
+
+      // 清理队列状态轮询
+      if (queueStatusInterval.current) {
+        clearInterval(queueStatusInterval.current);
+      }
+    };
+  }, []);
+
+  /**
+   * 获取队列状态
+   */
+  const fetchQueueStatus = async () => {
+    try {
+      const status = await getProcessingQueueStatus();
+      setQueueStatus(status);
+    } catch (error) {
+      console.error('获取队列状态失败:', error);
+    }
+  };
+
+  // 当有待处理文档时，开始轮询队列状态
+  useEffect(() => {
+    if (processingDocuments.size > 0) {
+      // 立即获取一次
+      fetchQueueStatus();
+
+      // 每5秒轮询一次队列状态
+      if (!queueStatusInterval.current) {
+        queueStatusInterval.current = setInterval(fetchQueueStatus, 5000);
+      }
+    } else {
+      // 没有处理中文档时，停止轮询
+      if (queueStatusInterval.current) {
+        clearInterval(queueStatusInterval.current);
+        queueStatusInterval.current = null;
+      }
+      setQueueStatus(null);
+    }
+
+    return () => {
+      if (queueStatusInterval.current) {
+        clearInterval(queueStatusInterval.current);
+        queueStatusInterval.current = null;
+      }
+    };
+  }, [processingDocuments.size]);
+
+  /**
+   * 开始追踪文档处理进度
+   * @param {number} documentId - 文档ID
+   * @param {string} documentName - 文档名称
+   */
+  const startProcessingTracking = (documentId, documentName) => {
+    // 添加到处理中列表
+    setProcessingDocuments(prev => {
+      const newMap = new Map(prev);
+      newMap.set(documentId, {
+        id: documentId,
+        name: documentName,
+        startTime: Date.now()
+      });
+      return newMap;
+    });
+
+    // 初始化进度
+    setProcessingProgress(prev => {
+      const newMap = new Map(prev);
+      newMap.set(documentId, {
+        status: 'processing',
+        progress_percent: 0,
+        step_name: '初始化',
+        message: '开始处理文档...'
+      });
+      return newMap;
+    });
+
+    // 使用WebSocket订阅文档进度
+    websocketService.subscribeToDocumentProgress(documentId);
+
+    // 注册文档进度处理器
+    const handleDocumentProgress = (message) => {
+      // 使用松散比较，因为后端发送的是整数，前端可能使用字符串
+      if (message.document_id != documentId) return;
+
+      setProcessingProgress(prev => {
+        const newMap = new Map(prev);
+        newMap.set(documentId, {
+          status: message.status,
+          progress_percent: message.progress_percent,
+          step_name: message.step_name,
+          message: message.message,
+          details: message.details
+        });
+        return newMap;
+      });
+
+      // 如果处理完成或失败，取消订阅
+      if (message.status === 'completed' || message.status === 'failed') {
+        websocketService.unsubscribeFromDocumentProgress(documentId);
+
+        // 延迟后从处理列表中移除
+        setTimeout(() => {
+          setProcessingDocuments(prev => {
+            const newMap = new Map(prev);
+            newMap.delete(documentId);
+            return newMap;
+          });
+          setProcessingProgress(prev => {
+            const newMap = new Map(prev);
+            newMap.delete(documentId);
+            return newMap;
+          });
+
+          // 刷新文档列表以显示最新状态
+          loadDocuments();
+          loadStats();
+        }, 3000);
+      }
+    };
+
+    websocketService.on('document_progress', handleDocumentProgress);
+
+    // 保存处理器引用以便清理
+    processingIntervals.current.set(documentId, () => {
+      websocketService.unsubscribeFromDocumentProgress(documentId);
+      websocketService.off('document_progress');
+    });
+  };
   
   // 加载文档列表（支持追加模式）
   const loadDocuments = async (append = false) => {
@@ -163,7 +340,7 @@ const Knowledge = () => {
     try {
       const skip = append ? documents.length : (currentPage - 1) * documentsPerPage;
       const response = await listDocuments(skip, documentsPerPage, selectedKnowledgeBase?.id || null);
-      
+
       if (append) {
         // 追加模式，只在现有文档列表基础上添加新文档
         setDocuments(prev => [...prev, ...response.documents]);
@@ -173,9 +350,27 @@ const Knowledge = () => {
         setDocuments(response.documents);
         setHasMore(response.documents.length === documentsPerPage);
       }
-      
+
       setTotalDocuments(response.total || response.documents.length);
       setTotalPages(Math.ceil((response.total || response.documents.length) / documentsPerPage));
+
+      // 自动检测正在处理中的文档并开始追踪
+      if (response.documents && response.documents.length > 0) {
+        response.documents.forEach(doc => {
+          // 检查文档是否正在处理中（未向量化且处理状态为processing/queued）
+          // 注意：is_vectorized可能是数字1或布尔值true
+          const isVectorized = doc.is_vectorized === 1 || doc.is_vectorized === true;
+          const processingStatus = doc.document_metadata?.processing_status;
+          const isProcessing = !isVectorized &&
+            (processingStatus === 'processing' || processingStatus === 'queued');
+
+          // 如果文档正在处理且未被追踪，开始追踪
+          if (isProcessing && !processingDocuments.has(doc.id)) {
+            console.log(`检测到正在处理的文档: ${doc.title} (ID: ${doc.id}), 状态: ${processingStatus}`);
+            startProcessingTracking(doc.id, doc.title);
+          }
+        });
+      }
     } catch (error) {
       setError(`加载文档列表失败: ${error.response?.data?.detail || error.message}`);
     } finally {
@@ -235,6 +430,13 @@ const Knowledge = () => {
       setTags([]);
     }
   }, [selectedKnowledgeBase, documentsPerPage]);
+
+  // 当页码变化时，重新加载文档
+  useEffect(() => {
+    if (selectedKnowledgeBase) {
+      loadDocuments();
+    }
+  }, [currentPage]);
 
   // 当切换到知识图谱标签页时，自动加载知识图谱数据
   useEffect(() => {
@@ -825,58 +1027,68 @@ const Knowledge = () => {
     }
   };
 
-  // 上传文档
+  // 上传文档（仅上传，不自动处理）
   const handleFileUpload = async (event) => {
     const files = Array.from(event.target.files);
     if (files.length === 0) return;
-    
+
     if (!selectedKnowledgeBase) {
       setError('请先选择或创建一个知识库');
       return;
     }
-    
-    // 检查文件格式和大小
-      const supportedFormats = ['.pdf', '.docx', '.doc', '.txt', '.xlsx', '.xls', '.pptx', '.ppt', '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.wps', '.et', '.dps'];
+
+    // 上传限制配置
+    const MAX_FILES_PER_UPLOAD = 10; // 每次最多上传10个文件
+    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+    const supportedFormats = ['.pdf', '.docx', '.doc', '.txt', '.xlsx', '.xls', '.pptx', '.ppt', '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.wps', '.et', '.dps'];
+
+    // 检查文件数量限制
+    if (files.length > MAX_FILES_PER_UPLOAD) {
+      setError(`一次最多只能上传 ${MAX_FILES_PER_UPLOAD} 个文件，您选择了 ${files.length} 个文件。请分批上传。`);
+      event.target.value = '';
+      return;
+    }
+
     const validFiles = [];
     const invalidFiles = [];
-    
+
     files.forEach(file => {
       const fileExt = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
       const isValidFormat = supportedFormats.includes(fileExt);
-      const isValidSize = file.size <= 50 * 1024 * 1024; // 50MB限制
-      
+      const isValidSize = file.size <= MAX_FILE_SIZE;
+
       if (!isValidFormat) {
         invalidFiles.push({ name: file.name, reason: `不支持的文件格式: ${fileExt}` });
       } else if (!isValidSize) {
-        invalidFiles.push({ name: file.name, reason: '文件大小超过50MB限制' });
+        invalidFiles.push({ name: file.name, reason: `文件大小超过50MB限制 (${(file.size / 1024 / 1024).toFixed(2)}MB)` });
       } else {
         validFiles.push(file);
       }
     });
-    
+
     // 显示无效文件信息
     if (invalidFiles.length > 0) {
       const errorMsg = `以下文件无法上传:\n${invalidFiles.map(f => `- ${f.name}: ${f.reason}`).join('\n')}`;
       setError(errorMsg);
-      
+
       // 如果没有有效文件，直接返回
       if (validFiles.length === 0) {
         event.target.value = ''; // 清空文件选择
         return;
       }
     }
-    
+
     if (validFiles.length === 0) {
       setError('没有有效文件可以上传');
       event.target.value = '';
       return;
     }
-    
+
     setUploading(true);
     setUploadProgress(0);
     setError('');
     setSuccess('');
-    
+
     try {
       // 模拟总上传进度
       let currentFileIndex = 0;
@@ -887,46 +1099,134 @@ const Knowledge = () => {
           return Math.min(fileProgress + fileCurrentProgress, 95);
         });
       }, 300);
-      
+
       // 上传所有有效文件
       const uploadResults = [];
+      const pendingDocs = [];
+
       for (const file of validFiles) {
         try {
           const result = await uploadDocument(file, selectedKnowledgeBase.id);
-          uploadResults.push({ success: true, name: file.name, document_id: result.document_id });
+          uploadResults.push({ success: true, name: file.name, document_id: result.document_id, status: result.status });
+
+          // 记录待处理的文档
+          if (result.status === 'uploaded' && result.document_id) {
+            pendingDocs.push({ id: result.document_id, name: file.name });
+          }
         } catch (fileError) {
           uploadResults.push({ success: false, name: file.name, error: fileError.response?.data?.detail || fileError.message });
         }
         currentFileIndex++;
       }
-      
+
       clearInterval(progressInterval);
       setUploadProgress(100);
-      
+
       // 短暂显示100%进度后重置
       setTimeout(() => {
         setUploadProgress(0);
       }, 500);
-      
+
       // 统计上传结果
       const successCount = uploadResults.filter(r => r.success).length;
       const failedCount = uploadResults.filter(r => !r.success).length;
-      
+
       let successMsg = `成功上传 ${successCount} 个文档`;
+      if (pendingDocs.length > 0) {
+        successMsg += `，${pendingDocs.length} 个文档等待处理，请点击"开始处理"按钮进行向量化`;
+      }
       if (failedCount > 0) {
         const failedFiles = uploadResults.filter(r => !r.success).map(r => `- ${r.name}: ${r.error}`).join('\n');
         setError(`以下文件上传失败:\n${failedFiles}`);
       }
-      
+
       setSuccess(successMsg);
       event.target.value = ''; // 清空文件选择
-      loadDocuments(); // 重新加载文档列表
-      loadStats(); // 重新加载统计信息
+      loadDocuments(); // 重新加载文档列表以显示新文档
     } catch (error) {
       setError(`上传失败: ${error.response?.data?.detail || error.message}`);
       setUploadProgress(0);
     } finally {
       setUploading(false);
+    }
+  };
+
+  // 手动启动文档处理
+  const handleProcessDocument = async (documentId, documentName) => {
+    try {
+      setProcessingProgress(prev => {
+        const newMap = new Map(prev);
+        newMap.set(documentId, {
+          status: 'starting',
+          progress_percent: 0,
+          step_name: '启动中',
+          message: '正在启动文档处理...'
+        });
+        return newMap;
+      });
+
+      const result = await processDocument(documentId);
+
+      if (result.status === 'completed') {
+        setSuccess(`文档 "${documentName}" 已处理完成`);
+        loadDocuments();
+      } else if (result.status === 'processing' || result.status === 'queued') {
+        setSuccess(`文档 "${documentName}" 已加入处理队列`);
+        startProcessingTracking(documentId, documentName);
+      } else if (result.status === 'queue_full') {
+        setError('处理队列已满，请稍后再试');
+      }
+
+      return result;
+    } catch (error) {
+      setError(`启动文档处理失败: ${error.response?.data?.detail || error.message}`);
+      setProcessingProgress(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(documentId);
+        return newMap;
+      });
+      throw error;
+    }
+  };
+
+  // 批量处理所有等待中的文档（未向量化且不在处理中或队列中的文档）
+  const handleBatchProcess = async () => {
+    console.log('批量处理按钮被点击，当前文档列表:', documents);
+
+    const pendingDocs = documents.filter(doc =>
+      !doc.is_vectorized &&
+      doc.document_metadata?.processing_status !== 'processing' &&
+      doc.document_metadata?.processing_status !== 'queued'
+    );
+
+    console.log('筛选出的待处理文档:', pendingDocs);
+
+    if (pendingDocs.length === 0) {
+      setSuccess('没有需要处理的文档');
+      return;
+    }
+
+    let processedCount = 0;
+    let failedCount = 0;
+
+    for (const doc of pendingDocs) {
+      try {
+        const result = await handleProcessDocument(doc.id, doc.title);
+        if (result.status === 'completed' || result.status === 'processing' || result.status === 'queued') {
+          processedCount++;
+        }
+        // 添加小延迟避免请求过快
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (error) {
+        failedCount++;
+        console.error(`批量处理文档失败: ${doc.title}`, error);
+      }
+    }
+
+    if (failedCount === 0) {
+      setSuccess(`已成功启动 ${processedCount} 个文档的处理`);
+    } else {
+      setSuccess(`已启动 ${processedCount} 个文档的处理，${failedCount} 个文档启动失败`);
     }
   };
 
@@ -1272,9 +1572,23 @@ const Knowledge = () => {
   // 处理文档向量化
   const handleVectorizeDocument = async (documentId) => {
     try {
-      await vectorizeDocument(documentId);
-      setSuccess('文档向量化成功');
-      // 重新加载文档列表以更新向量化状态
+      const result = await vectorizeDocument(documentId);
+
+      // 检查返回状态
+      if (result.status === 'processing') {
+        setSuccess('文档向量化已启动，正在后台处理中...');
+        // 开始追踪处理进度
+        const doc = documents.find(d => d.id === documentId);
+        if (doc) {
+          startProcessingTracking(documentId, doc.title);
+        }
+      } else if (result.is_vectorized) {
+        setSuccess('文档已向量化');
+      } else {
+        setSuccess(result.message || '操作成功');
+      }
+
+      // 重新加载文档列表以更新状态
       loadDocuments();
     } catch (error) {
       setError(`向量化失败: ${error.response?.data?.detail || error.message}`);
@@ -1568,23 +1882,50 @@ const Knowledge = () => {
           </div>
           
           <div className="toolbar-actions">
-            <input 
-              type="file" 
+            <input
+              type="file"
               id="file-upload"
-              onChange={handleFileUpload} 
+              onChange={handleFileUpload}
               disabled={uploading || !selectedKnowledgeBase}
               accept=".pdf,.docx,.doc,.txt,.xlsx,.xls,.pptx,.ppt,.png,.jpg,.jpeg,.gif,.bmp,.wps,.et,.dps"
               multiple
               style={{ display: 'none' }}
             />
-            <label htmlFor="file-upload" className="import-btn">
+            <label htmlFor="file-upload" className="import-btn" title="支持格式: PDF/DOC/DOCX/TXT/XLS/XLSX/PPT/PPTX/图片等，单个文件最大50MB，每次最多10个文件">
               {uploading ? '上传中...' : !selectedKnowledgeBase ? '请选择知识库' : '选择文档'}
             </label>
-            
-            
-            
+            <small className="upload-hint" style={{ color: '#666', marginLeft: '8px', fontSize: '12px' }}>
+              最多10个文件，单个最大50MB
+            </small>
+
+            {/* 批量处理按钮 - 当有等待处理的文档时显示 */}
             {selectedKnowledgeBase && (
-              <button 
+              // 检查是否有等待处理的文档（未向量化且不在处理中）
+              documents.some(doc =>
+                !doc.is_vectorized &&
+                doc.document_metadata?.processing_status !== 'processing' &&
+                doc.document_metadata?.processing_status !== 'queued'
+              )
+            ) && (
+              <button
+                className="batch-process-btn"
+                onClick={handleBatchProcess}
+                disabled={false}
+                title="批量处理所有等待中的文档"
+              >
+                ▶️ 批量处理
+              </button>
+            )}
+
+            {/* 批量处理中提示 */}
+            {selectedKnowledgeBase && processingDocuments.size > 0 && (
+              <span className="batch-processing-hint">
+                🔄 正在处理 {processingDocuments.size} 个文档...
+              </span>
+            )}
+
+            {selectedKnowledgeBase && (
+              <button
                 className="create-btn"
                 onClick={() => openEditModal(selectedKnowledgeBase)}
                 disabled={uploading}
@@ -1614,6 +1955,12 @@ const Knowledge = () => {
             onClick={() => setMainActiveTab('entity-config')}
           >
             实体配置
+          </button>
+          <button 
+            className={`main-tab-btn ${mainActiveTab === 'entity-maintenance' ? 'active' : ''}`}
+            onClick={() => setMainActiveTab('entity-maintenance')}
+          >
+            实体维护
           </button>
         </div>
         
@@ -1854,6 +2201,100 @@ const Knowledge = () => {
         {/* 文档列表 */}
         {!searchQuery && (
           <>
+            {/* 处理中文档进度显示 */}
+            {processingDocuments.size > 0 && (
+              <div className="processing-documents-panel">
+                <div className="processing-panel-header">
+                  <h4>📋 正在处理的文档 ({processingDocuments.size})</h4>
+                  {queueStatus && (
+                    <div className="queue-status-badge">
+                      <span className="queue-indicator"></span>
+                      队列: {queueStatus.processing_count} 处理中 / {queueStatus.queue_size} 等待中
+                    </div>
+                  )}
+                </div>
+
+                {/* 队列状态详情 */}
+                {queueStatus && queueStatus.processing_documents && queueStatus.processing_documents.length > 0 && (
+                  <div className="queue-processing-info">
+                    <div className="queue-info-title">🔥 当前处理中:</div>
+                    {queueStatus.processing_documents.map((doc) => (
+                      <div key={doc.document_id} className="queue-processing-doc">
+                        <span className="doc-name">{doc.document_name}</span>
+                        <span className="doc-time">
+                          已处理: {Math.floor((Date.now() - new Date(doc.started_at).getTime()) / 1000 / 60)} 分钟
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="processing-list">
+                  {Array.from(processingDocuments.values()).map(({ id, name }) => {
+                    const progress = processingProgress.get(id);
+                    if (!progress) return null;
+
+                    // 优先使用进度API的状态，而不是队列状态
+                    // 因为向量化可能通过后台线程直接启动，不在队列中
+                    const isActuallyProcessing = progress.status === 'processing';
+                    const isCompleted = progress.status === 'completed';
+                    const isFailed = progress.status === 'failed';
+
+                    // 获取队列位置信息（仅用于显示队列状态）
+                    const queuePosition = queueStatus?.processing_documents?.findIndex(
+                      doc => doc.document_id === id
+                    );
+                    const isInQueue = queuePosition !== -1 && queuePosition !== undefined;
+
+                    // 确定显示样式：实际处理中 > 在队列中 > 等待中
+                    const itemClass = isActuallyProcessing ? 'active' : (isInQueue ? 'queued' : 'waiting');
+
+                    return (
+                      <div key={id} className={`processing-item ${itemClass}`}>
+                        <div className="processing-header">
+                          <span className="processing-name" title={name}>
+                            {name.length > 30 ? name.substring(0, 30) + '...' : name}
+                          </span>
+                          <span className={`processing-status ${progress.status}`}>
+                            {isCompleted ? '✅ 完成' :
+                             isFailed ? '❌ 失败' :
+                             isActuallyProcessing ? '🔄 处理中' :
+                             isInQueue ? '⏳ 队列中' : '⏳ 等待中'}
+                          </span>
+                        </div>
+
+                        {/* 队列位置提示 - 仅在不在队列中且不在处理中时显示 */}
+                        {!isInQueue && !isActuallyProcessing && queueStatus && (
+                          <div className="queue-position-hint">
+                            在队列中等待处理...
+                          </div>
+                        )}
+
+                        <div className="processing-progress-bar">
+                          <div
+                            className={`processing-progress-fill ${progress.status}`}
+                            style={{ width: `${progress.progress_percent || 0}%` }}
+                          />
+                        </div>
+                        <div className="processing-details">
+                          <span className="processing-step">{progress.step_name}</span>
+                          <span className="processing-percent">{progress.progress_percent || 0}%</span>
+                        </div>
+                        {progress.message && (
+                          <div className="processing-message">{progress.message}</div>
+                        )}
+                        {progress.status === 'processing' && progress.batch && (
+                          <div className="batch-progress">
+                            批次: {progress.batch}/{progress.total_batches}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="knowledge-grid" ref={knowledgeGridRef}>
               {/* 只在没有搜索结果时显示正常文档列表 */}
               {!selectedKnowledgeBase ? (
@@ -1877,44 +2318,113 @@ const Knowledge = () => {
                         {document.title}
                       </h3>
                       <p className="knowledge-description">
-                        {document.content ? document.content.substring(0, 100) + '...' : '无内容预览'}
+                        {(() => {
+                          // 优先显示文档内容预览
+                          if (document.content && document.content.trim().length > 0) {
+                            return document.content.substring(0, 100) + '...';
+                          }
+                          // 显示文件大小和状态信息
+                          const fileSize = document.document_metadata?.file_size;
+                          const sizeText = fileSize ? `文件大小: ${(fileSize / 1024 / 1024).toFixed(2)} MB | ` : '';
+
+                          // 统一状态判断逻辑：优先使用 is_vectorized 字段
+                          if (document.is_vectorized) {
+                            return `${sizeText}已向量化，点击查看详情`;
+                          }
+
+                          // 未向量化时，根据 processing_status 显示状态
+                          const processingStatus = document.document_metadata?.processing_status;
+                          if (processingStatus === 'processing') {
+                            return `${sizeText}处理中...`;
+                          } else if (processingStatus === 'queued') {
+                            return `${sizeText}队列中等待处理`;
+                          } else {
+                            return `${sizeText}等待向量化`;
+                          }
+                        })()}
                       </p>
                       <div className="knowledge-meta">
                         <span className="document-type">{document.file_type.toUpperCase()}</span>
                         <span className="last-updated">
                           {new Date(document.created_at).toLocaleDateString()}
                         </span>
-                        <span className={`vector-status ${document.is_vectorized ? 'vectorized' : 'not-vectorized'}`}>
-                          {document.is_vectorized ? '已向量化' : '未向量化'}
-                        </span>
+                        {(() => {
+                          // 检查文档是否正在处理中
+                          const isProcessing = processingDocuments.has(document.id);
+                          const processingStatus = document.document_metadata?.processing_status;
+
+                          // 优先判断处理中状态（包括本地状态和服务器状态）
+                          if (isProcessing || processingStatus === 'processing') {
+                            return (
+                              <span className="vector-status processing">
+                                🔄 处理中
+                              </span>
+                            );
+                          }
+
+                          // 队列中状态
+                          if (processingStatus === 'queued') {
+                            return (
+                              <span className="vector-status queued">
+                                ⏳ 队列中
+                              </span>
+                            );
+                          }
+
+                          // 优先使用 is_vectorized 字段判断最终状态
+                          if (document.is_vectorized) {
+                            return (
+                              <span className="vector-status vectorized">
+                                ✅ 已向量化
+                              </span>
+                            );
+                          }
+
+                          // 未向量化时，根据 processing_status 显示状态
+                          if (processingStatus === 'pending') {
+                            return (
+                              <span className="vector-status pending">
+                                ⏸️ 等待处理
+                              </span>
+                            );
+                          }
+
+                          // 默认状态
+                          return (
+                            <span className="vector-status not-vectorized">
+                              未处理
+                            </span>
+                          );
+                        })()}
                       </div>
                     </div>
                     <div className="knowledge-actions">
-                      <button 
-                        className="action-btn" 
+                      <button
+                        className="action-btn"
                         title="查看详情"
                         onClick={() => openDocumentDetail(document.id)}
                       >
                         👁️
                       </button>
-                      <button 
-                        className="action-btn" 
+                      <button
+                        className="action-btn"
                         title="下载文档"
                         onClick={() => handleCardDownloadDocument(document.id, document.title)}
                       >
                         📥
                       </button>
                       {!document.is_vectorized && (
-                        <button 
-                          className="action-btn vectorize-btn" 
-                          title="向量量化"
-                          onClick={() => handleVectorizeDocument(document.id)}
+                        <button
+                          className="action-btn process-btn"
+                          title="开始处理（向量化、图谱化）"
+                          onClick={() => handleProcessDocument(document.id, document.title)}
+                          disabled={processingDocuments.has(document.id) || document.document_metadata?.processing_status === 'processing'}
                         >
-                          ⚡
+                          {processingDocuments.has(document.id) || document.document_metadata?.processing_status === 'processing' ? '⏳' : '▶️'}
                         </button>
                       )}
-                      <button 
-                        className="action-btn" 
+                      <button
+                        className="action-btn"
                         title="删除"
                         onClick={() => handleDeleteDocument(document.id)}
                       >
@@ -2122,6 +2632,24 @@ const Knowledge = () => {
         {/* 实体配置管理界面 */}
         {mainActiveTab === 'entity-config' && (
           <EntityConfigManagement />
+        )}
+        
+        {/* 实体维护界面 */}
+        {mainActiveTab === 'entity-maintenance' && selectedKnowledgeBase && (
+          <div style={{ height: 'calc(100vh - 300px)', minHeight: '500px' }}>
+            <EntityMaintenanceSimple 
+              knowledgeBaseId={selectedKnowledgeBase.id} 
+              embedded={true}
+            />
+          </div>
+        )}
+        
+        {mainActiveTab === 'entity-maintenance' && !selectedKnowledgeBase && (
+          <div className="empty-state">
+            <div className="empty-icon">📚</div>
+            <h3>请先选择知识库</h3>
+            <p>实体维护需要先选择一个知识库</p>
+          </div>
         )}
       </div>
       
@@ -2389,6 +2917,11 @@ const Knowledge = () => {
                     <span className={`vector-status ${selectedDocument.is_vectorized ? 'vectorized' : 'not-vectorized'}`}>
                       向量化状态: {selectedDocument.is_vectorized ? '已向量化' : '未向量化'}
                     </span>
+                    {selectedDocument.is_vectorized && (
+                      <span className={`graph-status ${graphStatistics && graphStatistics.nodes_count > 0 ? 'has-graph' : 'no-graph'}`}>
+                        知识图谱: {graphStatistics && graphStatistics.nodes_count > 0 ? `已构建 (${graphStatistics.nodes_count}节点)` : '未构建'}
+                      </span>
+                    )}
                   </div>
                 </div>
                 

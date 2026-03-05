@@ -107,29 +107,38 @@ export const request = async (endpoint, options = {}) => {
     };
   }
   
-  const timeout = options.timeout || 30000;
-  
+  const timeout = options.timeout || 60000; // 默认超时时间增加到60秒
+
   let signal;
   let controller;
   let timeoutId = null;
-  
+
+  // 调试日志
+  console.log(`[API Request] ${options.method || 'GET'} ${url} - timeout: ${timeout}ms`);
+
   try {
     if (options.signal) {
       signal = options.signal;
     } else {
       controller = new AbortController();
       signal = controller.signal;
-      timeoutId = setTimeout(() => controller.abort(), timeout);
+      timeoutId = setTimeout(() => {
+        console.warn(`[API Timeout] ${options.method || 'GET'} ${url} - timeout after ${timeout}ms`);
+        controller.abort();
+      }, timeout);
     }
-    
+
     const response = await fetch(url, {
       ...mergedOptions,
       signal
     });
-    
+
     if (timeoutId) {
       clearTimeout(timeoutId);
     }
+
+    // 调试日志
+    console.log(`[API Response] ${options.method || 'GET'} ${url} - status: ${response.status}`);
 
     // 检查响应状态
     if (!response.ok) {
@@ -233,6 +242,9 @@ export const request = async (endpoint, options = {}) => {
       return text;
     }
   } catch (error) {
+    // 调试日志
+    console.error(`[API Error] ${options.method || 'GET'} ${url} - error:`, error);
+
     if (error.name === 'AbortError') {
       if (!timeoutId) {
         const cancelError = new Error('请求已取消');
@@ -245,9 +257,9 @@ export const request = async (endpoint, options = {}) => {
       timeoutError.status = 408;
       throw timeoutError;
     }
-    
 
-    
+
+
     // 处理连接错误，提供更清晰的错误信息
     if (error.message && (error.message.includes('Failed to fetch') || error.message.includes('ERR_CONNECTION_REFUSED'))) {
       const connectionError = new Error('无法连接到服务器，请确保后端服务器已启动并运行在正确的端口上。');

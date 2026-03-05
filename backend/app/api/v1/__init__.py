@@ -1,4 +1,7 @@
 """API v1 版本路由初始化"""
+# 首先导入环境变量配置（必须在任何其他导入之前）
+from app.core.env_config import *
+
 from fastapi import APIRouter
 from typing import Dict, List
 import importlib
@@ -56,7 +59,9 @@ ROUTE_GROUPS: Dict[str, List[Dict]] = {
     'knowledge': [
         {'module': 'app.modules.knowledge.api.knowledge', 'prefix': '/knowledge', 'tags': ['knowledge']},
         {'module': 'app.modules.knowledge.api.knowledge_graph_api', 'prefix': '/knowledge-graph', 'tags': ['knowledge-graph']},
-        {'module': 'app.modules.knowledge.api.entity_config_api', 'tags': ['entity-config']}
+        {'module': 'app.modules.knowledge.api.hierarchical_graph_api', 'prefix': '/hierarchical-graph', 'tags': ['hierarchical-graph']},
+        {'module': 'app.modules.knowledge.api.entity_config_api', 'tags': ['entity-config']},
+        {'module': 'app.modules.knowledge.api.entity_maintenance_api', 'prefix': '/entity-maintenance', 'tags': ['entity-maintenance']}
     ],
     'workflow': [
         {'module': 'app.modules.workflow.api.workflow', 'tags': ['workflows']}
@@ -194,7 +199,7 @@ async def load_route_group(group_name: str) -> bool:
         logger.info(f"正在加载模块: {module_path}")
         
         # 如果知识图谱功能禁用，跳过相关路由
-        if not settings.enable_knowledge_graph and ('knowledge_graph' in module_path or 'entity_config' in module_path):
+        if not settings.enable_knowledge_graph and ('knowledge_graph' in module_path or 'entity_config' in module_path or 'entity_maintenance' in module_path):
             logger.info(f"知识图谱功能已禁用，跳过路由模块: {module_path}")
             continue
         

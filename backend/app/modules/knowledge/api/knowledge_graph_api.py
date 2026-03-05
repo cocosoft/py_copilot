@@ -308,17 +308,40 @@ async def build_knowledge_graph(
         # 验证参数
         if not request.document_id and not request.knowledge_base_id:
             raise HTTPException(status_code=400, detail="必须提供document_id或knowledge_base_id参数")
-        
+
         if request.document_id:
+            # 先检查文档是否存在
+            document = db.query(KnowledgeDocument).filter(
+                KnowledgeDocument.id == request.document_id
+            ).first()
+
+            if not document:
+                raise HTTPException(status_code=404, detail="文档不存在")
+
+            # 检查文档是否已向量化
+            if not document.is_vectorized:
+                raise HTTPException(status_code=400, detail="文档尚未向量化，请先处理文档")
+
+            # 检查文档是否有内容
+            if not document.content or not document.content.strip():
+                raise HTTPException(status_code=400, detail="文档内容为空，无法构建知识图谱。请重新处理文档或上传包含文本内容的文档")
+
             # 构建单个文档的知识图谱
             result = knowledge_graph_service.build_document_graph(request.document_id, db)
         else:
             # 构建整个知识库的知识图谱
             result = knowledge_graph_service.build_knowledge_base_graph(request.knowledge_base_id, db)
-        
+
         if "error" in result:
-            raise HTTPException(status_code=500, detail=result["error"])
-        
+            # 根据错误类型返回不同的状态码
+            error_msg = result["error"]
+            if "内容为空" in error_msg or "没有内容" in error_msg:
+                raise HTTPException(status_code=400, detail=f"无法构建知识图谱: {error_msg}")
+            elif "不存在" in error_msg:
+                raise HTTPException(status_code=404, detail=error_msg)
+            else:
+                raise HTTPException(status_code=500, detail=error_msg)
+
         return GraphBuildResponse(
             success=True,
             graph_id=result.get("graph_id"),
@@ -327,7 +350,7 @@ async def build_knowledge_graph(
             communities_count=result.get("communities_count", 0),
             statistics=result.get("statistics", {})
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -344,17 +367,32 @@ async def get_document_graph(
         document = db.query(KnowledgeDocument).filter(
             KnowledgeDocument.id == document_id
         ).first()
-        
+
         if not document:
             raise HTTPException(status_code=404, detail="文档不存在")
-        
+
+        # 检查文档是否已向量化
+        if not document.is_vectorized:
+            raise HTTPException(status_code=400, detail="文档尚未向量化，请先处理文档")
+
+        # 检查文档是否有内容
+        if not document.content or not document.content.strip():
+            raise HTTPException(status_code=400, detail="文档内容为空，无法获取知识图谱数据")
+
         graph_data = knowledge_graph_service.get_document_graph_data(db, document_id)
-        
+
         if "error" in graph_data:
-            raise HTTPException(status_code=500, detail=graph_data["error"])
-        
+            # 根据错误类型返回不同的状态码
+            error_msg = graph_data["error"]
+            if "内容为空" in error_msg or "没有内容" in error_msg:
+                raise HTTPException(status_code=400, detail=f"无法获取知识图谱: {error_msg}")
+            elif "不存在" in error_msg:
+                raise HTTPException(status_code=404, detail=error_msg)
+            else:
+                raise HTTPException(status_code=500, detail=error_msg)
+
         return KnowledgeGraphDataResponse(**graph_data)
-        
+
     except HTTPException:
         raise
     except Exception as e:

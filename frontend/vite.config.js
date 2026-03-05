@@ -7,7 +7,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   
   // 使用环境变量中的API地址，如果没有则使用默认值
-  const apiBaseUrl = env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
+    const apiBaseUrl = env.VITE_API_BASE_URL || 'http://127.0.0.1:8007';
   
   return {
     plugins: [react()],
@@ -48,7 +48,7 @@ export default defineConfig(({ mode }) => {
             target: apiBaseUrl,
             changeOrigin: true,
             secure: false,
-            timeout: 30000, // 增加超时时间到30秒，适合长连接
+            timeout: 300000, // 增加超时时间到5分钟，支持批量文件上传
             configure: (proxy, options) => {
               // 禁用代理缓冲，确保流式响应能正确传递
               options.onProxyReq = (proxyReq, req, res) => {

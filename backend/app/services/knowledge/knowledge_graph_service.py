@@ -8,13 +8,14 @@ from app.modules.knowledge.models.knowledge_document import (
 )
 from app.services.knowledge.advanced_text_processor import AdvancedTextProcessor
 from app.services.knowledge.graph_builder import KnowledgeGraphBuilder
+from app.services.knowledge.knowledge_graph_cache import knowledge_graph_cache
 
 logger = logging.getLogger(__name__)
 
 
 class KnowledgeGraphService:
     """知识图谱服务，负责实体识别、关系提取和知识图谱查询"""
-    
+
     def __init__(self):
         self.text_processor = AdvancedTextProcessor()
         self.graph_builder = KnowledgeGraphBuilder()
@@ -84,11 +85,26 @@ class KnowledgeGraphService:
                 return entity
         return None
     
-    def get_document_entities(self, db: Session, document_id: int) -> List[Dict[str, Any]]:
-        """获取文档的所有实体"""
+    def get_document_entities(self, db: Session, document_id: int, distinct: bool = True) -> List[Dict[str, Any]]:
+        """获取文档的所有实体
+        
+        Args:
+            db: 数据库会话
+            document_id: 文档ID
+            distinct: 是否去重（默认True，按实体文本和类型去重）
+        """
         entities = db.query(DocumentEntity).filter(
             DocumentEntity.document_id == document_id
         ).all()
+        
+        if distinct:
+            # 按实体文本和类型去重，保留置信度最高的
+            entity_map = {}
+            for entity in entities:
+                key = (entity.entity_text, entity.entity_type)
+                if key not in entity_map or entity.confidence > entity_map[key].confidence:
+                    entity_map[key] = entity
+            entities = list(entity_map.values())
         
         return [
             {
@@ -314,65 +330,79 @@ class KnowledgeGraphService:
         }
     
     def build_document_graph(self, document_id: int, db: Session) -> Dict[str, Any]:
-        """构建单个文档的知识图谱"""
+        """构建单个文档的知识图谱 - 带缓存优化"""
         try:
             # 检查文档是否存在
             document = db.query(KnowledgeDocument).filter(KnowledgeDocument.id == document_id).first()
             if not document:
                 return {"error": "文档不存在"}
-            
+
+            # 检查缓存（使用文档内容的哈希作为缓存键的一部分）
+            content_hash = None
+            if document.content:
+                import hashlib
+                content_hash = hashlib.md5(document.content.encode()).hexdigest()[:16]
+
+            cached_graph = knowledge_graph_cache.get(document_id, content_hash)
+            if cached_graph:
+                logger.info(f"文档 {document_id} 的知识图谱从缓存获取")
+                return cached_graph
+
             # 1. 检查文档是否已进行实体提取，如果没有则先执行实体提取
             entities = self.get_document_entities(db, document_id)
             relationships = self.get_document_relationships(db, document_id)
-            
+
             if not entities and not relationships:
                 logger.info(f"文档 {document_id} 未进行实体提取，开始执行实体提取...")
-                
+
                 # 执行实体提取
                 extraction_result = self.extract_and_store_entities(db, document)
                 if not extraction_result.get("success", False):
                     logger.warning(f"文档 {document_id} 实体提取失败: {extraction_result.get('error', '未知错误')}")
                     return {"error": f"实体提取失败: {extraction_result.get('error', '未知错误')}"}
-                
+
                 # 重新获取实体和关系
                 entities = self.get_document_entities(db, document_id)
                 relationships = self.get_document_relationships(db, document_id)
-                
+
                 # 检查实体提取是否真的成功
                 if not entities:
                     logger.warning(f"文档 {document_id} 实体提取后仍然没有实体")
                     return {"error": "实体提取后没有发现任何实体"}
-                
+
                 logger.info(f"文档 {document_id} 实体提取成功，提取到 {len(entities)} 个实体和 {len(relationships)} 个关系")
             else:
                 logger.info(f"文档 {document_id} 已有 {len(entities)} 个实体和 {len(relationships)} 个关系，直接构建知识图谱")
-            
+
             # 2. 使用图谱构建器构建图谱
             graph = self.graph_builder.build_graph_from_document(document_id, db)
-            
+
             # 3. 检查图谱构建结果是否有效
             if "error" in graph:
                 logger.error(f"图谱构建失败: {graph['error']}")
                 return graph
-            
+
             # 4. 添加统计信息
             nodes = graph.get("nodes", [])
             edges = graph.get("edges", [])
-            
+
             if not nodes:
                 logger.warning(f"文档 {document_id} 构建的知识图谱没有节点")
                 return {"error": "知识图谱构建成功但没有发现任何节点"}
-            
+
             # 计算社区数量
             communities_count = len(set(node.get("community", 0) for node in nodes))
-            
+
             graph.update({
                 "nodes_count": len(nodes),
                 "edges_count": len(edges),
                 "communities_count": communities_count,
                 "statistics": self.get_graph_statistics(graph)
             })
-            
+
+            # 5. 缓存结果
+            knowledge_graph_cache.set(document_id, graph, content_hash)
+
             logger.info(f"成功构建文档 {document_id} 的知识图谱，包含 {len(nodes)} 个节点和 {len(edges)} 条边")
             return graph
             
@@ -574,20 +604,32 @@ class KnowledgeGraphService:
     def get_knowledge_base_graph_data(self, db: Session, knowledge_base_id: int) -> Dict[str, Any]:
         """获取知识库的知识图谱数据"""
         try:
+            # 首先尝试从缓存获取
+            cached_graph = knowledge_graph_cache.get_kb_graph(knowledge_base_id)
+            if cached_graph:
+                logger.info(f"从缓存获取知识库 {knowledge_base_id} 的图谱数据")
+                return cached_graph
+
             # 构建知识库图谱
             graph = self.build_knowledge_base_graph(knowledge_base_id, db)
             if "error" in graph:
                 return graph
-            
+
             # 获取统计信息
             statistics = self.get_graph_statistics(graph)
-            
-            return {
+
+            result = {
                 "nodes": graph.get("nodes", []),
                 "links": graph.get("edges", []),
                 "statistics": statistics
             }
-            
+
+            # 缓存结果
+            knowledge_graph_cache.set_kb_graph(knowledge_base_id, result)
+            logger.info(f"知识库 {knowledge_base_id} 的图谱数据已缓存")
+
+            return result
+
         except Exception as e:
             logger.error(f"获取知识库 {knowledge_base_id} 的图谱数据失败: {e}")
             return {"error": str(e)}

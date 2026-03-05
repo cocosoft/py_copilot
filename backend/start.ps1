@@ -1,0 +1,14 @@
+# 设置环境变量
+$env:KMP_DUPLICATE_LIB_OK = "TRUE"
+$env:OMP_NUM_THREADS = "1"
+$env:MKL_NUM_THREADS = "1"
+$env:OPENBLAS_NUM_THREADS = "1"
+$env:VECLIB_MAXIMUM_THREADS = "1"
+$env:NUMEXPR_NUM_THREADS = "1"
+$env:TORCH_NUM_THREADS = "1"
+$env:CUDA_VISIBLE_DEVICES = ""
+$env:HF_HUB_OFFLINE = "1"
+$env:TRANSFORMERS_OFFLINE = "1"
+
+# 启动Python服务
+python main.py

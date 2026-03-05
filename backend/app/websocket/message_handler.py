@@ -31,6 +31,9 @@ class MessageType(Enum):
     SESSION_JOIN = "session_join"
     SESSION_LEAVE = "session_leave"
     SESSION_CLOSE = "session_close"
+    DOCUMENT_PROGRESS = "document_progress"  # 文档处理进度
+    DOCUMENT_PROGRESS_SUBSCRIBE = "document_progress_subscribe"  # 订阅文档进度
+    DOCUMENT_PROGRESS_UNSUBSCRIBE = "document_progress_unsubscribe"  # 取消订阅文档进度
 
 
 class MessageSchema(BaseModel):
@@ -126,6 +129,29 @@ class SessionCloseMessage(MessageSchema):
     session_id: str
 
 
+class DocumentProgressSubscribeMessage(MessageSchema):
+    """文档进度订阅消息模型"""
+    type: str = MessageType.DOCUMENT_PROGRESS_SUBSCRIBE.value
+    document_ids: list[int]  # 要订阅的文档ID列表
+
+
+class DocumentProgressUnsubscribeMessage(MessageSchema):
+    """文档进度取消订阅消息模型"""
+    type: str = MessageType.DOCUMENT_PROGRESS_UNSUBSCRIBE.value
+    document_ids: list[int]  # 要取消订阅的文档ID列表
+
+
+class DocumentProgressMessage(MessageSchema):
+    """文档处理进度消息模型"""
+    type: str = MessageType.DOCUMENT_PROGRESS.value
+    document_id: int
+    status: str  # processing, queued, completed, failed, pending
+    progress_percent: int
+    step_name: str
+    message: str
+    details: Optional[Dict[str, Any]] = None
+
+
 class MessageHandler:
     """WebSocket消息处理器"""
     
@@ -147,7 +173,11 @@ class MessageHandler:
             MessageType.SESSION_JOIN.value: self._handle_session_join,
             MessageType.SESSION_LEAVE.value: self._handle_session_leave,
             MessageType.SESSION_CLOSE.value: self._handle_session_close,
+            MessageType.DOCUMENT_PROGRESS_SUBSCRIBE.value: self._handle_document_progress_subscribe,
+            MessageType.DOCUMENT_PROGRESS_UNSUBSCRIBE.value: self._handle_document_progress_unsubscribe,
         }
+        # 文档进度订阅管理: {document_id: set(connection_id)}
+        self.document_progress_subscriptions: Dict[int, Set[str]] = {}
         
     async def handle_message(self, connection_id: str, raw_message: str) -> bool:
         """处理WebSocket消息
@@ -651,6 +681,120 @@ class MessageHandler:
         )
         
         await self.connection_manager.broadcast(notification_msg.dict())
+
+    async def _handle_document_progress_subscribe(self, connection_id: str, message_data: Dict[str, Any]):
+        """处理文档进度订阅消息
+
+        Args:
+            connection_id: 连接ID
+            message_data: 消息数据
+        """
+        try:
+            # 验证消息格式
+            subscribe_msg = DocumentProgressSubscribeMessage(**message_data)
+
+            # 获取连接信息
+            connection = self.connection_manager.active_connections.get(connection_id)
+            if not connection:
+                await self._send_error(connection_id, "connection_not_found",
+                                     "连接不存在")
+                return
+
+            # 添加订阅
+            for document_id in subscribe_msg.document_ids:
+                if document_id not in self.document_progress_subscriptions:
+                    self.document_progress_subscriptions[document_id] = set()
+                self.document_progress_subscriptions[document_id].add(connection_id)
+
+            # 发送订阅确认
+            await self.connection_manager.send_to_client(connection_id, {
+                "type": "document_progress_subscribe_ack",
+                "id": subscribe_msg.id,
+                "timestamp": datetime.now().isoformat(),
+                "document_ids": subscribe_msg.document_ids,
+                "status": "subscribed"
+            })
+
+            logger.info(f"客户端 {connection.client_id} 订阅了文档进度: {subscribe_msg.document_ids}")
+            logger.debug(f"当前文档 {subscribe_msg.document_ids} 的订阅者: {self.document_progress_subscriptions.get(subscribe_msg.document_ids[0], set())}")
+
+        except ValidationError as e:
+            await self._send_error(connection_id, "invalid_document_progress_subscribe_message",
+                                 f"文档进度订阅消息格式无效: {e}")
+
+    async def _handle_document_progress_unsubscribe(self, connection_id: str, message_data: Dict[str, Any]):
+        """处理文档进度取消订阅消息
+
+        Args:
+            connection_id: 连接ID
+            message_data: 消息数据
+        """
+        try:
+            # 验证消息格式
+            unsubscribe_msg = DocumentProgressUnsubscribeMessage(**message_data)
+
+            # 移除订阅
+            for document_id in unsubscribe_msg.document_ids:
+                if document_id in self.document_progress_subscriptions:
+                    self.document_progress_subscriptions[document_id].discard(connection_id)
+                    # 如果没有订阅者了，清理空集合
+                    if not self.document_progress_subscriptions[document_id]:
+                        del self.document_progress_subscriptions[document_id]
+
+            # 发送取消订阅确认
+            await self.connection_manager.send_to_client(connection_id, {
+                "type": "document_progress_unsubscribe_ack",
+                "id": unsubscribe_msg.id,
+                "timestamp": datetime.now().isoformat(),
+                "document_ids": unsubscribe_msg.document_ids,
+                "status": "unsubscribed"
+            })
+
+            logger.info(f"连接 {connection_id} 取消订阅了文档进度: {unsubscribe_msg.document_ids}")
+
+        except ValidationError as e:
+            await self._send_error(connection_id, "invalid_document_progress_unsubscribe_message",
+                                 f"文档进度取消订阅消息格式无效: {e}")
+
+    async def broadcast_document_progress(self, document_id: int, status: str, progress_percent: int,
+                                         step_name: str, message: str, details: Optional[Dict[str, Any]] = None):
+        """广播文档处理进度消息
+
+        Args:
+            document_id: 文档ID
+            status: 处理状态
+            progress_percent: 进度百分比
+            step_name: 步骤名称
+            message: 进度消息
+            details: 详细信息
+        """
+        # 获取订阅了该文档的连接
+        connection_ids = self.document_progress_subscriptions.get(document_id, set())
+        if not connection_ids:
+            logger.debug(f"文档 {document_id} 没有WebSocket订阅者，跳过广播")
+            return
+
+        logger.debug(f"文档 {document_id} 有 {len(connection_ids)} 个WebSocket订阅者，开始广播进度")
+
+        progress_msg = DocumentProgressMessage(
+            type=MessageType.DOCUMENT_PROGRESS.value,
+            document_id=document_id,
+            status=status,
+            progress_percent=progress_percent,
+            step_name=step_name,
+            message=message,
+            details=details,
+            timestamp=datetime.now().isoformat()
+        )
+
+        # 发送给所有订阅者
+        for connection_id in list(connection_ids):
+            try:
+                await self.connection_manager.send_to_client(connection_id, progress_msg.dict())
+            except Exception as e:
+                logger.error(f"发送文档进度消息到连接 {connection_id} 失败: {e}")
+                # 移除失效的连接
+                self.document_progress_subscriptions[document_id].discard(connection_id)
 
 
 # 全局消息处理器实例

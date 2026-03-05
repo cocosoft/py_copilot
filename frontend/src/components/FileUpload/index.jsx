@@ -19,6 +19,8 @@ import './FileUpload.css';
  * @param {number} props.relatedId - 通用关联ID
  * @param {string} props.accept - 接受的文件类型
  * @param {boolean} props.multiple - 是否允许多选
+ * @param {number} props.maxFiles - 最大文件数量（默认10个）
+ * @param {number} props.maxFileSize - 最大文件大小（字节，默认50MB）
  * @param {Function} props.onUploadSuccess - 上传成功回调
  * @param {Function} props.onUploadError - 上传失败回调
  * @param {Function} props.onFileSelect - 文件选择回调
@@ -33,6 +35,8 @@ export const FileUpload = ({
   relatedId,
   accept,
   multiple = false,
+  maxFiles = 10,
+  maxFileSize = 50 * 1024 * 1024,
   onUploadSuccess,
   onUploadError,
   onFileSelect,
@@ -44,6 +48,7 @@ export const FileUpload = ({
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [selectedFiles, setSelectedFiles] = useState([]);
+  const [error, setError] = useState('');
   const fileInputRef = useRef(null);
 
   // 处理文件选择
@@ -51,7 +56,39 @@ export const FileUpload = ({
     const files = Array.from(event.target.files);
     if (files.length === 0) return;
 
-    const filesWithPreview = files.map(file => ({
+    // 检查文件数量限制
+    if (multiple && files.length > maxFiles) {
+      setError(`一次最多只能选择 ${maxFiles} 个文件，您选择了 ${files.length} 个文件`);
+      event.target.value = '';
+      return;
+    }
+
+    setError('');
+
+    const validFiles = [];
+    const invalidFiles = [];
+
+    files.forEach(file => {
+      if (file.size > maxFileSize) {
+        invalidFiles.push({
+          name: file.name,
+          reason: `文件大小超过限制 (${(file.size / 1024 / 1024).toFixed(2)}MB > ${(maxFileSize / 1024 / 1024).toFixed(0)}MB)`
+        });
+      } else {
+        validFiles.push(file);
+      }
+    });
+
+    if (invalidFiles.length > 0) {
+      setError(`以下文件超出大小限制:\n${invalidFiles.map(f => `- ${f.name}: ${f.reason}`).join('\n')}`);
+    }
+
+    if (validFiles.length === 0) {
+      event.target.value = '';
+      return;
+    }
+
+    const filesWithPreview = validFiles.map(file => ({
       file,
       id: Math.random().toString(36).substr(2, 9),
       name: file.name,
@@ -64,8 +101,8 @@ export const FileUpload = ({
     }));
 
     setSelectedFiles(filesWithPreview);
-    onFileSelect?.(files);
-  }, [onFileSelect]);
+    onFileSelect?.(validFiles);
+  }, [onFileSelect, multiple, maxFiles, maxFileSize]);
 
   // 上传单个文件
   const uploadSingleFile = async (fileInfo) => {
@@ -158,6 +195,18 @@ export const FileUpload = ({
         onChange={handleFileSelect}
         style={{ display: 'none' }}
       />
+
+      {/* 错误提示 */}
+      {error && (
+        <div className="file-upload-error" style={{ color: '#dc3545', marginBottom: '10px', padding: '8px', backgroundColor: '#f8d7da', borderRadius: '4px', whiteSpace: 'pre-line' }}>
+          {error}
+        </div>
+      )}
+
+      {/* 上传提示 */}
+      <div className="file-upload-hint" style={{ color: '#666', marginBottom: '10px', fontSize: '12px' }}>
+        {multiple ? `最多 ${maxFiles} 个文件，` : ''}单个文件最大 {(maxFileSize / 1024 / 1024).toFixed(0)}MB
+      </div>
 
       {/* 上传按钮 */}
       <div className="file-upload-actions">

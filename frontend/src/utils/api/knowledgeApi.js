@@ -204,7 +204,22 @@ export const searchDocumentsByTag = async (tagId, knowledgeBaseId = null) => {
     return response;
 };
 
-// Document Vectorization API
+// Document Processing API
+/**
+ * 启动文档处理（向量化、图谱化）
+ *
+ * @param {number} documentId - 文档ID
+ * @returns {Promise<Object>} 处理启动结果
+ */
+export const processDocument = async (documentId) => {
+    const response = await request(`/v1/knowledge/documents/${documentId}/process`, {
+        method: 'POST',
+        timeout: 120000  // 120秒超时，ChromaDB服务响应较慢时需要更长时间
+    });
+    return response;
+};
+
+// Document Vectorization API（兼容旧接口）
 export const vectorizeDocument = async (documentId) => {
     const response = await request(`/v1/knowledge/documents/${documentId}/vectorize`, {
         method: 'POST'
@@ -251,14 +266,30 @@ export const buildKnowledgeGraph = async (documentId = null, knowledgeBaseId = n
 
 export const getDocumentGraphData = async (documentId) => {
     const response = await request(`/v1/knowledge-graph/documents/${documentId}/graph`, {
-        method: 'GET'
+        method: 'GET',
+        timeout: 60000  // 文档图谱设置为1分钟超时
     });
     return response;
 };
 
 export const getKnowledgeBaseGraphData = async (knowledgeBaseId) => {
     const response = await request(`/v1/knowledge-graph/knowledge-bases/${knowledgeBaseId}/graph`, {
-        method: 'GET'
+        method: 'GET',
+        timeout: 120000  // 知识图谱构建可能需要较长时间，设置为2分钟
+    });
+    return response;
+};
+
+/**
+ * 获取文档处理进度
+ *
+ * @param {number} documentId - 文档ID
+ * @returns {Promise<Object>} 处理进度信息
+ */
+export const getDocumentProcessingProgress = async (documentId) => {
+    const response = await request(`/v1/knowledge/documents/${documentId}/progress`, {
+        method: 'GET',
+        timeout: 30000  // 30秒超时，进度查询应该很快返回，但后端繁忙时可能需要更长时间
     });
     return response;
 };
@@ -273,6 +304,19 @@ export const analyzeKnowledgeGraph = async (graphId) => {
 export const getGraphStatistics = async (graphId) => {
     const response = await request(`/v1/knowledge-graph/graphs/${graphId}/statistics`, {
         method: 'GET'
+    });
+    return response;
+};
+
+/**
+ * 获取文档处理队列状态
+ *
+ * @returns {Promise<Object>} 队列状态信息
+ */
+export const getProcessingQueueStatus = async () => {
+    const response = await request('/v1/knowledge/processing-queue/status', {
+        method: 'GET',
+        timeout: 60000  // 60秒超时，队列状态查询可能因后端繁忙而延迟
     });
     return response;
 };
