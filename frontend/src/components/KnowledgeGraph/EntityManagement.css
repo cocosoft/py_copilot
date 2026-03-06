@@ -1,0 +1,684 @@
+/**
+ * 实体管理组件样式
+ */
+
+/* ==================== 主容器 ==================== */
+.entity-management {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* ==================== 工具栏 ==================== */
+.management-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  gap: 16px;
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.search-box {
+  position: relative;
+  width: 280px;
+}
+
+.search-box input {
+  width: 100%;
+  padding: 8px 12px 8px 36px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.search-box input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.type-filter {
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+  min-width: 120px;
+}
+
+.type-filter:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.selection-info {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+/* ==================== 按钮样式 ==================== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--primary-color);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--primary-color-dark);
+}
+
+.btn-secondary {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--primary-color);
+}
+
+.btn-danger {
+  background: var(--error-color-light);
+  color: var(--error-color);
+  border: 1px solid var(--error-color);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--error-color);
+  color: white;
+}
+
+.btn.full-width {
+  width: 100%;
+  justify-content: center;
+}
+
+/* ==================== 主内容区域 ==================== */
+.management-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ==================== 实体列表容器 ==================== */
+.entity-list-container {
+  flex: 1;
+  overflow: auto;
+  padding: 20px;
+}
+
+.entity-list-container.with-sidebar {
+  flex: 0 0 60%;
+}
+
+/* ==================== 加载状态 ==================== */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: var(--text-secondary);
+}
+
+.loading-state .spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ==================== 空状态 ==================== */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-state p {
+  font-size: 14px;
+  margin: 0;
+}
+
+/* ==================== 实体表格 ==================== */
+.entity-table-wrapper {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.entity-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.entity-table th,
+.entity-table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.entity-table th {
+  background: var(--bg-secondary);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.entity-table tbody tr {
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.entity-table tbody tr:hover {
+  background: var(--bg-hover);
+}
+
+.entity-table tbody tr.selected {
+  background: var(--primary-color-light);
+}
+
+.entity-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.checkbox-cell {
+  width: 40px;
+  text-align: center;
+}
+
+.checkbox-cell input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--primary-color);
+}
+
+.entity-name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+/* ==================== 类型标签 ==================== */
+.type-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.type-badge.large {
+  padding: 6px 14px;
+  font-size: 14px;
+}
+
+/* ==================== 置信度条 ==================== */
+.confidence-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.confidence-bar span {
+  font-size: 12px;
+  color: var(--text-secondary);
+  min-width: 36px;
+}
+
+.confidence-fill {
+  flex: 1;
+  height: 6px;
+  background: var(--primary-color);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+/* ==================== 操作按钮 ==================== */
+.action-btn {
+  padding: 6px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+/* ==================== 详情侧边栏 ==================== */
+.entity-sidebar {
+  width: 40%;
+  min-width: 320px;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.sidebar-header .close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.sidebar-header .close-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.entity-header {
+  margin-bottom: 20px;
+}
+
+.entity-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 12px 0;
+}
+
+.entity-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 16px;
+  background: var(--bg-primary);
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.entity-stats .stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.entity-stats .stat-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.entity-stats .stat-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ==================== 相似实体 ==================== */
+.similar-entities-section {
+  margin-bottom: 20px;
+}
+
+.similar-entities-section h5 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 12px 0;
+}
+
+.similar-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.similar-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--bg-primary);
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.similar-item:last-child {
+  margin-bottom: 0;
+}
+
+.similar-name {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.similar-score {
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* ==================== 侧边栏操作按钮 ==================== */
+.sidebar-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ==================== 模态框 ==================== */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal-content {
+  background: var(--bg-primary);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.modal-header .close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.modal-header .close-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+
+/* ==================== 合并对话框特殊样式 ==================== */
+.merge-dialog {
+  max-width: 400px;
+}
+
+.merge-description {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 0 0 20px 0;
+  line-height: 1.5;
+}
+
+.merge-target-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.merge-target-list h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 12px 0;
+}
+
+.merge-target-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.merge-target-item:hover {
+  background: var(--bg-hover);
+}
+
+.merge-target-item input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary-color);
+}
+
+.merge-target-item .entity-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+/* ==================== 响应式设计 ==================== */
+@media (max-width: 1024px) {
+  .entity-list-container.with-sidebar {
+    flex: 0 0 50%;
+  }
+
+  .entity-sidebar {
+    width: 50%;
+  }
+}
+
+@media (max-width: 768px) {
+  .management-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .toolbar-left,
+  .toolbar-right {
+    width: 100%;
+  }
+
+  .search-box {
+    width: 100%;
+  }
+
+  .toolbar-right {
+    flex-wrap: wrap;
+  }
+
+  .management-content {
+    flex-direction: column;
+  }
+
+  .entity-list-container.with-sidebar {
+    flex: 1;
+  }
+
+  .entity-sidebar {
+    width: 100%;
+    height: 50%;
+    border-left: none;
+    border-top: 1px solid var(--border-color);
+  }
+
+  .entity-table {
+    font-size: 13px;
+  }
+
+  .entity-table th,
+  .entity-table td {
+    padding: 10px 12px;
+  }
+
+  .entity-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==================== 暗色主题适配 ==================== */
+[data-theme="dark"] .entity-table-wrapper,
+[data-theme="dark"] .similar-item {
+  background: var(--bg-secondary);
+}
+
+[data-theme="dark"] .entity-stats,
+[data-theme="dark"] .merge-target-item {
+  background: var(--bg-tertiary);
+}
+
+/* ==================== 滚动条样式 ==================== */
+.sidebar-content::-webkit-scrollbar,
+.modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-content::-webkit-scrollbar-track,
+.modal-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb,
+.modal-body::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb:hover,
+.modal-body::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}

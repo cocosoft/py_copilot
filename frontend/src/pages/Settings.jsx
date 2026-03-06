@@ -8,6 +8,7 @@ import Knowledge from './Knowledge';
 import Workflow from './Workflow';
 import ModelSelectDropdown from '../components/ModelManagement/ModelSelectDropdown';
 import SettingsManager from '../components/SettingsManagement/SettingsManager';
+import KnowledgeGraphConfig from '../components/KnowledgeGraph/KnowledgeGraphConfig';
 
 // 防抖函数
 const debounce = (func, wait) => {
@@ -1615,6 +1616,17 @@ const Settings = () => {
             </div>
           </div>
         );
+        
+      case 'knowledgeGraphConfig':
+        return (
+          <div className="settings-content">
+            <div className="content-header">
+              <h2>知识图谱配置</h2>
+              <p>配置知识图谱的实体类型、关系类型和提取策略</p>
+            </div>
+            <KnowledgeGraphConfig />
+          </div>
+        );
            
       default:
         return (
@@ -1677,6 +1689,14 @@ const Settings = () => {
             >
               <span className="nav-icon">💾</span>
               <span className="nav-text">{t('settings.navigation.memory')}</span>
+            </button>
+            
+            <button 
+              className={`nav-item ${activeSection === 'knowledgeGraphConfig' ? 'active' : ''}`}
+              onClick={() => setActiveSection('knowledgeGraphConfig')}
+            >
+              <span className="nav-icon">🕸️</span>
+              <span className="nav-text">知识图谱配置</span>
             </button>
               
 

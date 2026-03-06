@@ -1,0 +1,688 @@
+/**
+ * 批量构建面板组件样式
+ */
+
+/* ==================== 主容器 ==================== */
+.batch-build-panel {
+  padding: 24px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* ==================== 步骤指示器 ==================== */
+.step-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 32px;
+  padding: 20px;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.step-number {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--border-color);
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.step.active .step-number {
+  background: var(--primary-color);
+  color: white;
+}
+
+.step.completed .step-number {
+  background: var(--success-color);
+  color: white;
+}
+
+.step-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.step.active .step-label {
+  color: var(--primary-color);
+}
+
+.step.completed .step-label {
+  color: var(--success-color);
+}
+
+.step-line {
+  width: 80px;
+  height: 2px;
+  background: var(--border-color);
+  margin: 0 16px;
+  margin-bottom: 24px;
+}
+
+/* ==================== 步骤内容 ==================== */
+.step-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ==================== 文档选择区域 ==================== */
+.document-selection {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.selection-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.selection-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.selection-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.select-all-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.select-all-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary-color);
+}
+
+.selection-count {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* ==================== 文档列表 ==================== */
+.document-list {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.document-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.document-item:hover {
+  background: var(--bg-hover);
+}
+
+.document-item.selected {
+  background: var(--primary-color-light);
+}
+
+.document-item.has-graph {
+  opacity: 0.7;
+}
+
+.document-item input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary-color);
+}
+
+.document-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.document-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.document-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.graph-badge {
+  padding: 2px 8px;
+  background: var(--success-color-light);
+  color: var(--success-color);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* ==================== 参数配置区域 ==================== */
+.parameter-config {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.parameter-config h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 16px 0;
+}
+
+.param-group {
+  margin-bottom: 16px;
+}
+
+.param-group:last-child {
+  margin-bottom: 0;
+}
+
+.param-group label {
+  display: block;
+  font-size: 14px;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary-color);
+}
+
+.range-input {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.range-input input[type="range"] {
+  flex: 1;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--border-color);
+  border-radius: 3px;
+  outline: none;
+}
+
+.range-input input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: var(--primary-color);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.range-input span {
+  min-width: 40px;
+  text-align: center;
+  font-family: monospace;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.param-group select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.param-group select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+/* ==================== 操作栏 ==================== */
+.action-bar {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--primary-color);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--primary-color-dark);
+}
+
+.btn-secondary {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.btn-danger {
+  background: var(--error-color-light);
+  color: var(--error-color);
+  border: 1px solid var(--error-color);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--error-color);
+  color: white;
+}
+
+.btn-large {
+  padding: 14px 32px;
+  font-size: 16px;
+}
+
+/* ==================== 加载状态 ==================== */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: var(--text-secondary);
+}
+
+.loading-state .spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 12px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ==================== 进度面板 ==================== */
+.progress-panel {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.progress-header h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.status-badge {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.status-pending {
+  background: var(--warning-color-light);
+  color: var(--warning-color);
+}
+
+.status-processing {
+  background: var(--primary-color-light);
+  color: var(--primary-color);
+}
+
+.status-completed {
+  background: var(--success-color-light);
+  color: var(--success-color);
+}
+
+.status-failed {
+  background: var(--error-color-light);
+  color: var(--error-color);
+}
+
+.status-cancelled {
+  background: var(--text-muted);
+  color: white;
+}
+
+.progress-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.progress-stats .stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 16px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+}
+
+.progress-stats .stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.progress-stats .stat-value.success {
+  color: var(--success-color);
+}
+
+.progress-stats .stat-value.error {
+  color: var(--error-color);
+}
+
+.progress-stats .stat-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.progress-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 12px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary-color), var(--primary-color-light));
+  border-radius: 6px;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  min-width: 48px;
+  text-align: right;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.current-document {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.current-document .label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.current-document .value {
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* ==================== 结果面板 ==================== */
+.result-panel {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+}
+
+.result-header {
+  margin-bottom: 24px;
+}
+
+.result-icon {
+  font-size: 64px;
+  margin-bottom: 12px;
+}
+
+.result-icon.completed {
+  color: var(--success-color);
+}
+
+.result-icon.failed {
+  color: var(--error-color);
+}
+
+.result-header h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.result-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 300px;
+  margin: 0 auto 24px;
+  padding: 20px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stat-row .stat-label {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.stat-row .stat-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.stat-row .stat-value.success {
+  color: var(--success-color);
+}
+
+.stat-row .stat-value.error {
+  color: var(--error-color);
+}
+
+.error-list {
+  text-align: left;
+  margin-bottom: 24px;
+}
+
+.error-list h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 12px 0;
+}
+
+.error-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.error-list li {
+  padding: 8px 12px;
+  background: var(--error-color-light);
+  color: var(--error-color);
+  border-radius: 6px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+/* ==================== 响应式设计 ==================== */
+@media (max-width: 768px) {
+  .batch-build-panel {
+    padding: 16px;
+  }
+
+  .step-indicator {
+    padding: 16px;
+  }
+
+  .step-number {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+
+  .step-line {
+    width: 40px;
+    margin: 0 8px;
+    margin-bottom: 20px;
+  }
+
+  .step-label {
+    font-size: 11px;
+  }
+
+  .selection-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .progress-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .action-bar {
+    flex-direction: column;
+  }
+
+  .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ==================== 暗色主题适配 ==================== */
+[data-theme="dark"] .document-selection,
+[data-theme="dark"] .parameter-config,
+[data-theme="dark"] .progress-panel,
+[data-theme="dark"] .result-panel {
+  background: var(--bg-secondary);
+}
+
+[data-theme="dark"] .progress-stats .stat-item,
+[data-theme="dark"] .result-stats,
+[data-theme="dark"] .current-document {
+  background: var(--bg-tertiary);
+}
+
+/* ==================== 滚动条样式 ==================== */
+.document-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.document-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.document-list::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+.document-list::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}

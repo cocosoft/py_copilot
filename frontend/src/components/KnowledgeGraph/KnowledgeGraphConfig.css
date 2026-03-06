@@ -1,0 +1,495 @@
+/**
+ * 知识图谱配置组件样式
+ */
+
+/* ==================== 主容器 ==================== */
+.knowledge-graph-config {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-primary);
+}
+
+/* ==================== 标签页导航 ==================== */
+.config-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 16px 20px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  overflow-x: auto;
+}
+
+.tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.tab-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--primary-color);
+}
+
+.tab-btn.active {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.tab-icon {
+  font-size: 16px;
+}
+
+.tab-label {
+  font-weight: 500;
+}
+
+/* ==================== 内容区域 ==================== */
+.config-content {
+  flex: 1;
+  overflow: auto;
+  padding: 20px;
+}
+
+/* ==================== 通用配置区域样式 ==================== */
+.config-section-header {
+  margin-bottom: 24px;
+}
+
+.config-section-header h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 8px 0;
+}
+
+.section-description {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin: 0;
+}
+
+/* ==================== 提取策略配置 ==================== */
+.extraction-strategy-config {
+  max-width: 800px;
+}
+
+.strategy-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.strategy-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  transition: all 0.2s ease;
+}
+
+.strategy-card.enabled {
+  border-left: 4px solid var(--success-color);
+}
+
+.strategy-card.disabled {
+  border-left: 4px solid var(--text-muted);
+  opacity: 0.7;
+}
+
+.strategy-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.strategy-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.priority-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: var(--primary-color);
+  color: white;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.strategy-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.strategy-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.action-btn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.action-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.action-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.strategy-description {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin: 0 0 12px 0;
+  padding-left: 40px;
+}
+
+.strategy-config {
+  margin-left: 40px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+}
+
+.strategy-config h5 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 8px 0;
+}
+
+.config-params {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+}
+
+.config-param {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.config-param label {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.param-value {
+  color: var(--text-primary);
+  font-family: monospace;
+}
+
+/* ==================== 质量规则配置 ==================== */
+.quality-rule-config {
+  max-width: 800px;
+}
+
+.rule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.rule-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  transition: all 0.2s ease;
+}
+
+.rule-card.enabled {
+  border-left: 4px solid var(--success-color);
+}
+
+.rule-card.disabled {
+  border-left: 4px solid var(--text-muted);
+  opacity: 0.7;
+}
+
+.rule-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.rule-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rule-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.rule-value {
+  display: flex;
+  align-items: center;
+}
+
+.rule-description {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin: 0;
+}
+
+/* ==================== 数字输入滑块 ==================== */
+.number-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.number-input-wrapper input[type="range"] {
+  width: 120px;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--border-color);
+  border-radius: 2px;
+  outline: none;
+}
+
+.number-input-wrapper input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--primary-color);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.number-input-wrapper input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: var(--primary-color);
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+
+.number-value {
+  min-width: 40px;
+  text-align: center;
+  font-family: monospace;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* ==================== 开关样式 ==================== */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 24px;
+}
+
+.toggle-switch.small {
+  width: 40px;
+  height: 20px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--border-color);
+  transition: 0.3s;
+  border-radius: 24px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+}
+
+.toggle-switch.small .toggle-slider:before {
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+}
+
+input:checked + .toggle-slider {
+  background-color: var(--success-color);
+}
+
+input:checked + .toggle-slider:before {
+  transform: translateX(24px);
+}
+
+.toggle-switch.small input:checked + .toggle-slider:before {
+  transform: translateX(20px);
+}
+
+input:disabled + .toggle-slider {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ==================== 按钮样式 ==================== */
+.config-actions {
+  display: flex;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.btn-primary {
+  background: var(--primary-color);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: var(--primary-color-dark);
+}
+
+.btn-secondary {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+  background: var(--bg-hover);
+}
+
+/* ==================== 响应式设计 ==================== */
+@media (max-width: 768px) {
+  .config-tabs {
+    padding: 12px 16px;
+  }
+  
+  .tab-btn {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  
+  .tab-icon {
+    font-size: 14px;
+  }
+  
+  .config-content {
+    padding: 16px;
+  }
+  
+  .strategy-header,
+  .rule-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .strategy-actions {
+    align-self: flex-end;
+  }
+  
+  .strategy-description,
+  .strategy-config {
+    margin-left: 0;
+    padding-left: 0;
+  }
+  
+  .config-params {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==================== 暗色主题适配 ==================== */
+[data-theme="dark"] .strategy-card,
+[data-theme="dark"] .rule-card {
+  background: var(--bg-secondary);
+}
+
+[data-theme="dark"] .strategy-config {
+  background: var(--bg-tertiary);
+}
+
+/* ==================== 滚动条样式 ==================== */
+.config-content::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.config-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.config-content::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+.config-content::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}

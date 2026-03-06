@@ -6,6 +6,7 @@ import { FaDownload } from 'react-icons/fa';
 import KnowledgeGraph from '../components/KnowledgeGraph';
 import EntityConfigManagement from '../components/EntityConfigManagement';
 import EntityMaintenanceSimple from '../components/EntityMaintenanceSimple';
+import KnowledgeGraphManager from '../components/KnowledgeGraph/KnowledgeGraphManager';
 import websocketService from '../services/websocketService';
 import {
   uploadDocument,
@@ -2541,107 +2542,14 @@ const Knowledge = () => {
           </>
         )}
         
-        {/* 知识图谱界面 */}
+        {/* 知识图谱界面 - 使用新的 KnowledgeGraphManager 组件 */}
         {mainActiveTab === 'knowledge-graph' && (
           <div className="knowledge-graph-section">
             {selectedKnowledgeBase ? (
-              <>
-                <div className="knowledge-graph-header">
-                  <h3>知识库知识图谱</h3>
-                  <div className="knowledge-graph-actions">
-                    <button 
-                      className="create-btn" 
-                      onClick={() => handleBuildKnowledgeGraph(null, selectedKnowledgeBase.id)}
-                      disabled={buildingGraph}
-                    >
-                      {buildingGraph ? '构建中...' : '构建知识图谱'}
-                    </button>
-                  </div>
-                </div>
-                
-                {buildingGraph && graphBuildProgress > 0 && (
-                  <div className="graph-build-progress">
-                    <div className="progress-bar">
-                      <div 
-                        className="progress-fill" 
-                        style={{ width: `${graphBuildProgress}%` }}
-                      ></div>
-                    </div>
-                    <div className="progress-text">构建进度: {Math.round(graphBuildProgress)}%</div>
-                  </div>
-                )}
-                
-                {graphBuildError && (
-                  <div className="notification error">
-                    <span className="notification-icon">❌</span>
-                    <span className="notification-text">{graphBuildError}</span>
-                    <button className="notification-close" onClick={() => setGraphBuildError('')}>×</button>
-                  </div>
-                )}
-                
-                {graphBuildSuccess && (
-                  <div className="notification success">
-                    <span className="notification-icon">✅</span>
-                    <span className="notification-text">{graphBuildSuccess}</span>
-                    <button className="notification-close" onClick={() => setGraphBuildSuccess('')}>×</button>
-                  </div>
-                )}
-                
-                <div className="knowledge-graph-container">
-                  <KnowledgeGraph 
-                    graphData={graphData} 
-                    width={1000} 
-                    height={600} 
-                  />
-                </div>
-                
-                {/* 知识图谱统计信息 */}
-                {graphStatistics && (
-                  <div className="knowledge-graph-stats">
-                    <h4>知识图谱统计</h4>
-                    <div className="stats-grid">
-                      <div className="stat-item">
-                        <span className="stat-label">实体数量:</span>
-                        <span className="stat-value">{graphStatistics.entities_count}</span>
-                      </div>
-                      <div className="stat-item">
-                        <span className="stat-label">关系数量:</span>
-                        <span className="stat-value">{graphStatistics.relationships_count}</span>
-                      </div>
-                      <div className="stat-item">
-                        <span className="stat-label">实体类型:</span>
-                        <span className="stat-value">{graphStatistics.entity_types_count}</span>
-                      </div>
-                      <div className="stat-item">
-                        <span className="stat-label">关系类型:</span>
-                        <span className="stat-value">{graphStatistics.relationship_types_count}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                {/* 知识图谱分析结果 */}
-                {graphAnalysis && (
-                  <div className="knowledge-graph-analysis">
-                    <h4>知识图谱分析</h4>
-                    <div className="analysis-content">
-                      <h5>核心实体</h5>
-                      <ul>
-                        {graphAnalysis.core_entities.map((entity, index) => (
-                          <li key={index}>{entity.name} ({entity.type}) - 连接度: {entity.degree}</li>
-                        ))}
-                      </ul>
-                      
-                      <h5>重要关系</h5>
-                      <ul>
-                        {graphAnalysis.important_relationships.map((rel, index) => (
-                          <li key={index}>{rel.source} → {rel.target}: {rel.relationship_type}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                )}
-              </>
+              <KnowledgeGraphManager 
+                knowledgeBaseId={selectedKnowledgeBase.id}
+                knowledgeBaseName={selectedKnowledgeBase.name}
+              />
             ) : (
               <div className="empty-state">
                 <p>请选择一个知识库查看知识图谱</p>
