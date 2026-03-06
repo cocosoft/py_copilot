@@ -7,6 +7,7 @@ import KnowledgeGraph from '../components/KnowledgeGraph';
 import EntityConfigManagement from '../components/EntityConfigManagement';
 import EntityMaintenanceSimple from '../components/EntityMaintenanceSimple';
 import KnowledgeGraphManager from '../components/KnowledgeGraph/KnowledgeGraphManager';
+import EntityConfirmationList from '../components/KnowledgeGraph/EntityConfirmationList';
 import websocketService from '../services/websocketService';
 import {
   uploadDocument,
@@ -3110,16 +3111,16 @@ const Knowledge = () => {
                     </div>
                   )}
                   
-                  {/* 知识图谱标签页 */}
+                  {/* 知识图谱标签页 - 优化版 */}
                   {documentDetailActiveTab === 'knowledge-graph' && (
-                    <div className="knowledge-graph-tab">
+                    <div className="knowledge-graph-tab optimized">
                       {/* 构建状态显示 */}
                       {buildingGraph && (
                         <div className="graph-build-status">
                           <div className="progress-container">
                             <div className="progress-bar">
-                              <div 
-                                className="progress-fill" 
+                              <div
+                                className="progress-fill"
                                 style={{ width: `${graphBuildProgress}%` }}
                               ></div>
                             </div>
@@ -3128,7 +3129,7 @@ const Knowledge = () => {
                           <p>正在构建知识图谱，请稍候...</p>
                         </div>
                       )}
-                      
+
                       {/* 构建结果消息 */}
                       {graphBuildSuccess && (
                         <div className="success-message">
@@ -3136,79 +3137,88 @@ const Knowledge = () => {
                           {graphBuildSuccess}
                         </div>
                       )}
-                      
+
                       {graphBuildError && (
                         <div className="error-message">
                           <span className="error-icon">✗</span>
                           {graphBuildError}
                         </div>
                       )}
-                      
-                      {/* 知识图谱可视化 */}
-                      <KnowledgeGraph 
-                        documentId={selectedDocument.id}
-                        width={700}
-                        height={400}
-                        graphData={graphData}
-                      />
-                      
-                      {/* 知识图谱统计信息 */}
-                      {graphStatistics && (
-                        <div className="graph-statistics">
-                          <h4>知识图谱统计</h4>
-                          <div className="stats-grid">
-                            <div className="stat-item">
-                              <span className="stat-label">节点总数</span>
-                              <span className="stat-value">{graphStatistics.nodes_count}</span>
-                            </div>
-                            <div className="stat-item">
-                              <span className="stat-label">边总数</span>
-                              <span className="stat-value">{graphStatistics.edges_count}</span>
-                            </div>
-                            <div className="stat-item">
-                              <span className="stat-label">社区数量</span>
-                              <span className="stat-value">{graphStatistics.communities_count}</span>
-                            </div>
-                            <div className="stat-item">
-                              <span className="stat-label">平均度</span>
-                              <span className="stat-value">{graphStatistics.average_degree?.toFixed(2)}</span>
+
+                      {/* 优化的知识图谱界面 - 左右布局 */}
+                      <div className="knowledge-graph-layout">
+                        {/* 左侧：可视化区域 */}
+                        <div className="graph-visualization-section">
+                          <div className="section-header">
+                            <h4>📊 知识图谱可视化</h4>
+                            <div className="graph-actions">
+                              <button className="action-btn" title="重置视图">⟲</button>
+                              <button className="action-btn" title="放大">➕</button>
+                              <button className="action-btn" title="缩小">➖</button>
                             </div>
                           </div>
-                        </div>
-                      )}
-                      
-                      {/* 知识图谱分析结果 */}
-                      {graphAnalysis && (
-                        <div className="graph-analysis">
-                          <h4>图谱分析</h4>
-                          <div className="analysis-section">
-                            <h5>中心性分析</h5>
-                            <div className="centrality-stats">
-                              <div className="centrality-item">
-                                <span>度中心性最高节点:</span>
-                                <span>{graphAnalysis.top_degree_centrality?.node || 'N/A'}</span>
-                                <span>({graphAnalysis.top_degree_centrality?.value?.toFixed(3) || '0.000'})</span>
+                          <div className="graph-container">
+                            <KnowledgeGraph
+                              documentId={selectedDocument.id}
+                              width={600}
+                              height={400}
+                              graphData={graphData}
+                            />
+                          </div>
+
+                          {/* 统计信息 */}
+                          {graphStatistics && (
+                            <div className="graph-stats-bar">
+                              <div className="stat-pill">
+                                <span className="stat-label">节点</span>
+                                <span className="stat-value">{graphStatistics.nodes_count}</span>
                               </div>
-                              <div className="centrality-item">
-                                <span>介数中心性最高节点:</span>
-                                <span>{graphAnalysis.top_betweenness_centrality?.node || 'N/A'}</span>
-                                <span>({graphAnalysis.top_betweenness_centrality?.value?.toFixed(3) || '0.000'})</span>
+                              <div className="stat-pill">
+                                <span className="stat-label">关系</span>
+                                <span className="stat-value">{graphStatistics.edges_count}</span>
+                              </div>
+                              <div className="stat-pill">
+                                <span className="stat-label">社区</span>
+                                <span className="stat-value">{graphStatistics.communities_count}</span>
                               </div>
                             </div>
-                          </div>
+                          )}
                         </div>
-                      )}
-                      
+
+                        {/* 右侧：实体确认面板 */}
+                        <div className="entity-confirmation-section">
+                          <EntityConfirmationList
+                            documentId={selectedDocument.id}
+                            onConfirm={(entity) => console.log('确认实体:', entity)}
+                            onModify={(entity) => console.log('修改实体:', entity)}
+                            onDelete={(entity) => console.log('删除实体:', entity)}
+                            onHighlight={(position) => console.log('高亮位置:', position)}
+                            onReextract={() => handleBuildKnowledgeGraph(selectedDocument.id, null)}
+                          />
+                        </div>
+                      </div>
+
                       {/* 知识图谱说明 */}
                       <div className="graph-info-section">
-                        <h4>知识图谱说明</h4>
-                        <ul>
-                          <li>知识图谱展示了文档中的实体（人物、组织、地点等）及其关系</li>
-                          <li>双击节点可以聚焦查看该节点及其关联节点</li>
-                          <li>双击空白处可以重置视图</li>
-                          <li>拖动节点可以重新布局图谱</li>
-                          <li>不同颜色的节点代表不同类型的实体</li>
-                        </ul>
+                        <h4>💡 使用说明</h4>
+                        <div className="info-grid">
+                          <div className="info-item">
+                            <span className="info-icon">🖱️</span>
+                            <p>双击节点聚焦查看关联节点，双击空白处重置视图</p>
+                          </div>
+                          <div className="info-item">
+                            <span className="info-icon">✋</span>
+                            <p>拖动节点可以重新布局图谱</p>
+                          </div>
+                          <div className="info-item">
+                            <span className="info-icon">✓</span>
+                            <p>在右侧实体列表中确认、修改或删除提取的实体</p>
+                          </div>
+                          <div className="info-item">
+                            <span className="info-icon">📍</span>
+                            <p>点击定位按钮可在原文中高亮显示实体位置</p>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}

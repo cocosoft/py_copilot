@@ -1041,6 +1041,258 @@
   100% { transform: rotate(360deg); }
 }
 
+/* 文档详情页知识图谱标签页样式 - 优化版 */
+.knowledge-graph-tab.optimized {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* 知识图谱布局 - 左右分栏 */
+.knowledge-graph-layout {
+  display: flex;
+  gap: 20px;
+  min-height: 500px;
+}
+
+/* 左侧可视化区域 */
+.graph-visualization-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 1px solid #e1e8ed;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e1e8ed;
+}
+
+.section-header h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0;
+}
+
+.graph-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.graph-actions .action-btn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #e1e8ed;
+  border-radius: 6px;
+  background: #ffffff;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.graph-actions .action-btn:hover {
+  background: #f0f4f8;
+  border-color: #3498db;
+}
+
+.graph-container {
+  flex: 1;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fafbfc;
+}
+
+.graph-stats-bar {
+  display: flex;
+  gap: 12px;
+  padding: 12px 20px;
+  background: #f8f9fa;
+  border-top: 1px solid #e1e8ed;
+}
+
+.stat-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #ffffff;
+  border: 1px solid #e1e8ed;
+  border-radius: 20px;
+  font-size: 13px;
+}
+
+.stat-pill .stat-label {
+  color: #7f8c8d;
+}
+
+.stat-pill .stat-value {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+/* 右侧实体确认区域 */
+.entity-confirmation-section {
+  width: 450px;
+  min-width: 400px;
+  border: 1px solid #e1e8ed;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+/* 知识图谱说明区域 */
+.graph-info-section {
+  background: #f0f7ff;
+  border: 1px solid #bae7ff;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.graph-info-section h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0 0 16px 0;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.info-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.info-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.info-item p {
+  font-size: 14px;
+  color: #5a6c7d;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* 构建状态 */
+.graph-build-status {
+  background: #f0f7ff;
+  border: 1px solid #bae7ff;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+}
+
+.graph-build-status .progress-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.graph-build-status .progress-bar {
+  flex: 1;
+  height: 8px;
+  background: #e1e8ed;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.graph-build-status .progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3498db, #2ecc71);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.graph-build-status .progress-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: #3498db;
+  min-width: 45px;
+}
+
+.graph-build-status p {
+  margin: 0;
+  font-size: 14px;
+  color: #5a6c7d;
+}
+
+/* 成功和错误消息 */
+.success-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #e6fff0;
+  border: 1px solid #27ae60;
+  border-radius: 8px;
+  color: #27ae60;
+  font-size: 14px;
+}
+
+.success-icon {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #ffe6e6;
+  border: 1px solid #e74c3c;
+  border-radius: 8px;
+  color: #e74c3c;
+  font-size: 14px;
+}
+
+.error-icon {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+/* 响应式布局 */
+@media (max-width: 1200px) {
+  .knowledge-graph-layout {
+    flex-direction: column;
+  }
+
+  .entity-confirmation-section {
+    width: 100%;
+    min-width: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .graph-stats-bar {
+    flex-wrap: wrap;
+  }
+}
+
 /* 处理中文档进度面板样式 */
 .processing-documents-panel {
   background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
