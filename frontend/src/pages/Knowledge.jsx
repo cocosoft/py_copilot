@@ -138,6 +138,8 @@ const Knowledge = () => {
   const [showImportModal, setShowImportModal] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importFile, setImportFile] = useState(null);
+  const [exportInfo, setExportInfo] = useState(null);
+  const [showExportInfo, setShowExportInfo] = useState(false);
   
   // 懒加载相关状态
   const [loadingMore, setLoadingMore] = useState(false);
@@ -675,21 +677,40 @@ const Knowledge = () => {
   };
   
   // 导出知识库
-  const handleExportKnowledgeBase = async (kbId) => {
+  const handleExportKnowledgeBase = async (kb) => {
     try {
-      const exportData = await exportKnowledgeBase(kbId);
+      const exportData = await exportKnowledgeBase(kb.id);
+
       // 创建并下载JSON文件
       const jsonStr = JSON.stringify(exportData, null, 2);
       const blob = new Blob([jsonStr], { type: 'application/json' });
+      const fileSize = (blob.size / 1024).toFixed(2); // 转换为KB
       const url = URL.createObjectURL(blob);
+
+      // 生成文件名（使用知识库名称和时间戳）
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+      const fileName = `${kb.name}_${timestamp}.json`;
+
       const a = document.createElement('a');
       a.href = url;
-      a.download = `knowledge-base-${kbId}.json`;
+      a.download = fileName;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      setSuccess('知识库导出成功');
+
+      // 设置导出信息
+      setExportInfo({
+        fileName: fileName,
+        fileSize: fileSize,
+        kbName: kb.name,
+        kbId: kb.id,
+        docCount: exportData.documents?.length || 0,
+        tagCount: exportData.tags?.length || 0,
+        exportTime: new Date().toLocaleString()
+      });
+      setShowExportInfo(true);
+      setSuccess(`知识库"${kb.name}"导出成功，文件已下载到浏览器默认下载文件夹`);
     } catch (error) {
       setError(`导出失败: ${error.response?.data?.detail || error.message}`);
     }
@@ -1736,7 +1757,7 @@ const Knowledge = () => {
                     className="export-btn"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleExportKnowledgeBase(kb.id);
+                      handleExportKnowledgeBase(kb);
                     }}
                     title="导出知识库"
                   >
@@ -2883,6 +2904,59 @@ const Knowledge = () => {
               </button>
               <button className="btn-primary" onClick={handleImportKnowledgeBase} disabled={importing || !importFile}>
                 {importing ? '导入中...' : '导入'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 导出成功信息模态框 */}
+      {showExportInfo && exportInfo && (
+        <div className="modal-overlay" onClick={() => setShowExportInfo(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">导出成功</h3>
+              <button className="modal-close" onClick={() => setShowExportInfo(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <div className="export-info-container">
+                <div className="export-info-item">
+                  <span className="export-info-label">知识库名称:</span>
+                  <span className="export-info-value">{exportInfo.kbName}</span>
+                </div>
+                <div className="export-info-item">
+                  <span className="export-info-label">文件名:</span>
+                  <span className="export-info-value" style={{ wordBreak: 'break-all' }}>{exportInfo.fileName}</span>
+                </div>
+                <div className="export-info-item">
+                  <span className="export-info-label">文件大小:</span>
+                  <span className="export-info-value">{exportInfo.fileSize} KB</span>
+                </div>
+                <div className="export-info-item">
+                  <span className="export-info-label">文档数量:</span>
+                  <span className="export-info-value">{exportInfo.docCount} 个</span>
+                </div>
+                <div className="export-info-item">
+                  <span className="export-info-label">标签数量:</span>
+                  <span className="export-info-value">{exportInfo.tagCount} 个</span>
+                </div>
+                <div className="export-info-item">
+                  <span className="export-info-label">导出时间:</span>
+                  <span className="export-info-value">{exportInfo.exportTime}</span>
+                </div>
+                <div className="export-info-note" style={{ marginTop: '16px', padding: '12px', backgroundColor: '#f0f9ff', borderRadius: '6px', borderLeft: '4px solid #1890ff' }}>
+                  <p style={{ margin: '0', fontSize: '14px', color: '#666' }}>
+                    文件已下载到浏览器默认下载文件夹（通常是"下载"文件夹）。
+                  </p>
+                  <p style={{ margin: '8px 0 0 0', fontSize: '13px', color: '#999' }}>
+                    提示：您可以在浏览器设置中更改默认下载位置。
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-primary" onClick={() => setShowExportInfo(false)}>
+                确定
               </button>
             </div>
           </div>

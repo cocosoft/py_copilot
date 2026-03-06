@@ -78,8 +78,12 @@ class AdvancedTextProcessor:
             # 实体消歧
             if entities and len(entities) > 1:
                 logger.info(f"开始实体消歧，共 {len(entities)} 个实体")
-                entities = await self.llm_disambiguator.disambiguate_entities(entities, text)
-                logger.info(f"实体消歧完成")
+                entity_groups = await self.llm_disambiguator.disambiguate_entities(entities, text)
+                logger.info(f"实体消歧完成，生成 {len(entity_groups)} 个实体组")
+                
+                # 将实体组转换为标准实体格式
+                entities = self._convert_entity_groups_to_entities(entity_groups, text)
+                logger.info(f"转换后得到 {len(entities)} 个标准实体")
 
             # 指代消解
             if entities:
@@ -92,6 +96,70 @@ class AdvancedTextProcessor:
         except Exception as e:
             logger.error(f"LLM实体提取异常: {e}")
             return [], []
+    
+    def _convert_entity_groups_to_entities(self, entity_groups: List[Dict[str, Any]], text: str) -> List[Dict[str, Any]]:
+        """将实体组转换为标准实体格式
+        
+        消歧后的实体组格式为：
+        {
+            "entity_id": "...",
+            "canonical_name": "...",
+            "mentions": ["...", "..."],
+            "entity_type": "...",
+            "confidence": 0.95
+        }
+        
+        需要转换为标准格式：
+        {
+            "text": "...",
+            "type": "...",
+            "start_pos": 0,
+            "end_pos": 10,
+            "confidence": 0.95
+        }
+        
+        Args:
+            entity_groups: 实体组列表
+            text: 原始文本
+            
+        Returns:
+            标准格式的实体列表
+        """
+        entities = []
+        
+        for group in entity_groups:
+            canonical_name = group.get('canonical_name', '')
+            entity_type = group.get('entity_type', 'UNKNOWN')
+            confidence = group.get('confidence', 0.7)
+            
+            # 在文本中查找标准化名称的位置
+            start_pos = text.find(canonical_name)
+            if start_pos == -1:
+                # 如果找不到，使用第一个提及
+                mentions = group.get('mentions', [])
+                if mentions:
+                    canonical_name = mentions[0]
+                    start_pos = text.find(canonical_name)
+                
+                # 如果还是找不到，跳过这个实体
+                if start_pos == -1:
+                    logger.warning(f"无法在文本中找到实体: {canonical_name}")
+                    continue
+            
+            end_pos = start_pos + len(canonical_name)
+            
+            entity = {
+                'text': canonical_name,
+                'type': entity_type,
+                'start_pos': start_pos,
+                'end_pos': end_pos,
+                'confidence': confidence,
+                'entity_id': group.get('entity_id', ''),
+                'mentions': group.get('mentions', [])
+            }
+            entities.append(entity)
+        
+        return entities
     
     async def extract_keywords(self, text: str, top_n: int = 10) -> List[Dict[str, Any]]:
         """提取关键词

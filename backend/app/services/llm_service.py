@@ -366,15 +366,29 @@ class LLMService:
                         # 只使用数据库中的API密钥，不回退到环境变量
                         logger.info("只使用数据库中的API密钥，不回退到环境变量")
                         
+                        # 检查supplier字典的内容
+                        logger.info(f"supplier字典键: {list(supplier.keys())}")
+                        logger.info(f"supplier['api_key']类型: {type(supplier.get('api_key'))}")
+                        logger.info(f"supplier['api_key']值: {supplier.get('api_key')}")
+                        logger.info(f"supplier['api_endpoint']: {supplier.get('api_endpoint')}")
+                        
+                        # 确保api_key是字符串类型
+                        api_key = supplier.get("api_key")
+                        if api_key is None:
+                            api_key = ""
+                        api_key = str(api_key).strip()
+                        
                         client_params = {
-                            "api_key": supplier["api_key"],
+                            "api_key": api_key,
                             "base_url": supplier["api_endpoint"] if supplier["api_endpoint"] else "https://api.deepseek.com/v1"
                         }
                         
-                        logger.info(f"最终使用的API密钥: {client_params['api_key'][:5]}...{client_params['api_key'][-4:]}" if client_params['api_key'] else "最终使用的API密钥: None")
-                        logger.info(f"使用的API端点: {client_params['base_url']}")
+                        # 过滤掉None值
+                        client_params = {k: v for k, v in client_params.items() if v is not None and v != ""}
                         
-                        logger.info(f"客户端参数: {client_params}")
+                        logger.info(f"最终使用的API密钥: {client_params.get('api_key', 'None')[:5]}...{client_params.get('api_key', 'None')[-4:]}")
+                        logger.info(f"使用的API端点: {client_params.get('base_url', 'None')}")
+                        logger.info(f"客户端参数字典: {client_params}")
                         
                         client = OpenAI(**client_params)
                         

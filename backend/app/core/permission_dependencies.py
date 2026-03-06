@@ -1,6 +1,6 @@
 """权限控制依赖函数模块"""
 from typing import Any, Optional
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -9,7 +9,8 @@ from app.models.user import User
 
 def get_current_active_user(
     db: Session = Depends(get_db),
-    token: Optional[str] = None
+    token: Optional[str] = None,
+    x_user_id: Optional[int] = Header(None, alias="X-User-Id")
 ) -> User:
     """
     获取当前活跃用户
@@ -17,6 +18,7 @@ def get_current_active_user(
     Args:
         db: 数据库会话
         token: OAuth2令牌（可选）
+        x_user_id: 可选的用户ID（通过请求头传递，用于未启用认证时）
     
     Returns:
         当前活跃用户对象
@@ -27,7 +29,7 @@ def get_current_active_user(
     # 导入在这里避免循环导入
     from app.api.deps import get_current_user as get_current_user_func
     
-    current_user = get_current_user_func(db, token)
+    current_user = get_current_user_func(db, token, x_user_id)
     
     if not current_user.is_active:
         raise HTTPException(
@@ -39,7 +41,8 @@ def get_current_active_user(
 
 def get_current_active_superuser(
     db: Session = Depends(get_db),
-    token: Optional[str] = None
+    token: Optional[str] = None,
+    x_user_id: Optional[int] = Header(None, alias="X-User-Id")
 ) -> User:
     """
     获取当前活跃的超级用户
@@ -47,6 +50,7 @@ def get_current_active_superuser(
     Args:
         db: 数据库会话
         token: OAuth2令牌（可选）
+        x_user_id: 可选的用户ID（通过请求头传递，用于未启用认证时）
     
     Returns:
         当前活跃的超级用户对象
@@ -57,7 +61,7 @@ def get_current_active_superuser(
     # 导入在这里避免循环导入
     from app.api.deps import get_current_user as get_current_user_func
     
-    current_user = get_current_user_func(db, token)
+    current_user = get_current_user_func(db, token, x_user_id)
     
     if not current_user.is_active:
         raise HTTPException(
@@ -75,7 +79,8 @@ def get_current_active_superuser(
 
 def get_current_verified_user(
     db: Session = Depends(get_db),
-    token: Optional[str] = None
+    token: Optional[str] = None,
+    x_user_id: Optional[int] = Header(None, alias="X-User-Id")
 ) -> User:
     """
     获取当前验证过的用户
@@ -83,6 +88,7 @@ def get_current_verified_user(
     Args:
         db: 数据库会话
         token: OAuth2令牌（可选）
+        x_user_id: 可选的用户ID（通过请求头传递，用于未启用认证时）
     
     Returns:
         当前验证过的用户对象
@@ -93,7 +99,7 @@ def get_current_verified_user(
     # 导入在这里避免循环导入
     from app.api.deps import get_current_user as get_current_user_func
     
-    current_user = get_current_user_func(db, token)
+    current_user = get_current_user_func(db, token, x_user_id)
     
     if not current_user.is_active:
         raise HTTPException(
@@ -121,12 +127,13 @@ def require_permissions(*required_permissions: str):
     """
     def permission_checker(
         db: Session = Depends(get_db),
-        token: Optional[str] = None
+        token: Optional[str] = None,
+        x_user_id: Optional[int] = Header(None, alias="X-User-Id")
     ) -> User:
         # 导入在这里避免循环导入
         from app.api.deps import get_current_user as get_current_user_func
         
-        current_user = get_current_user_func(db, token)
+        current_user = get_current_user_func(db, token, x_user_id)
         
         if not current_user.is_active:
             raise HTTPException(
@@ -149,7 +156,8 @@ def require_permissions(*required_permissions: str):
 
 def require_superuser_permission(
     db: Session = Depends(get_db),
-    token: Optional[str] = None
+    token: Optional[str] = None,
+    x_user_id: Optional[int] = Header(None, alias="X-User-Id")
 ) -> User:
     """
     要求超级用户权限
@@ -157,6 +165,7 @@ def require_superuser_permission(
     Args:
         db: 数据库会话
         token: OAuth2令牌（可选）
+        x_user_id: 可选的用户ID（通过请求头传递，用于未启用认证时）
     
     Returns:
         当前超级用户对象
@@ -164,12 +173,13 @@ def require_superuser_permission(
     Raises:
         HTTPException: 用户不是超级用户时抛出
     """
-    return get_current_active_superuser(db, token)
+    return get_current_active_superuser(db, token, x_user_id)
 
 
 def require_verified_user(
     db: Session = Depends(get_db),
-    token: Optional[str] = None
+    token: Optional[str] = None,
+    x_user_id: Optional[int] = Header(None, alias="X-User-Id")
 ) -> User:
     """
     要求验证过的用户
@@ -177,6 +187,7 @@ def require_verified_user(
     Args:
         db: 数据库会话
         token: OAuth2令牌（可选）
+        x_user_id: 可选的用户ID（通过请求头传递，用于未启用认证时）
     
     Returns:
         当前验证过的用户对象
@@ -184,4 +195,4 @@ def require_verified_user(
     Raises:
         HTTPException: 用户未验证时抛出
     """
-    return get_current_verified_user(db, token)
+    return get_current_verified_user(db, token, x_user_id)

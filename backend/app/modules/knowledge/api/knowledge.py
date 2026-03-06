@@ -926,7 +926,7 @@ async def restore_document_version(
         restored_document = knowledge_service.restore_document_version(document_id, version_id, db)
         if not restored_document:
             raise HTTPException(status_code=404, detail="文档或版本不存在")
-        
+
         return KnowledgeDocument(
             id=restored_document.id,
             title=restored_document.title,
@@ -944,3 +944,162 @@ async def restore_document_version(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"恢复文档版本失败: {str(e)}")
+
+
+@router.get("/knowledge-bases/{knowledge_base_id}/export")
+async def export_knowledge_base(
+    knowledge_base_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    导出知识库
+
+    导出知识库的所有文档、标签和元数据为JSON格式
+    """
+    try:
+        # 检查知识库是否存在
+        knowledge_base = knowledge_service.get_knowledge_base(knowledge_base_id, db)
+        if not knowledge_base:
+            raise HTTPException(status_code=404, detail="知识库不存在")
+
+        # 获取知识库的所有文档
+        documents = knowledge_service.list_documents(db, skip=0, limit=10000, knowledge_base_id=knowledge_base_id)
+
+        # 获取知识库的所有标签
+        tags = knowledge_service.get_all_tags(db, knowledge_base_id)
+
+        # 构建导出数据
+        export_data = {
+            "knowledge_base": {
+                "id": knowledge_base.id,
+                "name": knowledge_base.name,
+                "description": knowledge_base.description,
+                "created_at": knowledge_base.created_at.isoformat() if knowledge_base.created_at else None,
+                "updated_at": knowledge_base.updated_at.isoformat() if knowledge_base.updated_at else None
+            },
+            "documents": [],
+            "tags": []
+        }
+
+        # 添加文档数据
+        for doc in documents:
+            doc_data = {
+                "id": doc.id,
+                "title": doc.title,
+                "file_type": doc.file_type,
+                "content": doc.content,
+                "file_path": doc.file_path,
+                "is_vectorized": doc.is_vectorized,
+                "vector_id": doc.vector_id,
+                "document_metadata": doc.document_metadata,
+                "created_at": doc.created_at.isoformat() if doc.created_at else None,
+                "updated_at": doc.updated_at.isoformat() if doc.updated_at else None
+            }
+            export_data["documents"].append(doc_data)
+
+        # 添加标签数据
+        for tag in tags:
+            tag_data = {
+                "id": tag.id,
+                "name": tag.name,
+                "color": tag.color,
+                "created_at": tag.created_at.isoformat() if tag.created_at else None
+            }
+            export_data["tags"].append(tag_data)
+
+        return export_data
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"导出知识库失败: {str(e)}")
+        print(f"详细堆栈: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"导出知识库失败: {str(e)}")
+
+
+@router.post("/knowledge-bases/import")
+async def import_knowledge_base(
+    import_data: dict,
+    db: Session = Depends(get_db)
+):
+    """
+    导入知识库
+
+    从JSON数据导入知识库，包括文档、标签和元数据
+    """
+    try:
+        # 验证导入数据
+        if "knowledge_base" not in import_data:
+            raise HTTPException(status_code=400, detail="导入数据格式错误：缺少知识库信息")
+
+        kb_data = import_data["knowledge_base"]
+
+        # 检查知识库名称是否已存在
+        existing_kb = db.query(KnowledgeBaseModel).filter(KnowledgeBaseModel.name == kb_data.get("name")).first()
+        if existing_kb:
+            raise HTTPException(status_code=400, detail="知识库名称已存在")
+
+        # 创建新知诀库
+        new_kb = knowledge_service.create_knowledge_base(
+            name=kb_data.get("name"),
+            description=kb_data.get("description"),
+            db=db
+        )
+
+        # 导入标签
+        tag_mapping = {}  # 旧标签ID映射到新标签ID
+        if "tags" in import_data:
+            for tag_data in import_data["tags"]:
+                # 创建新标签
+                from app.modules.knowledge.models.knowledge_document import KnowledgeTag
+                new_tag = KnowledgeTag(
+                    name=tag_data.get("name"),
+                    color=tag_data.get("color", "#1890ff")
+                )
+                db.add(new_tag)
+                db.commit()
+                db.refresh(new_tag)
+                tag_mapping[tag_data.get("id")] = new_tag.id
+
+        # 导入文档
+        imported_count = 0
+        if "documents" in import_data:
+            for doc_data in import_data["documents"]:
+                # 创建文档记录
+                new_doc = KnowledgeDocumentModel(
+                    title=doc_data.get("title"),
+                    knowledge_base_id=new_kb.id,
+                    file_path=doc_data.get("file_path"),
+                    file_type=doc_data.get("file_type"),
+                    content=doc_data.get("content", ""),
+                    is_vectorized=0,  # 导入的文档需要重新向量化
+                    vector_id=None,
+                    document_metadata=doc_data.get("document_metadata", {})
+                )
+
+                # 更新元数据中的处理状态
+                if new_doc.document_metadata:
+                    new_doc.document_metadata["processing_status"] = "pending"
+                    new_doc.document_metadata["imported_from"] = kb_data.get("id")
+
+                db.add(new_doc)
+                db.commit()
+                db.refresh(new_doc)
+                imported_count += 1
+
+        return {
+            "message": "知识库导入成功",
+            "knowledge_base_id": new_kb.id,
+            "knowledge_base_name": new_kb.name,
+            "imported_documents": imported_count,
+            "imported_tags": len(tag_mapping)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"导入知识库失败: {str(e)}")
+        print(f"详细堆栈: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"导入知识库失败: {str(e)}")

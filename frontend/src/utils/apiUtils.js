@@ -114,7 +114,6 @@ export const request = async (endpoint, options = {}) => {
   let timeoutId = null;
 
   // 调试日志
-  console.log(`[API Request] ${options.method || 'GET'} ${url} - timeout: ${timeout}ms`);
 
   try {
     if (options.signal) {
@@ -137,8 +136,6 @@ export const request = async (endpoint, options = {}) => {
       clearTimeout(timeoutId);
     }
 
-    // 调试日志
-    console.log(`[API Response] ${options.method || 'GET'} ${url} - status: ${response.status}`);
 
     // 检查响应状态
     if (!response.ok) {

@@ -270,30 +270,14 @@ async def startup_event():
     except Exception as e:
         logger.error(f"初始化 MCP 服务失败: {e}")
 
-    # 预加载知识库处理模型（spaCy和jieba）
+    # 初始化LLM文本处理器
     try:
-        logger.info("正在预加载知识库处理模型...")
-        # 在后台线程中预加载，避免阻塞启动
-        def preload_models():
-            try:
-                # 预加载jieba
-                import jieba
-                jieba.initialize()
-                logger.info("jieba中文分词器预加载完成")
-
-                # 预加载spaCy
-                import spacy
-                nlp = spacy.load("zh_core_web_sm")
-                logger.info("spaCy NER模型预加载完成")
-            except Exception as e:
-                logger.warning(f"模型预加载失败（不影响使用，将在首次处理时加载）: {e}")
-
-        # 启动后台线程预加载模型
-        preload_thread = threading.Thread(target=preload_models, daemon=True)
-        preload_thread.start()
-        logger.info("知识库处理模型预加载任务已启动（后台执行）")
+        logger.info("正在初始化LLM文本处理器...")
+        from app.services.knowledge.llm_text_processor import LLMTextProcessor
+        # LLMTextProcessor 会在首次使用时初始化
+        logger.info("LLM文本处理器初始化完成")
     except Exception as e:
-        logger.error(f"启动模型预加载任务失败: {e}")
+        logger.error(f"初始化LLM文本处理器失败: {e}")
 
     # 初始化文档处理队列
     try:

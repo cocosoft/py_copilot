@@ -426,17 +426,23 @@ class BatchKnowledgeGraphBuilder:
         Args:
             document_id: 文档ID
             index: 索引
-            db: 数据库会话
+            db: 数据库会话（不使用，每个任务创建独立连接）
             
         Returns:
             构建结果
         """
+        # 每个任务创建独立的数据库连接，避免并发冲突
+        from app.core.database import SessionLocal
+        local_db = None
+        
         try:
+            local_db = SessionLocal()
+            
             # 使用线程池运行同步的图谱构建
             loop = asyncio.get_event_loop()
             graph_data = await loop.run_in_executor(
                 None,
-                lambda: self.kg_service.build_document_graph(document_id, db)
+                lambda: self.kg_service.build_document_graph(document_id, local_db)
             )
             
             if "error" in graph_data:
@@ -464,6 +470,9 @@ class BatchKnowledgeGraphBuilder:
                 "success": False,
                 "error": str(e)
             }
+        finally:
+            if local_db:
+                local_db.close()
 
 
 # 便捷函数

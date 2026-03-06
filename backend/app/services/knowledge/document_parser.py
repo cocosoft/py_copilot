@@ -555,7 +555,7 @@ class DocumentParser:
         entities = []
         
         # 简单的中文实体提取（基于关键词）
-        # 在实际应用中应该使用NLP库如spaCy或jieba
+        # 在实际应用中应该使用LLM进行实体提取
         
         # 提取人名（简单规则）
         import re

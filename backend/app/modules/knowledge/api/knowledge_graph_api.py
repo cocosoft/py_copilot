@@ -1,11 +1,12 @@
 """知识图谱API路由"""
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import Optional, List, Dict, Any
 
 from app.core.database import get_db
 from app.modules.knowledge.models.knowledge_document import KnowledgeDocument
 from app.services.knowledge.knowledge_graph_service import KnowledgeGraphService
+from app.services.knowledge.batch_graph_builder import BatchGraphBuilder, BatchBuildResult
 
 # 创建Pydantic模型用于API请求和响应
 from pydantic import BaseModel, validator, model_validator
@@ -85,6 +86,34 @@ class DocumentSemanticsResponse(BaseModel):
     entity_density: float
     top_keywords: List[Dict[str, Any]]
     semantic_richness: float
+
+
+class BatchGraphBuildRequest(BaseModel):
+    """批量构建知识图谱请求"""
+    document_ids: Optional[List[int]] = None
+    knowledge_base_id: Optional[int] = None
+    max_concurrent: int = 3
+    batch_size: int = 10
+
+    class Config:
+        extra = "ignore"
+
+
+class BatchGraphBuildResponse(BaseModel):
+    """批量构建知识图谱响应"""
+    success: bool
+    batch_id: str
+    status: str
+    total_documents: int
+    completed_count: int
+    failed_count: int
+    skipped_count: int
+    total_entities: int
+    total_relationships: int
+    processing_time: float
+    progress_percentage: float
+    failed_tasks: Optional[List[Dict[str, Any]]] = None
+    error: Optional[str] = None
 
 
 router = APIRouter(tags=["knowledge-graph"])
@@ -340,6 +369,9 @@ async def build_knowledge_graph(
                 raise HTTPException(status_code=400, detail=f"无法构建知识图谱: {error_msg}")
             elif "不存在" in error_msg:
                 raise HTTPException(status_code=404, detail=error_msg)
+            elif "实体提取" in error_msg or "没有发现任何实体" in error_msg:
+                # 实体提取失败是内容质量问题，返回400而不是500
+                raise HTTPException(status_code=400, detail=f"文档内容无法提取有效实体，请检查文档内容质量或更换文档后重试。详情: {error_msg}")
             else:
                 raise HTTPException(status_code=500, detail=error_msg)
 

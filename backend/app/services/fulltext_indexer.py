@@ -39,7 +39,7 @@ class IndexStatistics:
 
 
 class ChineseTokenizer:
-    """中文分词器（简化实现，生产环境应使用jieba等专业库）"""
+    """中文分词器（简化实现，生产环境应使用LLM进行智能分词）"""
     
     def __init__(self):
         # 中文停用词

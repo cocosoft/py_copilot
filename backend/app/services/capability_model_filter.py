@@ -14,7 +14,15 @@ class CapabilityBasedModelFilter:
     SCENE_CAPABILITY_MAPPING = {
         "chat": ["chat", "multi_turn_conversation", "context_management", "text_generation"],
         "translate": ["translation", "language_translation", "text_generation"],
-        "topic_title": ["text_summarization", "keyword_extraction"]
+        "topic_title": ["text_summarization", "keyword_extraction"],
+        "knowledge": ["knowledge_retrieval", "information_synthesis", "context_awareness", "text_generation", "entity_extraction"],
+        "image": ["image_generation", "image_recognition", "visual_understanding"],
+        "video": ["video_analysis", "video_generation", "video_understanding"],
+        "voice": ["speech_recognition", "text_to_speech", "voice_analysis"],
+        "workflow": ["task_planning", "step_coordination", "process_optimization"],
+        "tool": ["tool_calling", "api_integration", "function_execution"],
+        "search": ["information_retrieval", "relevance_ranking", "semantic_search"],
+        "mcp": ["multi_modal_processing", "cross_media_understanding", "unified_representation"]
     }
     
     def __init__(self, db: Session):

@@ -81,7 +81,6 @@ class WebSocketService {
     return new Promise((resolve, reject) => {
       try {
         const wsUrl = this.getWebSocketUrl();
-        console.log(`正在连接WebSocket: ${wsUrl}`);
 
         this.ws = new WebSocket(wsUrl);
 

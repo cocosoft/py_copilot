@@ -17,8 +17,17 @@ class KnowledgeGraphService:
     """知识图谱服务，负责实体识别、关系提取和知识图谱查询"""
 
     def __init__(self):
-        self.text_processor = AdvancedTextProcessor()
+        # 不在初始化时创建text_processor，因为需要db会话
+        self._text_processor = None
         self.graph_builder = KnowledgeGraphBuilder()
+    
+    def _get_text_processor(self, db: Session = None):
+        """获取文本处理器，如果没有db则使用默认处理器"""
+        if db:
+            return AdvancedTextProcessor(db)
+        elif self._text_processor is None:
+            self._text_processor = AdvancedTextProcessor()
+        return self._text_processor
     
     def extract_and_store_entities(self, db: Session, document: KnowledgeDocument,
                                    entities: List[Dict[str, Any]] = None,
@@ -39,7 +48,9 @@ class KnowledgeGraphService:
             # 如果没有提供实体和关系，则进行提取
             if entities is None or relationships is None:
                 logger.info(f"文档 {document.id} 未提供实体，开始提取...")
-                entities, relationships = self.text_processor.extract_entities_relationships_sync(document.content)
+                # 使用带有db的text_processor来获取模型配置
+                text_processor = self._get_text_processor(db)
+                entities, relationships = text_processor.extract_entities_relationships_sync(document.content)
                 logger.info(f"文档 {document.id} 提取完成: {len(entities)} 个实体, {len(relationships)} 个关系")
             else:
                 logger.info(f"文档 {document.id} 使用已提供的实体: {len(entities)} 个实体, {len(relationships)} 个关系")
@@ -316,22 +327,25 @@ class KnowledgeGraphService:
         if not document.content:
             return []
         
-        return self.text_processor.extract_keywords(document.content, top_n)
+        text_processor = self._get_text_processor()
+        return text_processor.extract_keywords(document.content, top_n)
     
     def analyze_document_semantics(self, document: KnowledgeDocument) -> Dict[str, Any]:
         """分析文档语义特征"""
         if not document.content:
             return {"error": "文档内容为空"}
         
+        text_processor = self._get_text_processor()
+        
         # 提取关键词
-        keywords = self.text_processor.extract_keywords(document.content, 20)
+        keywords = text_processor.extract_keywords(document.content, 20)
         
         # 分析文本特征
         text_length = len(document.content)
         word_count = len(document.content.split())
         
         # 计算实体密度（如果有实体）
-        entities = self.text_processor.extract_entities_relationships(document.content)[0]
+        entities = text_processor.extract_entities_relationships(document.content)[0]
         entity_density = len(entities) / (text_length / 1000) if text_length > 0 else 0
         
         return {

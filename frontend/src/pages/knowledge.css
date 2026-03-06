@@ -1977,6 +1977,47 @@
   color: #fa8c16;
 }
 
+/* 导出信息展示样式 */
+.export-info-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.export-info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 10px 12px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  border-left: 3px solid #3498db;
+}
+
+.export-info-label {
+  font-weight: 500;
+  color: #2c3e50;
+  font-size: 14px;
+  min-width: 80px;
+}
+
+.export-info-value {
+  color: #2c3e50;
+  font-size: 14px;
+  text-align: right;
+  flex: 1;
+  margin-left: 12px;
+}
+
+.export-info-note {
+  margin-top: 16px;
+}
+
+.export-info-note p {
+  margin: 0;
+  line-height: 1.5;
+}
+
 /* 向量化按钮样式 */
 .btn-vectorize {
   padding: 10px 20px;

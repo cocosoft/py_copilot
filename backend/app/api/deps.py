@@ -34,6 +34,10 @@ def get_current_user(
     Raises:
         HTTPException: 认证失败时抛出
     """
+    # 处理Header对象，提取实际的值
+    if x_user_id is not None and hasattr(x_user_id, 'value'):
+        x_user_id = x_user_id.value
+    
     # 如果未启用认证，从请求头获取用户ID或返回第一个用户
     if not settings.enable_auth:
         print(f"[DEBUG] enable_auth=False, x_user_id={x_user_id}")
