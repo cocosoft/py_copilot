@@ -317,6 +317,15 @@ export const disambiguateEntity = async (entityId, canonicalId) => {
  * @returns {Promise<Object>} 社区分析结果
  */
 export const detectCommunities = async (knowledgeBaseId) => {
+  return await analyzeCommunities(knowledgeBaseId);
+};
+
+/**
+ * 社区发现分析（别名）
+ * @param {number} knowledgeBaseId 知识库ID
+ * @returns {Promise<Object>} 社区分析结果
+ */
+export const analyzeCommunities = async (knowledgeBaseId) => {
   try {
     // TODO: 后端API完成后替换为真实调用
     // return request(`/v1/knowledge-graph/analysis/communities?kb_id=${knowledgeBaseId}`);
@@ -356,6 +365,15 @@ export const detectCommunities = async (knowledgeBaseId) => {
  * @returns {Promise<Object>} 中心性分析结果
  */
 export const calculateCentrality = async (knowledgeBaseId) => {
+  return await analyzeCentrality(knowledgeBaseId);
+};
+
+/**
+ * 中心性分析（别名）
+ * @param {number} knowledgeBaseId 知识库ID
+ * @returns {Promise<Object>} 中心性分析结果
+ */
+export const analyzeCentrality = async (knowledgeBaseId) => {
   try {
     // TODO: 后端API完成后替换为真实调用
     // return request(`/v1/knowledge-graph/analysis/centrality?kb_id=${knowledgeBaseId}`);
@@ -384,6 +402,17 @@ export const calculateCentrality = async (knowledgeBaseId) => {
  * @returns {Promise<Object>} 路径分析结果
  */
 export const findPath = async (sourceId, targetId) => {
+  // 别名导出，用于兼容不同命名
+  return await findPathInternal(sourceId, targetId);
+};
+
+/**
+ * 路径发现（内部实现）
+ * @param {string} sourceId 源实体ID
+ * @param {string} targetId 目标实体ID
+ * @returns {Promise<Object>} 路径分析结果
+ */
+const findPathInternal = async (sourceId, targetId) => {
   try {
     // TODO: 后端API完成后替换为真实调用
     // return request(`/v1/knowledge-graph/analysis/path?source=${sourceId}&target=${targetId}`);
