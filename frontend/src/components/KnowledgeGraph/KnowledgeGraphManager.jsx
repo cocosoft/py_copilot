@@ -8,8 +8,12 @@
 import React, { useState, useEffect } from 'react';
 import KnowledgeGraphDashboard from './KnowledgeGraphDashboard';
 import EntityManagement from './EntityManagement';
+import RelationManagement from './RelationManagement';
+import RelationTypeConfig from './RelationTypeConfig';
 import BatchBuildPanel from './BatchBuildPanel';
 import GraphVisualization from './GraphVisualization';
+import UserGuide from '../UI/UserGuide';
+import { getKnowledgeBaseGraphStats } from '../../utils/api/knowledgeGraphApi';
 import './KnowledgeGraphManager.css';
 
 /**
@@ -29,6 +33,9 @@ const KnowledgeGraphManager = ({ knowledgeBaseId, knowledgeBaseName }) => {
   
   // 加载状态
   const [loading, setLoading] = useState(false);
+  
+  // 用户引导显示状态
+  const [showGuide, setShowGuide] = useState(false);
 
   // 标签页配置
   const tabs = [
@@ -44,12 +51,17 @@ const KnowledgeGraphManager = ({ knowledgeBaseId, knowledgeBaseName }) => {
       icon: '🏷️',
       description: '管理知识库中的实体'
     },
-    { 
-      id: 'relations', 
-      label: '关系管理', 
+    {
+      id: 'relations',
+      label: '关系管理',
       icon: '🔗',
-      description: '管理实体间的关系',
-      disabled: true // 暂不实现
+      description: '管理实体间的关系'
+    },
+    {
+      id: 'relation-types',
+      label: '关系类型',
+      icon: '🏷️',
+      description: '管理关系类型配置'
     },
     { 
       id: 'visualization', 
@@ -73,22 +85,9 @@ const KnowledgeGraphManager = ({ knowledgeBaseId, knowledgeBaseName }) => {
     
     setLoading(true);
     try {
-      // TODO: 调用API获取统计信息
-      // const response = await getKnowledgeBaseGraphStats(knowledgeBaseId);
-      // setGraphStats(response.data);
-      
-      // Mock数据
-      setTimeout(() => {
-        setGraphStats({
-          entities_count: 156,
-          relationships_count: 289,
-          entity_types_count: 8,
-          relationship_types_count: 12,
-          coverage: 0.78,
-          last_updated: new Date().toISOString()
-        });
-        setLoading(false);
-      }, 500);
+      // 调用API获取统计信息
+      const response = await getKnowledgeBaseGraphStats(knowledgeBaseId);
+      setGraphStats(response.data);
     } catch (error) {
       console.error('加载统计信息失败:', error);
       setLoading(false);
@@ -126,11 +125,16 @@ const KnowledgeGraphManager = ({ knowledgeBaseId, knowledgeBaseName }) => {
       
       case 'relations':
         return (
-          <div className="placeholder-panel">
-            <span className="placeholder-icon">🔗</span>
-            <h3>关系管理</h3>
-            <p>功能开发中，敬请期待...</p>
-          </div>
+          <RelationManagement 
+            knowledgeBaseId={knowledgeBaseId}
+          />
+        );
+      
+      case 'relation-types':
+        return (
+          <RelationTypeConfig 
+            knowledgeBaseId={knowledgeBaseId}
+          />
         );
       
       case 'visualization':
@@ -162,22 +166,32 @@ const KnowledgeGraphManager = ({ knowledgeBaseId, knowledgeBaseName }) => {
           <p className="kb-subtitle">知识图谱管理</p>
         </div>
         
-        {graphStats && (
-          <div className="header-stats">
-            <div className="stat-item">
-              <span className="stat-value">{graphStats.entities_count}</span>
-              <span className="stat-label">实体</span>
+        <div className="header-actions">
+          <button 
+            className="guide-toggle-btn"
+            onClick={() => setShowGuide(true)}
+            title="显示操作引导"
+          >
+            📖 操作引导
+          </button>
+          
+          {graphStats && (
+            <div className="header-stats">
+              <div className="stat-item">
+                <span className="stat-value">{graphStats.entities_count}</span>
+                <span className="stat-label">实体</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-value">{graphStats.relationships_count}</span>
+                <span className="stat-label">关系</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-value">{Math.round(graphStats.coverage * 100)}%</span>
+                <span className="stat-label">覆盖率</span>
+              </div>
             </div>
-            <div className="stat-item">
-              <span className="stat-value">{graphStats.relationships_count}</span>
-              <span className="stat-label">关系</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-value">{Math.round(graphStats.coverage * 100)}%</span>
-              <span className="stat-label">覆盖率</span>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* 标签页导航 */}
@@ -191,7 +205,7 @@ const KnowledgeGraphManager = ({ knowledgeBaseId, knowledgeBaseName }) => {
             disabled={tab.disabled}
           >
             <span className="tab-icon">{tab.icon}</span>
-            <span className="tab-label">{tab.label}</span>
+            <span className="tab-label" style={{ display: 'inline-block', visibility: 'visible', opacity: 1 }}>{tab.label}</span>
             {tab.disabled && <span className="coming-soon">开发中</span>}
           </button>
         ))}
@@ -201,6 +215,14 @@ const KnowledgeGraphManager = ({ knowledgeBaseId, knowledgeBaseName }) => {
       <div className="manager-content">
         {renderTabContent()}
       </div>
+
+      {/* 用户引导 */}
+      <UserGuide 
+        show={showGuide}
+        onClose={() => setShowGuide(false)}
+        page={activeTab === 'entities' ? 'entity-management' : 
+               activeTab === 'relations' ? 'relation-management' : 'knowledge-graph'}
+      />
     </div>
   );
 };

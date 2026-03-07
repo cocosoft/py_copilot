@@ -11,6 +11,8 @@ import {
   analyzeCentrality,
   findPath
 } from '../../utils/api/knowledgeGraphApi';
+import { request } from '../../utils/apiUtils';
+import { showNotification, NotificationType } from '../UI/Notification';
 import './GraphVisualization.css';
 
 /**
@@ -52,34 +54,20 @@ const GraphVisualization = ({ knowledgeBaseId }) => {
 
   const loadGraphData = async () => {
     setLoading(true);
-    // TODO: 调用API获取图谱数据
-    // Mock数据
-    setTimeout(() => {
-      const mockData = {
-        nodes: [
-          { id: 1, name: '张三', type: 'PERSON', confidence: 0.95 },
-          { id: 2, name: 'ABC公司', type: 'ORG', confidence: 0.92 },
-          { id: 3, name: '北京', type: 'LOCATION', confidence: 0.98 },
-          { id: 4, name: '李四', type: 'PERSON', confidence: 0.91 },
-          { id: 5, name: 'XYZ科技', type: 'ORG', confidence: 0.89 },
-          { id: 6, name: '王五', type: 'PERSON', confidence: 0.87 },
-          { id: 7, name: '上海', type: 'LOCATION', confidence: 0.96 },
-          { id: 8, name: 'DEF集团', type: 'ORG', confidence: 0.90 }
-        ],
-        edges: [
-          { source: 1, target: 2, type: '就职于', confidence: 0.88 },
-          { source: 2, target: 3, type: '位于', confidence: 0.95 },
-          { source: 4, target: 2, type: '就职于', confidence: 0.85 },
-          { source: 1, target: 4, type: '同事', confidence: 0.78 },
-          { source: 5, target: 7, type: '位于', confidence: 0.92 },
-          { source: 6, target: 5, type: '就职于', confidence: 0.86 },
-          { source: 2, target: 8, type: '合作', confidence: 0.75 },
-          { source: 8, target: 7, type: '位于', confidence: 0.94 }
-        ]
-      };
-      setGraphData(mockData);
+    try {
+      // 调用API获取图谱数据
+      const response = await request(`/v1/knowledge-graph/graph-data?knowledge_base_id=${knowledgeBaseId}`, {
+        method: 'GET'
+      });
+      if (response.success) {
+        setGraphData(response.data);
+      }
+    } catch (error) {
+      console.error('加载图谱数据失败:', error);
+      setGraphData({ nodes: [], edges: [] });
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   // 执行社区发现分析
@@ -95,35 +83,11 @@ const GraphVisualization = ({ knowledgeBaseId }) => {
       });
     } catch (error) {
       console.error('社区发现分析失败:', error);
-      // Mock数据
-      setAnalysisResult({
-        type: 'community',
-        data: {
-          communities: [
-            {
-              id: 1,
-              name: '社区 1',
-              nodes: ['张三', '李四', 'ABC公司', '北京'],
-              size: 4,
-              density: 0.75
-            },
-            {
-              id: 2,
-              name: '社区 2',
-              nodes: ['王五', 'XYZ科技', '上海'],
-              size: 3,
-              density: 0.67
-            },
-            {
-              id: 3,
-              name: '社区 3',
-              nodes: ['DEF集团', '上海'],
-              size: 2,
-              density: 1.0
-            }
-          ],
-          modularity: 0.45
-        }
+      setAnalysisResult(null);
+      showNotification({
+        title: '分析失败',
+        message: '社区发现分析失败，请稍后重试',
+        type: NotificationType.ERROR
       });
     } finally {
       setLoading(false);
@@ -143,32 +107,11 @@ const GraphVisualization = ({ knowledgeBaseId }) => {
       });
     } catch (error) {
       console.error('中心性分析失败:', error);
-      // Mock数据
-      setAnalysisResult({
-        type: 'centrality',
-        data: {
-          degree: [
-            { node: 'ABC公司', value: 0.85 },
-            { node: '北京', value: 0.65 },
-            { node: '张三', value: 0.55 },
-            { node: '李四', value: 0.45 },
-            { node: '上海', value: 0.40 }
-          ],
-          betweenness: [
-            { node: 'ABC公司', value: 0.72 },
-            { node: '张三', value: 0.48 },
-            { node: '北京', value: 0.35 },
-            { node: '李四', value: 0.28 },
-            { node: 'DEF集团', value: 0.20 }
-          ],
-          closeness: [
-            { node: 'ABC公司', value: 0.78 },
-            { node: '张三', value: 0.71 },
-            { node: '李四', value: 0.68 },
-            { node: '北京', value: 0.65 },
-            { node: '上海', value: 0.58 }
-          ]
-        }
+      setAnalysisResult(null);
+      showNotification({
+        title: '分析失败',
+        message: '中心性分析失败，请稍后重试',
+        type: NotificationType.ERROR
       });
     } finally {
       setLoading(false);
@@ -190,24 +133,11 @@ const GraphVisualization = ({ knowledgeBaseId }) => {
       });
     } catch (error) {
       console.error('路径发现失败:', error);
-      // Mock数据
-      setAnalysisResult({
-        type: 'path',
-        data: {
-          paths: [
-            {
-              nodes: ['张三', 'ABC公司', 'DEF集团', '上海'],
-              edges: ['就职于', '合作', '位于'],
-              length: 3
-            },
-            {
-              nodes: ['张三', '李四', 'ABC公司', 'DEF集团', '上海'],
-              edges: ['同事', '就职于', '合作', '位于'],
-              length: 4
-            }
-          ],
-          shortestPathLength: 3
-        }
+      setAnalysisResult(null);
+      showNotification({
+        title: '分析失败',
+        message: '路径发现失败，请稍后重试',
+        type: NotificationType.ERROR
       });
     } finally {
       setLoading(false);
@@ -527,7 +457,20 @@ const GraphVisualization = ({ knowledgeBaseId }) => {
             ) : (
               <div className="empty-graph">
                 <span className="empty-icon">🕸️</span>
-                <p>暂无图谱数据</p>
+                <h4>暂无图谱数据</h4>
+                <p>知识图谱需要先构建才能显示</p>
+                <div className="empty-actions">
+                  <button className="action-btn primary" onClick={() => {
+                    // 这里可以添加跳转到批量构建页面的逻辑
+                    showNotification({
+                      title: '提示',
+                      message: '请先在批量构建页面为文档构建知识图谱',
+                      type: NotificationType.INFO
+                    });
+                  }}>
+                    去构建图谱
+                  </button>
+                </div>
               </div>
             )}
           </div>

@@ -1,0 +1,317 @@
+/**
+ * 用户引导组件样式
+ */
+
+/* 遮罩层 */
+.user-guide-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.guide-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+  animation: fadeIn 0.3s ease;
+}
+
+/* 高亮元素 */
+.guide-highlight {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid #1890ff;
+  border-radius: 4px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  animation: pulse 2s infinite;
+}
+
+/* 引导卡片 */
+.guide-card {
+  position: absolute;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  max-width: 400px;
+  width: 90%;
+  pointer-events: auto;
+  animation: slideIn 0.3s ease;
+  z-index: 1001;
+}
+
+/* 位置样式 */
+.guide-center {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.guide-top {
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 16px;
+}
+
+.guide-bottom {
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 16px;
+}
+
+.guide-left {
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-right: 16px;
+}
+
+.guide-right {
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: 16px;
+}
+
+/* 引导卡片头部 */
+.guide-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e8e8e8;
+  border-radius: 8px 8px 0 0;
+  background: #fafafa;
+}
+
+.guide-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.guide-close {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  color: #999;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.guide-close:hover {
+  background: #f0f0f0;
+  color: #333;
+}
+
+/* 引导卡片内容 */
+.guide-content {
+  padding: 20px;
+}
+
+.guide-content p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #666;
+}
+
+/* 引导卡片底部 */
+.guide-footer {
+  padding: 0 20px 20px;
+}
+
+.guide-progress {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.progress-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d9d9d9;
+  transition: all 0.3s ease;
+}
+
+.progress-dot.active {
+  background: #1890ff;
+  width: 24px;
+  border-radius: 4px;
+}
+
+.guide-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.guide-btn {
+  padding: 6px 16px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.guide-btn-secondary {
+  background: white;
+  color: #666;
+}
+
+.guide-btn-secondary:hover:not(:disabled) {
+  border-color: #1890ff;
+  color: #1890ff;
+}
+
+.guide-btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.guide-btn-primary {
+  background: #1890ff;
+  color: white;
+  border-color: #1890ff;
+}
+
+.guide-btn-primary:hover {
+  background: #40a9ff;
+  border-color: #40a9ff;
+}
+
+/* 动画 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5), 0 0 0 0 rgba(24, 144, 255, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5), 0 0 0 10px rgba(24, 144, 255, 0);
+  }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .guide-card {
+    max-width: 320px;
+  }
+
+  .guide-header {
+    padding: 12px 16px;
+  }
+
+  .guide-header h3 {
+    font-size: 14px;
+  }
+
+  .guide-content {
+    padding: 16px;
+  }
+
+  .guide-content p {
+    font-size: 13px;
+  }
+
+  .guide-footer {
+    padding: 0 16px 16px;
+  }
+
+  .guide-buttons {
+    justify-content: center;
+  }
+
+  .guide-btn {
+    padding: 4px 12px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .guide-card {
+    width: 95%;
+  }
+
+  .guide-header h3 {
+    font-size: 13px;
+  }
+
+  .guide-content p {
+    font-size: 12px;
+  }
+
+  .guide-btn {
+    font-size: 12px;
+    padding: 3px 10px;
+  }
+}
+
+/* 暗色主题适配 */
+[data-theme="dark"] .guide-card {
+  background: #1f1f1f;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .guide-header {
+  background: #2c2c2c;
+  border-bottom-color: #3c3c3c;
+}
+
+[data-theme="dark"] .guide-header h3 {
+  color: #e8e8e8;
+}
+
+[data-theme="dark"] .guide-content p {
+  color: #b0b0b0;
+}
+
+[data-theme="dark"] .guide-btn-secondary {
+  background: #2c2c2c;
+  color: #b0b0b0;
+  border-color: #3c3c3c;
+}
+
+[data-theme="dark"] .guide-btn-secondary:hover:not(:disabled) {
+  border-color: #1890ff;
+  color: #1890ff;
+}

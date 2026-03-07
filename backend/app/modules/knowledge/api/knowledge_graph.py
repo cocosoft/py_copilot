@@ -64,7 +64,7 @@ class EntityRelationshipResponse(BaseModel):
 
 class KnowledgeGraphDataResponse(BaseModel):
     nodes: List[Dict[str, Any]]
-    links: List[Dict[str, Any]]
+    edges: List[Dict[str, Any]]
     statistics: Dict[str, Any]
 
 

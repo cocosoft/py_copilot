@@ -297,6 +297,54 @@
   align-items: center;
   justify-content: center;
   color: var(--text-secondary);
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.empty-graph h4 {
+  margin: 12px 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.empty-graph p {
+  margin: 0 0 24px 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+  max-width: 300px;
+}
+
+.empty-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.empty-actions .action-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.empty-actions .action-btn.primary {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.empty-actions .action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.empty-actions .action-btn.primary:hover {
+  background: var(--primary-color-dark);
+  border-color: var(--primary-color-dark);
 }
 
 .empty-icon {
@@ -691,13 +739,42 @@
   .visualization-content {
     flex-direction: column;
   }
+
+  .node-detail-panel {
+    position: static;
+    width: 100%;
+    margin: 16px 0;
+    box-shadow: none;
+    border: 1px solid var(--border-color);
+  }
 }
 
 @media (max-width: 768px) {
+  .visualization-toolbar {
+    padding: 12px 16px;
+  }
+
   .view-modes,
   .analysis-tools {
     flex-wrap: wrap;
     justify-content: center;
+    gap: 6px;
+  }
+
+  .mode-btn,
+  .tool-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .action-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+
+  .path-input-panel {
+    padding: 12px 16px;
   }
 
   .path-inputs {
@@ -710,11 +787,109 @@
     align-items: stretch;
   }
 
+  .input-group select {
+    min-width: auto;
+  }
+
+  .filter-panel {
+    padding: 12px 16px;
+  }
+
+  .filter-group input[type="range"] {
+    width: 100%;
+  }
+
   .entity-type-filters {
     flex-direction: column;
+    gap: 8px;
+  }
+
+  .graph-display {
+    padding: 12px;
+  }
+
+  .graph-legend {
+    padding: 12px 16px;
   }
 
   .legend-items {
     justify-content: center;
+    gap: 12px;
+  }
+
+  .analysis-result {
+    padding: 12px;
+  }
+
+  .community-card,
+  .path-card {
+    padding: 12px;
+  }
+
+  .centrality-item {
+    padding: 8px 10px;
+  }
+
+  .score-bar {
+    max-width: 80px;
+  }
+}
+
+@media (max-width: 480px) {
+  .visualization-toolbar {
+    padding: 8px 12px;
+  }
+
+  .toolbar-section {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .toolbar-label {
+    font-size: 12px;
+  }
+
+  .view-modes,
+  .analysis-tools {
+    justify-content: space-around;
+  }
+
+  .mode-btn,
+  .tool-btn {
+    flex: 1;
+    text-align: center;
+  }
+
+  .graph-actions {
+    justify-content: center;
+  }
+
+  .filter-panel h4,
+  .analysis-panel-header h4,
+  .graph-legend h4 {
+    font-size: 13px;
+  }
+
+  .node-name {
+    font-size: 16px;
+  }
+
+  .analysis-result h4 {
+    font-size: 14px;
+  }
+
+  .centrality-section h5 {
+    font-size: 12px;
+  }
+
+  .community-name,
+  .path-label {
+    font-size: 13px;
+  }
+
+  .community-size,
+  .path-length {
+    font-size: 11px;
   }
 }

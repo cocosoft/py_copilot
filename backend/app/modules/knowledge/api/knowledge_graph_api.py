@@ -48,7 +48,7 @@ class EntityRelationshipResponse(BaseModel):
 
 class KnowledgeGraphDataResponse(BaseModel):
     nodes: List[Dict[str, Any]]
-    links: List[Dict[str, Any]]
+    edges: List[Dict[str, Any]]
     statistics: Dict[str, Any]
 
 
@@ -260,17 +260,64 @@ async def get_document_relationships_singular(
 
 @router.get("/search-entities")
 async def search_entities(
-    entity_text: str = Query(..., description="实体文本"),
+    entity_text: Optional[str] = Query(None, description="实体文本"),
     entity_type: Optional[str] = Query(None, description="实体类型"),
     knowledge_base_id: Optional[int] = Query(None, description="知识库ID"),
+    skip: int = Query(0, ge=0, description="跳过数量"),
+    limit: int = Query(100, ge=1, le=1000, description="返回数量限制"),
     db: Session = Depends(get_db)
 ):
-    """搜索实体"""
+    """搜索实体
+    
+    如果提供 entity_text，则按文本搜索；
+    如果不提供 entity_text，则返回知识库下的所有实体（支持分页）
+    """
     try:
-        entities = knowledge_graph_service.search_entities(
-            db, entity_text, entity_type, knowledge_base_id
-        )
-        return {"entities": entities}
+        from app.modules.knowledge.models.knowledge_document import DocumentEntity
+        
+        # 构建查询
+        query = db.query(DocumentEntity)
+        
+        # 如果指定了知识库ID，添加过滤条件
+        if knowledge_base_id:
+            query = query.join(KnowledgeDocument).filter(
+                KnowledgeDocument.knowledge_base_id == knowledge_base_id
+            )
+        
+        # 如果提供了实体文本，添加文本搜索条件
+        if entity_text:
+            query = query.filter(DocumentEntity.entity_text.contains(entity_text))
+        
+        # 如果提供了实体类型，添加类型过滤
+        if entity_type:
+            query = query.filter(DocumentEntity.entity_type == entity_type)
+        
+        # 获取总数
+        total = query.count()
+        
+        # 分页查询
+        entities = query.offset(skip).limit(limit).all()
+        
+        # 格式化结果
+        entity_list = []
+        for entity in entities:
+            entity_list.append({
+                "id": entity.id,
+                "name": entity.entity_text,
+                "type": entity.entity_type,
+                "documentId": entity.document_id,
+                "document_count": 1,
+                "relation_count": 0,
+                "confidence": entity.confidence or 1.0,
+                "createdAt": entity.created_at.isoformat() if entity.created_at else None
+            })
+        
+        return {
+            "data": entity_list,
+            "total": total,
+            "skip": skip,
+            "limit": limit
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"搜索实体失败: {str(e)}")
 
@@ -740,3 +787,154 @@ async def batch_build_graphs(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"批量图谱构建失败: {str(e)}")
+
+
+# ==================== 关系管理API ====================
+
+@router.get("/relationships")
+async def get_relationships(
+    knowledge_base_id: Optional[int] = Query(None, description="知识库ID"),
+    filter: Optional[str] = Query("all", description="过滤条件: all, active, inactive"),
+    keyword: Optional[str] = Query(None, description="搜索关键词"),
+    relation_type: Optional[str] = Query(None, description="关系类型"),
+    source_entity_type: Optional[str] = Query(None, description="源实体类型"),
+    target_entity_type: Optional[str] = Query(None, description="目标实体类型"),
+    min_confidence: Optional[float] = Query(None, ge=0, le=1, description="最小置信度"),
+    max_confidence: Optional[float] = Query(None, ge=0, le=1, description="最大置信度"),
+    start_date: Optional[str] = Query(None, description="开始日期"),
+    end_date: Optional[str] = Query(None, description="结束日期"),
+    skip: int = Query(0, ge=0, description="跳过数量"),
+    limit: int = Query(100, ge=1, le=1000, description="返回数量限制"),
+    db: Session = Depends(get_db)
+):
+    """获取关系列表
+    
+    支持按知识库、关系类型、实体类型、置信度范围、时间范围等条件筛选
+    """
+    try:
+        from app.modules.knowledge.models.knowledge_document import EntityRelationship, DocumentEntity, KnowledgeDocument
+        from sqlalchemy import and_, or_
+        
+        # 构建查询 - 同时加载关联的实体信息
+        query = db.query(EntityRelationship, DocumentEntity).join(
+            DocumentEntity,
+            EntityRelationship.source_id == DocumentEntity.id
+        )
+        
+        # 如果指定了知识库ID，添加过滤条件
+        if knowledge_base_id:
+            query = query.join(KnowledgeDocument).filter(
+                KnowledgeDocument.knowledge_base_id == knowledge_base_id
+            )
+        
+        # 如果提供了关系类型，添加过滤
+        if relation_type:
+            query = query.filter(EntityRelationship.relationship_type == relation_type)
+        
+        # 如果提供了关键词，搜索源实体文本
+        if keyword:
+            query = query.filter(
+                or_(
+                    DocumentEntity.entity_text.contains(keyword),
+                    EntityRelationship.relationship_type.contains(keyword)
+                )
+            )
+        
+        # 置信度范围过滤
+        if min_confidence is not None:
+            query = query.filter(EntityRelationship.confidence >= min_confidence)
+        if max_confidence is not None:
+            query = query.filter(EntityRelationship.confidence <= max_confidence)
+        
+        # 时间范围过滤
+        if start_date:
+            from datetime import datetime
+            try:
+                start = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+                query = query.filter(EntityRelationship.created_at >= start)
+            except ValueError:
+                pass  # 忽略无效的日期格式
+        if end_date:
+            from datetime import datetime
+            try:
+                end = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+                query = query.filter(EntityRelationship.created_at <= end)
+            except ValueError:
+                pass  # 忽略无效的日期格式
+        
+        # 获取总数
+        total = query.count()
+        
+        # 分页查询
+        results = query.offset(skip).limit(limit).all()
+        
+        # 格式化结果
+        relationship_list = []
+        for rel, source_entity in results:
+            # 获取目标实体信息
+            target_entity = db.query(DocumentEntity).filter(DocumentEntity.id == rel.target_id).first()
+            target_entity_text = target_entity.entity_text if target_entity else ""
+            
+            relationship_list.append({
+                "id": rel.id,
+                "sourceEntityId": rel.source_id,
+                "sourceEntity": source_entity.entity_text if source_entity else "",
+                "sourceEntityType": source_entity.entity_type if source_entity else "",
+                "targetEntityId": rel.target_id,
+                "targetEntity": target_entity_text,
+                "targetEntityType": target_entity.entity_type if target_entity else "",
+                "relationType": rel.relationship_type,
+                "relationTypeId": rel.relationship_type,
+                "confidence": rel.confidence or 1.0,
+                "documentId": rel.document_id,
+                "status": "active",
+                "createdAt": rel.created_at.isoformat() if rel.created_at else None
+            })
+        
+        return {
+            "data": relationship_list,
+            "total": total,
+            "skip": skip,
+            "limit": limit
+        }
+    except Exception as e:
+        import traceback
+        print(f"获取关系列表错误: {str(e)}")
+        print(f"详细堆栈: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"获取关系列表失败: {str(e)}")
+
+
+@router.get("/relation-types")
+async def get_relation_types(
+    db: Session = Depends(get_db)
+):
+    """获取所有关系类型
+    
+    返回系统中存在的所有关系类型列表
+    """
+    try:
+        from app.modules.knowledge.models.knowledge_document import EntityRelationship
+        from sqlalchemy import func
+        
+        # 查询所有不同的关系类型
+        relation_types = db.query(
+            EntityRelationship.relationship_type,
+            func.count(EntityRelationship.id).label('count')
+        ).group_by(EntityRelationship.relationship_type).all()
+        
+        # 格式化结果
+        type_list = []
+        for rel_type, count in relation_types:
+            if rel_type:  # 排除空值
+                type_list.append({
+                    "id": rel_type,
+                    "name": rel_type,
+                    "count": count
+                })
+        
+        return {
+            "success": True,
+            "data": type_list
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取关系类型失败: {str(e)}")

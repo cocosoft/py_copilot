@@ -316,7 +316,7 @@ async def hybrid_search_documents(
 @router.get("/documents", response_model=DocumentListResponse)
 async def list_documents(
     skip: int = Query(0, ge=0),
-    limit: int = Query(10, ge=1, le=50),
+    limit: int = Query(10, ge=1, le=1000),
     knowledge_base_id: Optional[int] = Query(None, description="指定知识库ID")
     , db: Session = Depends(get_db)
 ):

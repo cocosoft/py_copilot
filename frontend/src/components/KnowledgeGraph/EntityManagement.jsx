@@ -7,7 +7,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import EntityMaintenanceSimple from '../EntityMaintenanceSimple';
-import { getSimilarEntities, mergeEntities } from '../../utils/api/knowledgeGraphApi';
+import { getEntities, getSimilarEntities, mergeEntities } from '../../utils/api/knowledgeGraphApi';
+import { showNotification, NotificationType } from '../UI/Notification';
 import './EntityManagement.css';
 
 /**
@@ -59,39 +60,12 @@ const EntityManagement = ({ knowledgeBaseId }) => {
 
     setLoading(true);
     try {
-      // TODO: 调用API获取实体列表
-      // const response = await getEntities(knowledgeBaseId, {
-      //   keyword: searchKeyword,
-      //   type: typeFilter
-      // });
-      
-      // Mock数据
-      setTimeout(() => {
-        const mockEntities = [
-          { id: 1, name: '张三', type: 'PERSON', confidence: 0.95, document_count: 3, relation_count: 5 },
-          { id: 2, name: 'ABC公司', type: 'ORG', confidence: 0.92, document_count: 5, relation_count: 8 },
-          { id: 3, name: '北京', type: 'LOCATION', confidence: 0.98, document_count: 10, relation_count: 12 },
-          { id: 4, name: '人工智能技术', type: 'TECHNOLOGY', confidence: 0.88, document_count: 2, relation_count: 3 },
-          { id: 5, name: '产品发布会', type: 'EVENT', confidence: 0.85, document_count: 1, relation_count: 4 },
-          { id: 6, name: '李四', type: 'PERSON', confidence: 0.91, document_count: 2, relation_count: 3 },
-          { id: 7, name: '上海', type: 'LOCATION', confidence: 0.97, document_count: 8, relation_count: 10 },
-          { id: 8, name: 'XYZ科技', type: 'ORG', confidence: 0.89, document_count: 3, relation_count: 6 }
-        ];
-        
-        // 应用筛选
-        let filtered = mockEntities;
-        if (searchKeyword) {
-          filtered = filtered.filter(e => 
-            e.name.toLowerCase().includes(searchKeyword.toLowerCase())
-          );
-        }
-        if (typeFilter) {
-          filtered = filtered.filter(e => e.type === typeFilter);
-        }
-        
-        setEntities(filtered);
-        setLoading(false);
-      }, 500);
+      // 调用API获取实体列表
+      const response = await getEntities(knowledgeBaseId, {
+        keyword: searchKeyword,
+        type: typeFilter
+      });
+      setEntities(response.data);
     } catch (error) {
       console.error('加载实体列表失败:', error);
       setLoading(false);
@@ -287,7 +261,20 @@ const EntityManagement = ({ knowledgeBaseId }) => {
           ) : entities.length === 0 ? (
             <div className="empty-state">
               <span className="empty-icon">🏷️</span>
-              <p>暂无实体数据</p>
+              <h4>暂无实体数据</h4>
+              <p>实体数据会在知识图谱构建过程中自动生成</p>
+              <div className="empty-actions">
+                <button className="action-btn primary" onClick={() => {
+                  // 这里可以添加跳转到批量构建页面的逻辑
+                  showNotification({
+                    title: '提示',
+                    message: '请先在批量构建页面为文档构建知识图谱',
+                    type: NotificationType.INFO
+                  });
+                }}>
+                  去构建图谱
+                </button>
+              </div>
             </div>
           ) : (
             <div className="entity-table-wrapper">

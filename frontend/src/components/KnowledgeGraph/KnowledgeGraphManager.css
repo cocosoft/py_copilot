@@ -39,6 +39,32 @@
   margin: 0;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.guide-toggle-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.guide-toggle-btn:hover {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
 .header-stats {
   display: flex;
   gap: 24px;
@@ -80,12 +106,13 @@
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--text-secondary, #666);
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
   position: relative;
+  min-width: fit-content;
 }
 
 .manager-tabs .tab-btn:hover:not(.disabled) {
@@ -107,8 +134,35 @@
   font-size: 16px;
 }
 
-.manager-tabs .tab-label {
+/* Tab 标签 - 强制显示 */
+.manager-tabs .tab-btn .tab-label,
+.manager-tabs .tab-btn.active .tab-label {
+  display: inline !important;
+  visibility: visible !important;
+  opacity: 1 !important;
   font-weight: 500;
+  color: inherit;
+  font-size: 14px;
+  margin-left: 6px;
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip: auto;
+  white-space: nowrap;
+  clip-path: none;
+  -webkit-clip-path: none;
+}
+
+/* 确保active状态样式优先级 */
+.manager-tabs .tab-btn.active {
+  background: var(--primary-color) !important;
+  color: white !important;
+}
+
+/* active 状态的标签颜色 */
+.manager-tabs .tab-btn.active .tab-label {
+  color: white !important;
 }
 
 .coming-soon {
@@ -157,20 +211,74 @@
 }
 
 /* ==================== 响应式设计 ==================== */
+@media (max-width: 1200px) {
+  .manager-header {
+    padding: 16px 20px;
+  }
+
+  .kb-name {
+    font-size: 18px;
+  }
+
+  .header-stats {
+    gap: 20px;
+  }
+
+  .stat-value {
+    font-size: 20px;
+  }
+
+  .manager-tabs {
+    padding: 12px 20px;
+  }
+}
+
 @media (max-width: 768px) {
   .manager-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 16px;
+    padding: 12px 16px;
+  }
+
+  .kb-name {
+    font-size: 16px;
+  }
+
+  .kb-subtitle {
+    font-size: 13px;
+  }
+
+  .header-actions {
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .guide-toggle-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 10px 16px;
   }
 
   .header-stats {
     width: 100%;
     justify-content: space-around;
+    gap: 16px;
+  }
+
+  .stat-value {
+    font-size: 18px;
+  }
+
+  .stat-label {
+    font-size: 11px;
   }
 
   .manager-tabs {
     padding: 12px 16px;
+    gap: 2px;
   }
 
   .manager-tabs .tab-btn {
@@ -180,6 +288,89 @@
 
   .manager-tabs .tab-icon {
     font-size: 14px;
+  }
+
+  .coming-soon {
+    font-size: 9px;
+    padding: 1px 4px;
+  }
+
+  .placeholder-panel {
+    padding: 60px 16px;
+  }
+
+  .placeholder-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+  }
+
+  .placeholder-panel h3 {
+    font-size: 18px;
+  }
+
+  .placeholder-panel p {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .manager-header {
+    padding: 10px 12px;
+    gap: 12px;
+  }
+
+  .kb-name {
+    font-size: 14px;
+  }
+
+  .kb-subtitle {
+    font-size: 12px;
+  }
+
+  .header-stats {
+    gap: 12px;
+  }
+
+  .stat-value {
+    font-size: 16px;
+  }
+
+  .stat-label {
+    font-size: 10px;
+  }
+
+  .manager-tabs {
+    padding: 8px 12px;
+  }
+
+  .manager-tabs .tab-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .manager-tabs .tab-icon {
+    font-size: 12px;
+  }
+
+  .manager-tabs .tab-label {
+    display: none !important;
+  }
+
+  .placeholder-panel {
+    padding: 40px 12px;
+  }
+
+  .placeholder-icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+  }
+
+  .placeholder-panel h3 {
+    font-size: 16px;
+  }
+
+  .placeholder-panel p {
+    font-size: 12px;
   }
 }
 

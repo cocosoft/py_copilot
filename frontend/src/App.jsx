@@ -10,6 +10,8 @@ import { isAuthenticated } from './utils/authUtils';
 import { StoreProvider, StoreMonitor, useStateManager } from './utils/storeManager';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import GlobalErrorBoundary from './components/UI/GlobalErrorBoundary';
+import ErrorNotification from './components/UI/ErrorNotification';
+import Notification from './components/UI/Notification';
 import { request } from './utils/apiUtils';
 import WorkspaceSelector from './components/WorkspaceSelector';
 
@@ -109,6 +111,8 @@ function MainApp() {
   
   return (
     <div className="app-container">
+      <ErrorNotification />
+      <Notification />
       <ApiKeyUpdater />
       {/* 添加独立的顶部标题栏 */}
       <header className="app-header">

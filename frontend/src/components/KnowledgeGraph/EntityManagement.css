@@ -199,9 +199,49 @@
   opacity: 0.5;
 }
 
+.empty-state h4 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
 .empty-state p {
   font-size: 14px;
-  margin: 0;
+  margin: 0 0 24px 0;
+  max-width: 300px;
+}
+
+.empty-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.empty-actions .action-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.empty-actions .action-btn.primary {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.empty-actions .action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.empty-actions .action-btn.primary:hover {
+  background: var(--primary-color-dark);
+  border-color: var(--primary-color-dark);
 }
 
 /* ==================== 实体表格 ==================== */

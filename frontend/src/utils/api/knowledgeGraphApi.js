@@ -14,45 +14,7 @@ import { request } from '../apiUtils';
  */
 export const getRelationTypes = async () => {
   try {
-    // TODO: 后端API完成后替换为真实调用
-    // return request('/v1/knowledge-graph/relation-types', { method: 'GET' });
-    
-    // Mock数据
-    return {
-      success: true,
-      data: [
-        {
-          id: '1',
-          name: '就职于',
-          description: '表示人物在某组织工作',
-          directional: true,
-          sourceEntityTypes: ['PERSON'],
-          targetEntityTypes: ['ORG'],
-          properties: [],
-          constraints: { unique: false, transitive: false, symmetric: false }
-        },
-        {
-          id: '2',
-          name: '位于',
-          description: '表示实体位于某地点',
-          directional: true,
-          sourceEntityTypes: ['ORG', 'PERSON'],
-          targetEntityTypes: ['LOCATION'],
-          properties: [],
-          constraints: { unique: false, transitive: false, symmetric: false }
-        },
-        {
-          id: '3',
-          name: '合作',
-          description: '表示两个实体之间的合作关系',
-          directional: false,
-          sourceEntityTypes: ['ORG', 'PERSON'],
-          targetEntityTypes: ['ORG', 'PERSON'],
-          properties: [],
-          constraints: { unique: false, transitive: false, symmetric: true }
-        }
-      ]
-    };
+    return request('/v1/knowledge-graph/relation-types', { method: 'GET' });
   } catch (error) {
     console.error('获取关系类型失败:', error);
     throw error;
@@ -66,18 +28,7 @@ export const getRelationTypes = async () => {
  */
 export const addRelationType = async (data) => {
   try {
-    // TODO: 后端API完成后替换为真实调用
-    // return request('/v1/knowledge-graph/relation-types', { method: 'POST', data });
-    
-    // Mock实现
-    return {
-      success: true,
-      data: {
-        id: Date.now().toString(),
-        ...data,
-        created_at: new Date().toISOString()
-      }
-    };
+    return request('/v1/knowledge-graph/relation-types', { method: 'POST', data });
   } catch (error) {
     console.error('添加关系类型失败:', error);
     throw error;
@@ -92,17 +43,7 @@ export const addRelationType = async (data) => {
  */
 export const updateRelationType = async (id, data) => {
   try {
-    // TODO: 后端API完成后替换为真实调用
-    // return request(`/v1/knowledge-graph/relation-types/${id}`, { method: 'PUT', data });
-    
-    return {
-      success: true,
-      data: {
-        id,
-        ...data,
-        updated_at: new Date().toISOString()
-      }
-    };
+    return request(`/v1/knowledge-graph/relation-types/${id}`, { method: 'PUT', data });
   } catch (error) {
     console.error('更新关系类型失败:', error);
     throw error;
@@ -116,13 +57,7 @@ export const updateRelationType = async (id, data) => {
  */
 export const deleteRelationType = async (id) => {
   try {
-    // TODO: 后端API完成后替换为真实调用
-    // return request(`/v1/knowledge-graph/relation-types/${id}`, { method: 'DELETE' });
-    
-    return {
-      success: true,
-      message: '删除成功'
-    };
+    return request(`/v1/knowledge-graph/relation-types/${id}`, { method: 'DELETE' });
   } catch (error) {
     console.error('删除关系类型失败:', error);
     throw error;
@@ -139,22 +74,10 @@ export const deleteRelationType = async (id) => {
  */
 export const batchBuildKnowledgeGraph = async (documentIds, options = {}) => {
   try {
-    // TODO: 后端API完成后替换为真实调用
-    // return request('/v1/knowledge-graph/batch/build-graphs', {
-    //   method: 'POST',
-    //   data: { document_ids: documentIds, ...options }
-    // });
-    
-    // Mock实现
-    return {
-      success: true,
-      data: {
-        batch_id: `batch_${Date.now()}`,
-        status: 'pending',
-        total_documents: documentIds.length,
-        created_at: new Date().toISOString()
-      }
-    };
+    return request('/v1/knowledge-graph/batch/build-graphs', {
+      method: 'POST',
+      data: { document_ids: documentIds, ...options }
+    });
   } catch (error) {
     console.error('批量构建失败:', error);
     throw error;
@@ -168,24 +91,7 @@ export const batchBuildKnowledgeGraph = async (documentIds, options = {}) => {
  */
 export const getBatchBuildStatus = async (batchId) => {
   try {
-    // TODO: 后端API完成后替换为真实调用
-    // return request(`/v1/knowledge-graph/batch/status/${batchId}`);
-    
-    // Mock实现 - 模拟进度变化
-    const mockProgress = Math.floor(Math.random() * 100);
-    return {
-      success: true,
-      data: {
-        batch_id: batchId,
-        status: mockProgress < 100 ? 'processing' : 'completed',
-        progress: mockProgress,
-        total_documents: 10,
-        completed_documents: Math.floor(mockProgress / 10),
-        failed_documents: 0,
-        current_document: 'doc_xxx.pdf',
-        results: []
-      }
-    };
+    return request(`/v1/knowledge-graph/batch/status/${batchId}`);
   } catch (error) {
     console.error('获取批量构建状态失败:', error);
     throw error;
@@ -199,13 +105,7 @@ export const getBatchBuildStatus = async (batchId) => {
  */
 export const cancelBatchBuild = async (batchId) => {
   try {
-    // TODO: 后端API完成后替换为真实调用
-    // return request(`/v1/knowledge-graph/batch/cancel/${batchId}`, { method: 'POST' });
-    
-    return {
-      success: true,
-      message: '已取消批量构建任务'
-    };
+    return request(`/v1/knowledge-graph/batch/cancel/${batchId}`, { method: 'POST' });
   } catch (error) {
     console.error('取消批量构建失败:', error);
     throw error;
@@ -215,6 +115,28 @@ export const cancelBatchBuild = async (batchId) => {
 // ==================== 实体管理 ====================
 
 /**
+ * 获取实体列表
+ * @param {number} knowledgeBaseId 知识库ID
+ * @param {Object} params 查询参数
+ * @returns {Promise<Object>} 实体列表
+ */
+export const getEntities = async (knowledgeBaseId, params = {}) => {
+  try {
+    const queryParams = new URLSearchParams();
+    if (knowledgeBaseId) queryParams.append('kb_id', knowledgeBaseId);
+    if (params.keyword) queryParams.append('keyword', params.keyword);
+    if (params.type) queryParams.append('type', params.type);
+    
+    return request(`/v1/knowledge-graph/search-entities?${queryParams.toString()}`, {
+      method: 'GET'
+    });
+  } catch (error) {
+    console.error('获取实体列表失败:', error);
+    throw error;
+  }
+};
+
+/**
  * 合并实体
  * @param {Array<string>} sourceIds 源实体ID列表
  * @param {string} targetId 目标实体ID
@@ -222,20 +144,10 @@ export const cancelBatchBuild = async (batchId) => {
  */
 export const mergeEntities = async (sourceIds, targetId) => {
   try {
-    // TODO: 后端API完成后替换为真实调用
-    // return request('/v1/knowledge-graph/entities/merge', {
-    //   method: 'POST',
-    //   data: { source_ids: sourceIds, target_id: targetId }
-    // });
-    
-    return {
-      success: true,
-      data: {
-        merged_entity_id: targetId,
-        source_entity_ids: sourceIds,
-        merged_at: new Date().toISOString()
-      }
-    };
+    return request('/v1/knowledge-graph/entities/merge', {
+      method: 'POST',
+      data: { source_ids: sourceIds, target_id: targetId }
+    });
   } catch (error) {
     console.error('合并实体失败:', error);
     throw error;
@@ -250,31 +162,7 @@ export const mergeEntities = async (sourceIds, targetId) => {
  */
 export const getSimilarEntities = async (entityId, threshold = 0.8) => {
   try {
-    // TODO: 后端API完成后替换为真实调用
-    // return request(`/v1/knowledge-graph/entities/${entityId}/similar?threshold=${threshold}`);
-    
-    // Mock数据
-    return {
-      success: true,
-      data: [
-        {
-          id: 'sim_1',
-          entity_id: entityId,
-          similar_entity_id: 'entity_xxx',
-          similar_entity_name: '相似实体1',
-          similarity_score: 0.92,
-          reason: '名称相似'
-        },
-        {
-          id: 'sim_2',
-          entity_id: entityId,
-          similar_entity_id: 'entity_yyy',
-          similar_entity_name: '相似实体2',
-          similarity_score: 0.85,
-          reason: '上下文相似'
-        }
-      ]
-    };
+    return request(`/v1/knowledge-graph/entities/${entityId}/similar?threshold=${threshold}`);
   } catch (error) {
     console.error('获取相似实体失败:', error);
     throw error;
@@ -289,22 +177,41 @@ export const getSimilarEntities = async (entityId, threshold = 0.8) => {
  */
 export const disambiguateEntity = async (entityId, canonicalId) => {
   try {
-    // TODO: 后端API完成后替换为真实调用
-    // return request('/v1/knowledge-graph/entities/disambiguate', {
-    //   method: 'POST',
-    //   data: { entity_id: entityId, canonical_id: canonicalId }
-    // });
-    
-    return {
-      success: true,
-      data: {
-        entity_id: entityId,
-        canonical_entity_id: canonicalId,
-        disambiguated_at: new Date().toISOString()
-      }
-    };
+    return request('/v1/knowledge-graph/entities/disambiguate', {
+      method: 'POST',
+      data: { entity_id: entityId, canonical_id: canonicalId }
+    });
   } catch (error) {
     console.error('实体消歧失败:', error);
+    throw error;
+  }
+};
+
+/**
+ * 获取关系列表
+ * @param {number} knowledgeBaseId 知识库ID
+ * @param {Object} params 查询参数
+ * @returns {Promise<Object>} 关系列表
+ */
+export const getRelations = async (knowledgeBaseId, params = {}) => {
+  try {
+    const queryParams = new URLSearchParams();
+    if (knowledgeBaseId) queryParams.append('kb_id', knowledgeBaseId);
+    if (params.filter) queryParams.append('filter', params.filter);
+    if (params.keyword) queryParams.append('keyword', params.keyword);
+    if (params.relationType) queryParams.append('relation_type', params.relationType);
+    if (params.sourceEntityType) queryParams.append('source_entity_type', params.sourceEntityType);
+    if (params.targetEntityType) queryParams.append('target_entity_type', params.targetEntityType);
+    if (params.minConfidence) queryParams.append('min_confidence', params.minConfidence);
+    if (params.maxConfidence) queryParams.append('max_confidence', params.maxConfidence);
+    if (params.startDate) queryParams.append('start_date', params.startDate);
+    if (params.endDate) queryParams.append('end_date', params.endDate);
+    
+    return request(`/v1/knowledge-graph/relationships?${queryParams.toString()}`, {
+      method: 'GET'
+    });
+  } catch (error) {
+    console.error('获取关系列表失败:', error);
     throw error;
   }
 };
@@ -327,32 +234,7 @@ export const detectCommunities = async (knowledgeBaseId) => {
  */
 export const analyzeCommunities = async (knowledgeBaseId) => {
   try {
-    // TODO: 后端API完成后替换为真实调用
-    // return request(`/v1/knowledge-graph/analysis/communities?kb_id=${knowledgeBaseId}`);
-    
-    // Mock数据
-    return {
-      success: true,
-      data: {
-        communities: [
-          {
-            id: 1,
-            name: '社区1',
-            entity_count: 15,
-            entities: ['实体1', '实体2', '实体3'],
-            density: 0.75
-          },
-          {
-            id: 2,
-            name: '社区2',
-            entity_count: 12,
-            entities: ['实体4', '实体5', '实体6'],
-            density: 0.68
-          }
-        ],
-        total_communities: 2
-      }
-    };
+    return request(`/v1/knowledge-graph/analysis/communities?kb_id=${knowledgeBaseId}`);
   } catch (error) {
     console.error('社区发现失败:', error);
     throw error;
@@ -375,20 +257,7 @@ export const calculateCentrality = async (knowledgeBaseId) => {
  */
 export const analyzeCentrality = async (knowledgeBaseId) => {
   try {
-    // TODO: 后端API完成后替换为真实调用
-    // return request(`/v1/knowledge-graph/analysis/centrality?kb_id=${knowledgeBaseId}`);
-    
-    // Mock数据
-    return {
-      success: true,
-      data: {
-        top_entities: [
-          { id: 'entity_1', name: '核心实体1', degree: 15, betweenness: 0.85, closeness: 0.92 },
-          { id: 'entity_2', name: '核心实体2', degree: 12, betweenness: 0.72, closeness: 0.88 },
-          { id: 'entity_3', name: '核心实体3', degree: 10, betweenness: 0.65, closeness: 0.85 }
-        ]
-      }
-    };
+    return request(`/v1/knowledge-graph/analysis/centrality?kb_id=${knowledgeBaseId}`);
   } catch (error) {
     console.error('中心性分析失败:', error);
     throw error;
@@ -397,42 +266,26 @@ export const analyzeCentrality = async (knowledgeBaseId) => {
 
 /**
  * 路径发现
+ * @param {number} knowledgeBaseId 知识库ID
  * @param {string} sourceId 源实体ID
  * @param {string} targetId 目标实体ID
  * @returns {Promise<Object>} 路径分析结果
  */
-export const findPath = async (sourceId, targetId) => {
+export const findPath = async (knowledgeBaseId, sourceId, targetId) => {
   // 别名导出，用于兼容不同命名
-  return await findPathInternal(sourceId, targetId);
+  return await findPathInternal(knowledgeBaseId, sourceId, targetId);
 };
 
 /**
  * 路径发现（内部实现）
+ * @param {number} knowledgeBaseId 知识库ID
  * @param {string} sourceId 源实体ID
  * @param {string} targetId 目标实体ID
  * @returns {Promise<Object>} 路径分析结果
  */
-const findPathInternal = async (sourceId, targetId) => {
+const findPathInternal = async (knowledgeBaseId, sourceId, targetId) => {
   try {
-    // TODO: 后端API完成后替换为真实调用
-    // return request(`/v1/knowledge-graph/analysis/path?source=${sourceId}&target=${targetId}`);
-    
-    // Mock数据
-    return {
-      success: true,
-      data: {
-        paths: [
-          {
-            path_id: 1,
-            length: 2,
-            nodes: [sourceId, 'entity_mid', targetId],
-            edges: ['relation_1', 'relation_2'],
-            weight: 0.85
-          }
-        ],
-        shortest_path_length: 2
-      }
-    };
+    return request(`/v1/knowledge-graph/analysis/path?source=${sourceId}&target=${targetId}`);
   } catch (error) {
     console.error('路径发现失败:', error);
     throw error;
@@ -448,25 +301,12 @@ const findPathInternal = async (sourceId, targetId) => {
  */
 export const getKnowledgeBaseGraphStats = async (knowledgeBaseId) => {
   try {
-    // 复用现有的 getGraphStatistics API
-    const response = await request(`/v1/knowledge-graph/statistics?knowledge_base_id=${knowledgeBaseId}`, {
+    return request(`/v1/knowledge-graph/statistics?knowledge_base_id=${knowledgeBaseId}`, {
       method: 'GET'
     });
-    return response;
   } catch (error) {
     console.error('获取图谱统计失败:', error);
-    // 返回Mock数据
-    return {
-      success: true,
-      data: {
-        entities_count: 150,
-        relationships_count: 280,
-        entity_types_count: 8,
-        relationship_types_count: 12,
-        coverage: 0.75,
-        last_updated: new Date().toISOString()
-      }
-    };
+    throw error;
   }
 };
 
@@ -477,18 +317,34 @@ export const getKnowledgeBaseGraphStats = async (knowledgeBaseId) => {
  */
 export const getEntityTypeDistribution = async (knowledgeBaseId) => {
   try {
-    // Mock数据
+    const response = await request(`/v1/knowledge-graph/statistics?knowledge_base_id=${knowledgeBaseId}`, {
+      method: 'GET'
+    });
+    
+    // 后端直接返回数据对象，格式为 { total_entities, total_relationships, entity_types, relationship_types }
+    if (response && response.entity_types) {
+      // 计算总数用于计算百分比
+      const totalEntities = response.total_entities || 0;
+      
+      // 转换为前端期望的格式
+      const distribution = Object.entries(response.entity_types).map(([type, count]) => {
+        return {
+          type,
+          count,
+          percentage: totalEntities > 0 ? Math.round((count / totalEntities) * 100) : 0
+        };
+      });
+      
+      return {
+        success: true,
+        data: { distribution }
+      };
+    }
+    
+    // 如果没有数据，返回空分布
     return {
       success: true,
-      data: {
-        distribution: [
-          { type: '人物', count: 45, percentage: 30 },
-          { type: '组织', count: 38, percentage: 25.3 },
-          { type: '地点', count: 32, percentage: 21.3 },
-          { type: '产品', count: 20, percentage: 13.3 },
-          { type: '事件', count: 15, percentage: 10 }
-        ]
-      }
+      data: { distribution: [] }
     };
   } catch (error) {
     console.error('获取实体类型分布失败:', error);
@@ -503,18 +359,34 @@ export const getEntityTypeDistribution = async (knowledgeBaseId) => {
  */
 export const getRelationTypeDistribution = async (knowledgeBaseId) => {
   try {
-    // Mock数据
+    const response = await request(`/v1/knowledge-graph/statistics?knowledge_base_id=${knowledgeBaseId}`, {
+      method: 'GET'
+    });
+    
+    // 后端直接返回数据对象，格式为 { total_entities, total_relationships, entity_types, relationship_types }
+    if (response && response.relationship_types) {
+      // 计算总数用于计算百分比
+      const totalRelationships = response.total_relationships || 0;
+      
+      // 转换为前端期望的格式
+      const distribution = Object.entries(response.relationship_types).map(([type, count]) => {
+        return {
+          type,
+          count,
+          percentage: totalRelationships > 0 ? Math.round((count / totalRelationships) * 100) : 0
+        };
+      });
+      
+      return {
+        success: true,
+        data: { distribution }
+      };
+    }
+    
+    // 如果没有数据，返回空分布
     return {
       success: true,
-      data: {
-        distribution: [
-          { type: '就职于', count: 85, percentage: 30.4 },
-          { type: '位于', count: 72, percentage: 25.7 },
-          { type: '合作', count: 65, percentage: 23.2 },
-          { type: '投资', count: 35, percentage: 12.5 },
-          { type: '收购', count: 23, percentage: 8.2 }
-        ]
-      }
+      data: { distribution: [] }
     };
   } catch (error) {
     console.error('获取关系类型分布失败:', error);

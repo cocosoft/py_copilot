@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { batchBuildKnowledgeGraph, getBatchBuildStatus, cancelBatchBuild } from '../../utils/api/knowledgeGraphApi';
+import { listDocuments } from '../../utils/api/knowledgeApi';
 import './BatchBuildPanel.css';
 
 /**
@@ -47,26 +48,17 @@ const BatchBuildPanel = ({ knowledgeBaseId, onBuildComplete }) => {
 
     setLoading(true);
     try {
-      // TODO: 调用API获取文档列表
-      // const response = await getDocuments(knowledgeBaseId);
-      
-      // Mock数据
-      setTimeout(() => {
-        const mockDocs = [
-          { id: 1, name: '公司简介.pdf', size: '2.5MB', status: 'processed', hasGraph: false },
-          { id: 2, name: '产品手册.docx', size: '1.8MB', status: 'processed', hasGraph: true },
-          { id: 3, name: '技术白皮书.pdf', size: '5.2MB', status: 'processed', hasGraph: false },
-          { id: 4, name: '年度报告.pdf', size: '8.1MB', status: 'processed', hasGraph: false },
-          { id: 5, name: '会议纪要.txt', size: '156KB', status: 'processed', hasGraph: false },
-          { id: 6, name: '项目计划.docx', size: '890KB', status: 'processed', hasGraph: true },
-          { id: 7, name: '合作协议.pdf', size: '3.4MB', status: 'processed', hasGraph: false },
-          { id: 8, name: '市场调研.xlsx', size: '1.2MB', status: 'processed', hasGraph: false }
-        ];
-        setDocuments(mockDocs);
-        setLoading(false);
-      }, 500);
+      // 调用API获取文档列表
+      const response = await listDocuments(0, 1000, knowledgeBaseId);
+      // 后端返回的数据结构为 { documents, skip, limit, total }
+      if (response && response.documents) {
+        setDocuments(response.documents);
+      } else {
+        setDocuments([]);
+      }
     } catch (error) {
       console.error('加载文档列表失败:', error);
+    } finally {
       setLoading(false);
     }
   }, [knowledgeBaseId]);
@@ -281,9 +273,9 @@ const BatchBuildPanel = ({ knowledgeBaseId, onBuildComplete }) => {
             ) : (
               <div className="document-list">
                 {documents.map(doc => (
-                  <div 
-                    key={doc.id} 
-                    className={`document-item ${selectedDocs.includes(doc.id) ? 'selected' : ''} ${doc.hasGraph ? 'has-graph' : ''}`}
+                  <div
+                    key={doc.id}
+                    className={`document-item ${selectedDocs.includes(doc.id) ? 'selected' : ''} ${doc.is_vectorized ? 'has-graph' : ''}`}
                   >
                     <input
                       type="checkbox"
@@ -291,12 +283,12 @@ const BatchBuildPanel = ({ knowledgeBaseId, onBuildComplete }) => {
                       onChange={(e) => handleSelectDoc(doc.id, e.target.checked)}
                     />
                     <div className="document-info">
-                      <span className="document-name">{doc.name}</span>
+                      <span className="document-name">{doc.title}</span>
                       <span className="document-meta">
-                        {doc.size} · {doc.hasGraph ? '已有图谱' : '未构建'}
+                        {doc.file_type} · {doc.is_vectorized ? '已向量化' : '未构建'}
                       </span>
                     </div>
-                    {doc.hasGraph && (
+                    {doc.is_vectorized && (
                       <span className="graph-badge">已构建</span>
                     )}
                   </div>

@@ -56,14 +56,9 @@ const KnowledgeGraphDashboard = ({
         setRelationDistribution(relationRes.data.distribution);
       }
 
-      // 加载最近活动（Mock数据）
-      setRecentActivities([
-        { id: 1, type: 'entity_added', message: '新增实体 "张三"', time: '5分钟前' },
-        { id: 2, type: 'relation_added', message: '新增关系 "张三 -就职于-> ABC公司"', time: '10分钟前' },
-        { id: 3, type: 'graph_built', message: '完成文档 "公司简介.pdf" 的图谱构建', time: '1小时前' },
-        { id: 4, type: 'entity_merged', message: '合并实体 "北京" 和 "北京市"', time: '2小时前' },
-        { id: 5, type: 'batch_build', message: '批量构建完成：成功 15 个文档，失败 2 个', time: '3小时前' }
-      ]);
+      // 加载最近活动
+      // TODO: 调用API获取最近活动数据
+      setRecentActivities([]);
     } catch (error) {
       console.error('加载分布数据失败:', error);
     }

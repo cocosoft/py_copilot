@@ -282,7 +282,7 @@ class KnowledgeGraphService:
         
         # 构建图谱数据
         nodes = []
-        links = []
+        edges = []
         
         # 添加实体节点
         entity_map = {}
@@ -303,7 +303,7 @@ class KnowledgeGraphService:
         # 添加关系边
         for rel in relationships:
             if rel.source_id in entity_map and rel.target_id in entity_map:
-                links.append({
+                edges.append({
                     "source": entity_map[rel.source_id],
                     "target": entity_map[rel.target_id],
                     "label": rel.relationship_type,
@@ -313,7 +313,7 @@ class KnowledgeGraphService:
         
         return {
             "nodes": nodes,
-            "links": links,
+            "edges": edges,
             "statistics": {
                 "total_entities": len(entities),
                 "total_relationships": len(relationships),
@@ -621,7 +621,7 @@ class KnowledgeGraphService:
             
             return {
                 "nodes": graph.get("nodes", []),
-                "links": graph.get("edges", []),
+                "edges": graph.get("edges", []),
                 "statistics": statistics
             }
             
@@ -648,7 +648,7 @@ class KnowledgeGraphService:
 
             result = {
                 "nodes": graph.get("nodes", []),
-                "links": graph.get("edges", []),
+                "edges": graph.get("edges", []),
                 "statistics": statistics
             }
 

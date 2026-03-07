@@ -1,0 +1,199 @@
+/**
+ * 错误通知组件样式
+ */
+
+.error-notification-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 10000;
+  max-width: 400px;
+  width: 100%;
+}
+
+.error-notification {
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-left: 4px solid #ff4d4f;
+  animation: slideIn 0.3s ease-out;
+  overflow: hidden;
+}
+
+.error-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #fff2f0;
+  border-bottom: 1px solid #ffccc7;
+}
+
+.error-header h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ff4d4f;
+}
+
+.clear-all-btn {
+  padding: 4px;
+  border: none;
+  background: none;
+  font-size: 14px;
+  cursor: pointer;
+  color: #ff4d4f;
+  border-radius: 4px;
+  transition: all 0.3s;
+}
+
+.clear-all-btn:hover {
+  background: rgba(255, 77, 79, 0.1);
+}
+
+.error-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.error-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  transition: all 0.3s;
+}
+
+.error-item:hover {
+  background: #fafafa;
+}
+
+.error-item:last-child {
+  border-bottom: none;
+}
+
+.error-icon {
+  font-size: 18px;
+  margin-right: 12px;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.error-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.error-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.error-message {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.4;
+  word-wrap: break-word;
+}
+
+.close-btn {
+  padding: 4px;
+  border: none;
+  background: none;
+  font-size: 14px;
+  cursor: pointer;
+  color: #999;
+  border-radius: 4px;
+  transition: all 0.3s;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.close-btn:hover {
+  background: #f0f0f0;
+  color: #333;
+}
+
+/* 动画 */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* 滚动条样式 */
+.error-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.error-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.error-list::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.error-list::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .error-notification-container {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    max-width: none;
+  }
+
+  .error-item {
+    padding: 10px 12px;
+  }
+
+  .error-title {
+    font-size: 13px;
+  }
+
+  .error-message {
+    font-size: 12px;
+  }
+}
+
+/* 不同错误类型的样式 */
+.error-item.network {
+  border-left: 4px solid #1890ff;
+}
+
+.error-item.validation {
+  border-left: 4px solid #faad14;
+}
+
+.error-item.authentication {
+  border-left: 4px solid #722ed1;
+}
+
+.error-item.permission {
+  border-left: 4px solid #52c41a;
+}
+
+.error-item.server {
+  border-left: 4px solid #13c2c2;
+}
+
+.error-item.client {
+  border-left: 4px solid #fa8c16;
+}
+
+.error-item.unknown {
+  border-left: 4px solid #8c8c8c;
+}
