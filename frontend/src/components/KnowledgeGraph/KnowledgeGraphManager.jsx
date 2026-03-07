@@ -12,6 +12,7 @@ import RelationManagement from './RelationManagement';
 import RelationTypeConfig from './RelationTypeConfig';
 import BatchBuildPanel from './BatchBuildPanel';
 import GraphVisualization from './GraphVisualization';
+import GraphConfigCenter from './GraphConfigCenter';
 import UserGuide from '../UI/UserGuide';
 import { getKnowledgeBaseGraphStats } from '../../utils/api/knowledgeGraphApi';
 import './KnowledgeGraphManager.css';
@@ -39,15 +40,15 @@ const KnowledgeGraphManager = ({ knowledgeBaseId, knowledgeBaseName }) => {
 
   // 标签页配置
   const tabs = [
-    { 
-      id: 'dashboard', 
-      label: '概览', 
+    {
+      id: 'dashboard',
+      label: '概览',
       icon: '📊',
       description: '查看知识图谱整体统计信息'
     },
-    { 
-      id: 'entities', 
-      label: '实体管理', 
+    {
+      id: 'entities',
+      label: '实体管理',
       icon: '🏷️',
       description: '管理知识库中的实体'
     },
@@ -58,22 +59,22 @@ const KnowledgeGraphManager = ({ knowledgeBaseId, knowledgeBaseName }) => {
       description: '管理实体间的关系'
     },
     {
-      id: 'relation-types',
-      label: '关系类型',
-      icon: '🏷️',
-      description: '管理关系类型配置'
-    },
-    { 
-      id: 'visualization', 
-      label: '可视化', 
+      id: 'visualization',
+      label: '可视化',
       icon: '🕸️',
       description: '可视化展示知识图谱'
     },
-    { 
-      id: 'batch-build', 
-      label: '批量构建', 
+    {
+      id: 'batch-build',
+      label: '批量构建',
       icon: '⚡',
       description: '批量为多个文档构建知识图谱'
+    },
+    {
+      id: 'config',
+      label: '配置中心',
+      icon: '⚙️',
+      description: '配置实体类型、关系类型、提取策略等'
     }
   ];
 
@@ -90,6 +91,7 @@ const KnowledgeGraphManager = ({ knowledgeBaseId, knowledgeBaseName }) => {
       setGraphStats(response.data);
     } catch (error) {
       console.error('加载统计信息失败:', error);
+    } finally {
       setLoading(false);
     }
   };
@@ -130,13 +132,6 @@ const KnowledgeGraphManager = ({ knowledgeBaseId, knowledgeBaseName }) => {
           />
         );
       
-      case 'relation-types':
-        return (
-          <RelationTypeConfig 
-            knowledgeBaseId={knowledgeBaseId}
-          />
-        );
-      
       case 'visualization':
         return (
           <GraphVisualization 
@@ -146,12 +141,19 @@ const KnowledgeGraphManager = ({ knowledgeBaseId, knowledgeBaseName }) => {
       
       case 'batch-build':
         return (
-          <BatchBuildPanel 
+          <BatchBuildPanel
             knowledgeBaseId={knowledgeBaseId}
             onBuildComplete={loadGraphStats}
           />
         );
-      
+
+      case 'config':
+        return (
+          <GraphConfigCenter
+            knowledgeBaseId={knowledgeBaseId}
+          />
+        );
+
       default:
         return null;
     }

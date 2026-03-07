@@ -3,9 +3,6 @@ import './knowledge.css';
 import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
 import { FaDownload } from 'react-icons/fa';
-import KnowledgeGraph from '../components/KnowledgeGraph';
-import EntityConfigManagement from '../components/EntityConfigManagement';
-import EntityMaintenanceSimple from '../components/EntityMaintenanceSimple';
 import KnowledgeGraphManager from '../components/KnowledgeGraph/KnowledgeGraphManager';
 import EntityConfirmationList from '../components/KnowledgeGraph/EntityConfirmationList';
 import websocketService from '../services/websocketService';
@@ -1716,129 +1713,127 @@ const Knowledge = () => {
 
   return (
     <div className="knowledge-container">
-      <div className="content-header">
-        <h2>知识库管理</h2>
-        <p>管理和查询您的知识库文档</p>
-        {stats.total_documents !== undefined && (
-          <div className="stats-info">
-            文档总数: {stats.total_documents} | 向量文档: {stats.vector_documents} | 知识库: {stats.knowledge_bases_count}
+      {/* 左侧知识库侧边栏 */}
+      <div className="knowledge-sidebar">
+        <div className="sidebar-header">
+          <h3>知识库</h3>
+          <div className="sidebar-actions">
+            <button 
+              className="sidebar-btn create-btn" 
+              onClick={() => setShowCreateModal(true)}
+              title="新建知识库"
+            >
+              +
+            </button>
+            <button 
+              className="sidebar-btn import-btn" 
+              onClick={openImportModal}
+              title="导入知识库"
+            >
+              📥
+            </button>
           </div>
-        )}
-      </div>
-      
-      {/* 知识库导航栏 */}
-      <div className="knowledge-nav">
-          <div className="knowledge-nav-header">
-            <div className="knowledge-nav-title">知识库</div>
-            <div className="kb-management-actions">
-              <button className="create-btn" onClick={() => setShowCreateModal(true)}>
-                + 新建知识库
-              </button>
-              <button className="import-btn" onClick={openImportModal}>
-                导入知识库
-              </button>
-            </div>
-          </div>
+        </div>
         
-        <div className="knowledge-nav-list">
+        <div className="sidebar-content">
           {loadingKnowledgeBases ? (
-            <div className="loading-container">
+            <div className="sidebar-loading">
               <div className="loading-spinner"></div>
-              <span>加载知识库...</span>
+              <span>加载中...</span>
             </div>
           ) : knowledgeBases.length > 0 ? (
-            knowledgeBases.map(kb => (
-              <div
-                key={kb.id}
-                className={`knowledge-nav-item ${selectedKnowledgeBase?.id === kb.id ? 'active' : ''}`}
-                onClick={() => setSelectedKnowledgeBase(kb)}
-              >
-                <span>{kb.name}</span>
-                <div className="kb-actions">
-                  <button
-                    className="export-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleExportKnowledgeBase(kb);
-                    }}
-                    title="导出知识库"
-                  >
-                    <FaDownload style={{ marginRight: '2px' }} />
-                    导出
-                  </button>
-                  <button
-                    className="close-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openDeleteModal(kb);
-                    }}
-                    title="删除知识库"
-                  >
-                    ×
-                  </button>
+            <div className="sidebar-list">
+              {knowledgeBases.map(kb => (
+                <div
+                  key={kb.id}
+                  className={`sidebar-item ${selectedKnowledgeBase?.id === kb.id ? 'active' : ''}`}
+                  onClick={() => setSelectedKnowledgeBase(kb)}
+                  title={kb.description || kb.name}
+                >
+                  <div className="sidebar-item-icon">📚</div>
+                  <div className="sidebar-item-info">
+                    <span className="sidebar-item-name">{kb.name}</span>
+                    {kb.document_count !== undefined && (
+                      <span className="sidebar-item-count">{kb.document_count} 文档</span>
+                    )}
+                  </div>
+                  <div className="sidebar-item-actions">
+                    <button
+                      className="sidebar-action-btn export-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleExportKnowledgeBase(kb);
+                      }}
+                      title="导出"
+                    >
+                      <FaDownload />
+                    </button>
+                    <button
+                      className="sidebar-action-btn delete-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openDeleteModal(kb);
+                      }}
+                      title="删除"
+                    >
+                      ×
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))
+              ))}
+            </div>
           ) : (
-            <div className="empty-nav">
-              <span>暂无知识库，请创建新的知识库</span>
+            <div className="sidebar-empty">
+              <span>暂无知识库</span>
+              <button onClick={() => setShowCreateModal(true)}>创建知识库</button>
             </div>
           )}
         </div>
         
-        {/* 知识库列表分页控件 */}
+        {/* 知识库分页控件 */}
         {totalKbs > 0 && (
-          <div className="knowledge-pagination">
-            <div className="pagination-info">
-              共 {totalKbs} 个知识库
+          <div className="sidebar-pagination">
+            <div className="sidebar-pagination-info">
+              {kbCurrentPage}/{totalKbPages}页
             </div>
-            <div className="pagination-controls">
+            <div className="sidebar-pagination-controls">
               <button 
-                className="pagination-btn" 
-                onClick={() => setKbCurrentPage(1)}
-                disabled={kbCurrentPage === 1}
-              >
-                首页
-              </button>
-              <button 
-                className="pagination-btn" 
+                className="sidebar-page-btn" 
                 onClick={() => setKbCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={kbCurrentPage === 1}
               >
-                上一页
+                ‹
               </button>
-              
-              {/* 页码按钮 */}
-              {Array.from({ length: totalKbPages }, (_, i) => i + 1).map(page => (
-                <button 
-                  key={page}
-                  className={`pagination-btn ${kbCurrentPage === page ? 'active' : ''}`} 
-                  onClick={() => setKbCurrentPage(page)}
-                >
-                  {page}
-                </button>
-              ))}
-              
               <button 
-                className="pagination-btn" 
+                className="sidebar-page-btn" 
                 onClick={() => setKbCurrentPage(prev => Math.min(totalKbPages, prev + 1))}
                 disabled={kbCurrentPage === totalKbPages}
               >
-                下一页
-              </button>
-              <button 
-                className="pagination-btn" 
-                onClick={() => setKbCurrentPage(totalKbPages)}
-                disabled={kbCurrentPage === totalKbPages}
-              >
-                末页
+                ›
               </button>
             </div>
           </div>
         )}
       </div>
       
-      <div className="knowledge-content">
+      {/* 右侧主内容区域 */}
+      <div className="knowledge-main">
+        {/* 页面头部 */}
+        <div className="content-header">
+          <div className="header-title-section">
+            <h2>{selectedKnowledgeBase?.name || '知识库管理'}</h2>
+            {selectedKnowledgeBase?.description && (
+              <p>{selectedKnowledgeBase.description}</p>
+            )}
+          </div>
+          {stats.total_documents !== undefined && (
+            <div className="stats-info">
+              文档: {stats.total_documents} | 向量: {stats.vector_documents} | 知识库: {stats.knowledge_bases_count}
+            </div>
+          )}
+        </div>
+        
+        <div className="knowledge-content">
         {/* 错误和成功提示 */}
         {error && (
           <div className="notification error">
@@ -1972,18 +1967,6 @@ const Knowledge = () => {
             onClick={() => setMainActiveTab('knowledge-graph')}
           >
             知识图谱
-          </button>
-          <button 
-            className={`main-tab-btn ${mainActiveTab === 'entity-config' ? 'active' : ''}`}
-            onClick={() => setMainActiveTab('entity-config')}
-          >
-            实体配置
-          </button>
-          <button 
-            className={`main-tab-btn ${mainActiveTab === 'entity-maintenance' ? 'active' : ''}`}
-            onClick={() => setMainActiveTab('entity-maintenance')}
-          >
-            实体维护
           </button>
         </div>
         
@@ -2559,28 +2542,8 @@ const Knowledge = () => {
           </div>
         )}
         
-        {/* 实体配置管理界面 */}
-        {mainActiveTab === 'entity-config' && (
-          <EntityConfigManagement />
-        )}
-        
-        {/* 实体维护界面 */}
-        {mainActiveTab === 'entity-maintenance' && selectedKnowledgeBase && (
-          <div style={{ height: 'calc(100vh - 300px)', minHeight: '500px' }}>
-            <EntityMaintenanceSimple 
-              knowledgeBaseId={selectedKnowledgeBase.id} 
-              embedded={true}
-            />
-          </div>
-        )}
-        
-        {mainActiveTab === 'entity-maintenance' && !selectedKnowledgeBase && (
-          <div className="empty-state">
-            <div className="empty-icon">📚</div>
-            <h3>请先选择知识库</h3>
-            <p>实体维护需要先选择一个知识库</p>
-          </div>
-        )}
+
+      </div>
       </div>
       
       {/* 创建知识库模态框 */}

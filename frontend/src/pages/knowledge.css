@@ -1,10 +1,300 @@
 /* 知识库页面样式 */
 .knowledge-container {
-  padding: 0;
-  height: auto;
-  overflow-y: visible;
+  height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: row;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* 左侧知识库侧边栏 */
+.knowledge-sidebar {
+  width: 280px;
+  min-width: 280px;
+  background-color: #f8f9fa;
+  border-right: 1px solid #e1e8ed;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
+}
+
+/* 侧边栏头部 */
+.sidebar-header {
+  padding: 16px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e1e8ed;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sidebar-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.sidebar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.sidebar-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.sidebar-btn.create-btn {
+  background-color: #2ecc71;
+  color: white;
+}
+
+.sidebar-btn.create-btn:hover {
+  background-color: #27ae60;
+}
+
+.sidebar-btn.import-btn {
+  background-color: #3498db;
+  color: white;
+}
+
+.sidebar-btn.import-btn:hover {
+  background-color: #2980b9;
+}
+
+/* 侧边栏内容区域 */
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.sidebar-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: #7f8c8d;
+  gap: 12px;
+}
+
+.sidebar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  background-color: #ffffff;
+  border: 1px solid #e1e8ed;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  gap: 10px;
+}
+
+.sidebar-item:hover {
+  background-color: #f0f8ff;
+  border-color: #3498db;
+}
+
+.sidebar-item.active {
+  background-color: #e3f2fd;
+  border-color: #3498db;
+  box-shadow: 0 2px 4px rgba(52, 152, 219, 0.2);
+}
+
+.sidebar-item-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.sidebar-item-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar-item-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #2c3e50;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-item-count {
+  font-size: 12px;
+  color: #7f8c8d;
+}
+
+.sidebar-item-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.sidebar-item:hover .sidebar-item-actions {
+  opacity: 1;
+}
+
+.sidebar-action-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.sidebar-action-btn.export-btn {
+  background-color: #3498db;
+  color: white;
+}
+
+.sidebar-action-btn.export-btn:hover {
+  background-color: #2980b9;
+}
+
+.sidebar-action-btn.delete-btn {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.sidebar-action-btn.delete-btn:hover {
+  background-color: #c0392b;
+}
+
+/* 侧边栏空状态 */
+.sidebar-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: #7f8c8d;
+  gap: 16px;
+  text-align: center;
+}
+
+.sidebar-empty button {
+  padding: 8px 16px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.sidebar-empty button:hover {
+  background-color: #2980b9;
+}
+
+/* 侧边栏分页 */
+.sidebar-pagination {
+  padding: 12px 16px;
+  background-color: #ffffff;
+  border-top: 1px solid #e1e8ed;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sidebar-pagination-info {
+  font-size: 12px;
+  color: #7f8c8d;
+}
+
+.sidebar-pagination-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.sidebar-page-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #e1e8ed;
+  background-color: #ffffff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.sidebar-page-btn:hover:not(:disabled) {
+  background-color: #f0f8ff;
+  border-color: #3498db;
+}
+
+.sidebar-page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 右侧主内容区域 */
+.knowledge-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+/* 页面头部 */
+.content-header {
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.header-title-section h2 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0 0 8px 0;
+}
+
+.header-title-section p {
+  font-size: 14px;
+  color: #7f8c8d;
+  margin: 0;
+}
+
+.stats-info {
+  font-size: 13px;
+  color: #3498db;
+  background-color: #ecf0f1;
+  padding: 8px 12px;
+  border-radius: 4px;
+  white-space: nowrap;
 }
 
 /* 页面头部 */
@@ -36,10 +326,11 @@
 
 /* 主要内容区域 */
 .knowledge-content {
-  height: calc(100% - 60px);
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  overflow: hidden;
 }
 
 /* 主界面标签页导航 */
@@ -74,90 +365,6 @@
 .main-tab-btn:hover:not(.active) {
   color: #1890ff;
   background-color: #fafafa;
-}
-
-/* 知识库导航栏 */
-.knowledge-nav {
-  background-color: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  padding: 16px;
-  margin-bottom: 16px;
-}
-
-.knowledge-nav-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.knowledge-nav-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #2c3e50;
-}
-
-.knowledge-nav-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.knowledge-nav-item {
-  background-color: #f8f9fa;
-  border: 1px solid #e1e8ed;
-  border-radius: 20px;
-  padding: 6px 16px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.knowledge-nav-item.active {
-  background-color: #3498db;
-  color: white;
-  border-color: #3498db;
-}
-
-.knowledge-nav-item:hover:not(.active) {
-  background-color: #e9ecef;
-}
-
-.knowledge-nav-item .close-btn {
-  font-size: 12px;
-  opacity: 0.7;
-  transition: opacity 0.2s;
-}
-
-.knowledge-nav-item:hover .close-btn {
-  opacity: 1;
-}
-
-.knowledge-nav-item .export-btn {
-  font-size: 12px;
-  padding: 2px 6px;
-  background-color: #3498db;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  opacity: 0.7;
-  transition: all 0.2s;
-  cursor: pointer;
-}
-
-.knowledge-nav-item:hover .export-btn {
-  opacity: 1;
-  background-color: #2980b9;
-}
-
-.kb-actions {
-  display: flex;
-  gap: 4px;
 }
 
 /* 工具栏区域 */
@@ -479,6 +686,7 @@
   gap: 20px;
   overflow-y: auto;
   padding: 8px;
+  align-content: start;
 }
 
 /* 知识库项 */
@@ -613,20 +821,26 @@
   font-weight: 500;
 }
 
-/* 模态框样式 */
+/* 模态框样式 - 知识库页面专用 */
+.knowledge-container .modal-overlay,
+.knowledge-main .modal-overlay,
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 1000;
+  z-index: 9999;
 }
 
+.knowledge-container .modal-content,
+.knowledge-main .modal-content,
 .modal-content {
   background-color: white;
   border-radius: 8px;
@@ -636,6 +850,8 @@
   max-height: 80vh;
   overflow-y: auto;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+  position: relative;
+  margin: auto;
 }
 
 .modal-header {
@@ -1561,8 +1777,13 @@
   background-color: #ffffff;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  padding: 20px;
-  margin-bottom: 20px;
+  padding: 0;
+  margin-bottom: 0;
+  height: calc(100vh - 280px);
+  min-height: 500px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .knowledge-graph-header {

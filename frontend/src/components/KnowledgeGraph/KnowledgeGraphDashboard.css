@@ -2,6 +2,16 @@
  * 知识图谱概览面板组件样式
  */
 
+/* ==================== CSS变量定义 ==================== */
+.knowledge-graph-dashboard {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8f9fa;
+  --text-primary: #2c3e50;
+  --text-secondary: #7f8c8d;
+  --primary-color: #3498db;
+  --border-color: #e1e8ed;
+}
+
 /* ==================== 主容器 ==================== */
 .knowledge-graph-dashboard {
   padding: 24px;
