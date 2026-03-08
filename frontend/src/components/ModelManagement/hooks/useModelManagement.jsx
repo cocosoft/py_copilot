@@ -21,7 +21,9 @@ const useModelManagement = () => {
     tool: null,
     search: null,
     mcp: null,
-    topic_title: null
+    topic_title: null,
+    embedding: null,
+    rerank: null
   });
   const [isSavingDefaultModel, setIsSavingDefaultModel] = useState(false);
   const [models, setModels] = useState([]);
@@ -125,7 +127,9 @@ const useModelManagement = () => {
       tool: ['tool_calling', 'api_integration', 'function_execution'],
       search: ['information_retrieval', 'relevance_ranking', 'semantic_search'],
       mcp: ['multi_modal_processing', 'cross_media_understanding', 'unified_representation'],
-      topic_title: ['text_summarization', 'keyword_extraction']
+      topic_title: ['text_summarization', 'keyword_extraction'],
+      embedding: ['text_embedding', 'semantic_embedding', 'vector_representation'],
+      rerank: ['result_reranking', 'relevance_optimization', 'ranking_refinement']
     };
     
     const requiredCapabilities = sceneCapabilities[scene] || [];
@@ -252,7 +256,7 @@ const useModelManagement = () => {
       // 设置场景默认模型ID（保持为整数类型，与模型列表中的id类型一致）
       const sceneDefaults = {};
       // 遍历所有可能的场景（与初始状态保持一致）
-      const allScenes = ['chat', 'image', 'video', 'voice', 'translate', 'knowledge', 'workflow', 'tool', 'search', 'mcp', 'topic_title'];
+      const allScenes = ['chat', 'image', 'video', 'voice', 'translate', 'knowledge', 'workflow', 'tool', 'search', 'mcp', 'topic_title', 'embedding', 'rerank'];
       allScenes.forEach(scene => {
         if (sceneConfigs[scene]?.model_id) {
           sceneDefaults[scene] = sceneConfigs[scene].model_id;

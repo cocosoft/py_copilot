@@ -67,14 +67,14 @@ export const deleteRelationType = async (id) => {
 // ==================== 批量构建 ====================
 
 /**
- * 批量构建知识图谱
+ * 批量构建知识图谱（异步）
  * @param {Array<number>} documentIds 文档ID列表
  * @param {Object} options 构建选项
- * @returns {Promise<Object>} 批量构建任务信息
+ * @returns {Promise<Object>} 批量构建任务信息，包含batch_id
  */
 export const batchBuildKnowledgeGraph = async (documentIds, options = {}) => {
   try {
-    return request('/v1/knowledge-graph/batch/build-graphs', {
+    return request('/v1/knowledge-graph/batch/build-graphs-async', {
       method: 'POST',
       data: { document_ids: documentIds, ...options }
     });
@@ -196,7 +196,7 @@ export const disambiguateEntity = async (entityId, canonicalId) => {
 export const getRelations = async (knowledgeBaseId, params = {}) => {
   try {
     const queryParams = new URLSearchParams();
-    if (knowledgeBaseId) queryParams.append('kb_id', knowledgeBaseId);
+    if (knowledgeBaseId) queryParams.append('knowledge_base_id', knowledgeBaseId);
     if (params.filter) queryParams.append('filter', params.filter);
     if (params.keyword) queryParams.append('keyword', params.keyword);
     if (params.relationType) queryParams.append('relation_type', params.relationType);
@@ -206,6 +206,9 @@ export const getRelations = async (knowledgeBaseId, params = {}) => {
     if (params.maxConfidence) queryParams.append('max_confidence', params.maxConfidence);
     if (params.startDate) queryParams.append('start_date', params.startDate);
     if (params.endDate) queryParams.append('end_date', params.endDate);
+    // 添加分页参数
+    queryParams.append('skip', params.skip || 0);
+    queryParams.append('limit', params.limit || 20); // 默认每页20条
     
     return request(`/v1/knowledge-graph/relationships?${queryParams.toString()}`, {
       method: 'GET'

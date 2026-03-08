@@ -10,6 +10,9 @@ from sqlalchemy.orm import Session
 from app.modules.knowledge.models.knowledge_document import (
     DocumentEntity, KBEntity, KnowledgeDocument
 )
+from app.services.knowledge.bert_entity_aligner import (
+    BERTEntityAligner, get_bert_aligner
+)
 
 logger = logging.getLogger(__name__)
 
@@ -20,12 +23,23 @@ class EntityAlignmentService:
 
     用于将文档级实体对齐到知识库级实体
     核心功能：实体聚类、相似度计算、别名发现
+
+    增强功能：集成BERT语义理解
     """
 
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, use_bert: bool = True):
         self.db = db
         self.text_similarity_threshold = 0.75
         self.semantic_similarity_threshold = 0.70
+
+        # 初始化BERT对齐器
+        self.bert_aligner = None
+        if use_bert:
+            try:
+                self.bert_aligner = get_bert_aligner()
+                logger.info("BERT实体对齐器初始化成功")
+            except Exception as e:
+                logger.warning(f"BERT实体对齐器初始化失败: {e}，将使用传统方法")
 
     def align_entities_for_kb(self, knowledge_base_id: int) -> Dict[str, Any]:
         """
@@ -142,12 +156,21 @@ class EntityAlignmentService:
         计算实体间的相似度矩阵
 
         使用多维度相似度：
-        - 文本相似度 (40%): Jaro-Winkler
-        - 语义相似度 (40%): 基于词向量的余弦相似度
+        - 文本相似度 (30%): Jaro-Winkler
+        - BERT语义相似度 (40%): 基于BERT的语义理解
+        - 传统语义相似度 (10%): 基于词重叠
         - 上下文相似度 (20%): 文档相关性
         """
         n = len(entities)
         similarity = np.zeros((n, n))
+
+        # 如果BERT对齐器可用，计算BERT语义相似度
+        bert_similarity = None
+        if self.bert_aligner:
+            try:
+                bert_similarity = self._compute_bert_similarity_matrix(entities)
+            except Exception as e:
+                logger.warning(f"BERT相似度计算失败: {e}")
 
         for i in range(n):
             for j in range(i + 1, n):
@@ -157,7 +180,13 @@ class EntityAlignmentService:
                     entities[j].entity_text
                 )
 
-                # 语义相似度（简化实现，可使用词向量）
+                # BERT语义相似度（优先使用）
+                if bert_similarity is not None:
+                    bert_sim = bert_similarity[i][j]
+                else:
+                    bert_sim = 0.0
+
+                # 传统语义相似度（作为补充）
                 semantic_sim = self._semantic_similarity(
                     entities[i].entity_text,
                     entities[j].entity_text
@@ -170,13 +199,49 @@ class EntityAlignmentService:
                 )
 
                 # 加权组合
-                similarity[i][j] = similarity[j][i] = (
-                    0.4 * text_sim +
-                    0.4 * semantic_sim +
-                    0.2 * context_sim
-                )
+                if bert_similarity is not None:
+                    # 使用BERT语义相似度
+                    similarity[i][j] = similarity[j][i] = (
+                        0.30 * text_sim +
+                        0.40 * bert_sim +
+                        0.10 * semantic_sim +
+                        0.20 * context_sim
+                    )
+                else:
+                    # 回退到传统方法
+                    similarity[i][j] = similarity[j][i] = (
+                        0.40 * text_sim +
+                        0.40 * semantic_sim +
+                        0.20 * context_sim
+                    )
 
         return similarity
+
+    def _compute_bert_similarity_matrix(
+        self,
+        entities: List[DocumentEntity]
+    ) -> np.ndarray:
+        """
+        使用BERT计算实体间的语义相似度矩阵
+        """
+        if not self.bert_aligner:
+            return None
+
+        # 准备实体数据
+        entity_dicts = []
+        for entity in entities:
+            entity_dicts.append({
+                'id': entity.id,
+                'text': entity.entity_text,
+                'type': entity.entity_type,
+                'context': entity.context or ''
+            })
+
+        # 编码实体
+        embeddings = self.bert_aligner.encode_entities(entity_dicts)
+
+        # 计算相似度矩阵
+        return self.bert_aligner.compute_similarity_matrix(embeddings)
 
     def _text_similarity(self, text1: str, text2: str) -> float:
         """

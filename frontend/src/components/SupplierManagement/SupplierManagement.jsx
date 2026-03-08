@@ -13,20 +13,8 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
   // 优先使用传入的初始供应商数据（来自父组件）
   useEffect(() => {
     if (initialSuppliers && Array.isArray(initialSuppliers) && initialSuppliers.length > 0) {
-      // 处理初始供应商数据，确保字段命名一致
-      const processedInitialSuppliers = initialSuppliers.map(supplier => ({
-        ...supplier,
-        // 前端字段映射
-        name: supplier.name,
-        logo: supplier.logo,
-        category: supplier.category,
-        website: supplier.website,
-        api_endpoint: supplier.api_endpoint,
-        api_docs: supplier.api_docs,
-        api_key: supplier.api_key,
-        is_active: supplier.is_active
-      }));
-      setSuppliers(processedInitialSuppliers);
+      // initialSuppliers 已经由 getAll 格式化，直接使用
+      setSuppliers(initialSuppliers);
       setLoading(false);
     } else {
       // 如果没有初始数据，再加载
@@ -40,19 +28,8 @@ const SupplierManagement = ({ onSupplierSelect, selectedSupplier, initialSupplie
       const data = await api.supplierApi.getAll();
       
       // 处理供应商数据，确保字段命名一致
-      const processedSuppliers = Array.isArray(data) ? 
-        data.map(supplier => ({
-          ...supplier,
-          // 前端字段映射
-          name: supplier.name,
-          logo: supplier.logo,
-          category: supplier.category,
-          website: supplier.website,
-          api_endpoint: supplier.api_endpoint,
-          api_docs: supplier.api_docs,
-          api_key: supplier.api_key,
-          is_active: supplier.is_active
-        })) : [];
+      // getAll 已经返回格式化后的数据，使用 apiUrl 而不是 api_endpoint
+      const processedSuppliers = Array.isArray(data) ? data : [];
       
       setSuppliers(processedSuppliers);
       setError(null); // 清除错误状态

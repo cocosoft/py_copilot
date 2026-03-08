@@ -103,7 +103,9 @@
       "workflow": "Workflow",
       "tool": "Tool",
       "search": "Search",
-      "mcp": "MCP"
+      "mcp": "MCP",
+      "embedding": "Embedding",
+      "rerank": "Rerank"
     },
     "placeholder": "Please select a model",
     "selectLabel": "Select Global Default Model",

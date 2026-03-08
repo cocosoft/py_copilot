@@ -46,16 +46,38 @@
   "extraction_rules": {
     "PERSON": [
       {
-        "name": "中文人名",
-        "pattern": "(?:^|\\\\s)([张王李赵刘陈杨黄周吴徐孙胡朱高林何郭马罗梁宋郑谢韩唐冯于董萧程曹袁邓许傅沈曾彭吕][\\\\u4e00-\\\\u9fff]{1,2})(?=\\\\s|$|[，。！？])",
-        "description": "基于常见姓氏的中文人名识别",
-        "enabled": true
+        "name": "更新后的规则",
+        "pattern": "\\b[A-Z][a-z]+\\s+[A-Z][a-z]+\\b",
+        "description": "匹配人名",
+        "enabled": true,
+        "priority": 10
+      },
+      {
+        "name": "更新后的规则",
+        "pattern": "\\b[A-Z][a-z]+\\s+[A-Z][a-z]+\\b",
+        "description": "匹配人名",
+        "enabled": true,
+        "priority": 10
+      },
+      {
+        "name": "更新后的规则",
+        "pattern": "\\b[A-Z][a-z]+\\s+[A-Z][a-z]+\\b",
+        "description": "匹配人名",
+        "enabled": true,
+        "priority": 10
+      },
+      {
+        "name": "更新后的规则",
+        "pattern": "\\b[A-Z][a-z]+\\s+[A-Z][a-z]+\\b",
+        "description": "匹配人名",
+        "enabled": true,
+        "priority": 10
       }
     ],
     "ORG": [
       {
         "name": "中文组织名",
-        "pattern": "(?:^|\\\\s)([\\\\u4e00-\\\\u9fff]{2,6}(?:公司|集团|企业|机构|组织|大学|学院|医院|学校|研究所|实验室|中心|部门|局|委员会))(?=\\\\s|$|[，。！？])",
+        "pattern": "(?:^|\\s)([\\u4e00-\\u9fff]{2,6}(?:公司|集团|企业|机构|组织|大学|学院|医院|学校|研究所|实验室|中心|部门|局|委员会))(?=\\s|$|[，。！？])",
         "description": "基于组织关键词的中文组织名识别",
         "enabled": true
       }
@@ -121,6 +143,19 @@
       "技术峰会",
       "开发者大会",
       "产品发布会"
+    ],
+    "ORG": [
+      "阿里巴巴",
+      "腾讯",
+      "百度",
+      "字节跳动",
+      "苹果公司",
+      "Apple Inc."
+    ],
+    "PERSON": [
+      "史蒂夫·乔布斯",
+      "史蒂夫·沃兹尼亚克",
+      "蒂姆·库克"
     ]
   }
 }

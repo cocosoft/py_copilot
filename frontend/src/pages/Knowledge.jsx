@@ -4,7 +4,10 @@ import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
 import { FaDownload } from 'react-icons/fa';
 import KnowledgeGraphManager from '../components/KnowledgeGraph/KnowledgeGraphManager';
+import KnowledgeGraph from '../components/KnowledgeGraph';
 import EntityConfirmationList from '../components/KnowledgeGraph/EntityConfirmationList';
+import GraphDataCleaner from '../components/KnowledgeGraph/GraphDataCleaner';
+import HierarchicalGraphViewer from '../components/KnowledgeGraph/HierarchicalGraphViewer';
 import websocketService from '../services/websocketService';
 import {
   uploadDocument,
@@ -2530,10 +2533,22 @@ const Knowledge = () => {
         {mainActiveTab === 'knowledge-graph' && (
           <div className="knowledge-graph-section">
             {selectedKnowledgeBase ? (
-              <KnowledgeGraphManager 
-                knowledgeBaseId={selectedKnowledgeBase.id}
-                knowledgeBaseName={selectedKnowledgeBase.name}
-              />
+              <>
+                <KnowledgeGraphManager 
+                  knowledgeBaseId={selectedKnowledgeBase.id}
+                  knowledgeBaseName={selectedKnowledgeBase.name}
+                />
+                <div className="knowledge-graph-tools">
+                  <GraphDataCleaner 
+                    knowledgeBaseId={selectedKnowledgeBase.id}
+                    onClearComplete={(result) => {
+                      console.log('知识图谱数据清理完成:', result);
+                      // 刷新知识图谱数据
+                      loadKnowledgeBaseGraphData(selectedKnowledgeBase.id);
+                    }}
+                  />
+                </div>
+              </>
             ) : (
               <div className="empty-state">
                 <p>请选择一个知识库查看知识图谱</p>
@@ -3074,7 +3089,7 @@ const Knowledge = () => {
                     </div>
                   )}
                   
-                  {/* 知识图谱标签页 - 优化版 */}
+                  {/* 知识图谱标签页 - 使用统一的三级图谱查看器 */}
                   {documentDetailActiveTab === 'knowledge-graph' && (
                     <div className="knowledge-graph-tab optimized">
                       {/* 构建状态显示 */}
@@ -3108,80 +3123,30 @@ const Knowledge = () => {
                         </div>
                       )}
 
-                      {/* 优化的知识图谱界面 - 左右布局 */}
-                      <div className="knowledge-graph-layout">
-                        {/* 左侧：可视化区域 */}
-                        <div className="graph-visualization-section">
-                          <div className="section-header">
-                            <h4>📊 知识图谱可视化</h4>
-                            <div className="graph-actions">
-                              <button className="action-btn" title="重置视图">⟲</button>
-                              <button className="action-btn" title="放大">➕</button>
-                              <button className="action-btn" title="缩小">➖</button>
-                            </div>
-                          </div>
-                          <div className="graph-container">
-                            <KnowledgeGraph
-                              documentId={selectedDocument.id}
-                              width={600}
-                              height={400}
-                              graphData={graphData}
-                            />
-                          </div>
-
-                          {/* 统计信息 */}
-                          {graphStatistics && (
-                            <div className="graph-stats-bar">
-                              <div className="stat-pill">
-                                <span className="stat-label">节点</span>
-                                <span className="stat-value">{graphStatistics.nodes_count}</span>
-                              </div>
-                              <div className="stat-pill">
-                                <span className="stat-label">关系</span>
-                                <span className="stat-value">{graphStatistics.edges_count}</span>
-                              </div>
-                              <div className="stat-pill">
-                                <span className="stat-label">社区</span>
-                                <span className="stat-value">{graphStatistics.communities_count}</span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* 右侧：实体确认面板 */}
-                        <div className="entity-confirmation-section">
-                          <EntityConfirmationList
-                            documentId={selectedDocument.id}
-                            onConfirm={(entity) => console.log('确认实体:', entity)}
-                            onModify={(entity) => console.log('修改实体:', entity)}
-                            onDelete={(entity) => console.log('删除实体:', entity)}
-                            onHighlight={(position) => console.log('高亮位置:', position)}
-                            onReextract={() => handleBuildKnowledgeGraph(selectedDocument.id, null)}
-                          />
-                        </div>
+                      {/* 三级知识图谱统一查看器 */}
+                      <div className="hierarchical-graph-wrapper" style={{ height: '600px' }}>
+                        <HierarchicalGraphViewer
+                          documentId={selectedDocument?.id}
+                          knowledgeBaseId={selectedKnowledgeBase?.id}
+                          defaultLevel="document"
+                          showLevelSelector={true}
+                          showComparison={true}
+                          onNodeClick={(node) => console.log('点击节点:', node)}
+                          onLevelChange={(level) => console.log('切换到层级:', level)}
+                        />
                       </div>
 
-                      {/* 知识图谱说明 */}
-                      <div className="graph-info-section">
-                        <h4>💡 使用说明</h4>
-                        <div className="info-grid">
-                          <div className="info-item">
-                            <span className="info-icon">🖱️</span>
-                            <p>双击节点聚焦查看关联节点，双击空白处重置视图</p>
-                          </div>
-                          <div className="info-item">
-                            <span className="info-icon">✋</span>
-                            <p>拖动节点可以重新布局图谱</p>
-                          </div>
-                          <div className="info-item">
-                            <span className="info-icon">✓</span>
-                            <p>在右侧实体列表中确认、修改或删除提取的实体</p>
-                          </div>
-                          <div className="info-item">
-                            <span className="info-icon">📍</span>
-                            <p>点击定位按钮可在原文中高亮显示实体位置</p>
-                          </div>
-                        </div>
+                      {/* 实体确认面板 */}
+                      <div className="entity-confirmation-section" style={{ marginTop: '20px' }}>
+                        <h4>📝 实体确认</h4>
+                        <EntityConfirmationList
+                          documentId={selectedDocument.id}
+                          onConfirm={(entity) => console.log('确认实体:', entity)}
+                          onModify={(entity) => console.log('修改实体:', entity)}
+                          onDelete={(entity) => console.log('删除实体:', entity)}
+                          onHighlight={(position) => console.log('高亮位置:', position)}
+                          onReextract={() => handleBuildKnowledgeGraph(selectedDocument.id, null)}
+                        />
                       </div>
                     </div>
                   )}

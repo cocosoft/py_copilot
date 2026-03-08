@@ -215,8 +215,11 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
       // 获取供应商的API配置
       const supplierDetail = await api.supplierApi.getById(selectedSupplier.id);
       
+      // 调试：输出完整的供应商详情
+      console.log('供应商详情:', supplierDetail);
+      
       const apiConfig = {
-        apiUrl: supplierDetail.api_endpoint || supplierDetail.apiUrl,
+        apiUrl: supplierDetail.apiUrl,
         apiKey: supplierDetail.api_key
       };
       
@@ -863,15 +866,15 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
                     <div className="model-header">
                       <div className="model-header-left">
                         <div className="model-logo">
-                          <img 
-                            src={getModelLogo(model, selectedSupplier)} 
-                            alt="模型LOGO" 
+                          <img
+                            src={getModelLogo(model, selectedSupplier)}
+                            alt="模型LOGO"
                             className="model-logo-image"
                             onError={(e) => {
                               // 如果模型LOGO加载失败，尝试使用供应商LOGO
                               if (selectedSupplier && selectedSupplier.logo) {
-                                e.target.src = selectedSupplier.logo.startsWith('http') ? 
-                                  `/api/proxy-image?url=${encodeURIComponent(selectedSupplier.logo)}` : 
+                                e.target.src = selectedSupplier.logo.startsWith('http') ?
+                                  `/api/proxy-image?url=${encodeURIComponent(selectedSupplier.logo)}` :
                                   getImageUrl('providers', selectedSupplier.logo);
                               } else {
                                 // 如果都没有LOGO，隐藏图片
@@ -880,7 +883,9 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
                             }}
                           />
                         </div>
-                        <h3 className="model-name">{model.model_name ? `${model.model_name} (${model.model_id})` : model.model_id}</h3>
+                        <h3 className="model-name">
+                          {`${model.display_name || model.name || '未命名模型'}${model.name ? ` (${model.name})` : ''}`}
+                        </h3>
                       </div>
                       <div className="model-header-right">
                         {model.is_default && <span className="default-badge">{t('settings.modelManagement.table.default')}</span>}

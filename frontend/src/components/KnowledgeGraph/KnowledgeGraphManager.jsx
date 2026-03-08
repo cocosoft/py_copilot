@@ -13,6 +13,7 @@ import RelationTypeConfig from './RelationTypeConfig';
 import BatchBuildPanel from './BatchBuildPanel';
 import GraphVisualization from './GraphVisualization';
 import GraphConfigCenter from './GraphConfigCenter';
+import HierarchicalGraphViewer from './HierarchicalGraphViewer';
 import UserGuide from '../UI/UserGuide';
 import { getKnowledgeBaseGraphStats } from '../../utils/api/knowledgeGraphApi';
 import './KnowledgeGraphManager.css';
@@ -45,6 +46,12 @@ const KnowledgeGraphManager = ({ knowledgeBaseId, knowledgeBaseName }) => {
       label: '概览',
       icon: '📊',
       description: '查看知识图谱整体统计信息'
+    },
+    {
+      id: 'hierarchical',
+      label: '三级图谱',
+      icon: '🏛️',
+      description: '统一查看文档级、知识库级、全局级三层知识图谱'
     },
     {
       id: 'entities',
@@ -115,6 +122,17 @@ const KnowledgeGraphManager = ({ knowledgeBaseId, knowledgeBaseName }) => {
             stats={graphStats}
             loading={loading}
             onRefresh={loadGraphStats}
+          />
+        );
+
+      case 'hierarchical':
+        return (
+          <HierarchicalGraphViewer
+            knowledgeBaseId={knowledgeBaseId}
+            defaultLevel="knowledge_base"
+            showLevelSelector={true}
+            showComparison={true}
+            onLevelChange={(level) => console.log('切换到层级:', level)}
           />
         );
       

@@ -72,7 +72,8 @@ ROUTE_GROUPS: Dict[str, List[Dict]] = {
         {'module': 'app.api.v1.batch_translation', 'prefix': '/batch-translate', 'tags': ['batch-translation']}
     ],
     'tasks': [
-        {'module': 'app.api.v1.tasks', 'prefix': '/tasks', 'tags': ['tasks']}
+        {'module': 'app.api.v1.tasks', 'prefix': '/tasks', 'tags': ['tasks']},
+        {'module': 'app.api.v1.task_api', 'prefix': '/kg-tasks', 'tags': ['knowledge-graph-tasks']}
     ],
     'tools': [
         {'module': 'app.api.v1.tools', 'prefix': '/tools', 'tags': ['tools']}

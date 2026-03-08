@@ -3,7 +3,7 @@ import * as d3 from 'd3';
 import { request } from '../utils/apiUtils';
 import './KnowledgeGraph.css';
 
-const KnowledgeGraph = ({ documentId, textContent, graphData, width = 800, height = 600, responsive = true }) => {
+const KnowledgeGraph = ({ documentId, textContent, graphData, width = 800, height = 600, responsive = true, style = {} }) => {
   const svgRef = useRef();
   const containerRef = useRef();
   const [internalGraphData, setInternalGraphData] = useState(null);
@@ -400,7 +400,7 @@ const KnowledgeGraph = ({ documentId, textContent, graphData, width = 800, heigh
   };
 
   return (
-    <div className="knowledge-graph-container" ref={containerRef}>
+    <div className="knowledge-graph-container" ref={containerRef} style={style}>
       <div className="graph-header">
         <h3>知识图谱</h3>
         <div className="graph-stats">

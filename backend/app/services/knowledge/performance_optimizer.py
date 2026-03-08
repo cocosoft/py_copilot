@@ -1,534 +1,463 @@
+#!/usr/bin/env python3
 """
-知识库性能优化器
+性能优化模块
 
-实现知识库系统的性能优化，包括缓存机制、检索优化、大文档处理等。
+提供知识图谱系统的性能优化功能：
+1. 缓存机制
+2. 批量处理
+3. 异步处理
+4. 数据库查询优化
+5. 内存管理
 """
+
+import functools
 import time
-import hashlib
 import logging
-from typing import List, Dict, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional, Callable
 from functools import lru_cache
 from datetime import datetime, timedelta
 import threading
-from collections import defaultdict
+import asyncio
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+import psutil
+import os
 
 logger = logging.getLogger(__name__)
 
 
-class QueryCache:
-    """查询缓存管理器"""
-    
-    def __init__(self, max_size: int = 1000, ttl_seconds: int = 3600):
-        """初始化查询缓存
-        
-        Args:
-            max_size: 最大缓存条目数
-            ttl_seconds: 缓存生存时间（秒）
-        """
+class CacheManager:
+    """
+    缓存管理器
+
+    提供多级缓存支持：
+    1. 内存缓存（LRU）
+    2. 时间过期缓存
+    3. 大小限制缓存
+    """
+
+    def __init__(self, max_size: int = 1000, default_ttl: int = 3600):
         self.max_size = max_size
-        self.ttl_seconds = ttl_seconds
-        self.cache = {}
-        self.access_times = {}
-        self.lock = threading.RLock()
-    
-    def _generate_cache_key(self, query: str, **kwargs) -> str:
-        """生成缓存键
-        
-        Args:
-            query: 查询文本
-            **kwargs: 其他参数
-            
-        Returns:
-            缓存键
-        """
-        key_parts = [query]
-        for k, v in sorted(kwargs.items()):
-            if v is not None:
-                key_parts.append(f"{k}={v}")
-        
-        key_string = "|".join(key_parts)
-        return hashlib.md5(key_string.encode()).hexdigest()
-    
-    def get(self, query: str, **kwargs) -> Optional[Any]:
-        """获取缓存结果
-        
-        Args:
-            query: 查询文本
-            **kwargs: 其他参数
-            
-        Returns:
-            缓存结果，如果不存在或过期则返回None
-        """
-        with self.lock:
-            cache_key = self._generate_cache_key(query, **kwargs)
-            
-            if cache_key not in self.cache:
-                return None
-            
-            # 检查是否过期
-            access_time = self.access_times.get(cache_key)
-            if access_time and datetime.now() - access_time > timedelta(seconds=self.ttl_seconds):
-                self._remove(cache_key)
-                return None
-            
-            # 更新访问时间
-            self.access_times[cache_key] = datetime.now()
-            
-            return self.cache[cache_key]
-    
-    def set(self, query: str, result: Any, **kwargs) -> None:
-        """设置缓存结果
-        
-        Args:
-            query: 查询文本
-            result: 缓存结果
-            **kwargs: 其他参数
-        """
-        with self.lock:
-            cache_key = self._generate_cache_key(query, **kwargs)
-            
-            # 检查缓存大小，如果超过限制则清理最旧的条目
-            if len(self.cache) >= self.max_size:
-                self._cleanup_old_entries()
-            
-            self.cache[cache_key] = result
-            self.access_times[cache_key] = datetime.now()
-    
-    def _remove(self, cache_key: str) -> None:
-        """移除缓存条目
-        
-        Args:
-            cache_key: 缓存键
-        """
-        if cache_key in self.cache:
-            del self.cache[cache_key]
-        if cache_key in self.access_times:
-            del self.access_times[cache_key]
-    
-    def _cleanup_old_entries(self) -> None:
-        """清理最旧的缓存条目"""
-        if not self.access_times:
-            return
-        
-        # 找到最旧的访问时间
-        oldest_key = min(self.access_times.keys(), key=lambda k: self.access_times[k])
-        self._remove(oldest_key)
-    
-    def clear(self) -> None:
-        """清空缓存"""
-        with self.lock:
-            self.cache.clear()
-            self.access_times.clear()
-    
-    def get_stats(self) -> Dict[str, Any]:
-        """获取缓存统计信息
-        
-        Returns:
-            统计信息
-        """
-        with self.lock:
-            return {
-                "cache_size": len(self.cache),
-                "max_size": self.max_size,
-                "utilization": len(self.cache) / self.max_size if self.max_size > 0 else 0,
-                "oldest_entry": min(self.access_times.values()) if self.access_times else None,
-                "newest_entry": max(self.access_times.values()) if self.access_times else None
-            }
+        self.default_ttl = default_ttl
+        self._cache: Dict[str, Dict[str, Any]] = {}
+        self._lock = threading.RLock()
+        self._hit_count = 0
+        self._miss_count = 0
 
-
-class PerformanceMonitor:
-    """性能监控器"""
-    
-    def __init__(self):
-        """初始化性能监控器"""
-        self.metrics = defaultdict(list)
-        self.lock = threading.RLock()
-    
-    def record_metric(self, metric_name: str, value: float, metadata: Dict[str, Any] = None) -> None:
-        """记录性能指标
-        
-        Args:
-            metric_name: 指标名称
-            value: 指标值
-            metadata: 元数据
-        """
-        with self.lock:
-            timestamp = datetime.now()
-            metric_data = {
-                "timestamp": timestamp,
-                "value": value,
-                "metadata": metadata or {}
-            }
-            self.metrics[metric_name].append(metric_data)
-            
-            # 保持最近1000个记录
-            if len(self.metrics[metric_name]) > 1000:
-                self.metrics[metric_name] = self.metrics[metric_name][-1000:]
-    
-    def get_metric_stats(self, metric_name: str, time_window: timedelta = None) -> Dict[str, Any]:
-        """获取指标统计信息
-        
-        Args:
-            metric_name: 指标名称
-            time_window: 时间窗口
-            
-        Returns:
-            统计信息
-        """
-        with self.lock:
-            if metric_name not in self.metrics:
-                return {}
-            
-            metric_data = self.metrics[metric_name]
-            
-            # 应用时间窗口过滤
-            if time_window:
-                cutoff_time = datetime.now() - time_window
-                metric_data = [m for m in metric_data if m["timestamp"] >= cutoff_time]
-            
-            if not metric_data:
-                return {}
-            
-            values = [m["value"] for m in metric_data]
-            
-            return {
-                "count": len(values),
-                "min": min(values),
-                "max": max(values),
-                "avg": sum(values) / len(values),
-                "p95": self._calculate_percentile(values, 95),
-                "p99": self._calculate_percentile(values, 99)
-            }
-    
-    def _calculate_percentile(self, values: List[float], percentile: int) -> float:
-        """计算百分位数
-        
-        Args:
-            values: 值列表
-            percentile: 百分位数
-            
-        Returns:
-            百分位数值
-        """
-        if not values:
-            return 0.0
-        
-        sorted_values = sorted(values)
-        k = (len(sorted_values) - 1) * percentile / 100
-        f = int(k)
-        c = k - f
-        
-        if f + 1 < len(sorted_values):
-            return sorted_values[f] + c * (sorted_values[f + 1] - sorted_values[f])
-        else:
-            return sorted_values[f]
-    
-    def get_all_metrics(self) -> Dict[str, Any]:
-        """获取所有指标统计信息
-        
-        Returns:
-            所有指标统计
-        """
-        with self.lock:
-            stats = {}
-            for metric_name in self.metrics.keys():
-                stats[metric_name] = self.get_metric_stats(metric_name)
-            return stats
-
-
-class OptimizedRetrievalService:
-    """优化后的检索服务"""
-    
-    def __init__(self, original_retrieval_service):
-        """初始化优化检索服务
-        
-        Args:
-            original_retrieval_service: 原始检索服务实例
-        """
-        self.original_service = original_retrieval_service
-        self.query_cache = QueryCache(max_size=500, ttl_seconds=1800)  # 30分钟TTL
-        self.performance_monitor = PerformanceMonitor()
-        self.cache_hits = 0
-        self.cache_misses = 0
-    
-    def search_documents(self, query: str, limit: int = 10, knowledge_base_id: int = None) -> List[Dict[str, Any]]:
-        """优化后的文档搜索
-        
-        Args:
-            query: 查询文本
-            limit: 结果数量限制
-            knowledge_base_id: 知识库ID
-            
-        Returns:
-            搜索结果
-        """
-        start_time = time.time()
-        
-        # 检查缓存
-        cache_key_params = {"limit": limit, "knowledge_base_id": knowledge_base_id}
-        cached_result = self.query_cache.get(query, **cache_key_params)
-        
-        if cached_result is not None:
-            self.cache_hits += 1
-            execution_time = time.time() - start_time
-            
-            # 记录性能指标
-            self.performance_monitor.record_metric(
-                "search_latency_cached", 
-                execution_time,
-                {"cache_hit": True, "query_length": len(query)}
-            )
-            
-            logger.info(f"缓存命中: {query} (耗时: {execution_time:.3f}s)")
-            return cached_result
-        
-        # 缓存未命中，执行实际搜索
-        self.cache_misses += 1
-        
-        try:
-            result = self.original_service.search_documents(query, limit, knowledge_base_id)
-            
-            # 缓存结果（仅当有结果时）
-            if result:
-                self.query_cache.set(query, result, **cache_key_params)
-            
-            execution_time = time.time() - start_time
-            
-            # 记录性能指标
-            self.performance_monitor.record_metric(
-                "search_latency", 
-                execution_time,
-                {
-                    "cache_hit": False, 
-                    "query_length": len(query),
-                    "result_count": len(result)
-                }
-            )
-            
-            logger.info(f"搜索完成: {query} (耗时: {execution_time:.3f}s, 结果数: {len(result)})")
-            
-            return result
-            
-        except Exception as e:
-            execution_time = time.time() - start_time
-            
-            # 记录错误指标
-            self.performance_monitor.record_metric(
-                "search_error", 
-                execution_time,
-                {"error": str(e), "query_length": len(query)}
-            )
-            
-            logger.error(f"搜索失败: {query} (耗时: {execution_time:.3f}s, 错误: {e})")
-            raise
-    
-    def get_performance_stats(self) -> Dict[str, Any]:
-        """获取性能统计信息
-        
-        Returns:
-            性能统计
-        """
-        cache_stats = self.query_cache.get_stats()
-        performance_stats = self.performance_monitor.get_all_metrics()
-        
-        total_searches = self.cache_hits + self.cache_misses
-        cache_hit_rate = self.cache_hits / total_searches if total_searches > 0 else 0
-        
-        return {
-            "cache": {
-                "hits": self.cache_hits,
-                "misses": self.cache_misses,
-                "hit_rate": cache_hit_rate,
-                **cache_stats
-            },
-            "performance": performance_stats
-        }
-    
-    def clear_cache(self) -> None:
-        """清空缓存"""
-        self.query_cache.clear()
-        self.cache_hits = 0
-        self.cache_misses = 0
-        logger.info("检索缓存已清空")
-
-
-class DocumentChunkOptimizer:
-    """文档分块优化器"""
-    
-    def __init__(self, chunk_size: int = 1000, overlap: int = 100):
-        """初始化文档分块优化器
-        
-        Args:
-            chunk_size: 分块大小（字符数）
-            overlap: 重叠大小（字符数）
-        """
-        self.chunk_size = chunk_size
-        self.overlap = overlap
-        self.chunk_cache = {}
-    
-    def optimize_chunking(self, content: str, metadata: Dict[str, Any] = None) -> List[Dict[str, Any]]:
-        """优化文档分块
-        
-        Args:
-            content: 文档内容
-            metadata: 文档元数据
-            
-        Returns:
-            优化后的分块列表
-        """
-        if not content:
-            return []
-        
-        # 检查缓存
-        content_hash = hashlib.md5(content.encode()).hexdigest()
-        cache_key = f"{content_hash}_{self.chunk_size}_{self.overlap}"
-        
-        if cache_key in self.chunk_cache:
-            return self.chunk_cache[cache_key]
-        
-        # 智能分块策略
-        chunks = self._smart_chunking(content, metadata)
-        
-        # 缓存结果
-        self.chunk_cache[cache_key] = chunks
-        
-        return chunks
-    
-    def _smart_chunking(self, content: str, metadata: Dict[str, Any] = None) -> List[Dict[str, Any]]:
-        """智能分块策略
-        
-        Args:
-            content: 文档内容
-            metadata: 文档元数据
-            
-        Returns:
-            分块列表
-        """
-        chunks = []
-        
-        # 按段落分割（如果可能）
-        paragraphs = content.split('\n\n')
-        
-        current_chunk = ""
-        current_chunk_words = 0
-        chunk_index = 0
-        
-        for paragraph in paragraphs:
-            paragraph = paragraph.strip()
-            if not paragraph:
-                continue
-            
-            # 估算段落词数（简化实现）
-            paragraph_words = len(paragraph.split())
-            
-            # 如果当前块加上新段落不超过限制，则合并
-            if current_chunk_words + paragraph_words <= self.chunk_size // 5:  # 假设平均词长5字符
-                if current_chunk:
-                    current_chunk += "\n\n" + paragraph
+    def get(self, key: str) -> Optional[Any]:
+        """获取缓存值"""
+        with self._lock:
+            if key in self._cache:
+                entry = self._cache[key]
+                # 检查是否过期
+                if entry['expires_at'] > datetime.now():
+                    self._hit_count += 1
+                    return entry['value']
                 else:
-                    current_chunk = paragraph
-                current_chunk_words += paragraph_words
-            else:
-                # 保存当前块
-                if current_chunk:
-                    chunks.append(self._create_chunk(current_chunk, chunk_index, metadata))
-                    chunk_index += 1
-                
-                # 开始新块
-                current_chunk = paragraph
-                current_chunk_words = paragraph_words
-        
-        # 保存最后一个块
-        if current_chunk:
-            chunks.append(self._create_chunk(current_chunk, chunk_index, metadata))
-        
-        # 如果分块太大，进行二次分割
-        final_chunks = []
-        for chunk in chunks:
-            if len(chunk['content']) > self.chunk_size:
-                # 按句子分割
-                sentences = chunk['content'].split('.')
-                sub_chunk = ""
-                
-                for sentence in sentences:
-                    sentence = sentence.strip()
-                    if not sentence:
-                        continue
-                    
-                    if len(sub_chunk) + len(sentence) + 1 <= self.chunk_size:
-                        if sub_chunk:
-                            sub_chunk += ". " + sentence
-                        else:
-                            sub_chunk = sentence
-                    else:
-                        if sub_chunk:
-                            final_chunks.append(self._create_chunk(sub_chunk, len(final_chunks), metadata))
-                        sub_chunk = sentence
-                
-                if sub_chunk:
-                    final_chunks.append(self._create_chunk(sub_chunk, len(final_chunks), metadata))
-            else:
-                final_chunks.append(chunk)
-        
-        return final_chunks
-    
-    def _create_chunk(self, content: str, index: int, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
-        """创建分块对象
-        
-        Args:
-            content: 分块内容
-            index: 分块索引
-            metadata: 元数据
-            
-        Returns:
-            分块对象
+                    # 删除过期项
+                    del self._cache[key]
+
+            self._miss_count += 1
+            return None
+
+    def set(self, key: str, value: Any, ttl: int = None):
+        """设置缓存值"""
+        if ttl is None:
+            ttl = self.default_ttl
+
+        with self._lock:
+            # 检查缓存大小
+            if len(self._cache) >= self.max_size and key not in self._cache:
+                # 删除最旧的项
+                self._evict_oldest()
+
+            self._cache[key] = {
+                'value': value,
+                'expires_at': datetime.now() + timedelta(seconds=ttl),
+                'created_at': datetime.now()
+            }
+
+    def delete(self, key: str):
+        """删除缓存项"""
+        with self._lock:
+            if key in self._cache:
+                del self._cache[key]
+
+    def clear(self):
+        """清空缓存"""
+        with self._lock:
+            self._cache.clear()
+            self._hit_count = 0
+            self._miss_count = 0
+
+    def _evict_oldest(self):
+        """淘汰最旧的缓存项"""
+        if not self._cache:
+            return
+
+        oldest_key = min(
+            self._cache.keys(),
+            key=lambda k: self._cache[k]['created_at']
+        )
+        del self._cache[oldest_key]
+
+    def get_stats(self) -> Dict[str, Any]:
+        """获取缓存统计"""
+        with self._lock:
+            total_requests = self._hit_count + self._miss_count
+            hit_rate = self._hit_count / total_requests if total_requests > 0 else 0
+
+            return {
+                'size': len(self._cache),
+                'max_size': self.max_size,
+                'hit_count': self._hit_count,
+                'miss_count': self._miss_count,
+                'hit_rate': hit_rate,
+                'memory_usage_mb': self._estimate_memory_usage()
+            }
+
+    def _estimate_memory_usage(self) -> float:
+        """估算内存使用量（MB）"""
+        import sys
+        total_size = 0
+        for key, entry in self._cache.items():
+            total_size += sys.getsizeof(key)
+            total_size += sys.getsizeof(entry)
+        return total_size / (1024 * 1024)
+
+
+class BatchProcessor:
+    """
+    批量处理器
+
+    优化批量操作性能：
+    1. 批量插入
+    2. 批量更新
+    3. 批量查询
+    """
+
+    def __init__(self, batch_size: int = 100, max_workers: int = 4):
+        self.batch_size = batch_size
+        self.max_workers = max_workers
+        self._executor = ThreadPoolExecutor(max_workers=max_workers)
+
+    async def process_batch(
+        self,
+        items: List[Any],
+        process_func: Callable,
+        *args,
+        **kwargs
+    ) -> List[Any]:
         """
-        chunk_metadata = (metadata or {}).copy()
-        chunk_metadata.update({
-            "chunk_index": index,
-            "chunk_size": len(content),
-            "word_count": len(content.split())
-        })
-        
+        批量处理项目
+
+        Args:
+            items: 待处理项目列表
+            process_func: 处理函数
+            *args, **kwargs: 传递给处理函数的参数
+
+        Returns:
+            处理结果列表
+        """
+        results = []
+
+        # 分批处理
+        for i in range(0, len(items), self.batch_size):
+            batch = items[i:i + self.batch_size]
+
+            # 使用线程池并行处理
+            loop = asyncio.get_event_loop()
+            batch_results = await loop.run_in_executor(
+                self._executor,
+                lambda: [process_func(item, *args, **kwargs) for item in batch]
+            )
+
+            results.extend(batch_results)
+
+            # 记录进度
+            progress = min(100, (i + len(batch)) / len(items) * 100)
+            logger.info(f"批量处理进度: {progress:.1f}%")
+
+        return results
+
+    def process_batch_sync(
+        self,
+        items: List[Any],
+        process_func: Callable,
+        *args,
+        **kwargs
+    ) -> List[Any]:
+        """同步批量处理"""
+        results = []
+
+        for i in range(0, len(items), self.batch_size):
+            batch = items[i:i + self.batch_size]
+            batch_results = [process_func(item, *args, **kwargs) for item in batch]
+            results.extend(batch_results)
+
+        return results
+
+
+class QueryOptimizer:
+    """
+    查询优化器
+
+    优化数据库查询性能：
+    1. 查询缓存
+    2. 预加载
+    3. 分页优化
+    """
+
+    def __init__(self, cache_manager: CacheManager = None):
+        self.cache = cache_manager or CacheManager()
+        self._query_stats: Dict[str, Dict[str, Any]] = {}
+
+    def optimize_query(self, query_func: Callable) -> Callable:
+        """查询优化装饰器"""
+        @functools.wraps(query_func)
+        def wrapper(*args, **kwargs):
+            # 生成缓存键
+            cache_key = f"{query_func.__name__}:{str(args)}:{str(kwargs)}"
+
+            # 尝试从缓存获取
+            cached_result = self.cache.get(cache_key)
+            if cached_result is not None:
+                return cached_result
+
+            # 执行查询
+            start_time = time.time()
+            result = query_func(*args, **kwargs)
+            query_time = time.time() - start_time
+
+            # 记录统计
+            self._record_query_stats(query_func.__name__, query_time)
+
+            # 缓存结果（如果查询时间超过100ms）
+            if query_time > 0.1:
+                self.cache.set(cache_key, result, ttl=300)
+
+            return result
+
+        return wrapper
+
+    def _record_query_stats(self, query_name: str, execution_time: float):
+        """记录查询统计"""
+        if query_name not in self._query_stats:
+            self._query_stats[query_name] = {
+                'count': 0,
+                'total_time': 0,
+                'avg_time': 0,
+                'max_time': 0,
+                'min_time': float('inf')
+            }
+
+        stats = self._query_stats[query_name]
+        stats['count'] += 1
+        stats['total_time'] += execution_time
+        stats['avg_time'] = stats['total_time'] / stats['count']
+        stats['max_time'] = max(stats['max_time'], execution_time)
+        stats['min_time'] = min(stats['min_time'], execution_time)
+
+    def get_query_stats(self) -> Dict[str, Any]:
+        """获取查询统计"""
         return {
-            "content": content,
-            "metadata": chunk_metadata,
-            "summary": self._generate_chunk_summary(content)
+            'queries': self._query_stats,
+            'total_queries': sum(s['count'] for s in self._query_stats.values()),
+            'slow_queries': [
+                name for name, stats in self._query_stats.items()
+                if stats['avg_time'] > 1.0
+            ]
         }
-    
-    def _generate_chunk_summary(self, content: str, max_length: int = 100) -> str:
-        """生成分块摘要
-        
-        Args:
-            content: 分块内容
-            max_length: 摘要最大长度
-            
-        Returns:
-            分块摘要
-        """
-        if len(content) <= max_length:
-            return content
-        
-        # 简单的摘要生成：取前N个字符
-        sentences = content.split('.')
-        summary_parts = []
-        current_length = 0
-        
-        for sentence in sentences:
-            sentence = sentence.strip()
-            if not sentence:
-                continue
-            
-            if current_length + len(sentence) + 1 <= max_length:
-                summary_parts.append(sentence)
-                current_length += len(sentence) + 1
-            else:
-                break
-        
-        summary = ". ".join(summary_parts) + "."
-        
-        # 如果仍然太长，进行截断
-        if len(summary) > max_length:
-            summary = summary[:max_length-3] + "..."
-        
-        return summary
+
+
+class MemoryMonitor:
+    """
+    内存监控器
+
+    监控系统内存使用情况：
+    1. 内存使用统计
+    2. 内存泄漏检测
+    3. 内存优化建议
+    """
+
+    def __init__(self, warning_threshold: float = 80.0):
+        self.warning_threshold = warning_threshold
+        self._baseline_memory = None
+        self._measurements: List[Dict[str, Any]] = []
+
+    def start_monitoring(self):
+        """开始监控"""
+        self._baseline_memory = self._get_memory_usage()
+        logger.info(f"内存监控开始，基线: {self._baseline_memory:.2f} MB")
+
+    def record_measurement(self, label: str = ""):
+        """记录内存测量"""
+        current_memory = self._get_memory_usage()
+        measurement = {
+            'timestamp': datetime.now(),
+            'memory_mb': current_memory,
+            'label': label,
+            'delta_from_baseline': current_memory - (self._baseline_memory or 0)
+        }
+        self._measurements.append(measurement)
+
+        # 检查是否超过阈值
+        memory_percent = psutil.virtual_memory().percent
+        if memory_percent > self.warning_threshold:
+            logger.warning(f"内存使用超过阈值: {memory_percent:.1f}%")
+
+        return measurement
+
+    def _get_memory_usage(self) -> float:
+        """获取当前内存使用（MB）"""
+        process = psutil.Process(os.getpid())
+        return process.memory_info().rss / (1024 * 1024)
+
+    def get_memory_report(self) -> Dict[str, Any]:
+        """获取内存报告"""
+        if not self._measurements:
+            return {'error': '没有测量数据'}
+
+        memory_values = [m['memory_mb'] for m in self._measurements]
+
+        return {
+            'baseline_mb': self._baseline_memory,
+            'current_mb': memory_values[-1],
+            'peak_mb': max(memory_values),
+            'avg_mb': sum(memory_values) / len(memory_values),
+            'measurement_count': len(self._measurements),
+            'trend': 'increasing' if memory_values[-1] > memory_values[0] else 'stable',
+            'recommendations': self._generate_recommendations()
+        }
+
+    def _generate_recommendations(self) -> List[str]:
+        """生成内存优化建议"""
+        recommendations = []
+
+        if not self._measurements:
+            return recommendations
+
+        memory_values = [m['memory_mb'] for m in self._measurements]
+        current_memory = memory_values[-1]
+        baseline = self._baseline_memory or 0
+
+        # 检查内存增长
+        if current_memory > baseline * 2:
+            recommendations.append("内存使用增长显著，建议检查内存泄漏")
+
+        # 检查峰值
+        peak_memory = max(memory_values)
+        if peak_memory > 1000:  # 1GB
+            recommendations.append("内存峰值超过1GB，建议优化大数据处理")
+
+        # 检查趋势
+        if len(memory_values) > 10:
+            recent_avg = sum(memory_values[-10:]) / 10
+            early_avg = sum(memory_values[:10]) / 10
+            if recent_avg > early_avg * 1.5:
+                recommendations.append("内存使用呈上升趋势，建议进行内存优化")
+
+        return recommendations
+
+
+class PerformanceProfiler:
+    """
+    性能分析器
+
+    分析函数执行性能：
+    1. 执行时间分析
+    2. 调用次数统计
+    3. 性能瓶颈识别
+    """
+
+    def __init__(self):
+        self._profiles: Dict[str, Dict[str, Any]] = {}
+
+    def profile(self, func: Callable) -> Callable:
+        """性能分析装饰器"""
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            func_name = func.__name__
+
+            if func_name not in self._profiles:
+                self._profiles[func_name] = {
+                    'call_count': 0,
+                    'total_time': 0,
+                    'avg_time': 0,
+                    'max_time': 0,
+                    'min_time': float('inf')
+                }
+
+            start_time = time.time()
+            result = func(*args, **kwargs)
+            execution_time = time.time() - start_time
+
+            profile = self._profiles[func_name]
+            profile['call_count'] += 1
+            profile['total_time'] += execution_time
+            profile['avg_time'] = profile['total_time'] / profile['call_count']
+            profile['max_time'] = max(profile['max_time'], execution_time)
+            profile['min_time'] = min(profile['min_time'], execution_time)
+
+            return result
+
+        return wrapper
+
+    def get_profile_report(self) -> Dict[str, Any]:
+        """获取性能分析报告"""
+        if not self._profiles:
+            return {'message': '没有性能数据'}
+
+        # 找出最慢的函数
+        sorted_profiles = sorted(
+            self._profiles.items(),
+            key=lambda x: x[1]['avg_time'],
+            reverse=True
+        )
+
+        return {
+            'total_functions': len(self._profiles),
+            'total_calls': sum(p['call_count'] for _, p in sorted_profiles),
+            'slowest_functions': [
+                {
+                    'name': name,
+                    'avg_time': stats['avg_time'],
+                    'call_count': stats['call_count']
+                }
+                for name, stats in sorted_profiles[:5]
+            ],
+            'all_profiles': self._profiles
+        }
+
+
+# ============== 便捷函数 ==============
+
+def timed_execution(func: Callable) -> Callable:
+    """执行时间测量装饰器"""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        execution_time = time.time() - start_time
+        logger.info(f"{func.__name__} 执行时间: {execution_time:.3f}s")
+        return result
+    return wrapper
+
+
+def async_timed_execution(func: Callable) -> Callable:
+    """异步执行时间测量装饰器"""
+    @functools.wraps(func)
+    async def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = await func(*args, **kwargs)
+        execution_time = time.time() - start_time
+        logger.info(f"{func.__name__} 执行时间: {execution_time:.3f}s")
+        return result
+    return wrapper
+
+
+# 全局实例
+cache_manager = CacheManager()
+batch_processor = BatchProcessor()
+query_optimizer = QueryOptimizer(cache_manager)
+memory_monitor = MemoryMonitor()
+performance_profiler = PerformanceProfiler()

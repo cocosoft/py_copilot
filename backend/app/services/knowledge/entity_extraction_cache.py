@@ -27,20 +27,23 @@ class EntityExtractionCache:
     MAX_MEMORY_CACHE_SIZE = 1000  # 最大内存缓存条目数
     
     @staticmethod
-    def _generate_cache_key(text: str) -> str:
+    def _generate_cache_key(text: str, knowledge_base_id: int = None) -> str:
         """生成缓存键
-        
-        使用文本的MD5哈希作为缓存键，确保相同文本产生相同的键。
-        
+
+        使用文本的MD5哈希和知识库ID作为缓存键，确保相同文本在不同知识库下产生不同的键。
+
         Args:
             text: 输入文本
-            
+            knowledge_base_id: 知识库ID
+
         Returns:
             缓存键
         """
         # 标准化文本（去除首尾空格，统一换行符）
         normalized_text = text.strip().replace('\r\n', '\n').replace('\r', '\n')
-        text_hash = hashlib.md5(normalized_text.encode('utf-8')).hexdigest()
+        # 将知识库ID纳入缓存键，确保不同知识库使用不同的缓存
+        cache_content = f"{normalized_text}:{knowledge_base_id or 'global'}"
+        text_hash = hashlib.md5(cache_content.encode('utf-8')).hexdigest()
         return f"{EntityExtractionCache.CACHE_PREFIX}{text_hash}"
     
     @staticmethod
@@ -59,19 +62,20 @@ class EntityExtractionCache:
         return datetime.now() - timestamp < timedelta(seconds=ttl)
     
     @staticmethod
-    async def get_cached_result(text: str, use_redis: bool = True) -> Optional[Tuple[List[Dict], List[Dict]]]:
+    async def get_cached_result(text: str, use_redis: bool = True, knowledge_base_id: int = None) -> Optional[Tuple[List[Dict], List[Dict]]]:
         """获取缓存的提取结果
-        
+
         先检查内存缓存，再检查Redis缓存（如果启用）。
-        
+
         Args:
             text: 输入文本
             use_redis: 是否使用Redis缓存
-            
+            knowledge_base_id: 知识库ID，用于区分不同知识库的缓存
+
         Returns:
             (实体列表, 关系列表) 或 None
         """
-        cache_key = EntityExtractionCache._generate_cache_key(text)
+        cache_key = EntityExtractionCache._generate_cache_key(text, knowledge_base_id)
         
         # 1. 检查内存缓存
         if cache_key in EntityExtractionCache._memory_cache:
@@ -165,17 +169,18 @@ class EntityExtractionCache:
     
     @staticmethod
     async def cache_result(text: str, entities: List[Dict], relationships: List[Dict],
-                          use_redis: bool = True, ttl: int = None):
+                          use_redis: bool = True, ttl: int = None, knowledge_base_id: int = None):
         """缓存提取结果
-        
+
         Args:
             text: 输入文本
             entities: 实体列表
             relationships: 关系列表
             use_redis: 是否使用Redis缓存
             ttl: 有效期（秒），默认使用DEFAULT_TTL
+            knowledge_base_id: 知识库ID，用于区分不同知识库的缓存
         """
-        cache_key = EntityExtractionCache._generate_cache_key(text)
+        cache_key = EntityExtractionCache._generate_cache_key(text, knowledge_base_id)
         result = (entities, relationships)
         
         # 1. 更新内存缓存
@@ -202,22 +207,23 @@ class EntityExtractionCache:
                 logger.warning(f"Redis缓存写入失败: {e}")
     
     @staticmethod
-    async def invalidate_cache(text: str = None, use_redis: bool = True):
+    async def invalidate_cache(text: str = None, use_redis: bool = True, knowledge_base_id: int = None):
         """使缓存失效
-        
+
         Args:
             text: 特定文本的缓存，如果为None则清空所有缓存
             use_redis: 是否清理Redis缓存
+            knowledge_base_id: 知识库ID，用于区分不同知识库的缓存
         """
         if text:
-            cache_key = EntityExtractionCache._generate_cache_key(text)
-            
+            cache_key = EntityExtractionCache._generate_cache_key(text, knowledge_base_id)
+
             # 清理内存缓存
             if cache_key in EntityExtractionCache._memory_cache:
                 del EntityExtractionCache._memory_cache[cache_key]
             if cache_key in EntityExtractionCache._cache_timestamps:
                 del EntityExtractionCache._cache_timestamps[cache_key]
-            
+
             # 清理Redis缓存
             if use_redis:
                 try:
@@ -225,13 +231,13 @@ class EntityExtractionCache:
                     await redis_service.delete(cache_key)
                 except Exception as e:
                     logger.warning(f"Redis缓存删除失败: {e}")
-            
+
             logger.info(f"缓存已失效: {cache_key[:16]}...")
         else:
             # 清空所有缓存
             EntityExtractionCache._memory_cache.clear()
             EntityExtractionCache._cache_timestamps.clear()
-            
+
             if use_redis:
                 try:
                     from app.services.redis_service import redis_service
@@ -262,16 +268,16 @@ class EntityExtractionCache:
 
 # 便捷函数
 
-async def get_cached_entities(text: str) -> Optional[Tuple[List[Dict], List[Dict]]]:
+async def get_cached_entities(text: str, knowledge_base_id: int = None) -> Optional[Tuple[List[Dict], List[Dict]]]:
     """获取缓存的实体提取结果"""
-    return await EntityExtractionCache.get_cached_result(text)
+    return await EntityExtractionCache.get_cached_result(text, knowledge_base_id=knowledge_base_id)
 
 
-async def cache_entities(text: str, entities: List[Dict], relationships: List[Dict]):
+async def cache_entities(text: str, entities: List[Dict], relationships: List[Dict], knowledge_base_id: int = None):
     """缓存实体提取结果"""
-    await EntityExtractionCache.cache_result(text, entities, relationships)
+    await EntityExtractionCache.cache_result(text, entities, relationships, knowledge_base_id=knowledge_base_id)
 
 
-async def clear_cache(text: str = None):
+async def clear_cache(text: str = None, knowledge_base_id: int = None):
     """清除缓存"""
-    await EntityExtractionCache.invalidate_cache(text)
+    await EntityExtractionCache.invalidate_cache(text, knowledge_base_id=knowledge_base_id)

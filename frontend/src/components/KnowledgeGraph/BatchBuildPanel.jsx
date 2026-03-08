@@ -41,15 +41,15 @@ const BatchBuildPanel = ({ knowledgeBaseId, onBuildComplete }) => {
   const [buildResult, setBuildResult] = useState(null);
 
   /**
-   * 加载文档列表
+   * 加载文档列表 - 只加载已向量化的文档
    */
   const loadDocuments = useCallback(async () => {
     if (!knowledgeBaseId) return;
 
     setLoading(true);
     try {
-      // 调用API获取文档列表
-      const response = await listDocuments(0, 1000, knowledgeBaseId);
+      // 调用API获取已向量化的文档列表
+      const response = await listDocuments(0, 1000, knowledgeBaseId, true);
       // 后端返回的数据结构为 { documents, skip, limit, total }
       if (response && response.documents) {
         setDocuments(response.documents);
@@ -113,7 +113,11 @@ const BatchBuildPanel = ({ knowledgeBaseId, onBuildComplete }) => {
     }
 
     try {
-      const response = await batchBuildKnowledgeGraph(selectedDocs, buildParams);
+      // 传递 knowledge_base_id 以使用正确的提取策略配置
+      const response = await batchBuildKnowledgeGraph(selectedDocs, {
+        ...buildParams,
+        knowledge_base_id: knowledgeBaseId
+      });
       if (response.success) {
         setBatchId(response.data.batch_id);
         setTaskStatus({
@@ -270,29 +274,79 @@ const BatchBuildPanel = ({ knowledgeBaseId, onBuildComplete }) => {
                 <div className="spinner"></div>
                 <p>加载文档列表...</p>
               </div>
+            ) : documents.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon">📄</div>
+                <p>暂无已向量化文档</p>
+                <p className="empty-hint">请先上传并处理文档，然后再进行知识图谱批量构建</p>
+              </div>
             ) : (
               <div className="document-list">
-                {documents.map(doc => (
-                  <div
-                    key={doc.id}
-                    className={`document-item ${selectedDocs.includes(doc.id) ? 'selected' : ''} ${doc.is_vectorized ? 'has-graph' : ''}`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedDocs.includes(doc.id)}
-                      onChange={(e) => handleSelectDoc(doc.id, e.target.checked)}
-                    />
-                    <div className="document-info">
-                      <span className="document-name">{doc.title}</span>
-                      <span className="document-meta">
-                        {doc.file_type} · {doc.is_vectorized ? '已向量化' : '未构建'}
+                {documents.map(doc => {
+                  // 所有文档都是已向量化（因为API只返回已向量化的）
+                  // 检查实体提取状态
+                  const metadata = doc.document_metadata || {};
+                  const entitiesCount = metadata.entities_count || 0;
+                  const relationshipsCount = metadata.relationships_count || 0;
+                  const hasEntities = entitiesCount > 0;
+                  const hasRelationships = relationshipsCount > 0;
+
+                  // 获取实体提取状态显示
+                  const getExtractionStatus = () => {
+                    if (hasEntities && hasRelationships) {
+                      return {
+                        text: `已提取(${entitiesCount}实体/${relationshipsCount}关系)`,
+                        className: 'status-extracted',
+                        title: `已提取 ${entitiesCount} 个实体, ${relationshipsCount} 个关系`
+                      };
+                    }
+                    if (hasEntities) {
+                      return {
+                        text: `已提取(${entitiesCount}实体)`,
+                        className: 'status-extracted',
+                        title: `已提取 ${entitiesCount} 个实体`
+                      };
+                    }
+                    return {
+                      text: '未提取实体',
+                      className: 'status-no-entities',
+                      title: '尚未提取实体和关系，可进行批量构建'
+                    };
+                  };
+
+                  const extractionStatus = getExtractionStatus();
+
+                  return (
+                    <div
+                      key={doc.id}
+                      className={`document-item ${selectedDocs.includes(doc.id) ? 'selected' : ''} ${hasEntities ? 'has-entities' : ''}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedDocs.includes(doc.id)}
+                        onChange={(e) => handleSelectDoc(doc.id, e.target.checked)}
+                      />
+                      <div className="document-info">
+                        <span className="document-name">{doc.title}</span>
+                        <span className="document-meta">
+                          {doc.file_type} · <span className="status-text status-vectorized">已向量化</span>
+                          {hasEntities && (
+                            <span className="extraction-info">
+                              · <span className="entity-count">{entitiesCount}实体</span>
+                              {hasRelationships && <span className="relation-count">/{relationshipsCount}关系</span>}
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      <span
+                        className={`status-badge ${extractionStatus.className}`}
+                        title={extractionStatus.title}
+                      >
+                        {extractionStatus.text}
                       </span>
                     </div>
-                    {doc.is_vectorized && (
-                      <span className="graph-badge">已构建</span>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -401,10 +455,45 @@ const BatchBuildPanel = ({ knowledgeBaseId, onBuildComplete }) => {
               <span className="progress-text">{taskStatus?.progress || 0}%</span>
             </div>
 
-            {taskStatus?.current_document && (
-              <div className="current-document">
-                <span className="label">当前处理:</span>
-                <span className="value">{taskStatus.current_document}</span>
+            {/* 当前处理消息 */}
+            {taskStatus?.current_message && (
+              <div className="current-message">
+                <span className="label">当前状态:</span>
+                <span className="value">{taskStatus.current_message}</span>
+              </div>
+            )}
+
+            {/* 详细进度日志 */}
+            {taskStatus?.results && taskStatus.results.length > 0 && (
+              <div className="progress-logs">
+                <h4>处理详情</h4>
+                <div className="logs-list">
+                  {taskStatus.results.map((result, index) => (
+                    <div key={index} className={`log-item ${result.success ? 'success' : 'error'}`}>
+                      <div className="log-header">
+                        <span className="doc-id">文档 {result.document_id}</span>
+                        <span className={`status-badge ${result.success ? 'success' : 'error'}`}>
+                          {result.success ? '✓' : '✗'}
+                        </span>
+                      </div>
+                      {result.success && (
+                        <div className="log-stats">
+                          <span className="stat">
+                            <span className="stat-label">实体:</span>
+                            <span className="stat-value">{result.node_count || result.nodes_count || 0}</span>
+                          </span>
+                          <span className="stat">
+                            <span className="stat-label">关系:</span>
+                            <span className="stat-value">{result.edge_count || result.edges_count || 0}</span>
+                          </span>
+                        </div>
+                      )}
+                      {result.error && (
+                        <div className="log-error">{result.error}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -452,6 +541,73 @@ const BatchBuildPanel = ({ knowledgeBaseId, onBuildComplete }) => {
                 </span>
               </div>
             </div>
+
+            {/* 详细的构建结果 */}
+            {buildResult.results && buildResult.results.length > 0 && (
+              <div className="result-details">
+                <h4>提取详情</h4>
+                <div className="results-list">
+                  {buildResult.results.map((result, index) => (
+                    <div key={index} className={`result-item ${result.success ? 'success' : 'error'}`}>
+                      <div className="result-item-header">
+                        <span className="doc-title">{result.title || `文档 ${result.document_id}`}</span>
+                        <span className={`status-badge ${result.success ? 'success' : 'error'}`}>
+                          {result.success ? '成功' : '失败'}
+                        </span>
+                      </div>
+                      {result.success ? (
+                        <div className="result-item-stats">
+                          <div className="stat">
+                            <span className="stat-label">实体数量:</span>
+                            <span className="stat-value highlight">{result.node_count || result.nodes_count || 0}</span>
+                          </div>
+                          <div className="stat">
+                            <span className="stat-label">关系数量:</span>
+                            <span className="stat-value highlight">{result.edge_count || result.edges_count || 0}</span>
+                          </div>
+                          {result.processing_time && (
+                            <div className="stat">
+                              <span className="stat-label">处理时间:</span>
+                              <span className="stat-value">{result.processing_time.toFixed(2)}s</span>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="result-item-error">
+                          <span className="error-label">错误:</span>
+                          <span className="error-message">{result.error || '未知错误'}</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                
+                {/* 汇总统计 */}
+                <div className="summary-stats">
+                  <h5>汇总统计</h5>
+                  <div className="summary-grid">
+                    <div className="summary-item">
+                      <span className="summary-label">总实体数:</span>
+                      <span className="summary-value">
+                        {buildResult.results.reduce((sum, r) => sum + (r.node_count || r.nodes_count || 0), 0)}
+                      </span>
+                    </div>
+                    <div className="summary-item">
+                      <span className="summary-label">总关系数:</span>
+                      <span className="summary-value">
+                        {buildResult.results.reduce((sum, r) => sum + (r.edge_count || r.edges_count || 0), 0)}
+                      </span>
+                    </div>
+                    <div className="summary-item">
+                      <span className="summary-label">平均实体/文档:</span>
+                      <span className="summary-value">
+                        {(buildResult.results.reduce((sum, r) => sum + (r.node_count || r.nodes_count || 0), 0) / buildResult.results.filter(r => r.success).length || 1).toFixed(1)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {buildResult.errors && buildResult.errors.length > 0 && (
               <div className="error-list">

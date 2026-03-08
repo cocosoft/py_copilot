@@ -11,18 +11,28 @@ logger = logging.getLogger(__name__)
 
 class EntityConfigManager:
     """实体配置管理器，支持用户自定义实体类型和提取规则"""
-    
-    def __init__(self, config_file: str = "entity_config.json"):
+
+    def __init__(self, knowledge_base_id: int = None, config_file: str = None):
         """
         初始化配置管理器
-        
+
         Args:
-            config_file: 配置文件路径
+            knowledge_base_id: 知识库ID，用于加载知识库级配置
+            config_file: 配置文件路径（可选，如果不指定则根据knowledge_base_id生成）
         """
-        self.config_file = config_file
+        self.knowledge_base_id = knowledge_base_id
         self.config_dir = Path("config")
-        self.config_path = self.config_dir / config_file
-        
+
+        # 根据知识库ID生成配置文件路径
+        if config_file:
+            self.config_file = config_file
+        elif knowledge_base_id:
+            self.config_file = f"entity_config_kb_{knowledge_base_id}.json"
+        else:
+            self.config_file = "entity_config.json"
+
+        self.config_path = self.config_dir / self.config_file
+
         # 确保配置目录存在
         self.config_dir.mkdir(exist_ok=True)
         
@@ -76,7 +86,7 @@ class EntityConfigManager:
                 "PERSON": [
                     {
                         "name": "中文人名",
-                        "pattern": r'(?:^|\\s)([张王李赵刘陈杨黄周吴徐孙胡朱高林何郭马罗梁宋郑谢韩唐冯于董萧程曹袁邓许傅沈曾彭吕][\\u4e00-\\u9fff]{1,2})(?=\\s|$|[，。！？])',
+                        "pattern": r'(?:^|\s)([张王李赵刘陈杨黄周吴徐孙胡朱高林何郭马罗梁宋郑谢韩唐冯于董萧程曹袁邓许傅沈曾彭吕][\u4e00-\u9fff]{1,2})(?=\s|$|[，。！？])',
                         "description": "基于常见姓氏的中文人名识别",
                         "enabled": True
                     }
@@ -84,7 +94,7 @@ class EntityConfigManager:
                 "ORG": [
                     {
                         "name": "中文组织名",
-                        "pattern": r'(?:^|\\s)([\\u4e00-\\u9fff]{2,6}(?:公司|集团|企业|机构|组织|大学|学院|医院|学校|研究所|实验室|中心|部门|局|委员会))(?=\\s|$|[，。！？])',
+                        "pattern": r'(?:^|\s)([\u4e00-\u9fff]{2,6}(?:公司|集团|企业|机构|组织|大学|学院|医院|学校|研究所|实验室|中心|部门|局|委员会))(?=\s|$|[，。！？])',
                         "description": "基于组织关键词的中文组织名识别",
                         "enabled": True
                     }
@@ -181,6 +191,22 @@ class EntityConfigManager:
     def get_dictionary(self, entity_type: str) -> List[str]:
         """获取指定实体类型的词典"""
         return self.config['dictionaries'].get(entity_type, [])
+
+    def get_dictionaries(self) -> Dict[str, List[str]]:
+        """获取所有启用的实体类型的词典
+
+        Returns:
+            按实体类型分组的词典字典
+        """
+        result = {}
+        entity_types = self.get_entity_types()
+
+        for entity_type, terms in self.config['dictionaries'].items():
+            # 只返回启用的实体类型的词典
+            if entity_type in entity_types:
+                result[entity_type] = terms
+
+        return result
     
     def add_entity_type(self, entity_type: str, config: Dict[str, Any]) -> bool:
         """添加新的实体类型"""
@@ -203,7 +229,7 @@ class EntityConfigManager:
             if entity_type not in self.config['entity_types']:
                 logger.warning(f"实体类型 {entity_type} 不存在")
                 return False
-            
+
             self.config['entity_types'][entity_type].update(config)
             self._save_config(self.config)
             logger.info(f"成功更新实体类型: {entity_type}")
@@ -211,7 +237,30 @@ class EntityConfigManager:
         except Exception as e:
             logger.error(f"更新实体类型失败: {e}")
             return False
-    
+
+    def remove_entity_type(self, entity_type: str) -> bool:
+        """删除实体类型"""
+        try:
+            if entity_type not in self.config['entity_types']:
+                logger.warning(f"实体类型 {entity_type} 不存在")
+                return False
+
+            del self.config['entity_types'][entity_type]
+
+            # 同时删除相关的提取规则和词典
+            if entity_type in self.config['extraction_rules']:
+                del self.config['extraction_rules'][entity_type]
+
+            if entity_type in self.config['dictionaries']:
+                del self.config['dictionaries'][entity_type]
+
+            self._save_config(self.config)
+            logger.info(f"成功删除实体类型: {entity_type}")
+            return True
+        except Exception as e:
+            logger.error(f"删除实体类型失败: {e}")
+            return False
+
     def add_extraction_rule(self, entity_type: str, rule: Dict[str, Any]) -> bool:
         """添加提取规则"""
         try:
@@ -225,7 +274,57 @@ class EntityConfigManager:
         except Exception as e:
             logger.error(f"添加提取规则失败: {e}")
             return False
-    
+
+    def update_extraction_rule(self, entity_type: str, rule: Dict[str, Any]) -> bool:
+        """更新提取规则"""
+        try:
+            if entity_type not in self.config['extraction_rules']:
+                logger.warning(f"实体类型 {entity_type} 没有提取规则")
+                return False
+
+            rules = self.config['extraction_rules'][entity_type]
+            rule_id = rule.get('id')
+
+            # 查找并更新规则
+            for i, existing_rule in enumerate(rules):
+                if existing_rule.get('id') == rule_id:
+                    rules[i].update(rule)
+                    self._save_config(self.config)
+                    logger.info(f"成功更新提取规则: {rule.get('name', rule_id)}")
+                    return True
+
+            logger.warning(f"未找到提取规则: {rule_id}")
+            return False
+        except Exception as e:
+            logger.error(f"更新提取规则失败: {e}")
+            return False
+
+    def remove_extraction_rule(self, entity_type: str, rule_id: str) -> bool:
+        """删除提取规则"""
+        try:
+            if entity_type not in self.config['extraction_rules']:
+                logger.warning(f"实体类型 {entity_type} 没有提取规则")
+                return False
+
+            rules = self.config['extraction_rules'][entity_type]
+            original_count = len(rules)
+
+            # 过滤掉要删除的规则
+            self.config['extraction_rules'][entity_type] = [
+                r for r in rules if r.get('id') != rule_id
+            ]
+
+            if len(self.config['extraction_rules'][entity_type]) < original_count:
+                self._save_config(self.config)
+                logger.info(f"成功删除提取规则: {rule_id}")
+                return True
+            else:
+                logger.warning(f"未找到提取规则: {rule_id}")
+                return False
+        except Exception as e:
+            logger.error(f"删除提取规则失败: {e}")
+            return False
+
     def add_to_dictionary(self, entity_type: str, terms: List[str]) -> bool:
         """向词典添加术语"""
         try:

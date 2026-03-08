@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.services.llm_service import LLMService
 from app.services.default_model_cache_service import DefaultModelCacheService
+from app.services.knowledge.entity_config_manager import EntityConfigManager
 
 logger = logging.getLogger(__name__)
 
@@ -200,58 +201,109 @@ class LLMEntityExtractor:
     集成默认模型管理系统，自动获取知识库场景配置的模型。
     """
     
-    def __init__(self, db: Session = None):
+    def __init__(self, db: Session = None, knowledge_base_id: int = None):
         """
         初始化LLM实体提取器
-        
+
         Args:
             db: 数据库会话，用于获取模型配置
+            knowledge_base_id: 知识库ID，用于加载知识库级配置
         """
         self.db = db
+        self.knowledge_base_id = knowledge_base_id
         self.llm_service = LLMService()
-        self.scene = "knowledge"  # 默认模型管理中的知识库场景
-        self.fallback_scene = "chat"  # 回退场景：聊天
-        
-        logger.info("LLM实体提取器初始化成功")
-    
+
+        # 初始化配置管理器（支持知识库级配置）
+        self.config_manager = EntityConfigManager(knowledge_base_id)
+
+        # 定义分层场景（按优先级从高到低）
+        self.scene_hierarchy = self._build_scene_hierarchy(knowledge_base_id)
+
+        logger.info(f"LLM实体提取器初始化成功，知识库ID: {knowledge_base_id}，场景层级: {self.scene_hierarchy}")
+
+    def _build_scene_hierarchy(self, knowledge_base_id: int = None) -> List[str]:
+        """
+        构建分层场景列表（按优先级从高到低）
+
+        场景层级设计：
+        1. 知识库任务级: knowledge_kb_{kb_id}_extraction
+        2. 知识库级: knowledge_kb_{kb_id}
+        3. 任务级: knowledge_extraction
+        4. 通用知识库级: knowledge
+        5. 回退级: chat
+
+        Args:
+            knowledge_base_id: 知识库ID
+
+        Returns:
+            按优先级排序的场景列表
+        """
+        scenes = []
+
+        # 1. 知识库任务级（最具体）
+        if knowledge_base_id:
+            scenes.append(f"knowledge_kb_{knowledge_base_id}_extraction")
+
+        # 2. 知识库级
+        if knowledge_base_id:
+            scenes.append(f"knowledge_kb_{knowledge_base_id}")
+
+        # 3. 任务级
+        scenes.append("knowledge_extraction")
+
+        # 4. 通用知识库级
+        scenes.append("knowledge")
+
+        # 5. 回退级（最通用）
+        scenes.append("chat")
+
+        return scenes
+
     def _get_model_for_extraction(self) -> Optional[str]:
         """
         获取用于实体提取的模型
-        
-        按照以下优先级获取模型：
-        1. 知识库场景(knowledge)的默认模型（从缓存或数据库）
-        2. 聊天场景(chat)的默认模型（回退）
-        3. 全局默认模型
-        4. LLM服务默认模型
-        
+
+        按照分层场景优先级获取模型：
+        1. 遍历场景层级（从具体到通用）
+        2. 如果所有场景都未配置，使用全局默认模型
+        3. 如果全局也未配置，使用LLM服务默认模型
+
         Returns:
             模型ID或None（使用LLM服务默认模型）
         """
-        # 1. 尝试获取知识库场景(knowledge)的默认模型
-        model_id = self._get_scene_model_from_cache_or_db(self.scene)
-        if model_id:
-            logger.info(f"使用知识库场景默认模型: {model_id}")
-            return model_id
-        
-        # 2. 如果知识库场景未配置，使用聊天场景(chat)作为回退
-        logger.info(f"知识库场景未配置模型，尝试使用聊天场景")
-        model_id = self._get_scene_model_from_cache_or_db(self.fallback_scene)
-        if model_id:
-            logger.info(f"使用聊天场景默认模型作为回退: {model_id}")
-            return model_id
-        
-        # 3. 如果聊天场景也未配置，使用全局默认模型
+        logger.info(f"[_get_model_for_extraction] 开始获取模型, knowledge_base_id={self.knowledge_base_id}")
+        logger.info(f"[_get_model_for_extraction] 场景层级: {self.scene_hierarchy}")
+
+        # 1. 按优先级遍历场景层级
+        for scene in self.scene_hierarchy:
+            logger.info(f"[_get_model_for_extraction] 尝试场景: {scene}")
+            model_id = self._get_scene_model_from_cache_or_db(scene)
+            if model_id:
+                logger.info(f"[_get_model_for_extraction] 使用场景 '{scene}' 的默认模型: {model_id}")
+                return model_id
+            else:
+                logger.info(f"[_get_model_for_extraction] 场景 '{scene}' 未配置模型，尝试下一个场景")
+
+        # 2. 如果所有场景都未配置，使用全局默认模型
+        logger.info("[_get_model_for_extraction] 所有场景都未配置模型，尝试使用全局默认模型")
         global_models = DefaultModelCacheService.get_cached_global_default_models()
+        logger.info(f"[_get_model_for_extraction] 全局默认模型: {global_models}")
+
         if global_models and len(global_models) > 0:
             model_int_id = global_models[0].get('model_id')
+            logger.info(f"[_get_model_for_extraction] 全局模型整数ID: {model_int_id}")
             # 转换为字符串ID
             model_id = self._get_model_string_id(model_int_id)
             if model_id:
-                logger.info(f"使用全局默认模型: {model_id}")
+                logger.info(f"[_get_model_for_extraction] 使用全局默认模型: {model_id}")
                 return model_id
-        
-        # 4. 如果都没有配置，返回None（使用LLM服务默认模型）
-        logger.warning("未配置默认模型，使用LLM服务默认模型")
+            else:
+                logger.warning(f"[_get_model_for_extraction] 无法将全局模型整数ID {model_int_id} 转换为字符串ID")
+        else:
+            logger.warning("[_get_model_for_extraction] 没有配置全局默认模型")
+
+        # 3. 如果都没有配置，返回None（使用LLM服务默认模型）
+        logger.warning("[_get_model_for_extraction] 未配置默认模型，将使用LLM服务默认模型")
         return None
     
     def _get_scene_model_from_cache_or_db(self, scene: str) -> Optional[str]:
@@ -338,26 +390,47 @@ class LLMEntityExtractor:
     def _build_entity_extraction_prompt(self, text: str) -> str:
         """
         构建实体提取的Prompt
-        
+
+        根据配置动态构建Prompt，支持自定义实体类型
+
         Args:
             text: 输入文本
-            
+
         Returns:
             用于实体提取的Prompt
         """
+        # 获取启用的实体类型配置
+        entity_types = self.config_manager.get_entity_types()
+
+        # 构建实体类型描述
+        type_descriptions = []
+        for type_key, type_config in entity_types.items():
+            if type_config.get('enabled', True):
+                name = type_config.get('name', type_key)
+                description = type_config.get('description', '')
+                type_descriptions.append(f"- {type_key}: {name}（{description}）")
+
+        # 如果没有启用的实体类型，使用默认类型
+        if not type_descriptions:
+            type_descriptions = [
+                "- PERSON: 人名（如：张三、李四）",
+                "- ORG: 组织机构（如：阿里巴巴、清华大学）",
+                "- LOC: 地点（如：北京、上海）",
+                "- TECH: 技术术语（如：人工智能、深度学习）",
+                "- PRODUCT: 产品名称（如：iPhone、ChatGPT）",
+                "- CONCEPT: 概念（如：数字化转型、可持续发展）",
+                "- EVENT: 事件（如：奥运会、发布会）"
+            ]
+
+        type_list = "\n".join(type_descriptions)
+
         prompt = f"""请从以下文本中提取所有实体，并以JSON格式返回。
 
 文本内容：
 {text}
 
 请识别以下类型的实体：
-- PERSON: 人名（如：张三、李四）
-- ORG: 组织机构（如：阿里巴巴、清华大学）
-- LOC: 地点（如：北京、上海）
-- TECH: 技术术语（如：人工智能、深度学习）
-- PRODUCT: 产品名称（如：iPhone、ChatGPT）
-- CONCEPT: 概念（如：数字化转型、可持续发展）
-- EVENT: 事件（如：奥运会、发布会）
+{type_list}
 
 请按以下JSON格式返回结果：
 {{
@@ -376,7 +449,7 @@ class LLMEntityExtractor:
 2. 准确标注实体类型
 3. 提供准确的字符位置
 4. 只返回JSON格式，不要其他解释"""
-        
+
         return prompt
     
     def _build_relationship_extraction_prompt(self, text: str, entities: List[Dict[str, Any]]) -> str:
@@ -434,80 +507,108 @@ class LLMEntityExtractor:
     async def extract_entities(self, text: str) -> List[Dict[str, Any]]:
         """
         从文本中提取实体
-        
+
         Args:
             text: 输入文本
-            
+
         Returns:
             实体列表
         """
+        logger.info(f"[LLMExtractor] extract_entities 开始, 文本长度={len(text)}")
+
         if not text or not text.strip():
+            logger.warning("[LLMExtractor] 文本为空，返回空列表")
             return []
-        
+
         try:
             # 获取模型
             model_name = self._get_model_for_extraction()
-            
+            logger.info(f"[LLMExtractor] 使用模型: {model_name}")
+
             # 构建Prompt
             prompt = self._build_entity_extraction_prompt(text)
-            
+            logger.info(f"[LLMExtractor] Prompt长度: {len(prompt)}")
+
             # 调用LLM
             messages = [{"role": "user", "content": prompt}]
-            response = self.llm_service.chat_completion(
-                messages=messages,
-                model_name=model_name,
-                max_tokens=2000,
-                temperature=0.3,
-                db=self.db
-            )
-            
-            if not response.get('success'):
-                logger.error(f"LLM调用失败: {response.get('error')}")
+            logger.info(f"[LLMExtractor] 调用LLM服务...")
+            logger.info(f"[LLMExtractor] 请求参数: model_name={model_name}, max_tokens=2000, temperature=0.3")
+
+            try:
+                response = self.llm_service.chat_completion(
+                    messages=messages,
+                    model_name=model_name,
+                    max_tokens=2000,
+                    temperature=0.3,
+                    db=self.db
+                )
+                logger.info(f"[LLMExtractor] LLM调用成功返回")
+            except Exception as e:
+                logger.error(f"[LLMExtractor] LLM调用抛出异常: {e}", exc_info=True)
                 return []
-            
+
+            logger.info(f"[LLMExtractor] LLM响应类型: {type(response)}")
+            logger.info(f"[LLMExtractor] LLM响应: success={response.get('success')}, keys={list(response.keys()) if isinstance(response, dict) else 'N/A'}")
+
+            if not response.get('success'):
+                logger.error(f"[LLMExtractor] LLM调用失败: {response.get('error')}")
+                logger.error(f"[LLMExtractor] 完整响应: {response}")
+                return []
+
             # 解析JSON响应
             content = response.get('generated_text', '')
-            
+            logger.info(f"[LLMExtractor] LLM生成内容类型: {type(content)}")
+            logger.info(f"[LLMExtractor] LLM生成内容长度: {len(content) if content else 0}")
+
+            if not content:
+                logger.error(f"[LLMExtractor] LLM返回空内容! 完整响应: {response}")
+                return []
+
+            logger.info(f"[LLMExtractor] LLM生成内容前500字符: {content[:500]}")
+
             # 提取JSON部分
             json_start = content.find('{')
             json_end = content.rfind('}')
-            
+
             if json_start == -1 or json_end == -1:
-                logger.warning(f"LLM响应中没有找到JSON: {content[:500]}")
+                logger.warning(f"[LLMExtractor] LLM响应中没有找到JSON: {content[:500]}")
                 return []
-            
+
             json_str = content[json_start:json_end + 1]
-            
+            logger.info(f"[LLMExtractor] 提取的JSON长度: {len(json_str)}")
+
             # 尝试解析JSON，如果失败则尝试修复
             try:
                 result = json.loads(json_str)
+                logger.info(f"[LLMExtractor] JSON解析成功")
             except json.JSONDecodeError as e:
-                logger.warning(f"JSON解析失败，尝试修复: {e}")
+                logger.warning(f"[LLMExtractor] JSON解析失败，尝试修复: {e}")
                 # 尝试修复常见的JSON格式问题
                 json_str = self._fix_json(json_str)
                 try:
                     result = json.loads(json_str)
+                    logger.info(f"[LLMExtractor] JSON修复后解析成功")
                 except json.JSONDecodeError as e2:
-                    logger.error(f"JSON修复后仍解析失败: {e2}")
+                    logger.error(f"[LLMExtractor] JSON修复后仍解析失败: {e2}")
                     # 显示更多内容以便诊断问题
-                    logger.error(f"问题JSON内容(前1000字符): {json_str[:1000]}")
-                    logger.error(f"问题JSON内容(1000-2000字符): {json_str[1000:2000]}")
+                    logger.error(f"[LLMExtractor] 问题JSON内容(前1000字符): {json_str[:1000]}")
                     return []
-            
+
             entities = result.get('entities', [])
-            
+            logger.info(f"[LLMExtractor] 从JSON中提取到 {len(entities)} 个实体")
+
             # 添加来源标记
             for entity in entities:
                 entity['source'] = 'llm'
-            
-            logger.info(f"LLM提取到 {len(entities)} 个实体")
+
+            logger.info(f"[LLMExtractor] 最终返回 {len(entities)} 个实体")
             return entities
-            
+
         except json.JSONDecodeError as e:
-            logger.error(f"JSON解析失败: {e}")
+            logger.error(f"[LLMExtractor] JSON解析失败: {e}")
             return []
         except Exception as e:
-            logger.error(f"实体提取失败: {e}")
+            logger.error(f"[LLMExtractor] 实体提取失败: {e}", exc_info=True)
             return []
     
     async def extract_relationships(self, text: str, entities: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -599,32 +700,50 @@ class LLMEntityExtractor:
         Returns:
             (实体列表, 关系列表)
         """
-        # 1. 检查缓存
+        logger.info(f"[LLMExtractor] 开始提取实体和关系, 文本长度={len(text)}, use_cache={use_cache}, "
+                   f"knowledge_base_id={self.knowledge_base_id}, scene_hierarchy={self.scene_hierarchy}")
+
+        # 1. 检查缓存（使用知识库ID区分不同知识库的缓存）
         if use_cache:
             try:
                 from app.services.knowledge.entity_extraction_cache import EntityExtractionCache
-                cached_result = await EntityExtractionCache.get_cached_result(text)
+                cached_result = await EntityExtractionCache.get_cached_result(text, knowledge_base_id=self.knowledge_base_id)
                 if cached_result:
-                    logger.info("使用缓存的实体提取结果")
+                    logger.info(f"[LLMExtractor] 使用缓存的实体提取结果 (knowledge_base_id={self.knowledge_base_id})")
                     return cached_result
             except Exception as e:
-                logger.warning(f"缓存读取失败: {e}")
+                logger.warning(f"[LLMExtractor] 缓存读取失败: {e}")
 
         # 2. 提取实体
-        entities = await self.extract_entities(text)
+        logger.info("[LLMExtractor] 开始提取实体...")
+        try:
+            entities = await self.extract_entities(text)
+            logger.info(f"[LLMExtractor] 实体提取完成: {len(entities)} 个实体")
+            if entities:
+                logger.info(f"[LLMExtractor] 前3个实体: {entities[:3]}")
+        except Exception as e:
+            logger.error(f"[LLMExtractor] 实体提取失败: {e}", exc_info=True)
+            entities = []
 
         # 3. 提取关系
-        relationships = await self.extract_relationships(text, entities)
+        logger.info("[LLMExtractor] 开始提取关系...")
+        try:
+            relationships = await self.extract_relationships(text, entities)
+            logger.info(f"[LLMExtractor] 关系提取完成: {len(relationships)} 个关系")
+        except Exception as e:
+            logger.error(f"[LLMExtractor] 关系提取失败: {e}", exc_info=True)
+            relationships = []
 
-        # 4. 缓存结果
+        # 4. 缓存结果（使用知识库ID区分不同知识库的缓存）
         if use_cache:
             try:
                 from app.services.knowledge.entity_extraction_cache import EntityExtractionCache
-                await EntityExtractionCache.cache_result(text, entities, relationships)
-                logger.info("实体提取结果已缓存")
+                await EntityExtractionCache.cache_result(text, entities, relationships, knowledge_base_id=self.knowledge_base_id)
+                logger.info(f"[LLMExtractor] 实体提取结果已缓存 (knowledge_base_id={self.knowledge_base_id})")
             except Exception as e:
-                logger.warning(f"缓存写入失败: {e}")
+                logger.warning(f"[LLMExtractor] 缓存写入失败: {e}")
 
+        logger.info(f"[LLMExtractor] 提取完成: {len(entities)} 个实体, {len(relationships)} 个关系")
         return entities, relationships
 
 
@@ -789,12 +908,15 @@ class LLMEntityDisambiguator:
         try:
             # 获取模型
             model_name = self._get_model_for_disambiguation()
-            
+            logger.info(f"[实体消歧] 开始消歧 {len(entity_mentions)} 个实体提及，使用模型: {model_name}")
+
             # 构建Prompt
             prompt = self._build_disambiguation_prompt(entity_mentions, context)
-            
+            logger.debug(f"[实体消歧] Prompt长度: {len(prompt)}")
+
             # 调用LLM
             messages = [{"role": "user", "content": prompt}]
+            logger.info(f"[实体消歧] 调用LLM服务...")
             response = self.llm_service.chat_completion(
                 messages=messages,
                 model_name=model_name,
@@ -802,13 +924,17 @@ class LLMEntityDisambiguator:
                 temperature=0.3,
                 db=self.db
             )
-            
+
+            logger.info(f"[实体消歧] LLM响应: success={response.get('success')}")
+
             if not response.get('success'):
-                logger.error(f"LLM调用失败: {response.get('error')}")
+                logger.error(f"[实体消歧] LLM调用失败: {response.get('error')}")
                 return []
-            
+
             # 解析JSON响应
             content = response.get('generated_text', '')
+            logger.info(f"[实体消歧] LLM生成的内容长度: {len(content)}")
+            logger.debug(f"[实体消歧] LLM生成的内容: {content[:500]}...")
             
             # 提取JSON部分
             json_start = content.find('{')
@@ -835,15 +961,19 @@ class LLMEntityDisambiguator:
                     return []
             
             entity_groups = result.get('entity_groups', [])
-            
-            logger.info(f"LLM消歧完成，生成 {len(entity_groups)} 个实体组")
+
+            logger.info(f"[实体消歧] LLM消歧完成，生成 {len(entity_groups)} 个实体组")
+            if entity_groups:
+                logger.info(f"[实体消歧] 前3个实体组: {entity_groups[:3]}")
+            else:
+                logger.warning(f"[实体消歧] 实体组为空! 完整响应: {result}")
             return entity_groups
-            
+
         except json.JSONDecodeError as e:
-            logger.error(f"JSON解析失败: {e}")
+            logger.error(f"[实体消歧] JSON解析失败: {e}")
             return []
         except Exception as e:
-            logger.error(f"实体消歧失败: {e}")
+            logger.error(f"[实体消歧] 实体消歧失败: {e}", exc_info=True)
             return []
     
     async def resolve_coreference(self, text: str, entities: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

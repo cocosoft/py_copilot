@@ -373,7 +373,24 @@ async def get_models(
         model_responses = []
         for row in models_data:
             try:
-                model_response = ModelResponse(
+                # 创建供应商响应对象
+                supplier_response = ModelSupplierResponse(
+                    id=supplier.id,
+                    name=supplier.name or "",
+                    display_name=supplier.display_name or supplier.name or "",
+                    description=supplier.description,
+                    is_active=supplier.is_active,
+                    logo=supplier.logo,
+                    created_at=supplier.created_at or datetime.now(),
+                    updated_at=supplier.updated_at,
+                    api_endpoint=supplier.api_endpoint,
+                    api_key_required=supplier.api_key_required,
+                    category=supplier.category,
+                    website=supplier.website,
+                    api_docs=supplier.api_docs
+                )
+                
+                model_response = ModelWithSupplierResponse(
                     id=row[0],
                     model_id=row[1] or "",
                     model_name=row[2] or row[1] or "",
@@ -386,7 +403,9 @@ async def get_models(
                     created_at=row[9] or datetime.now(),
                     updated_at=row[10],
                     logo=row[11],
-                    model_type_id=row[12]
+                    model_type_id=row[12],
+                    categories=[],
+                    supplier=supplier_response
                 )
                 model_responses.append(model_response)
             except Exception as e:
@@ -473,7 +492,24 @@ async def get_models_dev(
         model_responses = []
         for row in models_data:
             try:
-                model_response = ModelResponse(
+                # 创建供应商响应对象
+                supplier_response = ModelSupplierResponse(
+                    id=supplier.id,
+                    name=supplier.name or "",
+                    display_name=supplier.display_name or supplier.name or "",
+                    description=supplier.description,
+                    is_active=supplier.is_active,
+                    logo=supplier.logo,
+                    created_at=supplier.created_at or datetime.now(),
+                    updated_at=supplier.updated_at,
+                    api_endpoint=supplier.api_endpoint,
+                    api_key_required=supplier.api_key_required,
+                    category=supplier.category,
+                    website=supplier.website,
+                    api_docs=supplier.api_docs
+                )
+                
+                model_response = ModelWithSupplierResponse(
                     id=row[0],
                     model_id=row[1] or "",
                     model_name=row[2] or row[1] or "",
@@ -486,7 +522,9 @@ async def get_models_dev(
                     created_at=row[9] or datetime.now(),
                     updated_at=row[10],
                     logo=row[11],
-                    model_type_id=row[12]
+                    model_type_id=row[12],
+                    categories=[],
+                    supplier=supplier_response
                 )
                 model_responses.append(model_response)
             except Exception as e:

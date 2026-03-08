@@ -62,8 +62,33 @@ class ModelPerformance(Base):
     
     # 关系定义
     model = relationship("ModelDB", back_populates="model_performance")
-    
+
     # 唯一约束
     __table_args__ = (
         UniqueConstraint('model_id', 'scene', name='uq_model_scene'),
+    )
+
+
+class KnowledgeBaseModelConfig(Base):
+    """知识库模型配置表，用于存储知识库级别的模型配置"""
+    __tablename__ = "knowledge_base_model_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    knowledge_base_id = Column(Integer, ForeignKey("knowledge_bases.id", ondelete="CASCADE"), nullable=False, index=True)
+    extraction_model_id = Column(Integer, ForeignKey("models.id", ondelete="SET NULL"), nullable=True)  # 实体提取专用模型
+    embedding_model_id = Column(Integer, ForeignKey("models.id", ondelete="SET NULL"), nullable=True)  # 向量嵌入专用模型
+    chat_model_id = Column(Integer, ForeignKey("models.id", ondelete="SET NULL"), nullable=True)  # 问答对话专用模型
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # 关系定义
+    knowledge_base = relationship("KnowledgeBase", back_populates="model_configs")
+    extraction_model = relationship("ModelDB", foreign_keys=[extraction_model_id])
+    embedding_model = relationship("ModelDB", foreign_keys=[embedding_model_id])
+    chat_model = relationship("ModelDB", foreign_keys=[chat_model_id])
+
+    # 唯一约束：每个知识库只能有一条配置记录
+    __table_args__ = (
+        UniqueConstraint('knowledge_base_id', name='uq_knowledge_base_model_config'),
     )

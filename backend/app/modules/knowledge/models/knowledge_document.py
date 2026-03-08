@@ -26,6 +26,8 @@ class KnowledgeBase(Base):
     kb_entities = relationship("KBEntity", back_populates="knowledge_base", cascade="all, delete-orphan")
     # 关系：一个知识库包含多个KB级关系
     kb_relationships = relationship("KBRelationship", cascade="all, delete-orphan")
+    # 关系：一个知识库有一个模型配置
+    model_configs = relationship("KnowledgeBaseModelConfig", back_populates="knowledge_base", cascade="all, delete-orphan", uselist=False)
     
     def __repr__(self):
         return f"<KnowledgeBase(id={self.id}, name='{self.name}')>"

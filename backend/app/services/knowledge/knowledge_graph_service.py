@@ -21,17 +21,23 @@ class KnowledgeGraphService:
         self._text_processor = None
         self.graph_builder = KnowledgeGraphBuilder()
     
-    def _get_text_processor(self, db: Session = None):
-        """获取文本处理器，如果没有db则使用默认处理器"""
+    def _get_text_processor(self, db: Session = None, knowledge_base_id: int = None):
+        """获取文本处理器，如果没有db则使用默认处理器
+        
+        Args:
+            db: 数据库会话
+            knowledge_base_id: 知识库ID，用于加载知识库级提取策略配置
+        """
         if db:
-            return AdvancedTextProcessor(db)
+            return AdvancedTextProcessor(db, knowledge_base_id)
         elif self._text_processor is None:
-            self._text_processor = AdvancedTextProcessor()
+            self._text_processor = AdvancedTextProcessor(db, knowledge_base_id)
         return self._text_processor
     
     def extract_and_store_entities(self, db: Session, document: KnowledgeDocument,
                                    entities: List[Dict[str, Any]] = None,
-                                   relationships: List[Dict[str, Any]] = None) -> Dict[str, Any]:
+                                   relationships: List[Dict[str, Any]] = None,
+                                   knowledge_base_id: int = None) -> Dict[str, Any]:
         """从文档中提取实体并存储到数据库
 
         Args:
@@ -39,21 +45,39 @@ class KnowledgeGraphService:
             document: 知识文档对象
             entities: 已提取的实体列表（可选，如果提供则不再重新提取）
             relationships: 已提取的关系列表（可选，如果提供则不再重新提取）
+            knowledge_base_id: 知识库ID，用于加载知识库级提取策略配置
         """
+        logger.info(f"[实体提取] 开始处理文档 {document.id}, knowledge_base_id={knowledge_base_id}")
+
         try:
             if not document.content:
-                logger.warning(f"文档 {document.id} 没有内容，无法提取实体")
+                logger.warning(f"[实体提取] 文档 {document.id} 没有内容，无法提取实体")
                 return {"success": False, "error": "文档内容为空"}
+
+            logger.info(f"[实体提取] 文档 {document.id} 内容长度: {len(document.content)}")
 
             # 如果没有提供实体和关系，则进行提取
             if entities is None or relationships is None:
-                logger.info(f"文档 {document.id} 未提供实体，开始提取...")
-                # 使用带有db的text_processor来获取模型配置
-                text_processor = self._get_text_processor(db)
+                logger.info(f"[实体提取] 文档 {document.id} 未提供实体，开始提取...")
+                # 使用带有db和knowledge_base_id的text_processor来获取正确的模型配置
+                text_processor = self._get_text_processor(db, knowledge_base_id)
+                logger.info(f"[实体提取] 文档 {document.id} 使用 TextProcessor, knowledge_base_id={knowledge_base_id}")
+
                 entities, relationships = text_processor.extract_entities_relationships_sync(document.content)
-                logger.info(f"文档 {document.id} 提取完成: {len(entities)} 个实体, {len(relationships)} 个关系")
+                logger.info(f"[实体提取] 文档 {document.id} 提取完成: {len(entities)} 个实体, {len(relationships)} 个关系")
+
+                # 记录提取的实体详情
+                if entities:
+                    entity_types = {}
+                    for e in entities:
+                        t = e.get('type', 'UNKNOWN')
+                        entity_types[t] = entity_types.get(t, 0) + 1
+                    logger.info(f"[实体提取] 文档 {document.id} 实体类型分布: {entity_types}")
+                    logger.info(f"[实体提取] 文档 {document.id} 前5个实体: {entities[:5]}")
+                else:
+                    logger.warning(f"[实体提取] 文档 {document.id} 没有提取到任何实体!")
             else:
-                logger.info(f"文档 {document.id} 使用已提供的实体: {len(entities)} 个实体, {len(relationships)} 个关系")
+                logger.info(f"[实体提取] 文档 {document.id} 使用已提供的实体: {len(entities)} 个实体, {len(relationships)} 个关系")
 
             # 存储实体到数据库
             stored_entities = []
@@ -357,13 +381,30 @@ class KnowledgeGraphService:
             "semantic_richness": min(1.0, len(entities) / 10)  # 语义丰富度评分
         }
     
-    def build_document_graph(self, document_id: int, db: Session) -> Dict[str, Any]:
-        """构建单个文档的知识图谱 - 带缓存优化"""
+    def build_document_graph(self, document_id: int, db: Session, knowledge_base_id: int = None) -> Dict[str, Any]:
+        """构建单个文档的知识图谱 - 带缓存优化
+
+        Args:
+            document_id: 文档ID
+            db: 数据库会话
+            knowledge_base_id: 知识库ID，用于加载知识库级提取策略配置
+        """
+        logger.info(f"[构建图谱] 开始构建文档 {document_id} 的知识图谱, knowledge_base_id={knowledge_base_id}")
+
         try:
             # 检查文档是否存在
             document = db.query(KnowledgeDocument).filter(KnowledgeDocument.id == document_id).first()
             if not document:
+                logger.error(f"[构建图谱] 文档 {document_id} 不存在")
                 return {"error": "文档不存在"}
+
+            logger.info(f"[构建图谱] 文档 {document_id} 信息: 标题={document.title or '无'}, "
+                       f"知识库ID={document.knowledge_base_id}, 内容长度={len(document.content or '')}")
+
+            # 如果未传入 knowledge_base_id，从文档对象获取
+            if knowledge_base_id is None and document.knowledge_base_id:
+                knowledge_base_id = document.knowledge_base_id
+                logger.info(f"[构建图谱] 从文档获取知识库ID: {knowledge_base_id}")
 
             # 检查缓存（使用文档内容的哈希作为缓存键的一部分）
             content_hash = None
@@ -373,34 +414,48 @@ class KnowledgeGraphService:
 
             cached_graph = knowledge_graph_cache.get(document_id, content_hash)
             if cached_graph:
-                logger.info(f"文档 {document_id} 的知识图谱从缓存获取")
+                logger.info(f"[构建图谱] 文档 {document_id} 的知识图谱从缓存获取")
                 return cached_graph
 
             # 1. 检查文档是否已进行实体提取，如果没有则先执行实体提取
+            logger.info(f"[构建图谱] 文档 {document_id} 检查已有实体和关系...")
             entities = self.get_document_entities(db, document_id)
             relationships = self.get_document_relationships(db, document_id)
+            logger.info(f"[构建图谱] 文档 {document_id} 已有实体: {len(entities)}, 关系: {len(relationships)}")
 
             if not entities and not relationships:
-                logger.info(f"文档 {document_id} 未进行实体提取，开始执行实体提取...")
+                logger.info(f"[构建图谱] 文档 {document_id} 未进行实体提取，开始执行实体提取...")
 
-                # 执行实体提取
-                extraction_result = self.extract_and_store_entities(db, document)
+                # 执行实体提取，传入 knowledge_base_id 以使用正确的提取策略
+                logger.info(f"[构建图谱] 文档 {document_id} 调用 extract_and_store_entities, knowledge_base_id={knowledge_base_id}")
+                extraction_result = self.extract_and_store_entities(
+                    db,
+                    document,
+                    knowledge_base_id=knowledge_base_id
+                )
+
+                logger.info(f"[构建图谱] 文档 {document_id} 实体提取结果: success={extraction_result.get('success')}, "
+                           f"entities_count={extraction_result.get('entities_count')}, "
+                           f"error={extraction_result.get('error')}")
+
                 if not extraction_result.get("success", False):
-                    logger.warning(f"文档 {document_id} 实体提取失败: {extraction_result.get('error', '未知错误')}")
+                    logger.error(f"[构建图谱] 文档 {document_id} 实体提取失败: {extraction_result.get('error', '未知错误')}")
                     return {"error": f"实体提取失败: {extraction_result.get('error', '未知错误')}"}
 
                 # 重新获取实体和关系
+                logger.info(f"[构建图谱] 文档 {document_id} 重新获取实体和关系...")
                 entities = self.get_document_entities(db, document_id)
                 relationships = self.get_document_relationships(db, document_id)
+                logger.info(f"[构建图谱] 文档 {document_id} 重新获取后: 实体={len(entities)}, 关系={len(relationships)}")
 
                 # 检查实体提取是否真的成功
                 if not entities:
-                    logger.warning(f"文档 {document_id} 实体提取后仍然没有实体")
+                    logger.error(f"[构建图谱] 文档 {document_id} 实体提取后仍然没有实体!")
                     return {"error": "实体提取后没有发现任何实体"}
 
-                logger.info(f"文档 {document_id} 实体提取成功，提取到 {len(entities)} 个实体和 {len(relationships)} 个关系")
+                logger.info(f"[构建图谱] 文档 {document_id} 实体提取成功，提取到 {len(entities)} 个实体和 {len(relationships)} 个关系")
             else:
-                logger.info(f"文档 {document_id} 已有 {len(entities)} 个实体和 {len(relationships)} 个关系，直接构建知识图谱")
+                logger.info(f"[构建图谱] 文档 {document_id} 已有 {len(entities)} 个实体和 {len(relationships)} 个关系，直接构建知识图谱")
 
             # 2. 使用图谱构建器构建图谱
             graph = self.graph_builder.build_graph_from_document(document_id, db)
@@ -850,4 +905,225 @@ class KnowledgeGraphService:
             
         except Exception as e:
             logger.error(f"查找路径失败: {e}")
+            return {"error": str(e)}
+
+    def get_graph_data_by_layer(
+        self, 
+        db: Session, 
+        layer: str = "document",
+        knowledge_base_id: Optional[int] = None,
+        document_id: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """根据层级获取知识图谱数据
+        
+        支持三级图谱数据查询：
+        - document: 文档级实体和关系
+        - kb: 知识库级实体和关系  
+        - global: 全局级实体和关系
+        
+        Args:
+            db: 数据库会话
+            layer: 图层类型 (document, kb, global)
+            knowledge_base_id: 知识库ID
+            document_id: 文档ID
+            
+        Returns:
+            图谱数据，包含nodes和edges
+        """
+        try:
+            if layer == "document":
+                # 文档级：查询单个文档的实体和关系
+                if document_id:
+                    return self.get_document_graph_data(db, document_id)
+                elif knowledge_base_id:
+                    # 如果只有知识库ID，返回该知识库下所有文档的汇总
+                    return self._get_documents_graph_for_kb(db, knowledge_base_id)
+                else:
+                    return {"error": "文档级查询需要提供document_id或knowledge_base_id"}
+                    
+            elif layer == "kb":
+                # 知识库级：查询知识库级的实体对齐和关系
+                if knowledge_base_id:
+                    return self.get_knowledge_base_graph_data(db, knowledge_base_id)
+                else:
+                    return {"error": "知识库级查询需要提供knowledge_base_id"}
+                    
+            elif layer == "global":
+                # 全局级：查询跨知识库的全局实体和关系
+                return self._get_global_graph_data(db)
+                
+            else:
+                return {"error": f"不支持的图层类型: {layer}，支持的类型: document, kb, global"}
+                
+        except Exception as e:
+            logger.error(f"获取{layer}级图谱数据失败: {e}")
+            return {"error": str(e)}
+
+    def _get_documents_graph_for_kb(self, db: Session, knowledge_base_id: int) -> Dict[str, Any]:
+        """获取知识库下所有文档的图谱数据汇总"""
+        try:
+            # 获取知识库下的所有文档
+            documents = db.query(KnowledgeDocument).filter(
+                KnowledgeDocument.knowledge_base_id == knowledge_base_id
+            ).all()
+            
+            if not documents:
+                return {"nodes": [], "edges": [], "statistics": {"total_documents": 0}}
+            
+            # 汇总所有文档的实体和关系
+            all_nodes = []
+            all_edges = []
+            entity_map = {}  # 用于去重
+            
+            for doc in documents:
+                # 获取文档的实体
+                entities = db.query(DocumentEntity).filter(
+                    DocumentEntity.document_id == doc.id
+                ).all()
+                
+                for entity in entities:
+                    node_id = f"doc{doc.id}_entity{entity.id}"
+                    if node_id not in entity_map:
+                        entity_map[node_id] = {
+                            "id": node_id,
+                            "label": entity.entity_text,
+                            "type": entity.entity_type,
+                            "entity_id": entity.id,
+                            "document_id": doc.id,
+                            "document_name": doc.title,
+                            "confidence": entity.confidence,
+                            "group": entity.entity_type
+                        }
+                        all_nodes.append(entity_map[node_id])
+                
+                # 获取文档的关系
+                relationships = db.query(EntityRelationship).filter(
+                    EntityRelationship.document_id == doc.id
+                ).all()
+                
+                for rel in relationships:
+                    source_id = f"doc{doc.id}_entity{rel.source_id}"
+                    target_id = f"doc{doc.id}_entity{rel.target_id}"
+                    
+                    if source_id in entity_map and target_id in entity_map:
+                        all_edges.append({
+                            "source": source_id,
+                            "target": target_id,
+                            "label": rel.relationship_type,
+                            "relationship_id": rel.id,
+                            "confidence": rel.confidence,
+                            "document_id": doc.id
+                        })
+            
+            # 统计信息
+            entity_types = {}
+            for node in all_nodes:
+                entity_type = node.get("type", "未知")
+                entity_types[entity_type] = entity_types.get(entity_type, 0) + 1
+            
+            return {
+                "nodes": all_nodes,
+                "edges": all_edges,
+                "statistics": {
+                    "total_documents": len(documents),
+                    "total_entities": len(all_nodes),
+                    "total_relationships": len(all_edges),
+                    "entity_types": entity_types
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"获取知识库 {knowledge_base_id} 的文档图谱汇总失败: {e}")
+            return {"error": str(e)}
+
+    def _get_global_graph_data(self, db: Session) -> Dict[str, Any]:
+        """获取全局级图谱数据（跨知识库）"""
+        try:
+            # 获取所有知识库
+            from app.modules.knowledge.models.knowledge_base import KnowledgeBase
+            
+            knowledge_bases = db.query(KnowledgeBase).all()
+            
+            if not knowledge_bases:
+                return {"nodes": [], "edges": [], "statistics": {"total_knowledge_bases": 0}}
+            
+            # 汇总所有知识库的实体和关系
+            all_nodes = []
+            all_edges = []
+            entity_map = {}  # 用于去重
+            
+            for kb in knowledge_bases:
+                # 获取知识库下的所有文档
+                documents = db.query(KnowledgeDocument).filter(
+                    KnowledgeDocument.knowledge_base_id == kb.id
+                ).all()
+                
+                for doc in documents:
+                    # 获取文档的实体
+                    entities = db.query(DocumentEntity).filter(
+                        DocumentEntity.document_id == doc.id
+                    ).all()
+                    
+                    for entity in entities:
+                        # 使用实体文本和类型作为唯一标识，实现跨文档去重
+                        entity_key = f"{entity.entity_text}_{entity.entity_type}"
+                        
+                        if entity_key not in entity_map:
+                            node_id = f"global_entity_{len(entity_map)}"
+                            entity_map[entity_key] = node_id
+                            all_nodes.append({
+                                "id": node_id,
+                                "label": entity.entity_text,
+                                "type": entity.entity_type,
+                                "entity_id": entity.id,
+                                "document_id": doc.id,
+                                "knowledge_base_id": kb.id,
+                                "confidence": entity.confidence,
+                                "group": entity.entity_type
+                            })
+            
+            # 获取所有关系
+            all_relationships = db.query(EntityRelationship).all()
+            
+            for rel in all_relationships:
+                # 获取源实体和目标实体
+                source_entity = db.query(DocumentEntity).filter(
+                    DocumentEntity.id == rel.source_id
+                ).first()
+                target_entity = db.query(DocumentEntity).filter(
+                    DocumentEntity.id == rel.target_id
+                ).first()
+                
+                if source_entity and target_entity:
+                    source_key = f"{source_entity.entity_text}_{source_entity.entity_type}"
+                    target_key = f"{target_entity.entity_text}_{target_entity.entity_type}"
+                    
+                    if source_key in entity_map and target_key in entity_map:
+                        all_edges.append({
+                            "source": entity_map[source_key],
+                            "target": entity_map[target_key],
+                            "label": rel.relationship_type,
+                            "relationship_id": rel.id,
+                            "confidence": rel.confidence
+                        })
+            
+            # 统计信息
+            entity_types = {}
+            for node in all_nodes:
+                entity_type = node.get("type", "未知")
+                entity_types[entity_type] = entity_types.get(entity_type, 0) + 1
+            
+            return {
+                "nodes": all_nodes,
+                "edges": all_edges,
+                "statistics": {
+                    "total_knowledge_bases": len(knowledge_bases),
+                    "total_entities": len(all_nodes),
+                    "total_relationships": len(all_edges),
+                    "entity_types": entity_types
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"获取全局图谱数据失败: {e}")
             return {"error": str(e)}

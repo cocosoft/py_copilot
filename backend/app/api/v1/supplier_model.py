@@ -22,6 +22,27 @@ from app.services.capability_model_filter import CapabilityBasedModelFilter
 
 router = APIRouter()
 
+
+def get_proxy_config():
+    """
+    获取代理配置
+    
+    从环境变量读取代理设置，支持 HTTP_PROXY 和 HTTPS_PROXY
+    
+    Returns:
+        dict: 代理配置字典，如果没有设置则返回空字典
+    """
+    proxies = {}
+    http_proxy = os.environ.get('HTTP_PROXY') or os.environ.get('http_proxy')
+    https_proxy = os.environ.get('HTTPS_PROXY') or os.environ.get('https_proxy')
+    
+    if http_proxy:
+        proxies['http'] = http_proxy
+    if https_proxy:
+        proxies['https'] = https_proxy
+    
+    return proxies if proxies else None
+
 # 文件上传配置
 # 获取项目根目录（backend的父目录）
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # 当前文件目录
@@ -803,7 +824,7 @@ async def fetch_models_from_api(supplier_id: int, api_config: dict, db: Session 
             # 硅基流动API - 使用/models端点获取模型列表
             models_endpoint = api_endpoint.rstrip('/') + "/models"
             logger.info(f"[获取模型] 硅基流动API - 方法: GET, 端点: {models_endpoint}")
-            response = requests.get(models_endpoint, headers=headers, timeout=10)
+            response = requests.get(models_endpoint, headers=headers, timeout=30)
             
             if response.status_code == 200:
                 data = response.json()
@@ -844,7 +865,7 @@ async def fetch_models_from_api(supplier_id: int, api_config: dict, db: Session 
                 base_url = base_url[:-4]  # 去掉最后的/api
             models_endpoint = base_url.rstrip('/') + "/api/tags"
             logger.info(f"[获取模型] Ollama API - 方法: GET, 端点: {models_endpoint}")
-            response = requests.get(models_endpoint, headers=headers, timeout=10)
+            response = requests.get(models_endpoint, headers=headers, timeout=30)
             
             if response.status_code == 200:
                 data = response.json()
@@ -867,7 +888,7 @@ async def fetch_models_from_api(supplier_id: int, api_config: dict, db: Session 
                 base_url = base_url[:-3]  # 去掉最后的/v1
             models_endpoint = base_url.rstrip('/') + "/v1/models"
             logger.info(f"[获取模型] DeepSeek API - 方法: GET, 端点: {models_endpoint}")
-            response = requests.get(models_endpoint, headers=headers, timeout=10)
+            response = requests.get(models_endpoint, headers=headers, timeout=30)
             
             if response.status_code == 200:
                 data = response.json()
@@ -900,7 +921,7 @@ async def fetch_models_from_api(supplier_id: int, api_config: dict, db: Session 
             }
             
             logger.info(f"[获取模型] 阿里云百炼API - 方法: GET, 端点: {models_endpoint}")
-            response = requests.get(models_endpoint, headers=aliyun_headers, timeout=10)
+            response = requests.get(models_endpoint, headers=aliyun_headers, timeout=30)
             
             if response.status_code == 200:
                 data = response.json()
@@ -922,7 +943,7 @@ async def fetch_models_from_api(supplier_id: int, api_config: dict, db: Session 
                 base_url = base_url[:-3]  # 去掉最后的/v1
             models_endpoint = base_url.rstrip('/') + "/v1/models"
             logger.info(f"[获取模型] 通用API - 方法: GET, 端点: {models_endpoint}")
-            response = requests.get(models_endpoint, headers=headers, timeout=10)
+            response = requests.get(models_endpoint, headers=headers, timeout=30)
             
             if response.status_code == 200:
                 data = response.json()
@@ -949,7 +970,7 @@ async def fetch_models_from_api(supplier_id: int, api_config: dict, db: Session 
         logger.error(f"[获取模型] 连接错误 - 供应商ID: {supplier_id}, API端点: {api_endpoint}, 错误: {str(e)}")
         return {
             "status": "error",
-            "message": "无法连接到API端点，请检查地址是否正确。",
+            "message": f"无法连接到API端点，请检查地址是否正确。详细信息: {str(e)}",
             "models": [],
             "total": 0
         }

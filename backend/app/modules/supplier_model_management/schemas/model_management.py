@@ -55,8 +55,8 @@ class ModelSupplierResponse(ModelSupplierBase):
 class ModelBase(BaseModel):
     """模型基础模型"""
     model_config = ConfigDict(protected_namespaces=())
-    model_id: str = Field(..., min_length=1, max_length=100)
-    model_name: str = Field(..., min_length=1, max_length=100)
+    model_id: Optional[str] = Field(None, min_length=1, max_length=100)
+    model_name: Optional[str] = Field(None, min_length=1, max_length=100)
     description: Optional[str] = None
     model_type_id: Optional[int] = None  # 模型类型ID，关联到model_categories表
     context_window: Optional[int] = None
@@ -89,8 +89,8 @@ class ModelResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     supplier_id: int
-    model_id: str
-    model_name: str
+    model_id: Optional[str] = None
+    model_name: Optional[str] = None
     description: Optional[str] = None
     model_type_id: Optional[int] = None
     model_type_name: Optional[str] = None  # 模型类型名称，从关联的model_categories表获取

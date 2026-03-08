@@ -103,7 +103,9 @@
       "workflow": "工作流场景",
       "tool": "工具调用场景",
       "search": "搜索场景",
-      "mcp": "MCP场景"
+      "mcp": "MCP场景",
+      "embedding": "向量化场景",
+      "rerank": "重排序场景"
     },
     "placeholder": "请选择模型",
     "selectLabel": "选择全局默认模型",

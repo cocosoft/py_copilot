@@ -317,13 +317,14 @@ async def hybrid_search_documents(
 async def list_documents(
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=1000),
-    knowledge_base_id: Optional[int] = Query(None, description="指定知识库ID")
+    knowledge_base_id: Optional[int] = Query(None, description="指定知识库ID"),
+    is_vectorized: Optional[int] = Query(None, description="筛选向量化状态: 1=已向量化, 0=未向量化")
     , db: Session = Depends(get_db)
 ):
     """获取知识库文档列表 - 自动修复状态不一致的文档"""
     try:
-        documents = knowledge_service.list_documents(db, skip, limit, knowledge_base_id)
-        total = knowledge_service.get_document_count(db, knowledge_base_id)
+        documents = knowledge_service.list_documents(db, skip, limit, knowledge_base_id, is_vectorized)
+        total = knowledge_service.get_document_count(db, knowledge_base_id, is_vectorized)
 
         # 获取队列状态（同步方法，不需要await）
         queue_status = document_processing_queue.get_queue_status()

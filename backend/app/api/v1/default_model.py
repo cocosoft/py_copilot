@@ -13,14 +13,17 @@ from app.core.permission_dependencies import (
     get_current_active_user, get_current_active_superuser,
     require_superuser_permission, require_verified_user
 )
-from app.models.default_model import DefaultModel, ModelFeedback, ModelPerformance
+from app.models.default_model import DefaultModel, ModelFeedback, ModelPerformance, KnowledgeBaseModelConfig
 from app.models.supplier_db import ModelDB
 from app.services.default_model_cache_service import DefaultModelCacheService
 from app.schemas.default_model import (
     DefaultModelCreate, DefaultModelUpdate, DefaultModelResponse,
     DefaultModelListResponse,
     SetGlobalDefaultRequest, SetSceneDefaultRequest,
-    RecommendModelRequest, ModelRecommendationResponse
+    RecommendModelRequest, ModelRecommendationResponse,
+    KnowledgeBaseModelConfigCreate, KnowledgeBaseModelConfigUpdate,
+    KnowledgeBaseModelConfigResponse, KnowledgeBaseModelConfigListResponse,
+    SetKnowledgeBaseModelRequest
 )
 from app.schemas.model_management import ModelResponse
 
@@ -562,5 +565,337 @@ async def set_local_model_config(
     db.add(new_local_config)
     db.commit()
     db.refresh(new_local_config)
-    
+
     return new_local_config
+
+
+# ==================== 知识库模型配置API ====================
+
+@router.get("/knowledge-base-model-configs", response_model=KnowledgeBaseModelConfigListResponse)
+async def get_knowledge_base_model_configs(
+    knowledge_base_id: Optional[int] = Query(None, description="知识库ID过滤"),
+    is_active: Optional[bool] = Query(None, description="是否激活"),
+    skip: int = Query(0, description="跳过记录数"),
+    limit: int = Query(100, description="返回记录数限制"),
+    db: Session = Depends(get_db)
+) -> Any:
+    """
+    获取知识库模型配置列表
+
+    Args:
+        knowledge_base_id: 知识库ID过滤
+        is_active: 是否激活
+        skip: 跳过记录数
+        limit: 返回记录数限制
+        db: 数据库会话
+
+    Returns:
+        知识库模型配置列表
+    """
+    query = db.query(KnowledgeBaseModelConfig)
+
+    # 应用过滤条件
+    if knowledge_base_id:
+        query = query.filter(KnowledgeBaseModelConfig.knowledge_base_id == knowledge_base_id)
+    if is_active is not None:
+        query = query.filter(KnowledgeBaseModelConfig.is_active == is_active)
+
+    # 执行查询
+    total = query.count()
+    configs = query.offset(skip).limit(limit).all()
+
+    return KnowledgeBaseModelConfigListResponse(
+        items=configs,
+        total=total,
+        page=skip // limit + 1,
+        size=limit,
+        pages=(total + limit - 1) // limit
+    )
+
+
+@router.get("/knowledge-base-model-configs/{knowledge_base_id}", response_model=Optional[KnowledgeBaseModelConfigResponse])
+async def get_knowledge_base_model_config(
+    knowledge_base_id: int,
+    db: Session = Depends(get_db)
+) -> Any:
+    """
+    获取指定知识库的模型配置
+
+    Args:
+        knowledge_base_id: 知识库ID
+        db: 数据库会话
+
+    Returns:
+        知识库模型配置，如果没有设置则返回None
+    """
+    config = db.query(KnowledgeBaseModelConfig).filter(
+        KnowledgeBaseModelConfig.knowledge_base_id == knowledge_base_id,
+        KnowledgeBaseModelConfig.is_active == True
+    ).first()
+
+    return config
+
+
+@router.post("/knowledge-base-model-configs", response_model=KnowledgeBaseModelConfigResponse)
+async def create_knowledge_base_model_config(
+    request: KnowledgeBaseModelConfigCreate,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_superuser_permission)
+) -> Any:
+    """
+    创建知识库模型配置
+
+    Args:
+        request: 创建知识库模型配置请求
+        db: 数据库会话
+
+    Returns:
+        创建的知识库模型配置
+    """
+    # 验证知识库是否存在
+    from app.modules.knowledge.models.knowledge_document import KnowledgeBase
+    kb = db.query(KnowledgeBase).filter(KnowledgeBase.id == request.knowledge_base_id).first()
+    if not kb:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"知识库 ID {request.knowledge_base_id} 不存在"
+        )
+
+    # 验证模型ID是否存在
+    if request.extraction_model_id:
+        model = db.query(ModelDB).filter(ModelDB.id == request.extraction_model_id).first()
+        if not model:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"提取模型 ID {request.extraction_model_id} 不存在"
+            )
+
+    if request.embedding_model_id:
+        model = db.query(ModelDB).filter(ModelDB.id == request.embedding_model_id).first()
+        if not model:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"嵌入模型 ID {request.embedding_model_id} 不存在"
+            )
+
+    if request.chat_model_id:
+        model = db.query(ModelDB).filter(ModelDB.id == request.chat_model_id).first()
+        if not model:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"对话模型 ID {request.chat_model_id} 不存在"
+            )
+
+    # 检查是否已存在该知识库的配置
+    existing_config = db.query(KnowledgeBaseModelConfig).filter(
+        KnowledgeBaseModelConfig.knowledge_base_id == request.knowledge_base_id
+    ).first()
+
+    if existing_config:
+        # 更新现有配置
+        if request.extraction_model_id is not None:
+            existing_config.extraction_model_id = request.extraction_model_id
+        if request.embedding_model_id is not None:
+            existing_config.embedding_model_id = request.embedding_model_id
+        if request.chat_model_id is not None:
+            existing_config.chat_model_id = request.chat_model_id
+        if request.is_active is not None:
+            existing_config.is_active = request.is_active
+        existing_config.updated_at = datetime.now()
+
+        db.commit()
+        db.refresh(existing_config)
+
+        # 更新缓存
+        DefaultModelCacheService.invalidate_default_model_cache(f"knowledge_kb_{request.knowledge_base_id}")
+
+        return existing_config
+    else:
+        # 创建新的配置
+        new_config = KnowledgeBaseModelConfig(
+            knowledge_base_id=request.knowledge_base_id,
+            extraction_model_id=request.extraction_model_id,
+            embedding_model_id=request.embedding_model_id,
+            chat_model_id=request.chat_model_id,
+            is_active=request.is_active
+        )
+
+        db.add(new_config)
+        db.commit()
+        db.refresh(new_config)
+
+        # 更新缓存
+        DefaultModelCacheService.invalidate_default_model_cache(f"knowledge_kb_{request.knowledge_base_id}")
+
+        return new_config
+
+
+@router.put("/knowledge-base-model-configs/{config_id}", response_model=KnowledgeBaseModelConfigResponse)
+async def update_knowledge_base_model_config(
+    config_id: int,
+    request: KnowledgeBaseModelConfigUpdate,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_superuser_permission)
+) -> Any:
+    """
+    更新知识库模型配置
+
+    Args:
+        config_id: 配置ID
+        request: 更新知识库模型配置请求
+        db: 数据库会话
+
+    Returns:
+        更新后的知识库模型配置
+    """
+    config = db.query(KnowledgeBaseModelConfig).filter(KnowledgeBaseModelConfig.id == config_id).first()
+    if not config:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"知识库模型配置 ID {config_id} 不存在"
+        )
+
+    # 验证模型ID是否存在
+    if request.extraction_model_id is not None:
+        model = db.query(ModelDB).filter(ModelDB.id == request.extraction_model_id).first()
+        if not model:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"提取模型 ID {request.extraction_model_id} 不存在"
+            )
+        config.extraction_model_id = request.extraction_model_id
+
+    if request.embedding_model_id is not None:
+        model = db.query(ModelDB).filter(ModelDB.id == request.embedding_model_id).first()
+        if not model:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"嵌入模型 ID {request.embedding_model_id} 不存在"
+            )
+        config.embedding_model_id = request.embedding_model_id
+
+    if request.chat_model_id is not None:
+        model = db.query(ModelDB).filter(ModelDB.id == request.chat_model_id).first()
+        if not model:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"对话模型 ID {request.chat_model_id} 不存在"
+            )
+        config.chat_model_id = request.chat_model_id
+
+    if request.is_active is not None:
+        config.is_active = request.is_active
+
+    config.updated_at = datetime.now()
+    db.commit()
+    db.refresh(config)
+
+    # 更新缓存
+    DefaultModelCacheService.invalidate_default_model_cache(f"knowledge_kb_{config.knowledge_base_id}")
+
+    return config
+
+
+@router.post("/knowledge-base-model-configs/set-model", response_model=KnowledgeBaseModelConfigResponse)
+async def set_knowledge_base_model(
+    request: SetKnowledgeBaseModelRequest,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_superuser_permission)
+) -> Any:
+    """
+    设置知识库的指定类型模型
+
+    Args:
+        request: 设置知识库模型请求
+        db: 数据库会话
+
+    Returns:
+        更新后的知识库模型配置
+    """
+    # 验证知识库是否存在
+    from app.modules.knowledge.models.knowledge_document import KnowledgeBase
+    kb = db.query(KnowledgeBase).filter(KnowledgeBase.id == request.knowledge_base_id).first()
+    if not kb:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"知识库 ID {request.knowledge_base_id} 不存在"
+        )
+
+    # 验证模型ID是否存在
+    model = db.query(ModelDB).filter(ModelDB.id == request.model_id).first()
+    if not model:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"模型 ID {request.model_id} 不存在"
+        )
+
+    # 验证模型类型
+    valid_model_types = ['extraction', 'embedding', 'chat']
+    if request.model_type not in valid_model_types:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"无效的模型类型 '{request.model_type}'，有效类型: {valid_model_types}"
+        )
+
+    # 获取或创建配置
+    config = db.query(KnowledgeBaseModelConfig).filter(
+        KnowledgeBaseModelConfig.knowledge_base_id == request.knowledge_base_id
+    ).first()
+
+    if not config:
+        config = KnowledgeBaseModelConfig(
+            knowledge_base_id=request.knowledge_base_id,
+            is_active=True
+        )
+        db.add(config)
+
+    # 根据模型类型设置对应的模型ID
+    if request.model_type == 'extraction':
+        config.extraction_model_id = request.model_id
+    elif request.model_type == 'embedding':
+        config.embedding_model_id = request.model_id
+    elif request.model_type == 'chat':
+        config.chat_model_id = request.model_id
+
+    config.updated_at = datetime.now()
+    db.commit()
+    db.refresh(config)
+
+    # 更新缓存
+    DefaultModelCacheService.invalidate_default_model_cache(f"knowledge_kb_{request.knowledge_base_id}")
+
+    return config
+
+
+@router.delete("/knowledge-base-model-configs/{config_id}")
+async def delete_knowledge_base_model_config(
+    config_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_superuser_permission)
+) -> Any:
+    """
+    删除知识库模型配置（软删除）
+
+    Args:
+        config_id: 配置ID
+        db: 数据库会话
+
+    Returns:
+        删除成功响应
+    """
+    config = db.query(KnowledgeBaseModelConfig).filter(KnowledgeBaseModelConfig.id == config_id).first()
+    if not config:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"知识库模型配置 ID {config_id} 不存在"
+        )
+
+    # 执行软删除
+    kb_id = config.knowledge_base_id
+    config.is_active = False
+    db.commit()
+
+    # 更新缓存
+    DefaultModelCacheService.invalidate_default_model_cache(f"knowledge_kb_{kb_id}")
+
+    return {"message": "知识库模型配置删除成功"}

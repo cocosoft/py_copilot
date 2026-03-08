@@ -1,16 +1,129 @@
 """知识图谱API路由"""
+import logging
 from fastapi import APIRouter, HTTPException, Query, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import Optional, List, Dict, Any
+from datetime import datetime
+import asyncio
+import uuid
 
 from app.core.database import get_db
 from app.modules.knowledge.models.knowledge_document import KnowledgeDocument
 from app.services.knowledge.knowledge_graph_service import KnowledgeGraphService
 from app.services.knowledge.batch_graph_builder import BatchGraphBuilder, BatchBuildResult
 
+logger = logging.getLogger(__name__)
+
 # 创建Pydantic模型用于API请求和响应
 from pydantic import BaseModel, validator, model_validator
 from typing import List, Dict, Any, Optional
+
+# ==================== 批量构建任务状态管理 ====================
+
+# 内存中的任务状态存储
+_batch_build_tasks: Dict[str, Dict[str, Any]] = {}
+
+
+def _update_batch_progress(batch_id: str, current: int, total: int, message: str = ""):
+    """
+    更新批量构建任务进度
+    
+    Args:
+        batch_id: 批次ID
+        current: 当前完成数量
+        total: 总数量
+        message: 进度消息
+    """
+    if batch_id in _batch_build_tasks:
+        progress = (current / total * 100) if total > 0 else 0
+        _batch_build_tasks[batch_id].update({
+            "progress": round(progress, 2),
+            "completed_documents": current,
+            "current_message": message,
+            "updated_at": datetime.now().isoformat()
+        })
+
+
+async def _run_batch_build_task(
+    batch_id: str,
+    document_ids: List[int],
+    max_workers: int,
+    knowledge_base_id: int = None
+):
+    """
+    后台执行批量构建任务
+
+    Args:
+        batch_id: 批次ID
+        document_ids: 文档ID列表
+        max_workers: 最大并发数
+        knowledge_base_id: 知识库ID，用于加载知识库级提取策略配置
+    """
+    logger.info(f"[后台任务] 开始执行批量构建任务: batch_id={batch_id}, "
+               f"document_ids={document_ids}, knowledge_base_id={knowledge_base_id}")
+
+    from app.services.knowledge.batch_processor import BatchKnowledgeGraphBuilder
+    from app.core.database import SessionLocal
+
+    db = None
+    try:
+        db = SessionLocal()
+
+        # 如果没有传入 knowledge_base_id，尝试从第一个文档获取
+        if knowledge_base_id is None and document_ids:
+            first_doc = db.query(KnowledgeDocument).filter(
+                KnowledgeDocument.id == document_ids[0]
+            ).first()
+            if first_doc:
+                knowledge_base_id = first_doc.knowledge_base_id
+                logger.info(f"从文档获取知识库ID: {knowledge_base_id}")
+        
+        # 创建构建器，传入 knowledge_base_id 以使用正确的提取策略
+        builder = BatchKnowledgeGraphBuilder(
+            max_workers=max_workers,
+            knowledge_base_id=knowledge_base_id
+        )
+        
+        # 更新任务状态为处理中
+        _batch_build_tasks[batch_id].update({
+            "status": "processing",
+            "started_at": datetime.now().isoformat(),
+            "total_documents": len(document_ids)
+        })
+        
+        # 定义进度回调
+        def progress_callback(current: int, total: int):
+            _update_batch_progress(batch_id, current, total, f"已处理 {current}/{total} 个文档")
+        
+        # 执行批量构建
+        result = await builder.build_graphs_batch(
+            document_ids=document_ids,
+            db=db,
+            progress_callback=progress_callback
+        )
+        
+        # 更新任务状态为完成
+        _batch_build_tasks[batch_id].update({
+            "status": "completed" if result.success else "failed",
+            "completed_documents": result.items_processed,
+            "failed_documents": result.items_failed,
+            "progress": 100.0,
+            "results": result.results,
+            "errors": result.errors,
+            "processing_time": result.processing_time,
+            "completed_at": datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        # 更新任务状态为失败
+        _batch_build_tasks[batch_id].update({
+            "status": "failed",
+            "error": str(e),
+            "completed_at": datetime.now().isoformat()
+        })
+    finally:
+        if db:
+            db.close()
 
 
 class EntityExtractionRequest(BaseModel):
@@ -342,11 +455,24 @@ async def get_entity_relationships(
 @router.get("/graph-data")
 async def get_knowledge_graph_data(
     knowledge_base_id: Optional[int] = Query(None, description="知识库ID"),
+    document_id: Optional[int] = Query(None, description="文档ID"),
+    layer: Optional[str] = Query("document", description="图层类型: document, kb, global"),
     db: Session = Depends(get_db)
 ):
-    """获取知识图谱数据（用于可视化）"""
+    """获取知识图谱数据（用于可视化）
+    
+    支持三级图谱数据查询：
+    - document: 文档级实体和关系
+    - kb: 知识库级实体和关系
+    - global: 全局级实体和关系
+    """
     try:
-        graph_data = knowledge_graph_service.get_knowledge_graph_data(db, knowledge_base_id)
+        graph_data = knowledge_graph_service.get_graph_data_by_layer(
+            db, 
+            layer=layer,
+            knowledge_base_id=knowledge_base_id,
+            document_id=document_id
+        )
         return KnowledgeGraphDataResponse(**graph_data)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取知识图谱数据失败: {str(e)}")
@@ -681,6 +807,7 @@ class BatchGraphBuildingRequest(BaseModel):
     """批量图谱构建请求"""
     document_ids: List[int]
     max_workers: int = 5
+    knowledge_base_id: Optional[int] = None
 
 
 class BatchGraphBuildingResponse(BaseModel):
@@ -691,6 +818,66 @@ class BatchGraphBuildingResponse(BaseModel):
     processing_time: float
     results: List[Dict[str, Any]]
     errors: List[str]
+
+
+class BatchGraphBuildAsyncRequest(BaseModel):
+    """异步批量图谱构建请求"""
+    document_ids: List[int]
+    max_workers: int = 3
+    extract_entities: bool = True
+    extract_relations: bool = True
+    min_confidence: float = 0.7
+    knowledge_base_id: Optional[int] = None
+
+
+class BatchGraphBuildAsyncData(BaseModel):
+    """异步批量图谱构建响应数据"""
+    batch_id: str
+    status: str
+    total_documents: int
+    message: str
+
+
+class BatchGraphBuildAsyncResponse(BaseModel):
+    """异步批量图谱构建响应"""
+    success: bool
+    data: BatchGraphBuildAsyncData
+
+
+class BatchGraphBuildStatusData(BaseModel):
+    """批量图谱构建状态响应数据"""
+    batch_id: str
+    status: str
+    progress: float
+    total_documents: int
+    completed_documents: int
+    failed_documents: int
+    current_message: Optional[str] = None
+    processing_time: Optional[float] = None
+    results: Optional[List[Dict[str, Any]]] = None
+    errors: Optional[List[str]] = None
+    created_at: Optional[str] = None
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
+
+
+class BatchGraphBuildStatusResponse(BaseModel):
+    """批量图谱构建状态响应"""
+    success: bool
+    data: BatchGraphBuildStatusData
+
+
+class BatchGraphBuildCancelData(BaseModel):
+    """批量图谱构建取消响应数据"""
+    batch_id: str
+    status: str
+    message: str
+
+
+class BatchGraphBuildCancelResponse(BaseModel):
+    """批量图谱构建取消响应"""
+    success: bool
+    data: BatchGraphBuildCancelData
 
 
 @router.post("/batch/extract-entities", response_model=BatchEntityExtractionResponse)
@@ -770,10 +957,21 @@ async def batch_build_graphs(
     try:
         from app.services.knowledge.batch_processor import build_knowledge_graphs_batch
 
+        # 如果没有传入 knowledge_base_id，尝试从第一个文档获取
+        knowledge_base_id = request.knowledge_base_id
+        if knowledge_base_id is None and request.document_ids:
+            first_doc = db.query(KnowledgeDocument).filter(
+                KnowledgeDocument.id == request.document_ids[0]
+            ).first()
+            if first_doc:
+                knowledge_base_id = first_doc.knowledge_base_id
+                logger.info(f"从文档获取知识库ID: {knowledge_base_id}")
+
         result = await build_knowledge_graphs_batch(
             document_ids=request.document_ids,
             db=db,
-            max_workers=request.max_workers
+            max_workers=request.max_workers,
+            knowledge_base_id=knowledge_base_id
         )
 
         return BatchGraphBuildingResponse(
@@ -787,6 +985,146 @@ async def batch_build_graphs(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"批量图谱构建失败: {str(e)}")
+
+
+@router.post("/batch/build-graphs-async", response_model=BatchGraphBuildAsyncResponse)
+async def batch_build_graphs_async(
+    request: BatchGraphBuildAsyncRequest,
+    background_tasks: BackgroundTasks
+):
+    """
+    异步批量构建知识图谱
+
+    启动后台任务为多个文档并发构建知识图谱，立即返回任务ID用于进度查询。
+    """
+    try:
+        # 记录接收到的请求参数
+        logger.info(f"[API] 接收到批量构建请求: document_ids={request.document_ids}, "
+                   f"knowledge_base_id={request.knowledge_base_id}, max_workers={request.max_workers}")
+
+        # 生成唯一的批次ID
+        batch_id = f"kg_batch_{uuid.uuid4().hex[:12]}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        
+        # 初始化任务状态
+        _batch_build_tasks[batch_id] = {
+            "batch_id": batch_id,
+            "status": "pending",
+            "progress": 0.0,
+            "total_documents": len(request.document_ids),
+            "completed_documents": 0,
+            "failed_documents": 0,
+            "current_message": "等待开始...",
+            "created_at": datetime.now().isoformat(),
+            "document_ids": request.document_ids,
+            "max_workers": request.max_workers
+        }
+        
+        # 启动后台任务，传入 knowledge_base_id 以使用正确的提取策略
+        background_tasks.add_task(
+            _run_batch_build_task,
+            batch_id,
+            request.document_ids,
+            request.max_workers,
+            request.knowledge_base_id
+        )
+        
+        return BatchGraphBuildAsyncResponse(
+            success=True,
+            data=BatchGraphBuildAsyncData(
+                batch_id=batch_id,
+                status="pending",
+                total_documents=len(request.document_ids),
+                message="批量构建任务已启动"
+            )
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"启动批量图谱构建失败: {str(e)}")
+
+
+@router.get("/batch/status/{batch_id}", response_model=BatchGraphBuildStatusResponse)
+async def get_batch_build_status(batch_id: str):
+    """
+    获取批量构建任务状态
+
+    查询指定批次ID的构建进度和状态。
+    """
+    try:
+        if batch_id not in _batch_build_tasks:
+            raise HTTPException(status_code=404, detail=f"未找到批次ID: {batch_id}")
+        
+        task = _batch_build_tasks[batch_id]
+        
+        return BatchGraphBuildStatusResponse(
+            success=True,
+            data=BatchGraphBuildStatusData(
+                batch_id=batch_id,
+                status=task.get("status", "unknown"),
+                progress=task.get("progress", 0.0),
+                total_documents=task.get("total_documents", 0),
+                completed_documents=task.get("completed_documents", 0),
+                failed_documents=task.get("failed_documents", 0),
+                current_message=task.get("current_message"),
+                processing_time=task.get("processing_time"),
+                results=task.get("results"),
+                errors=task.get("errors"),
+                created_at=task.get("created_at"),
+                started_at=task.get("started_at"),
+                completed_at=task.get("completed_at")
+            )
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取任务状态失败: {str(e)}")
+
+
+@router.post("/batch/cancel/{batch_id}", response_model=BatchGraphBuildCancelResponse)
+async def cancel_batch_build(batch_id: str):
+    """
+    取消批量构建任务
+
+    取消指定批次ID的构建任务（仅对正在等待或处理中的任务有效）。
+    """
+    try:
+        if batch_id not in _batch_build_tasks:
+            raise HTTPException(status_code=404, detail=f"未找到批次ID: {batch_id}")
+        
+        task = _batch_build_tasks[batch_id]
+        current_status = task.get("status", "unknown")
+        
+        # 只能取消等待中或处理中的任务
+        if current_status not in ["pending", "processing"]:
+            return BatchGraphBuildCancelResponse(
+                success=False,
+                data=BatchGraphBuildCancelData(
+                    batch_id=batch_id,
+                    status=current_status,
+                    message=f"任务状态为 {current_status}，无法取消"
+                )
+            )
+        
+        # 更新任务状态为已取消
+        task.update({
+            "status": "cancelled",
+            "completed_at": datetime.now().isoformat(),
+            "current_message": "任务已取消"
+        })
+        
+        return BatchGraphBuildCancelResponse(
+            success=True,
+            data=BatchGraphBuildCancelData(
+                batch_id=batch_id,
+                status="cancelled",
+                message="任务已成功取消"
+            )
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"取消任务失败: {str(e)}")
 
 
 # ==================== 关系管理API ====================
@@ -938,3 +1276,206 @@ async def get_relation_types(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取关系类型失败: {str(e)}")
+
+
+# ==================== 知识图谱数据清理API ====================
+
+class ClearGraphDataRequest(BaseModel):
+    """清理知识图谱数据请求"""
+    level: str = "all"  # 清理级别: all, document, kb, global
+    knowledge_base_id: Optional[int] = None  # 指定知识库ID（可选）
+    document_id: Optional[int] = None  # 指定文档ID（可选）
+    confirm: bool = False  # 确认删除
+
+
+class ClearGraphDataResponse(BaseModel):
+    """清理知识图谱数据响应"""
+    success: bool
+    message: str
+    data: Dict[str, Any]
+
+
+@router.post("/clear-data", response_model=ClearGraphDataResponse)
+async def clear_knowledge_graph_data(
+    request: ClearGraphDataRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    清理知识图谱数据
+    
+    根据指定的级别清理实体和关系数据：
+    - all: 清理所有层级的数据
+    - document: 仅清理文档级数据
+    - kb: 清理知识库级和文档级数据
+    - global: 仅清理全局级数据
+    
+    可以指定knowledge_base_id或document_id进行精确清理
+    """
+    try:
+        from sqlalchemy import text
+        from app.modules.knowledge.models.knowledge_document import (
+            DocumentEntity, EntityRelationship, KBEntity, KBRelationship,
+            GlobalEntity, GlobalRelationship, KnowledgeDocument
+        )
+        
+        if not request.confirm:
+            # 仅统计将要删除的数据，不实际执行
+            stats = {}
+            
+            if request.level == "all" or request.level == "document":
+                # 统计文档级数据
+                entity_query = db.query(DocumentEntity)
+                rel_query = db.query(EntityRelationship)
+                
+                if request.document_id:
+                    entity_query = entity_query.filter(DocumentEntity.document_id == request.document_id)
+                    rel_query = rel_query.filter(EntityRelationship.document_id == request.document_id)
+                elif request.knowledge_base_id:
+                    entity_query = entity_query.join(KnowledgeDocument).filter(
+                        KnowledgeDocument.knowledge_base_id == request.knowledge_base_id
+                    )
+                    rel_query = rel_query.join(KnowledgeDocument).filter(
+                        KnowledgeDocument.knowledge_base_id == request.knowledge_base_id
+                    )
+                
+                stats['document_entities'] = entity_query.count()
+                stats['document_relationships'] = rel_query.count()
+            
+            if request.level == "all" or request.level == "kb":
+                # 统计知识库级数据
+                kb_entity_query = db.query(KBEntity)
+                kb_rel_query = db.query(KBRelationship)
+                
+                if request.knowledge_base_id:
+                    kb_entity_query = kb_entity_query.filter(KBEntity.knowledge_base_id == request.knowledge_base_id)
+                    kb_rel_query = kb_rel_query.filter(KBRelationship.knowledge_base_id == request.knowledge_base_id)
+                
+                stats['kb_entities'] = kb_entity_query.count()
+                stats['kb_relationships'] = kb_rel_query.count()
+            
+            if request.level == "all" or request.level == "global":
+                # 统计全局级数据
+                stats['global_entities'] = db.query(GlobalEntity).count()
+                stats['global_relationships'] = db.query(GlobalRelationship).count()
+            
+            total = sum(stats.values())
+            
+            return ClearGraphDataResponse(
+                success=True,
+                message=f"将要删除 {total} 条数据。请设置 confirm=true 确认删除。",
+                data={
+                    "preview": True,
+                    "level": request.level,
+                    "stats": stats,
+                    "total": total
+                }
+            )
+        
+        # 执行删除
+        deleted_counts = {}
+        
+        if request.level == "all" or request.level == "global":
+            # 清理全局级数据
+            result = db.execute(text("DELETE FROM global_relationships"))
+            deleted_counts['global_relationships'] = result.rowcount
+            
+            result = db.execute(text("DELETE FROM global_entities"))
+            deleted_counts['global_entities'] = result.rowcount
+        
+        if request.level == "all" or request.level == "kb":
+            # 清理知识库级数据
+            if request.knowledge_base_id:
+                result = db.execute(text(
+                    f"DELETE FROM kb_relationships WHERE knowledge_base_id = {request.knowledge_base_id}"
+                ))
+                deleted_counts['kb_relationships'] = result.rowcount
+                
+                result = db.execute(text(
+                    f"DELETE FROM kb_entities WHERE knowledge_base_id = {request.knowledge_base_id}"
+                ))
+                deleted_counts['kb_entities'] = result.rowcount
+            else:
+                result = db.execute(text("DELETE FROM kb_relationships"))
+                deleted_counts['kb_relationships'] = result.rowcount
+                
+                result = db.execute(text("DELETE FROM kb_entities"))
+                deleted_counts['kb_entities'] = result.rowcount
+        
+        if request.level == "all" or request.level == "document":
+            # 清理文档级数据
+            if request.document_id:
+                result = db.execute(text(
+                    f"DELETE FROM entity_relationships WHERE document_id = {request.document_id}"
+                ))
+                deleted_counts['document_relationships'] = result.rowcount
+                
+                result = db.execute(text(
+                    f"DELETE FROM document_entities WHERE document_id = {request.document_id}"
+                ))
+                deleted_counts['document_entities'] = result.rowcount
+                
+                # 重置文档状态
+                db.execute(text(
+                    f"UPDATE knowledge_documents SET is_vectorized = 0 WHERE id = {request.document_id}"
+                ))
+                deleted_counts['documents_reset'] = 1
+                
+            elif request.knowledge_base_id:
+                # 获取该知识库下的所有文档ID
+                doc_ids_result = db.execute(text(
+                    f"SELECT id FROM knowledge_documents WHERE knowledge_base_id = {request.knowledge_base_id}"
+                )).fetchall()
+                doc_ids = [row[0] for row in doc_ids_result]
+                
+                if doc_ids:
+                    doc_ids_str = ','.join(map(str, doc_ids))
+                    result = db.execute(text(
+                        f"DELETE FROM entity_relationships WHERE document_id IN ({doc_ids_str})"
+                    ))
+                    deleted_counts['document_relationships'] = result.rowcount
+                    
+                    result = db.execute(text(
+                        f"DELETE FROM document_entities WHERE document_id IN ({doc_ids_str})"
+                    ))
+                    deleted_counts['document_entities'] = result.rowcount
+                
+                # 重置文档状态
+                result = db.execute(text(
+                    f"UPDATE knowledge_documents SET is_vectorized = 0 WHERE knowledge_base_id = {request.knowledge_base_id}"
+                ))
+                deleted_counts['documents_reset'] = result.rowcount
+                
+            else:
+                result = db.execute(text("DELETE FROM entity_relationships"))
+                deleted_counts['document_relationships'] = result.rowcount
+                
+                result = db.execute(text("DELETE FROM document_entities"))
+                deleted_counts['document_entities'] = result.rowcount
+                
+                # 重置所有文档状态
+                result = db.execute(text(
+                    "UPDATE knowledge_documents SET is_vectorized = 0 WHERE is_vectorized = 1"
+                ))
+                deleted_counts['documents_reset'] = result.rowcount
+        
+        db.commit()
+        
+        total_deleted = sum(v for k, v in deleted_counts.items() if k != 'documents_reset')
+        
+        return ClearGraphDataResponse(
+            success=True,
+            message=f"成功清理 {total_deleted} 条数据",
+            data={
+                "preview": False,
+                "level": request.level,
+                "deleted_counts": deleted_counts,
+                "total_deleted": total_deleted
+            }
+        )
+        
+    except Exception as e:
+        db.rollback()
+        import traceback
+        print(f"清理知识图谱数据错误: {str(e)}")
+        print(f"详细堆栈: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"清理知识图谱数据失败: {str(e)}")

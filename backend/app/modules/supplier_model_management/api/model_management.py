@@ -481,7 +481,7 @@ async def test_supplier_api_config(
     
     # 首先验证供应商是否存在并获取供应商信息
     # 使用原始SQL查询避免ORM关系映射问题
-    result = db.execute(text("SELECT id FROM suppliers WHERE id = :supplier_id"), {
+    result = db.execute(text("SELECT id, name, api_endpoint FROM suppliers WHERE id = :supplier_id"), {
         "supplier_id": supplier_id
     })
     supplier = result.fetchone()
@@ -539,56 +539,116 @@ async def test_supplier_api_config(
         headers = {}
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
+        headers["Content-Type"] = "application/json"
         
-        # 根据供应商类型使用不同的测试端点
-        test_endpoint = api_endpoint
-        # 为不同供应商添加特定端点处理
-        if supplier.name in ["深度求索", "deepseek", "硅基流动", "siliconflow"]:
-            # 这些API需要使用具体的路径
-            if not test_endpoint.endswith("/"):
-                test_endpoint += "/"
-            # 确保路径包含v1版本
-            if not test_endpoint.endswith("v1/"):
-                test_endpoint += "v1/"
-            # 使用models端点进行测试
-            test_endpoint += "models"
-        elif supplier.name.lower() == "ollama":
-            # Ollama API需要使用特定的路径
-            if not test_endpoint.endswith("/"):
-                test_endpoint += "/"
-            # Ollama API路径格式为 /api/tags（用于列出模型）
-            if not test_endpoint.endswith("api/"):
-                test_endpoint += "api/"
-            test_endpoint += "tags"
-            # Ollama通常不需要API密钥，移除Authorization头
+        # 准备API端点基础URL
+        base_url = api_endpoint
+        if not base_url.endswith("/"):
+            base_url += "/"
+        if not base_url.endswith("v1/"):
+            base_url += "v1/"
+        
+        # 根据供应商类型使用不同的测试策略
+        if supplier.name.lower() == "ollama":
+            # Ollama API使用特定的路径
+            test_endpoint = base_url.replace("v1/", "api/") + "tags"
+            # Ollama通常不需要API密钥
             if "Authorization" in headers:
                 del headers["Authorization"]
-        
-        logger.info(f"发送请求: URL={test_endpoint}, Headers={headers}")
-        
-        # 发送测试请求
-        response = requests.get(test_endpoint, headers=headers, timeout=10)
-        
-        logger.info(f"收到响应: Status={response.status_code}, Content-Type={response.headers.get('content-type')}")
-        
-        # 检查响应
-        if response.status_code == 200:
-            return {
-                "status": "success",
-                "message": "API配置测试成功！",
-                "status_code": response.status_code,
-                "response_text": response.text[:500]  # 只返回前500个字符
-            }
+            
+            logger.info(f"发送Ollama测试请求: URL={test_endpoint}")
+            response = requests.get(test_endpoint, headers=headers, timeout=10)
+            
+            logger.info(f"收到响应: Status={response.status_code}")
+            
+            if response.status_code == 200:
+                return {
+                    "status": "success",
+                    "message": "API配置测试成功！",
+                    "status_code": response.status_code,
+                    "response_text": response.text[:500]
+                }
+            else:
+                error_msg = f"API配置测试失败！服务器返回状态码: {response.status_code}"
+                logger.error(f"响应错误: {error_msg}")
+                return {
+                    "status": "error",
+                    "message": error_msg,
+                    "status_code": response.status_code,
+                    "response_text": response.text[:500]
+                }
         else:
-            error_msg = f"API配置测试失败！服务器返回状态码: {response.status_code}"
-            logger.error(f"响应错误: {error_msg}, Response={response.text[:200]}...")
-            # 直接返回错误响应，而不是抛出HTTPException
-            return {
-                "status": "error",
-                "message": error_msg,
-                "status_code": response.status_code,
-                "response_text": response.text[:500]
+            # 对于OpenAI兼容API（包括DeepSeek、SiliconFlow等），使用chat completions端点进行测试
+            # 这与实际聊天功能使用相同的端点
+            test_endpoint = base_url + "chat/completions"
+            
+            # 构建简单的测试消息
+            test_payload = {
+                "model": "default",  # 某些API需要模型参数，即使只是测试
+                "messages": [{"role": "user", "content": "Hi"}],
+                "max_tokens": 1  # 最小化token使用
             }
+            
+            logger.info(f"发送OpenAI兼容测试请求: URL={test_endpoint}")
+            
+            try:
+                response = requests.post(test_endpoint, headers=headers, json=test_payload, timeout=10)
+                
+                logger.info(f"收到响应: Status={response.status_code}")
+                
+                # 对于测试连接，我们认为以下状态码表示成功：
+                # 200: 请求成功
+                # 401: 认证失败（但端点存在，只是密钥可能无效）
+                # 403: 权限不足（但端点存在）
+                # 400: 请求格式问题（但端点存在）
+                if response.status_code == 200:
+                    return {
+                        "status": "success",
+                        "message": "API配置测试成功！",
+                        "status_code": response.status_code,
+                        "response_text": response.text[:500]
+                    }
+                elif response.status_code in [401, 403]:
+                    # 认证/权限错误表示端点存在，只是密钥问题
+                    return {
+                        "status": "success",
+                        "message": "API端点连接成功！（API密钥可能无效，请检查密钥配置）",
+                        "status_code": response.status_code,
+                        "response_text": "端点可访问，但认证失败。请检查API密钥是否正确。"
+                    }
+                elif response.status_code == 400:
+                    # 400错误通常表示请求格式问题，但端点存在
+                    error_data = response.json() if response.text else {}
+                    error_message = error_data.get("error", {}).get("message", "")
+                    
+                    # 如果错误消息包含模型相关的内容，说明端点是工作的
+                    if "model" in error_message.lower() or "model" in response.text.lower():
+                        return {
+                            "status": "success",
+                            "message": "API端点连接成功！（模型参数需要调整）",
+                            "status_code": response.status_code,
+                            "response_text": f"端点可访问。响应: {error_message or response.text[:200]}"
+                        }
+                    else:
+                        error_msg = f"API配置测试失败！服务器返回状态码: {response.status_code}"
+                        return {
+                            "status": "error",
+                            "message": error_msg,
+                            "status_code": response.status_code,
+                            "response_text": response.text[:500]
+                        }
+                else:
+                    error_msg = f"API配置测试失败！服务器返回状态码: {response.status_code}"
+                    logger.error(f"响应错误: {error_msg}, Response={response.text[:200]}...")
+                    return {
+                        "status": "error",
+                        "message": error_msg,
+                        "status_code": response.status_code,
+                        "response_text": response.text[:500]
+                    }
+            except requests.exceptions.RequestException as e:
+                logger.error(f"请求异常: {str(e)}")
+                raise
     except requests.exceptions.ConnectionError as e:
         error_msg = "无法连接到API端点，请检查地址是否正确。"
         logger.error(f"连接错误: {error_msg}, Exception={str(e)}")

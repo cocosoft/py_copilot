@@ -75,3 +75,58 @@ class ModelRecommendationResponse(BaseModel):
     primary_model: int = Field(..., description="主推荐模型ID")
     fallback_model: Optional[int] = Field(None, description="备选模型ID")
     alternative_models: List[int] = Field(default_factory=list, description="其他可选模型ID列表")
+
+
+# ==================== 知识库模型配置相关模式 ====================
+
+class KnowledgeBaseModelConfigBase(BaseModel):
+    """知识库模型配置基础模式"""
+    knowledge_base_id: int = Field(..., description="知识库ID")
+    extraction_model_id: Optional[int] = Field(None, description="实体提取专用模型ID")
+    embedding_model_id: Optional[int] = Field(None, description="向量嵌入专用模型ID")
+    chat_model_id: Optional[int] = Field(None, description="问答对话专用模型ID")
+    is_active: bool = Field(True, description="是否激活")
+
+
+class KnowledgeBaseModelConfigCreate(KnowledgeBaseModelConfigBase):
+    """创建知识库模型配置请求"""
+    pass
+
+
+class KnowledgeBaseModelConfigUpdate(BaseModel):
+    """更新知识库模型配置请求"""
+    extraction_model_id: Optional[int] = Field(None, description="实体提取专用模型ID")
+    embedding_model_id: Optional[int] = Field(None, description="向量嵌入专用模型ID")
+    chat_model_id: Optional[int] = Field(None, description="问答对话专用模型ID")
+    is_active: Optional[bool] = Field(None, description="是否激活")
+
+
+class KnowledgeBaseModelConfigResponse(BaseModel):
+    """知识库模型配置响应"""
+    id: int
+    knowledge_base_id: int
+    extraction_model_id: Optional[int]
+    embedding_model_id: Optional[int]
+    chat_model_id: Optional[int]
+    is_active: bool
+    created_at: datetime
+    updated_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+class KnowledgeBaseModelConfigListResponse(BaseModel):
+    """知识库模型配置列表响应"""
+    items: List[KnowledgeBaseModelConfigResponse]
+    total: int
+    page: int
+    size: int
+    pages: int
+
+
+class SetKnowledgeBaseModelRequest(BaseModel):
+    """设置知识库模型请求"""
+    knowledge_base_id: int = Field(..., description="知识库ID")
+    model_type: str = Field(..., description="模型类型：'extraction'(提取)、'embedding'(嵌入)、'chat'(对话)")
+    model_id: int = Field(..., description="模型ID")

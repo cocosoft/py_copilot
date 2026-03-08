@@ -7,6 +7,7 @@ const styles = `
   .custom-select-container {
     position: relative;
     display: inline-block;
+    width: 100%;
   }
   
   .custom-select {
@@ -98,6 +99,7 @@ const styles = `
     background-color: #ffffff;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     z-index: 1000;
+    min-width: 300px;
   }
   
   .custom-select__dropdown.dropdown-up {

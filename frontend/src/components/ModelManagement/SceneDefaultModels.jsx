@@ -71,6 +71,16 @@ const SceneDefaultModels = ({
       key: 'topic_title',
       label: '话题标题生成',
       description: '对话内容总结、标题提炼、核心意图提取'
+    },
+    {
+      key: 'embedding',
+      label: '向量化场景',
+      description: '文本向量化、语义嵌入、向量表示'
+    },
+    {
+      key: 'rerank',
+      label: '重排序场景',
+      description: '搜索结果重排序、相关性优化、排序精调'
     }
   ];
 

@@ -439,18 +439,22 @@ class KnowledgeService:
         
         return text_results
     
-    def list_documents(self, db: Session, skip: int = 0, limit: int = 10, knowledge_base_id: Optional[int] = None) -> List[KnowledgeDocument]:
+    def list_documents(self, db: Session, skip: int = 0, limit: int = 10, knowledge_base_id: Optional[int] = None, is_vectorized: Optional[int] = None) -> List[KnowledgeDocument]:
         """获取知识库文档列表"""
         query = db.query(KnowledgeDocument)
         if knowledge_base_id is not None:
             query = query.filter(KnowledgeDocument.knowledge_base_id == knowledge_base_id)
+        if is_vectorized is not None:
+            query = query.filter(KnowledgeDocument.is_vectorized == is_vectorized)
         return query.offset(skip).limit(limit).all()
-    
-    def get_document_count(self, db: Session, knowledge_base_id: Optional[int] = None) -> int:
+
+    def get_document_count(self, db: Session, knowledge_base_id: Optional[int] = None, is_vectorized: Optional[int] = None) -> int:
         """获取文档总数"""
         query = db.query(KnowledgeDocument)
         if knowledge_base_id is not None:
             query = query.filter(KnowledgeDocument.knowledge_base_id == knowledge_base_id)
+        if is_vectorized is not None:
+            query = query.filter(KnowledgeDocument.is_vectorized == is_vectorized)
         return query.count()
     
     def delete_document(self, db: Session, document_id: int) -> bool:

@@ -2,13 +2,14 @@
  * 提取策略配置组件
  *
  * 配置实体和关系的提取策略，包括：
- * - NLP模型选择
+ * - NLP模型选择（对接默认模型管理系统）
  * - 提取算法参数
  * - 置信度阈值
  * - 批处理设置
  */
 
 import React, { useState, useEffect } from 'react';
+import { defaultModelApi, supplierApi } from '../../utils/api';
 import './ExtractionStrategyConfig.css';
 
 /**
@@ -24,15 +25,13 @@ const ExtractionStrategyConfig = () => {
   // 消息提示
   const [message, setMessage] = useState({ type: '', text: '' });
 
+  // 默认模型相关状态
+  const [defaultModel, setDefaultModel] = useState(null);
+  const [modelDetails, setModelDetails] = useState(null);
+  const [isLoadingModel, setIsLoadingModel] = useState(false);
+
   // 策略配置状态
   const [config, setConfig] = useState({
-    // NLP模型配置
-    nlpModel: {
-      provider: 'local', // local, openai, azure
-      model: 'default',
-      apiKey: '',
-      endpoint: ''
-    },
     // 实体提取配置
     entityExtraction: {
       algorithm: 'rule_based', // rule_based, ml, hybrid
@@ -67,10 +66,71 @@ const ExtractionStrategyConfig = () => {
   };
 
   /**
+   * 加载知识库场景的默认模型
+   */
+  const loadKnowledgeSceneModel = async () => {
+    setIsLoadingModel(true);
+    try {
+      // 获取知识库场景的默认模型
+      const response = await defaultModelApi.getSceneDefaultModel('knowledge');
+      // API直接返回数据对象，不是 { data: ... } 格式
+      if (response && response.model_id) {
+        setDefaultModel(response);
+        // 如果存在模型ID，获取模型详细信息
+        await loadModelDetails(response.model_id);
+      } else {
+        // 如果场景模型不存在，尝试获取全局默认模型
+        await loadGlobalDefaultModel();
+      }
+    } catch (error) {
+      console.warn('获取知识库场景默认模型失败:', error);
+      // 如果场景模型不存在，尝试获取全局默认模型
+      await loadGlobalDefaultModel();
+    } finally {
+      setIsLoadingModel(false);
+    }
+  };
+
+  /**
+   * 加载全局默认模型
+   */
+  const loadGlobalDefaultModel = async () => {
+    try {
+      const globalResponse = await defaultModelApi.getGlobalDefaultModel();
+      // API直接返回数据对象
+      if (globalResponse && globalResponse.model_id) {
+        setDefaultModel(globalResponse);
+        await loadModelDetails(globalResponse.model_id);
+      }
+    } catch (globalError) {
+      console.warn('获取全局默认模型失败:', globalError);
+    }
+  };
+
+  /**
+   * 加载模型详细信息
+   * @param {number} modelId - 模型ID
+   */
+  const loadModelDetails = async (modelId) => {
+    try {
+      const response = await supplierApi.getModelById(modelId);
+      // API直接返回数据对象
+      if (response && response.id) {
+        setModelDetails(response);
+      }
+    } catch (error) {
+      console.warn('获取模型详细信息失败:', error);
+    }
+  };
+
+  /**
    * 加载配置
    */
   useEffect(() => {
-    // TODO: 从API加载配置
+    setLoading(true);
+    // 加载默认模型配置
+    loadKnowledgeSceneModel();
+    // TODO: 从API加载其他配置
     setLoading(false);
   }, []);
 
@@ -96,12 +156,6 @@ const ExtractionStrategyConfig = () => {
   const handleReset = () => {
     if (window.confirm('确定要重置为默认配置吗？')) {
       setConfig({
-        nlpModel: {
-          provider: 'local',
-          model: 'default',
-          apiKey: '',
-          endpoint: ''
-        },
         entityExtraction: {
           algorithm: 'rule_based',
           confidenceThreshold: 0.7,
@@ -128,6 +182,14 @@ const ExtractionStrategyConfig = () => {
   };
 
   /**
+   * 跳转到模型管理页面
+   */
+  const handleGoToModelManagement = () => {
+    // 使用React Router导航到设置页面的模型管理标签
+    window.location.href = '/settings?tab=modelManagement&section=defaultModel';
+  };
+
+  /**
    * 更新配置
    */
   const updateConfig = (section, field, value) => {
@@ -138,6 +200,34 @@ const ExtractionStrategyConfig = () => {
         [field]: value
       }
     }));
+  };
+
+  /**
+   * 获取模型显示名称
+   * @returns {string} 模型显示名称
+   */
+  const getModelDisplayName = () => {
+    if (modelDetails) {
+      return modelDetails.name || modelDetails.model_id || '未命名模型';
+    }
+    if (defaultModel?.model_id) {
+      return `模型ID: ${defaultModel.model_id}`;
+    }
+    return '未配置';
+  };
+
+  /**
+   * 获取模型提供商信息
+   * @returns {string} 提供商信息
+   */
+  const getModelProvider = () => {
+    if (modelDetails?.supplier?.name) {
+      return modelDetails.supplier.name;
+    }
+    if (modelDetails?.provider) {
+      return modelDetails.provider;
+    }
+    return '未知提供商';
   };
 
   return (
@@ -173,60 +263,84 @@ const ExtractionStrategyConfig = () => {
         </div>
       ) : (
         <div className="strategy-content">
-          {/* NLP模型配置 */}
+          {/* NLP模型配置 - 对接默认模型管理 */}
           <section className="config-section">
             <h4 className="section-title">
               <span className="section-icon">🤖</span>
               NLP模型配置
             </h4>
             <div className="section-content">
-              <div className="form-row">
-                <div className="form-group">
-                  <label>模型提供商</label>
-                  <select
-                    value={config.nlpModel.provider}
-                    onChange={(e) => updateConfig('nlpModel', 'provider', e.target.value)}
-                  >
-                    <option value="local">本地模型</option>
-                    <option value="openai">OpenAI</option>
-                    <option value="azure">Azure OpenAI</option>
-                  </select>
+              {/* 默认模型信息卡片 */}
+              <div className="default-model-info-card">
+                <div className="model-info-header">
+                  <h5>当前使用的模型</h5>
+                  <span className="model-source-badge">
+                    {defaultModel?.scope === 'scene' ? '场景默认' : '全局默认'}
+                  </span>
                 </div>
-                <div className="form-group">
-                  <label>模型名称</label>
-                  <select
-                    value={config.nlpModel.model}
-                    onChange={(e) => updateConfig('nlpModel', 'model', e.target.value)}
+                
+                {isLoadingModel ? (
+                  <div className="model-loading">
+                    <div className="loading-spinner-small"></div>
+                    <span>加载模型信息...</span>
+                  </div>
+                ) : (
+                  <div className="model-info-content">
+                    <div className="model-info-row">
+                      <span className="model-info-label">模型名称：</span>
+                      <span className="model-info-value model-name">
+                        {getModelDisplayName()}
+                      </span>
+                    </div>
+                    <div className="model-info-row">
+                      <span className="model-info-label">提供商：</span>
+                      <span className="model-info-value">{getModelProvider()}</span>
+                    </div>
+                    {modelDetails?.context_window && (
+                      <div className="model-info-row">
+                        <span className="model-info-label">上下文窗口：</span>
+                        <span className="model-info-value">
+                          {modelDetails.context_window.toLocaleString()} tokens
+                        </span>
+                      </div>
+                    )}
+                    {modelDetails?.description && (
+                      <div className="model-info-row">
+                        <span className="model-info-label">描述：</span>
+                        <span className="model-info-value description">
+                          {modelDetails.description}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                <div className="model-info-actions">
+                  <button 
+                    className="btn-link"
+                    onClick={handleGoToModelManagement}
                   >
-                    <option value="default">默认模型</option>
-                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                    <option value="gpt-4">GPT-4</option>
-                  </select>
+                    <span className="link-icon">⚙️</span>
+                    前往设置中心管理模型
+                  </button>
+                  <span className="hint-text">
+                    在"设置 &gt; 模型管理 &gt; 默认模型"中配置知识库场景的默认模型
+                  </span>
                 </div>
               </div>
 
-              {config.nlpModel.provider !== 'local' && (
-                <div className="form-row">
-                  <div className="form-group flex-2">
-                    <label>API端点</label>
-                    <input
-                      type="text"
-                      value={config.nlpModel.endpoint}
-                      onChange={(e) => updateConfig('nlpModel', 'endpoint', e.target.value)}
-                      placeholder="https://api.openai.com/v1"
-                    />
-                  </div>
-                  <div className="form-group flex-2">
-                    <label>API密钥</label>
-                    <input
-                      type="password"
-                      value={config.nlpModel.apiKey}
-                      onChange={(e) => updateConfig('nlpModel', 'apiKey', e.target.value)}
-                      placeholder="sk-..."
-                    />
-                  </div>
+              {/* 模型配置提示 */}
+              <div className="model-config-hint">
+                <span className="hint-icon">💡</span>
+                <div className="hint-content">
+                  <p>系统将按照以下优先级选择模型：</p>
+                  <ol>
+                    <li>知识库场景默认模型（knowledge）</li>
+                    <li>全局默认模型（global）</li>
+                    <li>系统内置默认模型</li>
+                  </ol>
                 </div>
-              )}
+              </div>
             </div>
           </section>
 

@@ -81,10 +81,14 @@ export const searchDocuments = async (query, limit = 10, knowledgeBaseId = null,
     return response.results;
 };
 
-export const listDocuments = async (skip = 0, limit = 10, knowledgeBaseId = null) => {
+export const listDocuments = async (skip = 0, limit = 10, knowledgeBaseId = null, isVectorized = null) => {
+    const params = { skip, limit, knowledge_base_id: knowledgeBaseId };
+    if (isVectorized !== null) {
+        params.is_vectorized = isVectorized ? 1 : 0;
+    }
     const response = await request('/v1/knowledge/documents', {
         method: 'GET',
-        params: { skip, limit, knowledge_base_id: knowledgeBaseId }
+        params
     });
     
     return response;

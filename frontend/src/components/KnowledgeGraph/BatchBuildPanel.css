@@ -2,6 +2,26 @@
  * 批量构建面板组件样式
  */
 
+/* CSS 变量定义 */
+.batch-build-panel {
+  --success-color: #27ae60;
+  --success-color-light: #d5f4e6;
+  --warning-color: #f39c12;
+  --warning-color-light: #fef5e7;
+  --info-color: #3498db;
+  --info-color-light: #ebf5fb;
+  --error-color: #e74c3c;
+  --error-color-light: #fadbd8;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8f9fa;
+  --bg-hover: #f1f3f4;
+  --text-primary: #2c3e50;
+  --text-secondary: #7f8c8d;
+  --primary-color: #3498db;
+  --primary-color-light: #ebf5fb;
+  --border-color: #e1e8ed;
+}
+
 /* ==================== 主容器 ==================== */
 .batch-build-panel {
   padding: 24px;
@@ -189,6 +209,121 @@
   border-radius: 4px;
   font-size: 11px;
   font-weight: 500;
+}
+
+/* ==================== 文档状态样式 ==================== */
+.status-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.status-badge.status-vectorized {
+  background: var(--success-color-light);
+  color: var(--success-color);
+}
+
+.status-badge.status-processing {
+  background: var(--warning-color-light);
+  color: var(--warning-color);
+}
+
+.status-badge.status-queued {
+  background: var(--info-color-light);
+  color: var(--info-color);
+}
+
+.status-badge.status-pending {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+/* 实体提取状态 */
+.status-badge.status-extracted {
+  background: var(--success-color-light);
+  color: var(--success-color);
+}
+
+.status-badge.status-no-entities {
+  background: var(--warning-color-light);
+  color: var(--warning-color);
+}
+
+.status-text {
+  font-size: 12px;
+}
+
+.status-text.status-vectorized {
+  color: var(--success-color);
+}
+
+.status-text.status-processing {
+  color: var(--warning-color);
+}
+
+.status-text.status-queued {
+  color: var(--info-color);
+}
+
+.status-text.status-pending {
+  color: var(--text-secondary);
+}
+
+/* 实体计数显示 */
+.extraction-info {
+  margin-left: 4px;
+}
+
+.entity-count {
+  color: var(--success-color);
+  font-weight: 500;
+}
+
+.relation-count {
+  color: var(--info-color);
+  font-weight: 500;
+}
+
+/* 已提取实体的文档项样式 */
+.document-item.has-entities {
+  border-left: 3px solid var(--success-color);
+}
+
+/* 禁用状态的复选框 */
+.document-item input[type="checkbox"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 空状态提示 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.6;
+}
+
+.empty-state p {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  color: var(--text-primary);
+}
+
+.empty-hint {
+  font-size: 13px;
+  color: var(--text-secondary);
+  max-width: 300px;
 }
 
 /* ==================== 参数配置区域 ==================== */
@@ -609,6 +744,238 @@
   font-size: 13px;
 }
 
+/* ==================== 当前状态消息 ==================== */
+.current-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: var(--primary-color-light);
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.current-message .label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.current-message .value {
+  font-size: 14px;
+  color: var(--primary-color);
+  font-weight: 500;
+}
+
+/* ==================== 进度日志 ==================== */
+.progress-logs {
+  margin-bottom: 20px;
+}
+
+.progress-logs h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 12px 0;
+}
+
+.logs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.log-item {
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.log-item.success {
+  background: var(--success-color-light);
+  border-color: var(--success-color);
+}
+
+.log-item.error {
+  background: var(--error-color-light);
+  border-color: var(--error-color);
+}
+
+.log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.log-header .doc-id {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.log-stats {
+  display: flex;
+  gap: 16px;
+}
+
+.log-stats .stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.log-stats .stat-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.log-stats .stat-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.log-error {
+  font-size: 12px;
+  color: var(--error-color);
+  margin-top: 4px;
+}
+
+/* ==================== 详细结果 ==================== */
+.result-details {
+  text-align: left;
+  margin-bottom: 24px;
+}
+
+.result-details h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 16px 0;
+}
+
+.results-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.result-item {
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.result-item.success {
+  background: var(--success-color-light);
+  border-color: var(--success-color);
+}
+
+.result-item.error {
+  background: var(--error-color-light);
+  border-color: var(--error-color);
+}
+
+.result-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.result-item-header .doc-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.result-item-stats {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.result-item-stats .stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.result-item-stats .stat-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.result-item-stats .stat-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.result-item-stats .stat-value.highlight {
+  color: var(--primary-color);
+  font-size: 16px;
+}
+
+.result-item-error {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.result-item-error .error-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.result-item-error .error-message {
+  font-size: 13px;
+  color: var(--error-color);
+}
+
+/* ==================== 汇总统计 ==================== */
+.summary-stats {
+  padding: 16px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  margin-top: 16px;
+}
+
+.summary-stats h5 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 12px 0;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.summary-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.summary-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--primary-color);
+}
+
 /* ==================== 响应式设计 ==================== */
 @media (max-width: 768px) {
   .batch-build-panel {
@@ -643,6 +1010,15 @@
 
   .progress-stats {
     grid-template-columns: 1fr;
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .result-item-stats {
+    flex-direction: column;
+    gap: 8px;
   }
 
   .action-bar {

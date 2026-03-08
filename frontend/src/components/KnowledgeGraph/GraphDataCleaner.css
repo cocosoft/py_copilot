@@ -1,0 +1,348 @@
+/**
+ * 知识图谱数据清理组件样式
+ */
+
+.graph-data-cleaner {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.cleaner-header {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.cleaner-header h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.cleaner-description {
+  margin: 0;
+  color: #8c8c8c;
+  font-size: 14px;
+}
+
+/* 表单样式 */
+.cleaner-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #262626;
+}
+
+/* 级别选项样式 */
+.level-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.level-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 2px solid #d9d9d9;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.level-option:hover {
+  border-color: #40a9ff;
+  background: #f6ffed;
+}
+
+.level-option.selected {
+  border-color: #1890ff;
+  background: #e6f7ff;
+}
+
+.level-option input[type="radio"] {
+  margin-top: 2px;
+  cursor: pointer;
+}
+
+.level-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.level-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #262626;
+}
+
+.level-description {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+/* 范围信息 */
+.scope-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.scope-label {
+  font-weight: 500;
+  color: #52c41a;
+}
+
+/* 按钮样式 */
+.btn-preview,
+.btn-confirm,
+.btn-cancel,
+.btn-reset {
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.btn-preview {
+  background: #1890ff;
+  color: white;
+}
+
+.btn-preview:hover:not(:disabled) {
+  background: #40a9ff;
+}
+
+.btn-confirm {
+  background: #ff4d4f;
+  color: white;
+}
+
+.btn-confirm:hover:not(:disabled) {
+  background: #ff7875;
+}
+
+.btn-cancel {
+  background: #f5f5f5;
+  color: #262626;
+  border: 1px solid #d9d9d9;
+}
+
+.btn-cancel:hover:not(:disabled) {
+  background: #e8e8e8;
+}
+
+.btn-reset {
+  background: #52c41a;
+  color: white;
+  margin-top: 16px;
+}
+
+.btn-reset:hover {
+  background: #73d13d;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 确认区域 */
+.confirmation-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.warning-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  background: #fff2f0;
+  border: 1px solid #ffccc7;
+  border-radius: 8px;
+}
+
+.warning-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.warning-content strong {
+  color: #cf1322;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.warning-content p {
+  margin: 0;
+  color: #595959;
+  font-size: 13px;
+}
+
+/* 预览区域 */
+.preview-section,
+.result-details {
+  background: #fafafa;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.preview-section h4,
+.result-details h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #262626;
+}
+
+/* 统计网格 */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #e8e8e8;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.total-count {
+  text-align: center;
+  padding-top: 12px;
+  border-top: 1px solid #e8e8e8;
+  font-size: 14px;
+  color: #595959;
+}
+
+.total-count strong {
+  color: #ff4d4f;
+  font-size: 18px;
+}
+
+/* 操作按钮 */
+.action-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+/* 结果区域 */
+.result-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.success-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  border-radius: 8px;
+}
+
+.success-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.success-content strong {
+  color: #52c41a;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.success-content p {
+  margin: 0;
+  color: #595959;
+  font-size: 13px;
+}
+
+/* 错误消息 */
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #fff2f0;
+  border: 1px solid #ffccc7;
+  border-radius: 6px;
+  color: #cf1322;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.error-icon {
+  font-size: 16px;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .graph-data-cleaner {
+    padding: 16px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .action-buttons {
+    flex-direction: column;
+  }
+
+  .btn-preview,
+  .btn-confirm,
+  .btn-cancel,
+  .btn-reset {
+    width: 100%;
+  }
+}

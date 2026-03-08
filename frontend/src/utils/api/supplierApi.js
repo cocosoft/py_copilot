@@ -262,8 +262,8 @@ export const supplierApi = {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        apiUrl: apiConfig.apiUrl,
-        apiKey: apiConfig.apiKey
+        api_endpoint: apiConfig.apiUrl,
+        api_key: apiConfig.apiKey
       }),
       timeout: 60000 // 测试API连接设置60秒超时
     });
@@ -308,7 +308,8 @@ export const supplierApi = {
       body: JSON.stringify({
         apiUrl: apiConfig.apiUrl,
         apiKey: apiConfig.apiKey
-      })
+      }),
+      timeout: 120000
     });
     
     // 检查后端返回的状态
@@ -402,10 +403,10 @@ export const supplierApi = {
       const response = await request('/v1/local-models', {
         method: 'GET'
       });
-      
+
       // 处理后端返回格式
       let modelsData = [];
-      
+
       // 后端返回的是直接数组格式
       if (Array.isArray(response)) {
         modelsData = response;
@@ -418,9 +419,50 @@ export const supplierApi = {
       else if (typeof response === 'object' && response !== null && Array.isArray(response.models)) {
         modelsData = response.models;
       }
-      
+
       return modelsData;
     } catch (error) {
+      throw error;
+    }
+  },
+
+  /**
+   * 根据ID获取模型详情
+   * 使用 model-management/models/select/{model_id} 端点
+   * @param {number} modelId - 模型ID
+   * @returns {Promise<Object>} 模型详情
+   */
+  getModelById: async (modelId) => {
+    try {
+      // 使用 model-management 端点，不需要 supplier_id
+      const response = await request(`/v1/model-management/models/select/${modelId}`, {
+        method: 'GET'
+      });
+
+      // 这个端点返回 { data: {...} } 格式
+      const modelData = response.data || response;
+
+      // 格式化响应数据
+      if (modelData) {
+        return {
+          id: modelData.id,
+          name: modelData.model_name || modelData.name || modelData.model_id || '',
+          model_id: modelData.model_id || '',
+          description: modelData.description || '',
+          context_window: modelData.context_window || modelData.contextWindow || 0,
+          provider: modelData.supplier_name || modelData.provider || '',
+          supplier: {
+            name: modelData.supplier_name || '',
+            display_name: modelData.supplier_display_name || modelData.supplier_name || ''
+          },
+          is_active: modelData.is_default !== undefined ? modelData.is_default : true,
+          type: modelData.model_type_name || modelData.type || 'chat',
+          logo: modelData.logo || ''
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error('获取模型详情失败:', error);
       throw error;
     }
   }

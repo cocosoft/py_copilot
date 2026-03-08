@@ -47,8 +47,8 @@ class ModelSupplierResponse(ModelSupplierBase):
 class ModelBase(BaseModel):
     """模型基础模型"""
     model_config = ConfigDict(protected_namespaces=())
-    model_id: str = Field(..., min_length=1, max_length=100)
-    model_name: str = Field(..., min_length=1, max_length=100)
+    model_id: Optional[str] = Field(None, min_length=1, max_length=100)
+    model_name: Optional[str] = Field(None, min_length=1, max_length=100)
     description: Optional[str] = None
     type: str = Field(..., pattern="^(chat|completion|embedding)$")
     context_window: int = Field(default=8000, ge=1)
@@ -90,10 +90,12 @@ class ModelResponse(ModelBase):
     """模型响应模型"""
     id: int
     supplier_id: int
+    model_id: Optional[str] = None
+    model_name: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
     categories: List[ModelCategoryResponse] = []
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 

@@ -327,14 +327,16 @@ class BatchKnowledgeGraphBuilder:
     支持批量构建知识图谱，优化处理流程。
     """
     
-    def __init__(self, max_workers: int = 5):
+    def __init__(self, max_workers: int = 5, knowledge_base_id: int = None):
         """
         初始化批量知识图谱构建器
         
         Args:
             max_workers: 最大并发工作线程数
+            knowledge_base_id: 知识库ID，用于加载知识库级提取策略配置
         """
         self.max_workers = max_workers
+        self.knowledge_base_id = knowledge_base_id
         from app.services.knowledge.knowledge_graph_service import KnowledgeGraphService
         self.kg_service = KnowledgeGraphService()
         
@@ -422,37 +424,64 @@ class BatchKnowledgeGraphBuilder:
     ) -> Dict[str, Any]:
         """
         构建单个文档的知识图谱
-        
+
         Args:
             document_id: 文档ID
             index: 索引
             db: 数据库会话（不使用，每个任务创建独立连接）
-            
+
         Returns:
             构建结果
         """
         # 每个任务创建独立的数据库连接，避免并发冲突
         from app.core.database import SessionLocal
         local_db = None
-        
+
+        logger.info(f"[批量构建] 开始处理文档 {document_id} (索引: {index}), knowledge_base_id={self.knowledge_base_id}")
+
         try:
             local_db = SessionLocal()
-            
-            # 使用线程池运行同步的图谱构建
+
+            # 查询文档基本信息
+            from app.modules.knowledge.models.knowledge_document import KnowledgeDocument
+            doc = local_db.query(KnowledgeDocument).filter(KnowledgeDocument.id == document_id).first()
+            if doc:
+                logger.info(f"[批量构建] 文档 {document_id} 信息: 标题={doc.title or '无'}, "
+                           f"知识库ID={doc.knowledge_base_id}, 内容长度={len(doc.content or '')}")
+            else:
+                logger.warning(f"[批量构建] 文档 {document_id} 不存在")
+
+            # 使用线程池运行同步的图谱构建，传入 knowledge_base_id 以使用正确的提取策略
             loop = asyncio.get_event_loop()
+            logger.info(f"[批量构建] 调用 build_document_graph 处理文档 {document_id}")
+
             graph_data = await loop.run_in_executor(
                 None,
-                lambda: self.kg_service.build_document_graph(document_id, local_db)
+                lambda: self.kg_service.build_document_graph(
+                    document_id,
+                    local_db,
+                    knowledge_base_id=self.knowledge_base_id
+                )
             )
-            
+
+            logger.info(f"[批量构建] 文档 {document_id} build_document_graph 返回结果: "
+                       f"nodes={len(graph_data.get('nodes', []))}, "
+                       f"edges={len(graph_data.get('edges', []))}, "
+                       f"error={'error' in graph_data}")
+
             if "error" in graph_data:
+                logger.error(f"[批量构建] 文档 {document_id} 构建失败: {graph_data['error']}")
                 return {
                     "index": index,
                     "document_id": document_id,
                     "success": False,
                     "error": graph_data["error"]
                 }
-            
+
+            logger.info(f"[批量构建] 文档 {document_id} 构建成功: "
+                       f"{len(graph_data.get('nodes', []))} 个节点, "
+                       f"{len(graph_data.get('edges', []))} 条边")
+
             return {
                 "index": index,
                 "document_id": document_id,
@@ -461,9 +490,9 @@ class BatchKnowledgeGraphBuilder:
                 "edge_count": len(graph_data.get("edges", [])),
                 "graph_data": graph_data
             }
-            
+
         except Exception as e:
-            logger.error(f"文档 {document_id} 图谱构建失败: {e}")
+            logger.error(f"[批量构建] 文档 {document_id} 图谱构建异常: {e}", exc_info=True)
             return {
                 "index": index,
                 "document_id": document_id,
@@ -473,6 +502,7 @@ class BatchKnowledgeGraphBuilder:
         finally:
             if local_db:
                 local_db.close()
+                logger.info(f"[批量构建] 文档 {document_id} 数据库连接已关闭")
 
 
 # 便捷函数
@@ -525,7 +555,8 @@ async def build_knowledge_graphs_batch(
     document_ids: List[int],
     db=None,
     max_workers: int = 5,
-    progress_callback: Optional[callable] = None
+    progress_callback: Optional[callable] = None,
+    knowledge_base_id: int = None
 ) -> BatchProcessResult:
     """
     便捷函数：批量构建知识图谱
@@ -535,9 +566,10 @@ async def build_knowledge_graphs_batch(
         db: 数据库会话
         max_workers: 最大并发数
         progress_callback: 进度回调
+        knowledge_base_id: 知识库ID，用于加载知识库级提取策略配置
         
     Returns:
         批量处理结果
     """
-    builder = BatchKnowledgeGraphBuilder(max_workers=max_workers)
+    builder = BatchKnowledgeGraphBuilder(max_workers=max_workers, knowledge_base_id=knowledge_base_id)
     return await builder.build_graphs_batch(document_ids, db, progress_callback)

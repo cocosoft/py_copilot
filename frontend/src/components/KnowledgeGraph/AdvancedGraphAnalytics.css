@@ -1,0 +1,393 @@
+/**
+ * 高级图谱分析组件样式
+ */
+
+.advanced-graph-analytics {
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+/* 头部样式 */
+.analytics-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.analytics-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.analysis-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.analysis-tabs button {
+  padding: 8px 16px;
+  border: 1px solid #dee2e6;
+  background: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.analysis-tabs button:hover {
+  background: #e9ecef;
+}
+
+.analysis-tabs button.active {
+  background: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+/* 内容区域 */
+.analytics-content {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+/* 加载状态 */
+.analytics-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  gap: 16px;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 统计视图样式 */
+.analytics-statistics .stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.stat-label {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.stats-charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.chart-container {
+  background: #f8f9fa;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.chart-container h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: #666;
+}
+
+/* 中心性分析样式 */
+.analytics-centrality .centrality-controls {
+  margin-bottom: 20px;
+}
+
+.analytics-centrality select {
+  padding: 8px 12px;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.centrality-chart {
+  margin-bottom: 20px;
+}
+
+.centrality-table {
+  overflow-x: auto;
+}
+
+.centrality-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.centrality-table th,
+.centrality-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.centrality-table th {
+  background: #f8f9fa;
+  font-weight: 600;
+  color: #666;
+}
+
+.centrality-table tr:hover {
+  background: #f8f9fa;
+}
+
+/* 社区发现样式 */
+.analytics-community .community-summary {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.summary-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.summary-value {
+  font-size: 24px;
+  font-weight: bold;
+  color: #007bff;
+}
+
+.summary-label {
+  font-size: 14px;
+  color: #666;
+}
+
+.community-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.community-card {
+  background: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.community-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.community-header h4 {
+  margin: 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.community-size {
+  font-size: 12px;
+  color: #666;
+  background: #e9ecef;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.community-nodes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.community-node-tag {
+  background: #007bff;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.more-nodes {
+  font-size: 12px;
+  color: #666;
+  font-style: italic;
+}
+
+/* 路径分析样式 */
+.analytics-path .path-inputs {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  margin-bottom: 24px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.input-group label {
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+}
+
+.input-group input {
+  padding: 8px 12px;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  font-size: 14px;
+  width: 200px;
+}
+
+.path-inputs button {
+  padding: 8px 20px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.path-inputs button:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.path-inputs button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.path-result {
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.path-info {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.path-found {
+  color: #28a745;
+  font-weight: 600;
+}
+
+.path-not-found {
+  color: #dc3545;
+  font-weight: 600;
+}
+
+.path-length {
+  color: #666;
+}
+
+.path-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.path-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: white;
+  border-radius: 4px;
+  border-left: 3px solid #007bff;
+}
+
+.step-number {
+  width: 24px;
+  height: 24px;
+  background: #007bff;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.step-node {
+  font-weight: 500;
+  color: #333;
+}
+
+.step-relation {
+  color: #666;
+  font-size: 12px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .analytics-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+
+  .analysis-tabs {
+    flex-wrap: wrap;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .path-inputs {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .input-group input {
+    width: 100%;
+  }
+}
