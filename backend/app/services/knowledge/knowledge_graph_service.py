@@ -4,7 +4,7 @@ from typing import List, Dict, Any, Optional, Tuple
 from sqlalchemy.orm import Session
 
 from app.modules.knowledge.models.knowledge_document import (
-    DocumentEntity, EntityRelationship, DocumentChunk, KnowledgeDocument
+    DocumentEntity, EntityRelationship, DocumentChunk, KnowledgeDocument, KnowledgeBase
 )
 from app.services.knowledge.advanced_text_processor import AdvancedTextProcessor
 from app.services.knowledge.graph_builder import KnowledgeGraphBuilder
@@ -497,22 +497,41 @@ class KnowledgeGraphService:
         """构建整个知识库的知识图谱"""
         try:
             # 检查知识库是否存在
-            knowledge_base = db.query(KnowledgeDocument.knowledge_base_id).filter(
-                KnowledgeDocument.knowledge_base_id == knowledge_base_id
+            knowledge_base = db.query(KnowledgeBase).filter(
+                KnowledgeBase.id == knowledge_base_id
             ).first()
-            
+
             if not knowledge_base:
-                return {"error": "知识库不存在或没有文档"}
-            
+                return {"error": "知识库不存在"}
+
+            # 检查知识库是否有文档
+            document_count = db.query(KnowledgeDocument).filter(
+                KnowledgeDocument.knowledge_base_id == knowledge_base_id
+            ).count()
+
+            if document_count == 0:
+                # 知识库存在但没有文档，返回空图谱而不是错误
+                logger.info(f"知识库 {knowledge_base_id} 存在但没有文档，返回空图谱")
+                return {
+                    "nodes": [],
+                    "edges": [],
+                    "metadata": {
+                        "knowledge_base_id": knowledge_base_id,
+                        "knowledge_base_name": knowledge_base.name,
+                        "document_count": 0,
+                        "is_empty": True
+                    }
+                }
+
             # 使用图谱构建器构建全局图谱
             graph = self.graph_builder.build_cross_document_graph(knowledge_base_id, db)
-            
+
             # 记录图谱构建日志
             if "error" not in graph:
                 logger.info(f"成功构建知识库 {knowledge_base_id} 的全局知识图谱")
-            
+
             return graph
-            
+
         except Exception as e:
             logger.error(f"构建知识库 {knowledge_base_id} 的全局知识图谱失败: {e}")
             return {"error": str(e)}
@@ -1040,7 +1059,7 @@ class KnowledgeGraphService:
         """获取全局级图谱数据（跨知识库）"""
         try:
             # 获取所有知识库
-            from app.modules.knowledge.models.knowledge_base import KnowledgeBase
+            from app.modules.knowledge.models.knowledge_document import KnowledgeBase
             
             knowledge_bases = db.query(KnowledgeBase).all()
             

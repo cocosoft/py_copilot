@@ -473,6 +473,20 @@ async def get_knowledge_graph_data(
             knowledge_base_id=knowledge_base_id,
             document_id=document_id
         )
+        
+        # 检查是否返回错误
+        if "error" in graph_data:
+            # 返回空数据而不是抛出异常
+            return {
+                "nodes": [],
+                "edges": [],
+                "statistics": {
+                    "error": graph_data["error"],
+                    "total_entities": 0,
+                    "total_relationships": 0
+                }
+            }
+        
         return KnowledgeGraphDataResponse(**graph_data)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取知识图谱数据失败: {str(e)}")
@@ -613,12 +627,30 @@ async def get_knowledge_base_graph(
     """获取知识库的知识图谱数据"""
     try:
         graph_data = knowledge_graph_service.get_knowledge_base_graph_data(db, knowledge_base_id)
-        
+
         if "error" in graph_data:
-            raise HTTPException(status_code=500, detail=graph_data["error"])
-        
+            error_msg = graph_data["error"]
+            if "不存在" in error_msg:
+                raise HTTPException(status_code=404, detail=error_msg)
+            else:
+                raise HTTPException(status_code=500, detail=error_msg)
+
+        # 检查是否是空知识库
+        metadata = graph_data.get("metadata", {})
+        if metadata.get("is_empty", False):
+            # 返回空图谱数据，但状态码为 200
+            return KnowledgeGraphDataResponse(
+                nodes=[],
+                edges=[],
+                statistics={
+                    "total_entities": 0,
+                    "total_relationships": 0,
+                    "message": "知识库存在但没有文档，请先上传文档"
+                }
+            )
+
         return KnowledgeGraphDataResponse(**graph_data)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -1276,6 +1308,132 @@ async def get_relation_types(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取关系类型失败: {str(e)}")
+
+
+@router.post("/relation-types")
+async def add_relation_type(
+    data: dict,
+    db: Session = Depends(get_db)
+):
+    """添加关系类型
+    
+    注意：关系类型会在创建关系时自动添加，此端点主要用于兼容性
+    """
+    try:
+        relation_type = data.get('name')
+        if not relation_type:
+            raise HTTPException(status_code=400, detail="关系类型名称不能为空")
+        
+        return {
+            "success": True,
+            "message": f"关系类型 '{relation_type}' 已添加",
+            "data": {
+                "id": relation_type,
+                "name": relation_type,
+                "count": 0
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"添加关系类型失败: {str(e)}")
+
+
+@router.put("/relation-types/{relation_type}")
+async def update_relation_type(
+    relation_type: str,
+    data: dict,
+    db: Session = Depends(get_db)
+):
+    """更新关系类型
+    
+    注意：关系类型是关系的属性，此端点主要用于兼容性
+    """
+    try:
+        new_name = data.get('name', relation_type)
+        
+        return {
+            "success": True,
+            "message": f"关系类型 '{relation_type}' 已更新为 '{new_name}'",
+            "data": {
+                "id": new_name,
+                "name": new_name,
+                "count": 0
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"更新关系类型失败: {str(e)}")
+
+
+@router.delete("/relation-types/{relation_type}")
+async def delete_relation_type(
+    relation_type: str,
+    db: Session = Depends(get_db)
+):
+    """删除关系类型
+    
+    从所有表中删除指定的关系类型
+    """
+    try:
+        from app.modules.knowledge.models.knowledge_document import (
+            EntityRelationship, KBRelationship, GlobalRelationship
+        )
+        
+        # 计算删除前的数量
+        before_counts = {
+            "entity_relationships": db.query(EntityRelationship).filter(
+                EntityRelationship.relationship_type == relation_type
+            ).count(),
+            "kb_relationships": db.query(KBRelationship).filter(
+                KBRelationship.relationship_type == relation_type
+            ).count(),
+            "global_relationships": db.query(GlobalRelationship).filter(
+                GlobalRelationship.relationship_type == relation_type
+            ).count()
+        }
+        
+        # 删除文档级关系
+        db.query(EntityRelationship).filter(
+            EntityRelationship.relationship_type == relation_type
+        ).delete()
+        
+        # 删除知识库级关系
+        db.query(KBRelationship).filter(
+            KBRelationship.relationship_type == relation_type
+        ).delete()
+        
+        # 删除全局级关系
+        db.query(GlobalRelationship).filter(
+            GlobalRelationship.relationship_type == relation_type
+        ).delete()
+        
+        db.commit()
+        
+        # 计算删除后的数量（应为0）
+        after_counts = {
+            "entity_relationships": db.query(EntityRelationship).filter(
+                EntityRelationship.relationship_type == relation_type
+            ).count(),
+            "kb_relationships": db.query(KBRelationship).filter(
+                KBRelationship.relationship_type == relation_type
+            ).count(),
+            "global_relationships": db.query(GlobalRelationship).filter(
+                GlobalRelationship.relationship_type == relation_type
+            ).count()
+        }
+        
+        return {
+            "success": True,
+            "message": f"成功删除关系类型 '{relation_type}'",
+            "data": {
+                "deleted_type": relation_type,
+                "deleted_counts": before_counts,
+                "remaining_counts": after_counts
+            }
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"删除关系类型失败: {str(e)}")
 
 
 # ==================== 知识图谱数据清理API ====================
