@@ -14,6 +14,7 @@ import BatchBuildPanel from './BatchBuildPanel';
 import GraphVisualization from './GraphVisualization';
 import GraphConfigCenter from './GraphConfigCenter';
 import HierarchicalGraphViewer from './HierarchicalGraphViewer';
+import GraphDataCleaner from './GraphDataCleaner';
 import UserGuide from '../UI/UserGuide';
 import { getKnowledgeBaseGraphStats } from '../../utils/api/knowledgeGraphApi';
 import './KnowledgeGraphManager.css';
@@ -82,6 +83,12 @@ const KnowledgeGraphManager = ({ knowledgeBaseId, knowledgeBaseName }) => {
       label: '配置中心',
       icon: '⚙️',
       description: '配置实体类型、关系类型、提取策略等'
+    },
+    {
+      id: 'cleaner',
+      label: '数据清理',
+      icon: '🧹',
+      description: '清理知识图谱数据'
     }
   ];
 
@@ -169,6 +176,18 @@ const KnowledgeGraphManager = ({ knowledgeBaseId, knowledgeBaseName }) => {
         return (
           <GraphConfigCenter
             knowledgeBaseId={knowledgeBaseId}
+          />
+        );
+
+      case 'cleaner':
+        return (
+          <GraphDataCleaner 
+            knowledgeBaseId={knowledgeBaseId}
+            onClearComplete={(result) => {
+              console.log('知识图谱数据清理完成:', result);
+              // 刷新统计信息
+              loadGraphStats();
+            }}
           />
         );
 

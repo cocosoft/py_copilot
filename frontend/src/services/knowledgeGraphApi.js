@@ -224,6 +224,20 @@ class KnowledgeGraphApiService {
   }
 
   /**
+   * 获取文档级知识图谱数据
+   * @param {string} documentId - 文档ID
+   * @returns {Promise<Object>} 图谱数据
+   */
+  async getDocumentGraph(documentId) {
+    return this.client.get('/knowledge-graph/graph-data', {
+      params: {
+        layer: 'document',
+        document_id: documentId
+      }
+    });
+  }
+
+  /**
    * 获取知识图谱统计信息
    * @param {string} knowledgeBaseId - 知识库ID
    * @returns {Promise<Object>} 统计信息

@@ -146,7 +146,11 @@ export const request = async (endpoint, options = {}) => {
       let statusCode = response.status;
       let responseText = '';
       
-      if (errorData.detail) {
+      // 优先检查 errorData.error.message 格式（后端统一错误格式）
+      if (errorData.error && errorData.error.message) {
+        errorMessage = errorData.error.message;
+        statusCode = errorData.error.status_code || response.status;
+      } else if (errorData.detail) {
         // 如果detail存在，检查它是否是对象
         if (typeof errorData.detail === 'object') {
           // 如果detail是对象，提取其中的字段

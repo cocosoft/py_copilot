@@ -68,6 +68,7 @@ const EntityManagement = ({ knowledgeBaseId }) => {
       setEntities(response.data);
     } catch (error) {
       console.error('加载实体列表失败:', error);
+    } finally {
       setLoading(false);
     }
   }, [knowledgeBaseId, searchKeyword, typeFilter]);

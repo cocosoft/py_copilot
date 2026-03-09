@@ -6,7 +6,6 @@ import { FaDownload } from 'react-icons/fa';
 import KnowledgeGraphManager from '../components/KnowledgeGraph/KnowledgeGraphManager';
 import KnowledgeGraph from '../components/KnowledgeGraph';
 import EntityConfirmationList from '../components/KnowledgeGraph/EntityConfirmationList';
-import GraphDataCleaner from '../components/KnowledgeGraph/GraphDataCleaner';
 import HierarchicalGraphViewer from '../components/KnowledgeGraph/HierarchicalGraphViewer';
 import websocketService from '../services/websocketService';
 import {
@@ -159,6 +158,7 @@ const Knowledge = () => {
   const [graphAnalysis, setGraphAnalysis] = useState(null);
   const [graphBuildError, setGraphBuildError] = useState('');
   const [graphBuildSuccess, setGraphBuildSuccess] = useState('');
+  const [graphEmpty, setGraphEmpty] = useState(false); // 知识图谱是否为空
 
   // 文档处理进度追踪状态
   const [processingDocuments, setProcessingDocuments] = useState(new Map()); // 正在处理的文档
@@ -1688,6 +1688,7 @@ const Knowledge = () => {
   // 加载知识库知识图谱数据
   const loadKnowledgeBaseGraphData = async (knowledgeBaseId) => {
     try {
+      setGraphEmpty(false);
       const data = await getKnowledgeBaseGraphData(knowledgeBaseId);
       setGraphData(data);
       
@@ -1702,6 +1703,18 @@ const Knowledge = () => {
       }
     } catch (error) {
       console.error('加载知识图谱数据失败:', error);
+      
+      // 检查是否是空知识库的错误
+      if (error.message && (
+        error.message.includes('知识库不存在或没有文档') ||
+        error.message.includes('知识库不存在') ||
+        error.message.includes('没有文档')
+      )) {
+        setGraphEmpty(true);
+        setGraphData(null);
+        setGraphStatistics(null);
+        setGraphAnalysis(null);
+      }
     }
   };
 
@@ -1712,6 +1725,7 @@ const Knowledge = () => {
     setGraphAnalysis(null);
     setGraphBuildError('');
     setGraphBuildSuccess('');
+    setGraphEmpty(false);
   };
 
   return (
@@ -2533,22 +2547,10 @@ const Knowledge = () => {
         {mainActiveTab === 'knowledge-graph' && (
           <div className="knowledge-graph-section">
             {selectedKnowledgeBase ? (
-              <>
-                <KnowledgeGraphManager 
-                  knowledgeBaseId={selectedKnowledgeBase.id}
-                  knowledgeBaseName={selectedKnowledgeBase.name}
-                />
-                <div className="knowledge-graph-tools">
-                  <GraphDataCleaner 
-                    knowledgeBaseId={selectedKnowledgeBase.id}
-                    onClearComplete={(result) => {
-                      console.log('知识图谱数据清理完成:', result);
-                      // 刷新知识图谱数据
-                      loadKnowledgeBaseGraphData(selectedKnowledgeBase.id);
-                    }}
-                  />
-                </div>
-              </>
+              <KnowledgeGraphManager 
+                knowledgeBaseId={selectedKnowledgeBase.id}
+                knowledgeBaseName={selectedKnowledgeBase.name}
+              />
             ) : (
               <div className="empty-state">
                 <p>请选择一个知识库查看知识图谱</p>
@@ -3125,15 +3127,53 @@ const Knowledge = () => {
 
                       {/* 三级知识图谱统一查看器 */}
                       <div className="hierarchical-graph-wrapper" style={{ height: '600px' }}>
-                        <HierarchicalGraphViewer
-                          documentId={selectedDocument?.id}
-                          knowledgeBaseId={selectedKnowledgeBase?.id}
-                          defaultLevel="document"
-                          showLevelSelector={true}
-                          showComparison={true}
-                          onNodeClick={(node) => console.log('点击节点:', node)}
-                          onLevelChange={(level) => console.log('切换到层级:', level)}
-                        />
+                        {graphEmpty ? (
+                          <div className="empty-graph-state" style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            height: '100%',
+                            backgroundColor: '#f5f5f5',
+                            borderRadius: '8px',
+                            padding: '40px'
+                          }}>
+                            <div style={{ fontSize: '64px', marginBottom: '20px' }}>📭</div>
+                            <h3 style={{ marginBottom: '15px', color: '#333' }}>知识库暂无文档</h3>
+                            <p style={{ color: '#666', marginBottom: '20px', textAlign: 'center' }}>
+                              请先上传文档到知识库，才能生成知识图谱
+                            </p>
+                            <button 
+                              onClick={() => {
+                                const uploadInput = document.getElementById('file-upload');
+                                if (uploadInput) {
+                                  uploadInput.click();
+                                }
+                              }}
+                              style={{
+                                padding: '10px 20px',
+                                backgroundColor: '#4CAF50',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '5px',
+                                cursor: 'pointer',
+                                fontSize: '14px'
+                              }}
+                            >
+                              📤 上传文档
+                            </button>
+                          </div>
+                        ) : (
+                          <HierarchicalGraphViewer
+                            documentId={selectedDocument?.id}
+                            knowledgeBaseId={selectedKnowledgeBase?.id}
+                            defaultLevel="document"
+                            showLevelSelector={true}
+                            showComparison={true}
+                            onNodeClick={(node) => console.log('点击节点:', node)}
+                            onLevelChange={(level) => console.log('切换到层级:', level)}
+                          />
+                        )}
                       </div>
 
                       {/* 实体确认面板 */}

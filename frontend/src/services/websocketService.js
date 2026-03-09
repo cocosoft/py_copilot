@@ -30,13 +30,14 @@ class WebSocketService {
    * @returns {string} WebSocket URL
    */
   getWebSocketUrl() {
-    // 开发环境直接连接到后端端口8007
+    // 开发环境使用 Vite 代理
     // 生产环境使用当前页面的host
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 
-    // 检查是否是开发环境（Vite默认端口5173）
+    // 开发环境通过 Vite 代理连接 WebSocket
     if (window.location.port === '5173') {
-      return `${protocol}//localhost:8007/api/v1/websocket/connect/${this.clientId}`;
+      // 使用相对路径，通过 Vite 代理
+      return `${protocol}//${window.location.host}/api/v1/websocket/connect/${this.clientId}`;
     }
 
     // 生产环境使用当前页面的host

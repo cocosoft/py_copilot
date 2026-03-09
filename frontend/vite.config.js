@@ -49,6 +49,7 @@ export default defineConfig(({ mode }) => {
             changeOrigin: true,
             secure: false,
             timeout: 300000, // 增加超时时间到5分钟，支持批量文件上传
+            ws: true, // 启用 WebSocket 代理
             configure: (proxy, options) => {
               // 禁用代理缓冲，确保流式响应能正确传递
               options.onProxyReq = (proxyReq, req, res) => {
@@ -78,17 +79,20 @@ export default defineConfig(({ mode }) => {
         '/logos': {
             target: apiBaseUrl,
             changeOrigin: true,
-            secure: false
+            secure: false,
+            ws: true
           },
         '/categories': {
             target: apiBaseUrl,
             changeOrigin: true,
-            secure: false
+            secure: false,
+            ws: true
           },
         '/capabilities': {
             target: apiBaseUrl,
             changeOrigin: true,
-            secure: false
+            secure: false,
+            ws: true
           }
       }
     }

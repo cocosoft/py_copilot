@@ -141,20 +141,42 @@ const HierarchicalGraphViewer = ({
           return;
       }
       
-      if (response && response.success) {
+      // 检查API返回的错误
+      if (response && response.success === false) {
+        const errorMsg = response.error?.message || '未知错误';
+        console.warn(`加载${level}级图谱数据返回错误:`, errorMsg);
+        // 设置空数据
         setGraphData(prev => ({
           ...prev,
-          [level]: response.data || { nodes: [], edges: [] }
+          [level]: { nodes: [], edges: [] }
+        }));
+        setStats(prev => ({
+          ...prev,
+          [level]: {
+            nodeCount: 0,
+            edgeCount: 0,
+            entityTypes: [],
+            relationTypes: []
+          }
+        }));
+        return;
+      }
+      
+      // 成功时直接使用返回的数据（格式：{nodes, edges, statistics}）
+      if (response) {
+        setGraphData(prev => ({
+          ...prev,
+          [level]: { nodes: response.nodes || [], edges: response.edges || [] }
         }));
         
         // 更新统计信息
         setStats(prev => ({
           ...prev,
           [level]: {
-            nodeCount: response.data?.nodes?.length || 0,
-            edgeCount: response.data?.edges?.length || 0,
-            entityTypes: [...new Set(response.data?.nodes?.map(n => n.entity_type) || [])],
-            relationTypes: [...new Set(response.data?.edges?.map(e => e.relation_type) || [])]
+            nodeCount: response.nodes?.length || 0,
+            edgeCount: response.edges?.length || 0,
+            entityTypes: [...new Set(response.nodes?.map(n => n.type || n.entity_type) || [])],
+            relationTypes: [...new Set(response.edges?.map(e => e.label || e.relation_type) || [])]
           }
         }));
       }
