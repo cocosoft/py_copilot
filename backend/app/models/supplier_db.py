@@ -47,6 +47,15 @@ class SupplierDB(Base):
     
     # 添加关系定义，使用明确的foreign_keys配置
     models = relationship("ModelDB", back_populates="supplier", foreign_keys="[ModelDB.supplier_id]")
+    
+    # Webhook关联
+    webhooks = relationship("ModelWebhook", back_populates="supplier", cascade="all, delete-orphan", lazy='select')
+    
+    # 配置关联
+    configs = relationship("ModelConfig", back_populates="supplier", cascade="all, delete-orphan", lazy='select')
+    
+    # 配额关联
+    quotas = relationship("ModelQuota", back_populates="supplier", cascade="all, delete-orphan", lazy='select')
 
 
 class ModelDB(Base):
@@ -90,6 +99,18 @@ class ModelDB(Base):
     
     # 模型性能关联
     model_performance = relationship("ModelPerformance", foreign_keys="[ModelPerformance.model_id]", back_populates="model", cascade="all, delete-orphan")
+    
+    # Webhook关联
+    webhooks = relationship("ModelWebhook", back_populates="model", cascade="all, delete-orphan", lazy='select')
+    
+    # 配置关联
+    configs = relationship("ModelConfig", back_populates="model", cascade="all, delete-orphan", lazy='select')
+    
+    # 生命周期关联
+    lifecycle = relationship("ModelLifecycle", back_populates="model", uselist=False, cascade="all, delete-orphan", lazy='select')
+    
+    # 配额关联
+    quotas = relationship("ModelQuota", back_populates="model", cascade="all, delete-orphan", lazy='select')
 
 
 class ModelParameter(Base):

@@ -533,9 +533,13 @@ from app.api import api_router
 app.include_router(api_router, prefix="/api")
 
 # 手动包含供应商路由（确保路由被正确加载）
-from app.api.v1.supplier_model import router as supplier_router
+# 注意：这些路由已经在 app.api.v1.__init__.py 的 ROUTE_GROUPS 中加载
+# 为了避免重复注册，注释掉以下代码
+# from app.api.v1.supplier_model import router as supplier_router
+# app.include_router(supplier_router, prefix="/api/v1", tags=["supplier-model"])
+
+# 包含模型管理路由（Webhook、配置、生命周期、配额）
 from app.api.v1.model_management import router as model_management_router
-app.include_router(supplier_router, prefix="/api/v1", tags=["supplier-model"])
 app.include_router(model_management_router, prefix="/api/v1", tags=["model-management"])
 
 # 手动包含分类和能力API路由（确保路由被正确加载）

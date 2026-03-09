@@ -652,10 +652,12 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
     try {
       setLoading(true);
       const parameters = await api.modelApi.getParameters(selectedSupplier.id, modelId);
-      setModelParameters(parameters);
+      // 确保参数是数组
+      setModelParameters(Array.isArray(parameters) ? parameters : []);
     } catch (err) {
       console.error('加载模型参数失败:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
       setError('加载模型参数失败');
+      setModelParameters([]);
     } finally {
       setLoading(false);
     }
@@ -776,7 +778,7 @@ const ModelManagement = ({ selectedSupplier, onSupplierSelect, onSupplierUpdate 
             <div className="loading-state">{t('settings.modelManagement.loading.parameters')}</div>
           ) : error ? (
             <div className="error-message">{error}</div>
-          ) : modelParameters.length === 0 ? (
+          ) : !Array.isArray(modelParameters) || modelParameters.length === 0 ? (
             <div className="empty-state">{t('settings.modelManagement.empty.noParameters')}</div>
           ) : (
             <div className="parameters-table-container">

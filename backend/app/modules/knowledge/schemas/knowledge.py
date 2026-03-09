@@ -245,3 +245,43 @@ class KnowledgeDocumentChunk(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+# Knowledge Base Permission Schemas
+class KnowledgeBasePermissionBase(BaseModel):
+    """知识库权限基础模型"""
+    user_id: int
+    role: str  # admin, editor, viewer
+
+
+class KnowledgeBasePermissionCreate(BaseModel):
+    """创建知识库权限请求模型"""
+    user_id: int
+    role: str = "viewer"  # admin, editor, viewer
+
+
+class KnowledgeBasePermissionUpdate(BaseModel):
+    """更新知识库权限请求模型"""
+    role: str
+
+
+class KnowledgeBasePermission(KnowledgeBasePermissionBase):
+    """知识库权限响应模型"""
+    id: int
+    knowledge_base_id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
+
+class KnowledgeBasePermissionListResponse(BaseModel):
+    """知识库权限列表响应模型"""
+    permissions: List[KnowledgeBasePermission]
+    total: int
+
+
+class KnowledgeBasePermissionsUpdateRequest(BaseModel):
+    """批量更新知识库权限请求模型"""
+    permissions: List[KnowledgeBasePermissionCreate]

@@ -8,6 +8,7 @@ import Knowledge from './Knowledge';
 import Workflow from './Workflow';
 import ModelSelectDropdown from '../components/ModelManagement/ModelSelectDropdown';
 import SettingsManager from '../components/SettingsManagement/SettingsManager';
+import MCPSettings from '../components/MCPSettings';
 
 // 防抖函数
 const debounce = (func, wait) => {
@@ -1615,7 +1616,20 @@ const Settings = () => {
             </div>
           </div>
         );
-        
+
+      case 'mcp':
+        return (
+          <div className="settings-content">
+            <div className="content-header">
+              <h2>{t('settings.mcp.title')}</h2>
+              <p>{t('settings.mcp.description')}</p>
+            </div>
+
+            <div className="mcp-settings-container">
+              <MCPSettings />
+            </div>
+          </div>
+        );
 
       default:
         return (
@@ -1672,15 +1686,21 @@ const Settings = () => {
               <span className="nav-text">{t('nav.workflow')}</span>
             </button>
             
-            <button 
+            <button
               className={`nav-item ${activeSection === 'globalMemory' ? 'active' : ''}`}
               onClick={() => setActiveSection('globalMemory')}
             >
               <span className="nav-icon">💾</span>
               <span className="nav-text">{t('settings.navigation.memory')}</span>
             </button>
-            
 
+            <button
+              className={`nav-item ${activeSection === 'mcp' ? 'active' : ''}`}
+              onClick={() => setActiveSection('mcp')}
+            >
+              <span className="nav-icon">🔌</span>
+              <span className="nav-text">{t('settings.mcp.title')}</span>
+            </button>
 
         </nav>
       </div>

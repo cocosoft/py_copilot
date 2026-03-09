@@ -1,11 +1,16 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Query, Depends, BackgroundTasks
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import func
 from typing import List, Optional
 
 from app.core.database import get_db
 from app.modules.knowledge.services.knowledge_service import KnowledgeService
-from app.modules.knowledge.models.knowledge_document import KnowledgeBase as KnowledgeBaseModel, KnowledgeDocument as KnowledgeDocumentModel
+from app.modules.knowledge.models.knowledge_document import (
+    KnowledgeBase as KnowledgeBaseModel, 
+    KnowledgeDocument as KnowledgeDocumentModel,
+    KnowledgeBasePermission as KnowledgeBasePermissionModel
+)
 from app.services.knowledge.retrieval_service import AdvancedRetrievalService
 from app.services.knowledge.document_processing_queue import document_processing_queue
 from app.modules.knowledge.schemas.knowledge import (
@@ -13,7 +18,9 @@ from app.modules.knowledge.schemas.knowledge import (
     KnowledgeBase, KnowledgeBaseCreate, KnowledgeBaseUpdate,
     KnowledgeTag, DocumentTagRequest, DocumentTagsResponse, TagListResponse,
     KnowledgeDocumentChunk, AdvancedSearchRequest, HybridSearchRequest,
-    AdvancedSearchResponse
+    AdvancedSearchResponse,
+    KnowledgeBasePermission, KnowledgeBasePermissionCreate,
+    KnowledgeBasePermissionListResponse, KnowledgeBasePermissionsUpdateRequest
 )
 
 router = APIRouter()
@@ -1104,3 +1111,234 @@ async def import_knowledge_base(
         print(f"导入知识库失败: {str(e)}")
         print(f"详细堆栈: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"导入知识库失败: {str(e)}")
+
+
+# Knowledge Base Permission API Endpoints
+
+@router.get("/knowledge-bases/{knowledge_base_id}/permissions", response_model=KnowledgeBasePermissionListResponse)
+async def get_knowledge_base_permissions(
+    knowledge_base_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    获取知识库的权限列表
+    
+    返回指定知识库的所有用户权限
+    """
+    try:
+        # 检查知识库是否存在
+        knowledge_base = knowledge_service.get_knowledge_base(knowledge_base_id, db)
+        if not knowledge_base:
+            raise HTTPException(status_code=404, detail="知识库不存在")
+        
+        # 查询权限列表
+        permissions = db.query(KnowledgeBasePermissionModel).filter(
+            KnowledgeBasePermissionModel.knowledge_base_id == knowledge_base_id
+        ).all()
+        
+        # 转换为响应模型
+        permission_list = []
+        for perm in permissions:
+            permission_list.append(KnowledgeBasePermission(
+                id=perm.id,
+                knowledge_base_id=perm.knowledge_base_id,
+                user_id=perm.user_id,
+                role=perm.role,
+                created_at=perm.created_at,
+                updated_at=perm.updated_at
+            ))
+        
+        return {
+            "permissions": permission_list,
+            "total": len(permission_list)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"获取知识库权限失败: {str(e)}")
+        print(f"详细堆栈: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"获取知识库权限失败: {str(e)}")
+
+
+@router.post("/knowledge-bases/{knowledge_base_id}/permissions", response_model=KnowledgeBasePermission)
+async def add_knowledge_base_permission(
+    knowledge_base_id: int,
+    permission_data: KnowledgeBasePermissionCreate,
+    db: Session = Depends(get_db)
+):
+    """
+    为知识库添加用户权限
+    
+    支持的角色: admin(管理员), editor(编辑者), viewer(查看者)
+    """
+    try:
+        # 检查知识库是否存在
+        knowledge_base = knowledge_service.get_knowledge_base(knowledge_base_id, db)
+        if not knowledge_base:
+            raise HTTPException(status_code=404, detail="知识库不存在")
+        
+        # 验证角色有效性
+        valid_roles = ["admin", "editor", "viewer"]
+        if permission_data.role not in valid_roles:
+            raise HTTPException(status_code=400, detail=f"无效的角色，必须是以下之一: {', '.join(valid_roles)}")
+        
+        # 检查用户是否已有权限
+        existing_perm = db.query(KnowledgeBasePermissionModel).filter(
+            KnowledgeBasePermissionModel.knowledge_base_id == knowledge_base_id,
+            KnowledgeBasePermissionModel.user_id == permission_data.user_id
+        ).first()
+        
+        if existing_perm:
+            # 更新现有权限
+            existing_perm.role = permission_data.role
+            existing_perm.updated_at = func.now()
+            db.commit()
+            db.refresh(existing_perm)
+            
+            return KnowledgeBasePermission(
+                id=existing_perm.id,
+                knowledge_base_id=existing_perm.knowledge_base_id,
+                user_id=existing_perm.user_id,
+                role=existing_perm.role,
+                created_at=existing_perm.created_at,
+                updated_at=existing_perm.updated_at
+            )
+        
+        # 创建新权限
+        new_permission = KnowledgeBasePermissionModel(
+            knowledge_base_id=knowledge_base_id,
+            user_id=permission_data.user_id,
+            role=permission_data.role
+        )
+        db.add(new_permission)
+        db.commit()
+        db.refresh(new_permission)
+        
+        return KnowledgeBasePermission(
+            id=new_permission.id,
+            knowledge_base_id=new_permission.knowledge_base_id,
+            user_id=new_permission.user_id,
+            role=new_permission.role,
+            created_at=new_permission.created_at,
+            updated_at=new_permission.updated_at
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"添加知识库权限失败: {str(e)}")
+        print(f"详细堆栈: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"添加知识库权限失败: {str(e)}")
+
+
+@router.put("/knowledge-bases/{knowledge_base_id}/permissions")
+async def update_knowledge_base_permissions(
+    knowledge_base_id: int,
+    update_data: KnowledgeBasePermissionsUpdateRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    批量更新知识库权限
+    
+    替换知识库的所有权限设置
+    """
+    try:
+        # 检查知识库是否存在
+        knowledge_base = knowledge_service.get_knowledge_base(knowledge_base_id, db)
+        if not knowledge_base:
+            raise HTTPException(status_code=404, detail="知识库不存在")
+        
+        # 验证所有角色
+        valid_roles = ["admin", "editor", "viewer"]
+        for perm in update_data.permissions:
+            if perm.role not in valid_roles:
+                raise HTTPException(status_code=400, detail=f"无效的角色 '{perm.role}'，必须是以下之一: {', '.join(valid_roles)}")
+        
+        # 删除现有权限
+        db.query(KnowledgeBasePermissionModel).filter(
+            KnowledgeBasePermissionModel.knowledge_base_id == knowledge_base_id
+        ).delete()
+        
+        # 创建新权限
+        new_permissions = []
+        for perm_data in update_data.permissions:
+            new_perm = KnowledgeBasePermissionModel(
+                knowledge_base_id=knowledge_base_id,
+                user_id=perm_data.user_id,
+                role=perm_data.role
+            )
+            db.add(new_perm)
+            new_permissions.append(new_perm)
+        
+        db.commit()
+        
+        # 刷新所有新权限以获取ID
+        for perm in new_permissions:
+            db.refresh(perm)
+        
+        # 转换为响应模型
+        permission_list = [
+            KnowledgeBasePermission(
+                id=perm.id,
+                knowledge_base_id=perm.knowledge_base_id,
+                user_id=perm.user_id,
+                role=perm.role,
+                created_at=perm.created_at,
+                updated_at=perm.updated_at
+            ) for perm in new_permissions
+        ]
+        
+        return {
+            "permissions": permission_list,
+            "total": len(permission_list)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"更新知识库权限失败: {str(e)}")
+        print(f"详细堆栈: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"更新知识库权限失败: {str(e)}")
+
+
+@router.delete("/knowledge-bases/{knowledge_base_id}/permissions/{permission_id}")
+async def remove_knowledge_base_permission(
+    knowledge_base_id: int,
+    permission_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    删除知识库的指定权限
+    """
+    try:
+        # 检查知识库是否存在
+        knowledge_base = knowledge_service.get_knowledge_base(knowledge_base_id, db)
+        if not knowledge_base:
+            raise HTTPException(status_code=404, detail="知识库不存在")
+        
+        # 查询权限
+        permission = db.query(KnowledgeBasePermissionModel).filter(
+            KnowledgeBasePermissionModel.id == permission_id,
+            KnowledgeBasePermissionModel.knowledge_base_id == knowledge_base_id
+        ).first()
+        
+        if not permission:
+            raise HTTPException(status_code=404, detail="权限记录不存在")
+        
+        # 删除权限
+        db.delete(permission)
+        db.commit()
+        
+        return {"message": "权限删除成功"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"删除知识库权限失败: {str(e)}")
+        print(f"详细堆栈: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"删除知识库权限失败: {str(e)}")

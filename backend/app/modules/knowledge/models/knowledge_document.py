@@ -280,3 +280,27 @@ class GlobalRelationship(Base):
     
     def __repr__(self):
         return f"<GlobalRelationship(id={self.id}, type='{self.relationship_type}')>"
+
+
+class KnowledgeBasePermission(Base):
+    """
+    知识库权限模型
+    
+    用于管理用户对知识库的访问权限
+    """
+    __tablename__ = "knowledge_base_permissions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    knowledge_base_id = Column(Integer, ForeignKey("knowledge_bases.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    role = Column(String(20), nullable=False, default="viewer")  # admin, editor, viewer
+    
+    # 元数据
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    updated_at = Column(DateTime, nullable=True, onupdate=func.now())
+    
+    # 关系
+    knowledge_base = relationship("KnowledgeBase")
+    
+    def __repr__(self):
+        return f"<KnowledgeBasePermission(id={self.id}, user_id={self.user_id}, role='{self.role}')>"

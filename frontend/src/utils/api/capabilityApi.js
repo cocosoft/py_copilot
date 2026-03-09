@@ -583,7 +583,7 @@ export const capabilityApi = {
       }
       const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
       
-      return await request(`/v1/capabilities/discovery/model/${modelId}${queryString}`, {
+      return await request(`/v1/model-capabilities/discovery/model/${modelId}${queryString}`, {
         method: 'POST'
       });
     } catch (error) {
@@ -614,7 +614,7 @@ export const capabilityApi = {
       }
       const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
       
-      return await request(`/v1/capabilities/discovery/all-models${queryString}`, {
+      return await request(`/v1/model-capabilities/discovery/all-models${queryString}`, {
         method: 'POST'
       });
     } catch (error) {
@@ -638,7 +638,7 @@ export const capabilityApi = {
       }
       const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
       
-      return await request(`/v1/capabilities/discovery/category/${categoryId}${queryString}`, {
+      return await request(`/v1/model-capabilities/discovery/category/${categoryId}${queryString}`, {
         method: 'POST'
       });
     } catch (error) {
@@ -681,7 +681,7 @@ export const capabilityApi = {
    */
   getDiscoveryKeywords: async () => {
     try {
-      return await request('/v1/capabilities/discovery/keywords', {
+      return await request('/v1/model-capabilities/discovery/keywords', {
         method: 'GET'
       });
     } catch (error) {

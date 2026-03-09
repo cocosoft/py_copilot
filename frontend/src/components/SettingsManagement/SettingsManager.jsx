@@ -4,7 +4,6 @@ import EmotionSettings from './EmotionSettings';
 import LearningSettings from './LearningSettings';
 import RelationshipSettings from './RelationshipSettings';
 import GeneralSettings from './GeneralSettings';
-import MCPSettings from '../MCPSettings';
 import { useI18n } from '../../hooks/useI18n';
 import { request } from '../../utils/api';
 import './settings.css';
@@ -311,13 +310,11 @@ ${JSON.stringify(settings, null, 2)}
           isLoading={isLoading} 
         />;
       case 'relationship':
-        return <RelationshipSettings 
-          settings={settings.relationship} 
-          saveSettings={(data) => saveSettings('relationship', data)} 
-          isLoading={isLoading} 
+        return <RelationshipSettings
+          settings={settings.relationship}
+          saveSettings={(data) => saveSettings('relationship', data)}
+          isLoading={isLoading}
         />;
-      case 'mcp':
-        return <MCPSettings />;
       default:
         return <GeneralSettings 
           settings={settings.general} 
@@ -438,7 +435,7 @@ ${JSON.stringify(settings, null, 2)}
           </label>
         </div>
       </div>
-      
+
       <div className="settings-nav">
         <button
           className={`settings-nav-item ${activeTab === 'general' ? 'active' : ''}`}
@@ -470,14 +467,8 @@ ${JSON.stringify(settings, null, 2)}
         >
           {t('settings.relationship.title')}
         </button>
-        <button
-          className={`settings-nav-item ${activeTab === 'mcp' ? 'active' : ''}`}
-          onClick={() => setActiveTab('mcp')}
-        >
-          MCP 服务
-        </button>
       </div>
-      
+
       <div className="settings-content">
         {isLoading && <div className="settings-loading">加载中...</div>}
         {!isLoading && renderSettingsTab()}

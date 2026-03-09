@@ -25,6 +25,10 @@ from app.models.platform_config import PlatformConfig
 from app.models.api_favorite import ApiFavorite
 from app.models.function_calling import Tool, ToolExecution, ToolUsageStats
 from app.models.file_record import FileRecord, FileBlob, FileCategory, FileStatus, StorageType
+from app.models.model_webhook import ModelWebhook, WebhookDelivery
+from app.models.model_config import ModelConfig, ModelConfigVersion
+from app.models.model_lifecycle import ModelLifecycle, LifecycleTransition, LifecycleApproval
+from app.models.model_quota import ModelQuota, QuotaUsage
 
 __all__ = [
     "User",
@@ -74,5 +78,14 @@ __all__ = [
     "FileBlob",
     "FileCategory",
     "FileStatus",
-    "StorageType"
+    "StorageType",
+    "ModelWebhook",
+    "WebhookDelivery",
+    "ModelConfig",
+    "ModelConfigVersion",
+    "ModelLifecycle",
+    "LifecycleTransition",
+    "LifecycleApproval",
+    "ModelQuota",
+    "QuotaUsage"
 ]

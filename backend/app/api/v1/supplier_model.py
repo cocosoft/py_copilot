@@ -800,8 +800,9 @@ async def fetch_models_from_api(supplier_id: int, api_config: dict, db: Session 
         raise HTTPException(status_code=404, detail="供应商不存在")
     
     # 提取API配置 - 优先使用前端传递的API端点，如果未提供则使用数据库中的
-    api_endpoint = api_config.get("apiUrl") or supplier.api_endpoint
-    # 使用前端传递的API密钥
+    # 兼容多种参数名：apiUrl（驼峰命名）和 api_endpoint（下划线命名）
+    api_endpoint = api_config.get("apiUrl") or api_config.get("api_endpoint") or supplier.api_endpoint
+    # 使用前端传递的API密钥 - 兼容多种参数名
     api_key = api_config.get("apiKey") or api_config.get("api_key")
     
     logger.info(f"[获取模型] 提取的API配置 - 端点: {api_endpoint}, 密钥长度: {len(api_key) if api_key else 0}")
@@ -1218,6 +1219,8 @@ def get_default_model(scene: str, db: Session = Depends(get_db)):
         import logging
         logging.error(f"获取默认模型失败: {str(e)}")
         raise HTTPException(status_code=500, detail=f"获取默认模型失败: {str(e)}")
+
+
 @router.post("/suppliers/{supplier_id}/test-api")
 async def test_api_config(supplier_id: int, api_config: dict, db: Session = Depends(get_db)):
     import requests
@@ -1239,8 +1242,9 @@ async def test_api_config(supplier_id: int, api_config: dict, db: Session = Depe
         raise HTTPException(status_code=404, detail="供应商不存在")
     
     # 提取API配置 - 优先使用前端传递的API端点，如果未提供则使用数据库中的
-    api_endpoint = api_config.get("apiUrl") or supplier.api_endpoint
-    # 使用前端传递的API密钥
+    # 兼容多种参数名：apiUrl（驼峰命名）和 api_endpoint（下划线命名）
+    api_endpoint = api_config.get("apiUrl") or api_config.get("api_endpoint") or supplier.api_endpoint
+    # 使用前端传递的API密钥 - 兼容多种参数名
     api_key = api_config.get("apiKey") or api_config.get("api_key")
     
     logger.info(f"[API测试] 提取的API配置 - 端点: {api_endpoint}, 密钥长度: {len(api_key) if api_key else 0}")
@@ -1276,7 +1280,7 @@ async def test_api_config(supplier_id: int, api_config: dict, db: Session = Depe
                 "max_tokens": 50
             }
             logger.info(f"[API测试] DeepSeek API测试 - 方法: POST, 端点: {test_endpoint}")
-            response = requests.post(test_endpoint, headers=headers, json=test_payload, timeout=10)
+            response = requests.post(test_endpoint, headers=headers, json=test_payload, timeout=30)
         elif "siliconflow" in api_endpoint.lower():
             # 硅基流动API需要POST请求到/chat/completions
             # 如果API端点已经包含/v1，则直接使用/chat/completions
@@ -1295,7 +1299,7 @@ async def test_api_config(supplier_id: int, api_config: dict, db: Session = Depe
                 "max_tokens": 50
             }
             logger.info(f"[API测试] 硅基流动API测试 - 方法: POST, 端点: {test_endpoint}")
-            response = requests.post(test_endpoint, headers=headers, json=test_payload, timeout=10)
+            response = requests.post(test_endpoint, headers=headers, json=test_payload, timeout=30)
         elif "dashscope" in api_endpoint.lower() or "aliyun" in api_endpoint.lower():
             # 阿里云百炼API需要POST请求到特定的生成端点
             # 如果API端点已经包含完整的生成路径，则直接使用
@@ -1317,7 +1321,7 @@ async def test_api_config(supplier_id: int, api_config: dict, db: Session = Depe
                 }
             }
             logger.info(f"[API测试] 阿里云百炼API测试 - 方法: POST, 端点: {test_endpoint}")
-            response = requests.post(test_endpoint, headers=headers, json=test_payload, timeout=10)
+            response = requests.post(test_endpoint, headers=headers, json=test_payload, timeout=30)
         elif "ollama" in api_endpoint.lower() or f"localhost:{Settings().ollama_port}" in api_endpoint.lower():
             # Ollama API需要GET请求到/api/tags来获取模型列表
             test_endpoint = api_endpoint.rstrip('/') + "/tags"

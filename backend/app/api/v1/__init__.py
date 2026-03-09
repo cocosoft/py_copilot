@@ -7,7 +7,7 @@ from typing import Dict, List
 import importlib
 import logging
 
-from app.core.config import settings
+from app.core.config import settings as app_settings
 from app.core.logging_config import logger
 
 logger = logging.getLogger(__name__)
@@ -79,6 +79,7 @@ ROUTE_GROUPS: Dict[str, List[Dict]] = {
         {'module': 'app.api.v1.tools', 'prefix': '/tools', 'tags': ['tools']}
     ],
     'parameters': [
+        {'module': 'app.api.v1.parameters', 'prefix': '/parameters', 'tags': ['parameters']},
         {'module': 'app.api.v1.parameter_template', 'tags': ['parameter-template']},
         {'module': 'app.api.v1.parameter_normalization_rules', 'tags': ['parameter-normalization-rules']},
         {'module': 'app.api.v1.parameter_mappings', 'tags': ['parameter-mappings']},
@@ -200,7 +201,7 @@ async def load_route_group(group_name: str) -> bool:
         logger.info(f"正在加载模块: {module_path}")
         
         # 如果知识图谱功能禁用，跳过相关路由
-        if not settings.enable_knowledge_graph and ('knowledge_graph' in module_path or 'entity_config' in module_path or 'entity_maintenance' in module_path):
+        if not app_settings.enable_knowledge_graph and ('knowledge_graph' in module_path or 'entity_config' in module_path or 'entity_maintenance' in module_path):
             logger.info(f"知识图谱功能已禁用，跳过路由模块: {module_path}")
             continue
         
@@ -225,7 +226,7 @@ async def load_route_group(group_name: str) -> bool:
     return True
 
 # 预加载核心路由组（启动时加载）
-CORE_ROUTE_GROUPS = ['auth', 'conversation', 'llm', 'memory', 'models', 'tasks', 'agents', 'skills', 'capabilities', 'knowledge', 'tools', 'settings', 'workflow', 'search', 'workspaces', 'file', 'mcp']
+CORE_ROUTE_GROUPS = ['auth', 'conversation', 'llm', 'memory', 'models', 'tasks', 'agents', 'skills', 'capabilities', 'knowledge', 'tools', 'settings', 'workflow', 'search', 'workspaces', 'file', 'mcp', 'parameters']
 
 async def preload_core_routes():
     """预加载核心路由组"""

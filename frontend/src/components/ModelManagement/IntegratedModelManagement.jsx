@@ -5,6 +5,10 @@ import ModelCategoryManagement from '../CapabilityManagement/ModelCategoryManage
 import CapabilityManagementTabs from '../CapabilityManagement/CapabilityManagementTabs';
 import ParameterManagementMain from './ParameterManagementMain';
 import DefaultModelManagement from './DefaultModelManagement';
+import WebhookManagement from '../WebhookManagement/WebhookManagement';
+import ConfigManagement from '../ConfigManagement/ConfigManagement';
+import LifecycleManagement from '../LifecycleManagement/LifecycleManagement';
+import QuotaManagement from '../QuotaManagement/QuotaManagement';
 import { useSupplier } from '../../contexts/SupplierContext';
 import api from '../../utils/api';
 import '../../styles/IntegratedModelManagement.css';
@@ -102,6 +106,30 @@ const IntegratedModelManagement = () => {
               >
                 默认模型
               </button>
+              <button 
+                className={`tab-button ${activeTab === 'webhooks' ? 'active' : ''}`}
+                onClick={() => setActiveTab('webhooks')}
+              >
+                Webhook管理
+              </button>
+              <button 
+                className={`tab-button ${activeTab === 'configs' ? 'active' : ''}`}
+                onClick={() => setActiveTab('configs')}
+              >
+                配置管理
+              </button>
+              <button 
+                className={`tab-button ${activeTab === 'lifecycle' ? 'active' : ''}`}
+                onClick={() => setActiveTab('lifecycle')}
+              >
+                生命周期
+              </button>
+              <button 
+                className={`tab-button ${activeTab === 'quota' ? 'active' : ''}`}
+                onClick={() => setActiveTab('quota')}
+              >
+                配额管理
+              </button>
             </div>
             <div className="tab-content">
               {activeTab === 'models' && (
@@ -168,6 +196,38 @@ const IntegratedModelManagement = () => {
                     <p>管理和配置 AI 助手的默认模型</p>
                   </div>
                   <DefaultModelManagement />
+                </div>
+              )}
+              {activeTab === 'webhooks' && (
+                <div className="webhook-content">
+                  <div className="section-header">
+                    <h2>Webhook管理</h2>
+                    <p>管理和配置模型相关的Webhook通知</p>
+                  </div>
+                  <WebhookManagement />
+                </div>
+              )}
+              {activeTab === 'configs' && (
+                <div className="config-content">
+                  <ConfigManagement />
+                </div>
+              )}
+              {activeTab === 'lifecycle' && (
+                <div className="lifecycle-content">
+                  <div className="section-header">
+                    <h2>生命周期管理</h2>
+                    <p>管理模型的生命周期状态和流转</p>
+                  </div>
+                  <LifecycleManagement />
+                </div>
+              )}
+              {activeTab === 'quota' && (
+                <div className="quota-content">
+                  <div className="section-header">
+                    <h2>配额管理</h2>
+                    <p>管理和监控模型使用配额</p>
+                  </div>
+                  <QuotaManagement />
                 </div>
               )}
             </div>

@@ -1,1229 +1,668 @@
-"""模型管理相关API接口"""
-from typing import Any, List, Optional, Dict
-from datetime import datetime
-from fastapi import APIRouter, Body, Depends, HTTPException, status, UploadFile, File, Form, Request
-from fastapi.responses import JSONResponse
+"""模型管理API - 包含Webhook、配置、生命周期、配额管理"""
+from typing import Optional, List
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
-import os
-import uuid
 from datetime import datetime
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from app.models.supplier_db import ModelDB, ModelParameter, SupplierDB
-from app.models.model_category import ModelCategory
-from app.services.parameter_management.parameter_manager import ParameterManager
+from app.core.database import get_db
+from app.models.model_webhook import ModelWebhook, WebhookDelivery
+from app.models.model_config import ModelConfig, ModelConfigVersion
+from app.models.model_lifecycle import ModelLifecycle, LifecycleTransition, LifecycleApproval, LifecycleStatus
+from app.models.model_quota import ModelQuota, QuotaUsage, QuotaPeriod
 
-# 从core导入数据库依赖
-from app.core.dependencies import get_db
-from app.modules.supplier_model_management.schemas.supplier_model import (
-    ModelCreate, ModelResponse, ModelWithSupplierResponse,
-    ModelListResponse, ModelSupplierResponse
-)
-from app.schemas.model_management import (
-    ModelParameterCreate, ModelParameterUpdate, ModelParameterResponse,
-    ModelParameterListResponse
-)
-
-# 创建上传目录
-# 使用绝对路径确保文件能正确保存
-# 获取项目根目录（backend的父目录）
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # backend/app
-BASE_DIR = os.path.dirname(BASE_DIR)  # backend
-BASE_DIR = os.path.dirname(BASE_DIR)  # 项目根目录
-UPLOAD_DIR = os.path.join(BASE_DIR, "frontend/public/logos/models")
-UPLOAD_DIR = os.path.normpath(UPLOAD_DIR)  # 规范化路径
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-print(f"文件上传目录: {UPLOAD_DIR}")  # 添加日志以便调试
-
-# 支持的图片扩展名
-ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
-
-# 创建模拟用户类用于测试
-class MockUser:
-    def __init__(self):
-        self.id = 1
-        self.is_active = True
-        self.is_superuser = True
-
-# 开发模式：绕过认证的模拟依赖函数
-def get_mock_superuser():
-    """开发模式下绕过认证的模拟超级用户"""
-    mock_user = MockUser()
-    return mock_user
-
-def get_mock_user():
-    return MockUser()
-
-def allowed_file(filename):
-    """检查文件扩展名是否允许"""
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-async def save_upload_file(upload_file: UploadFile) -> Optional[str]:
-    """保存上传的文件并返回文件名"""
-    if not allowed_file(upload_file.filename):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="不支持的文件类型，请上传图片文件 (png, jpg, jpeg, gif, webp)"
-        )
-    
-    # 生成唯一文件名
-    if not upload_file.filename:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="文件名不能为空"
-        )
-    # 检查文件名是否有扩展名
-    if '.' not in upload_file.filename:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="文件名必须包含扩展名"
-        )
-    file_ext = upload_file.filename.rsplit('.', 1)[1].lower()
-    unique_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.{file_ext}"
-    file_path = os.path.join(UPLOAD_DIR, unique_filename)
-    
-    try:
-        print(f"尝试保存文件到: {file_path}")  # 添加日志
-        # 保存文件
-        with open(file_path, "wb") as buffer:
-            content = await upload_file.read()
-            buffer.write(content)
-        print(f"文件保存成功: {unique_filename}")  # 添加成功日志
-        # 返回文件名
-        return unique_filename
-    except Exception as e:
-        print(f"文件保存失败: {str(e)}")  # 添加错误日志
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"文件保存失败: {str(e)}"
-        )
-# 导入认证依赖
-from app.api.deps import get_current_active_superuser
-from app.models.user import User
-
-router = APIRouter()
-
-# 为了与导入语句保持一致，创建一个别名
-model_management_v1_router = router
+router = APIRouter(prefix="/model-management", tags=["model-management"])
 
 
+# ========== Webhook管理 ==========
+
+class WebhookCreate(BaseModel):
+    name: str
+    url: str
+    secret: Optional[str] = None
+    events: List[str] = Field(default_factory=list)
+    description: Optional[str] = None
+    model_id: Optional[int] = None
+    supplier_id: Optional[int] = None
+    is_active: bool = True
 
 
+class WebhookUpdate(BaseModel):
+    name: Optional[str] = None
+    url: Optional[str] = None
+    secret: Optional[str] = None
+    events: Optional[List[str]] = None
+    description: Optional[str] = None
+    is_active: Optional[bool] = None
 
 
+class WebhookResponse(BaseModel):
+    id: int
+    name: str
+    url: str
+    events: List[str]
+    description: Optional[str]
+    model_id: Optional[int]
+    supplier_id: Optional[int]
+    is_active: bool
+    created_at: datetime
+    updated_at: Optional[datetime]
+    last_triggered_at: Optional[datetime]
+    last_trigger_status: Optional[str]
+
+    class Config:
+        from_attributes = True
 
 
-
-
-
-
-
-
-
-
-
-
-# 模型管理相关路由
-@router.get("/models", response_model=ModelListResponse)
-async def get_all_models(
-    skip: int = 0,
-    limit: int = 100,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_superuser)
-) -> Any:
-    """
-    获取所有模型列表
-    
-    Args:
-        skip: 跳过的记录数
-        limit: 返回的最大记录数
-        db: 数据库会话
-        current_user: 当前活跃的超级用户
-    
-    Returns:
-        所有模型列表
-    """
-    print("收到获取所有模型列表的请求")
-    
-    # 查询数据库获取所有模型数据，包括供应商信息
-    from sqlalchemy.orm import joinedload
-    models = db.query(ModelDB).options(joinedload(ModelDB.supplier)).offset(skip).limit(limit).all()
-    total = db.query(ModelDB).count()
-    
-    # 转换为前端友好的格式，包含完整的供应商信息
-    model_responses = []
-    for model in models:
-        # 确保logo字段包含完整路径
-        logo = model.logo
-        if logo and not logo.startswith("/logos/models/"):
-            logo = f"/logos/models/{logo}"
-        
-        # 直接返回字典格式，包含供应商信息的顶层字段
-        model_response = {
-            "id": model.id,
-            "model_id": model.model_id or str(model.id),
-            "model_name": model.model_name or model.model_id or "Unknown Model",
-            "description": model.description,
-            "type": "chat",
-            "supplier_id": model.supplier_id,
-            "context_window": model.context_window or 8000,
-            "default_temperature": 0.7,
-            "default_max_tokens": model.max_tokens or 1000,
-            "default_top_p": 1.0,
-            "default_frequency_penalty": 0.0,
-            "default_presence_penalty": 0.0,
-            "custom_params": None,
-            "is_default": model.is_default,
-            "is_active": model.is_active,
-            "logo": logo,
-            # 直接在顶层包含供应商信息字段
-            "supplier_name": model.supplier.name or "Unknown Supplier",
-            "supplier_display_name": model.supplier.display_name or model.supplier.name or "Unknown Supplier",
-            "supplier_logo": model.supplier.logo,
-            # 保留嵌套的supplier对象以兼容其他使用场景
-            "supplier": {
-                "id": model.supplier.id,
-                "name": model.supplier.name or "Unknown Supplier",
-                "display_name": model.supplier.display_name or model.supplier.name or "Unknown Supplier",
-                "description": model.supplier.description,
-                "logo": model.supplier.logo,
-                "is_active": model.supplier.is_active,
-                "api_endpoint": model.supplier.api_endpoint,
-                "api_key_required": model.supplier.api_key_required,
-                "category": model.supplier.category,
-                "website": model.supplier.website,
-                "api_docs": model.supplier.api_docs
-            }
-        }
-        model_responses.append(model_response)
-    
-    print(f"返回 {len(model_responses)} 个模型，总计 {total} 个模型")
-    
-    # 调试：打印第一个模型响应
-    if model_responses:
-        print(f"第一个模型响应: {model_responses[0].model_dump()}")
-    
-    # 返回转换后的模型列表
-    return ModelListResponse(
-        models=model_responses,
-        total=total
-    )
-
-@router.post("/suppliers/{supplier_id}/models", response_model=ModelResponse)
-async def create_model(
-    supplier_id: int,
-    request: Request,
-    db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_superuser),
-    model_data: str = Form(None),
-    logo: UploadFile = File(None)
-) -> Any:
-    """
-    为指定供应商创建新模型
-    
-    Args:
-        supplier_id: 供应商ID
-        request: 请求对象
-        db: 数据库会话
-        current_user: 当前活跃的超级用户
-        model_data: 模型数据JSON字符串
-        logo: 模型logo文件
-    
-    Returns:
-        创建的模型信息
-    """
-    # 处理FormData格式请求
-    import json
-    if model_data:
-        model_dict = json.loads(model_data)
-    else:
-        # 尝试从JSON请求体获取数据
-        model_dict = await request.json()
-    
-    # 确保supplier_id一致
-    model_dict['supplier_id'] = supplier_id
-    
-    # 保存logo文件（如果有）
-    if logo:
-        logo_filename = await save_upload_file(logo)
-        model_dict["logo"] = f"/logos/models/{logo_filename}"
-    
-    try:
-        # 处理模型类型：验证前端发送的model_type_id是否存在
-        if 'model_type_id' in model_dict:
-            # 验证分类是否存在
-            category = db.query(ModelCategory).filter(ModelCategory.id == model_dict['model_type_id']).first()
-            if not category:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Model category with id {model_dict['model_type_id']} not found"
-                )
-        # 如果存在旧的model_type字段（用于向后兼容），则删除
-        if 'model_type' in model_dict:
-            del model_dict['model_type']
-        
-        # 创建新模型
-        db_model = ModelDB(**model_dict)
-        db.add(db_model)
-        
-        # 如果是第一个模型或者设置为默认模型，将其他模型的is_default设置为False
-        if db_model.is_default is True:
-            db.query(ModelDB).filter(
-                ModelDB.supplier_id == supplier_id,
-                ModelDB.id != db_model.id
-            ).update({ModelDB.is_default: False})
-        elif db.query(ModelDB).filter(ModelDB.supplier_id == supplier_id).count() == 0:
-            # 如果是第一个模型，自动设为默认
-            setattr(db_model, 'is_default', True)
-        
-        db.commit()
-        db.refresh(db_model)
-        
-        # 使用智能能力发现服务自动发现模型能力
-        try:
-            from app.services.model_capability_service import intelligent_capability_discovery
-            
-            # 执行智能能力发现
-            discovery_result = intelligent_capability_discovery.discover_capabilities(db, db_model.id)
-            print(f"[INFO] 模型 {db_model.model_name} (ID: {db_model.id}) 能力发现结果:")
-            print(f"  - 发现能力数量: {len(discovery_result['discovered_capabilities'])}")
-            print(f"  - 发现来源: {set(discovery_result['discovery_sources'].values())}")
-            
-            # 自动关联高置信度的能力（置信度 >= 50）
-            auto_capabilities = intelligent_capability_discovery.auto_associate_discovered_capabilities(
-                db, db_model.id, min_confidence=50
-            )
-            print(f"[INFO] 模型 {db_model.model_name} (ID: {db_model.id}) 自动关联了 {len(auto_capabilities)} 个能力")
-            
-            # 记录发现详情
-            for detail in discovery_result['discovery_details']:
-                print(f"  - 能力ID {detail['capability_id']}: 来源={detail['source']}, 置信度={detail['confidence']}, 详情={detail['details']}")
-                
-        except Exception as e:
-            print(f"[WARNING] 智能能力发现失败: {str(e)}")
-            # 不影响模型创建，只记录警告
-        
-        return db_model
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="创建模型失败，请检查输入数据"
-        )
-
-
-@router.get("/suppliers/{supplier_id}/models", response_model=ModelListResponse)
-async def get_models(
-    supplier_id: int,
-    skip: int = 0,
-    limit: int = 100,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_superuser)
-) -> Any:
-    """
-    获取指定供应商的模型列表
-    
-    Args:
-        supplier_id: 供应商ID
-        skip: 跳过的记录数
-        limit: 返回的最大记录数
-        db: 数据库会话
-        current_user: 当前活跃的超级用户
-    
-    Returns:
-        模型列表
-    """
-    print(f"收到获取供应商 {supplier_id} 模型列表的请求")
-    
-    try:
-        # 使用原始SQL查询来避免ORM关系加载问题
-        from sqlalchemy import text
-        
-        # 验证供应商是否存在
-        supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
-        if not supplier:
-            raise HTTPException(status_code=404, detail="供应商不存在")
-        
-        # 使用原始SQL查询，包含所有必需的字段
-        query = text("""
-            SELECT id, model_id, model_name, description, supplier_id, 
-                   context_window, max_tokens, is_default, is_active,
-                   created_at, updated_at, logo, model_type_id
-            FROM models 
-            WHERE supplier_id = :supplier_id
-            LIMIT :limit OFFSET :skip
-        """)
-        
-        count_query = text("""
-            SELECT COUNT(*) FROM models WHERE supplier_id = :supplier_id
-        """)
-        
-        result = db.execute(query, {"supplier_id": supplier_id, "limit": limit, "skip": skip})
-        models_data = result.fetchall()
-        
-        count_result = db.execute(count_query, {"supplier_id": supplier_id})
-        total = count_result.scalar()
-        
-        print(f"数据库查询成功，找到 {len(models_data)} 条记录")
-        
-        # 转换为响应格式
-        model_responses = []
-        for row in models_data:
-            try:
-                # 创建供应商响应对象
-                supplier_response = ModelSupplierResponse(
-                    id=supplier.id,
-                    name=supplier.name or "",
-                    display_name=supplier.display_name or supplier.name or "",
-                    description=supplier.description,
-                    is_active=supplier.is_active,
-                    logo=supplier.logo,
-                    created_at=supplier.created_at or datetime.now(),
-                    updated_at=supplier.updated_at,
-                    api_endpoint=supplier.api_endpoint,
-                    api_key_required=supplier.api_key_required,
-                    category=supplier.category,
-                    website=supplier.website,
-                    api_docs=supplier.api_docs
-                )
-                
-                model_response = ModelWithSupplierResponse(
-                    id=row[0],
-                    model_id=row[1] or "",
-                    model_name=row[2] or row[1] or "",
-                    description=row[3],
-                    supplier_id=row[4],
-                    context_window=row[5],
-                    max_tokens=row[6],
-                    is_default=bool(row[7]),
-                    is_active=bool(row[8]),
-                    created_at=row[9] or datetime.now(),
-                    updated_at=row[10],
-                    logo=row[11],
-                    model_type_id=row[12],
-                    categories=[],
-                    supplier=supplier_response
-                )
-                model_responses.append(model_response)
-            except Exception as e:
-                print(f"转换模型数据时出错 (行 {row[0]}): {str(e)}")
-                print(f"问题数据: {row}")
-                # 跳过有问题的记录，继续处理其他记录
-                continue
-        
-        print(f"成功转换 {len(model_responses)} 个模型，总计 {total} 个模型")
-        
-        # 返回数据库查询结果
-        return ModelListResponse(
-            models=model_responses,
-            total=total
-        )
-    
-    except HTTPException:
-        # 重新抛出HTTP异常
-        raise
-    except Exception as e:
-        print(f"获取供应商模型列表时发生错误: {str(e)}")
-        import traceback
-        print(f"完整错误堆栈: {traceback.format_exc()}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"获取模型列表失败: {str(e)}"
-        )
-
-
-# 开发模式API端点：绕过认证进行测试
-@router.get("/dev/suppliers/{supplier_id}/models", response_model=ModelListResponse)
-async def get_models_dev(
-    supplier_id: int,
-    skip: int = 0,
-    limit: int = 100,
+@router.get("/webhooks", response_model=List[WebhookResponse])
+def get_webhooks(
+    search: Optional[str] = Query(None),
+    model_id: Optional[int] = Query(None),
+    supplier_id: Optional[int] = Query(None),
+    is_active: Optional[bool] = Query(None),
     db: Session = Depends(get_db)
-) -> Any:
-    """
-    开发模式：获取指定供应商的模型列表（绕过认证）
-    
-    Args:
-        supplier_id: 供应商ID
-        skip: 跳过的记录数
-        limit: 返回的最大记录数
-        db: 数据库会话
-    
-    Returns:
-        模型列表
-    """
-    print(f"[开发模式] 收到获取供应商 {supplier_id} 模型列表的请求")
-    
-    try:
-        # 使用原始SQL查询来避免ORM关系加载问题
-        from sqlalchemy import text
-        
-        # 验证供应商是否存在
-        supplier = db.query(SupplierDB).filter(SupplierDB.id == supplier_id).first()
-        if not supplier:
-            raise HTTPException(status_code=404, detail="供应商不存在")
-        
-        # 使用原始SQL查询，包含所有必需的字段
-        query = text("""
-            SELECT id, model_id, model_name, description, supplier_id, 
-                   context_window, max_tokens, is_default, is_active,
-                   created_at, updated_at, logo, model_type_id
-            FROM models 
-            WHERE supplier_id = :supplier_id
-            LIMIT :limit OFFSET :skip
-        """)
-        
-        count_query = text("""
-            SELECT COUNT(*) FROM models WHERE supplier_id = :supplier_id
-        """)
-        
-        result = db.execute(query, {"supplier_id": supplier_id, "limit": limit, "skip": skip})
-        models_data = result.fetchall()
-        
-        count_result = db.execute(count_query, {"supplier_id": supplier_id})
-        total = count_result.scalar()
-        
-        print(f"[开发模式] 数据库查询成功，找到 {len(models_data)} 条记录")
-        
-        # 转换为响应格式
-        model_responses = []
-        for row in models_data:
-            try:
-                # 创建供应商响应对象
-                supplier_response = ModelSupplierResponse(
-                    id=supplier.id,
-                    name=supplier.name or "",
-                    display_name=supplier.display_name or supplier.name or "",
-                    description=supplier.description,
-                    is_active=supplier.is_active,
-                    logo=supplier.logo,
-                    created_at=supplier.created_at or datetime.now(),
-                    updated_at=supplier.updated_at,
-                    api_endpoint=supplier.api_endpoint,
-                    api_key_required=supplier.api_key_required,
-                    category=supplier.category,
-                    website=supplier.website,
-                    api_docs=supplier.api_docs
-                )
-                
-                model_response = ModelWithSupplierResponse(
-                    id=row[0],
-                    model_id=row[1] or "",
-                    model_name=row[2] or row[1] or "",
-                    description=row[3],
-                    supplier_id=row[4],
-                    context_window=row[5],
-                    max_tokens=row[6],
-                    is_default=bool(row[7]),
-                    is_active=bool(row[8]),
-                    created_at=row[9] or datetime.now(),
-                    updated_at=row[10],
-                    logo=row[11],
-                    model_type_id=row[12],
-                    categories=[],
-                    supplier=supplier_response
-                )
-                model_responses.append(model_response)
-            except Exception as e:
-                print(f"[开发模式] 转换模型数据时出错 (行 {row[0]}): {str(e)}")
-                print(f"[开发模式] 问题数据: {row}")
-                # 跳过有问题的记录，继续处理其他记录
-                continue
-        
-        print(f"[开发模式] 成功转换 {len(model_responses)} 个模型，总计 {total} 个模型")
-        
-        # 返回数据库查询结果
-        return ModelListResponse(
-            models=model_responses,
-            total=total
-        )
-    
-    except HTTPException:
-        # 重新抛出HTTP异常
-        raise
-    except Exception as e:
-        print(f"[开发模式] 获取供应商模型列表时发生错误: {str(e)}")
-        import traceback
-        print(f"[开发模式] 完整错误堆栈: {traceback.format_exc()}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"获取模型列表失败: {str(e)}"
-        )
-
-
-@router.get("/suppliers/{supplier_id}/models/{model_id}", response_model=ModelResponse)
-async def get_model(
-    supplier_id: int,
-    model_id: int,
-    db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
-) -> Any:
-    """
-    获取指定的模型
-    
-    Args:
-        supplier_id: 供应商ID
-        model_id: 模型ID
-        db: 数据库会话
-        current_user: 当前活跃的超级用户
-    
-    Returns:
-        模型信息
-    """
-    model = db.query(ModelDB).filter(
-        ModelDB.id == model_id,
-        ModelDB.supplier_id == supplier_id
-    ).first()
-    
-    if not model:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="模型不存在"
-        )
-    
-    # 确保logo字段包含完整路径
-    if model.logo and not model.logo.startswith("/logos/models/"):
-        model.logo = f"/logos/models/{model.logo}"
-    
-    return model
-
-
-@router.put("/suppliers/{supplier_id}/models/{model_id}", response_model=ModelResponse)
-async def update_model(
-    supplier_id: int,
-    model_id: int,
-    request: Request,
-    db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user),
-    model_data: str = Form(None),
-    logo: UploadFile = File(None)
-) -> Any:
-    """
-    更新模型信息
-    
-    Args:
-        supplier_id: 供应商ID
-        model_id: 模型ID
-        db: 数据库会话
-        current_user: 当前活跃的超级用户
-        model_data: 模型数据JSON字符串
-        logo: 模型logo文件
-    
-    Returns:
-        更新后的模型信息
-    """
-    import json
-    from fastapi import Request
-    
-    model = db.query(ModelDB).filter(
-        ModelDB.id == model_id,
-        ModelDB.supplier_id == supplier_id
-    ).first()
-    
-    if not model:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="模型不存在"
-        )
-    
-    # 处理FormData格式请求
-    if model_data:
-        update_data = json.loads(model_data)
-    else:
-        # 保留对JSON格式请求的兼容性支持
-        update_data = await request.json()
-    
-    # 调试：打印接收到的更新数据
-    print(f"Received update data: {update_data}")
-    
-    # 确保supplier_id和model_id一致
-    update_data['supplier_id'] = supplier_id
-    update_data['id'] = model_id
-    
-    # 处理模型类型：验证前端发送的model_type_id是否存在
-    if 'model_type_id' in update_data and update_data['model_type_id'] is not None:
-        # 只有当model_type_id有值时才进行验证
-        if update_data['model_type_id'] != '':
-            try:
-                model_type_id_int = int(update_data['model_type_id'])
-                # 验证分类是否存在
-                category = db.query(ModelCategory).filter(ModelCategory.id == model_type_id_int).first()
-                if not category:
-                    # 如果分类不存在，记录警告但不阻止更新，将model_type_id设为None
-                    print(f"警告: 模型分类ID {update_data['model_type_id']} 不存在，将设为None")
-                    update_data['model_type_id'] = None
-            except (ValueError, TypeError):
-                # 如果model_type_id不是有效数字，设为None
-                print(f"警告: 模型分类ID {update_data['model_type_id']} 无效，将设为None")
-                update_data['model_type_id'] = None
-    
-    # 如果存在旧的model_type字段（用于向后兼容），则删除
-    if 'model_type' in update_data:
-        del update_data['model_type']
-    
-    # 确保logo字段不会是对象类型，不管是否有文件上传
-    if "logo" in update_data:
-        if isinstance(update_data["logo"], dict):
-            del update_data["logo"]
-        elif not isinstance(update_data["logo"], str):
-            del update_data["logo"]
-    
-    # 保存logo文件（如果有）
-    if logo:
-        logo_filename = await save_upload_file(logo)
-        update_data["logo"] = f"/logos/models/{logo_filename}"
-    
-    # 如果更新了is_default为True，需要将其他模型的is_default设置为False
-    if 'is_default' in update_data and update_data['is_default']:
-        db.query(ModelDB).filter(
-            ModelDB.supplier_id == supplier_id,
-            ModelDB.id != model_id
-        ).update({ModelDB.is_default: False})
-    
-    # 过滤掉不应该直接保存到模型表的复杂字段
-    model_fields = [c.key for c in ModelDB.__table__.columns]
-    for field, value in update_data.items():
-        if field in model_fields:
-            setattr(model, field, value)
-    
-    try:
-        db.commit()
-        db.refresh(model)
-        # 创建符合ModelResponse格式的响应
-        response = {
-            "id": model.id,
-            "supplier_id": model.supplier_id,
-            "model_id": model.model_id,
-            "model_name": model.model_name,
-            "description": model.description,
-            "model_type_id": model.model_type_id,
-            "model_type_name": model.model_type.name if model.model_type else None,
-            "context_window": model.context_window,
-            "max_tokens": model.max_tokens,
-            "is_default": model.is_default,
-            "is_active": model.is_active,
-            "logo": model.logo,
-            "created_at": model.created_at,
-            "updated_at": model.updated_at
-        }
-        return response
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="更新模型失败，请检查输入数据"
-        )
-
-
-@router.delete("/suppliers/{supplier_id}/models/{model_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_model(
-    supplier_id: int,
-    model_id: int,
-    db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
-) -> None:
-    """
-    删除模型
-    
-    Args:
-        supplier_id: 供应商ID
-        model_id: 模型ID
-        db: 数据库会话
-        current_user: 当前活跃的超级用户
-    """
-    model = db.query(ModelDB).filter(
-        ModelDB.id == model_id,
-        ModelDB.supplier_id == supplier_id
-    ).first()
-    
-    if not model:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="模型不存在"
-        )
-    
-    # 记录是否为默认模型
-    was_default = model.is_default
-    
-    db.delete(model)
-    
-    # 如果删除的是默认模型，将第一个可用的模型设为默认
-    if was_default is True:
-        first_model = db.query(ModelDB).filter(
-            ModelDB.supplier_id == supplier_id
-        ).first()
-        if first_model:
-            setattr(first_model, 'is_default', True)
-    
-    db.commit()
-
-
-@router.post("/suppliers/{supplier_id}/models/set-default/{model_id}", response_model=ModelResponse)
-async def set_default_model(
-    supplier_id: int,
-    model_id: int,
-    db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
-) -> Any:
-    """
-    设置指定供应商的默认模型
-    
-    Args:
-        supplier_id: 供应商ID
-        model_id: 模型ID
-        db: 数据库会话
-        current_user: 当前活跃的超级用户
-    
-    Returns:
-        设置为默认的模型信息
-    """
-    # 验证模型是否存在且属于指定供应商
-    model = db.query(ModelDB).filter(
-        ModelDB.id == model_id,
-        ModelDB.supplier_id == supplier_id
-    ).first()
-    
-    if not model:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="模型不存在"
-        )
-    
-    # 将所有模型的is_default设置为False
-    db.query(ModelDB).filter(ModelDB.supplier_id == supplier_id).update({ModelDB.is_default: False})
-    
-    # 将指定模型设为默认
-    setattr(model, 'is_default', True)
-    
-    db.commit()
-    db.refresh(model)
-    return model
-
-
-# 模型参数相关路由
-@router.get("/suppliers/{supplier_id}/models/{model_id}/parameters", response_model=ModelParameterListResponse)
-def get_model_parameters(
-    supplier_id: int,
-    model_id: int,
-    db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
 ):
-    """获取模型参数"""
-    print(f"[API V1] 调用get_model_parameters: supplier_id={supplier_id}, model_id={model_id}")
-    # 验证模型是否存在
-    try:
-        # 直接使用SQL语句测试
-        from sqlalchemy import text
-        result = db.execute(text("SELECT * FROM models WHERE id=:model_id AND supplier_id=:supplier_id"), 
-                          {"model_id": model_id, "supplier_id": supplier_id})
-        sql_result = result.fetchone()
-        print(f"[API V1] SQL直接查询结果: {sql_result}")
-        
-        # 使用ORM查询
-        model = db.query(ModelDB).filter(
-            ModelDB.id == model_id,
-            ModelDB.supplier_id == supplier_id
-        ).first()
-        print(f"[API V1] ORM查询结果: {model}")
-        
-        if not model:
-            print(f"[API V1] 模型不存在: supplier_id={supplier_id}, model_id={model_id}")
-            raise HTTPException(status_code=404, detail="模型不存在")
-    except Exception as e:
-        print(f"[API V1] 查询异常: {str(e)}")
-        raise HTTPException(status_code=500, detail="查询异常")
+    """获取Webhook列表"""
+    query = db.query(ModelWebhook)
     
-    # 获取模型参数，包括参数模板的继承
-    parameters = ParameterManager.get_model_parameters_with_templates(db, model_id)
+    if search:
+        query = query.filter(ModelWebhook.name.contains(search))
+    if model_id:
+        query = query.filter(ModelWebhook.model_id == model_id)
+    if supplier_id:
+        query = query.filter(ModelWebhook.supplier_id == supplier_id)
+    if is_active is not None:
+        query = query.filter(ModelWebhook.is_active == is_active)
     
-    return ModelParameterListResponse(
-        model_id=model_id,
-        supplier_id=supplier_id,
-        parameters=parameters
+    webhooks = query.order_by(ModelWebhook.created_at.desc()).all()
+    return webhooks
+
+
+@router.post("/webhooks", response_model=WebhookResponse)
+def create_webhook(webhook: WebhookCreate, db: Session = Depends(get_db)):
+    """创建Webhook"""
+    db_webhook = ModelWebhook(**webhook.dict())
+    db.add(db_webhook)
+    db.commit()
+    db.refresh(db_webhook)
+    return db_webhook
+
+
+@router.get("/webhooks/{webhook_id}", response_model=WebhookResponse)
+def get_webhook(webhook_id: int, db: Session = Depends(get_db)):
+    """获取Webhook详情"""
+    webhook = db.query(ModelWebhook).filter(ModelWebhook.id == webhook_id).first()
+    if not webhook:
+        raise HTTPException(status_code=404, detail="Webhook不存在")
+    return webhook
+
+
+@router.put("/webhooks/{webhook_id}", response_model=WebhookResponse)
+def update_webhook(webhook_id: int, webhook: WebhookUpdate, db: Session = Depends(get_db)):
+    """更新Webhook"""
+    db_webhook = db.query(ModelWebhook).filter(ModelWebhook.id == webhook_id).first()
+    if not db_webhook:
+        raise HTTPException(status_code=404, detail="Webhook不存在")
+    
+    for key, value in webhook.dict(exclude_unset=True).items():
+        setattr(db_webhook, key, value)
+    
+    db.commit()
+    db.refresh(db_webhook)
+    return db_webhook
+
+
+@router.delete("/webhooks/{webhook_id}")
+def delete_webhook(webhook_id: int, db: Session = Depends(get_db)):
+    """删除Webhook"""
+    db_webhook = db.query(ModelWebhook).filter(ModelWebhook.id == webhook_id).first()
+    if not db_webhook:
+        raise HTTPException(status_code=404, detail="Webhook不存在")
+    
+    db.delete(db_webhook)
+    db.commit()
+    return {"message": "Webhook删除成功"}
+
+
+@router.post("/webhooks/{webhook_id}/test")
+def test_webhook(webhook_id: int, db: Session = Depends(get_db)):
+    """测试Webhook"""
+    webhook = db.query(ModelWebhook).filter(ModelWebhook.id == webhook_id).first()
+    if not webhook:
+        raise HTTPException(status_code=404, detail="Webhook不存在")
+    
+    # 模拟发送测试请求
+    webhook.last_triggered_at = datetime.utcnow()
+    webhook.last_trigger_status = "success"
+    db.commit()
+    
+    return {"message": "Webhook测试成功", "status": "success"}
+
+
+# ========== 配置管理 ==========
+
+class ConfigCreate(BaseModel):
+    key: str
+    name: str
+    value: Optional[str] = None
+    value_type: str = "string"
+    description: Optional[str] = None
+    environment: str = "production"
+    is_encrypted: bool = False
+    model_id: Optional[int] = None
+    supplier_id: Optional[int] = None
+    is_active: bool = True
+
+
+class ConfigUpdate(BaseModel):
+    name: Optional[str] = None
+    value: Optional[str] = None
+    value_type: Optional[str] = None
+    description: Optional[str] = None
+    environment: Optional[str] = None
+    is_encrypted: Optional[bool] = None
+    is_active: Optional[bool] = None
+
+
+class ConfigResponse(BaseModel):
+    id: int
+    key: str
+    name: str
+    value: Optional[str]
+    value_type: str
+    description: Optional[str]
+    environment: str
+    is_encrypted: bool
+    model_id: Optional[int]
+    supplier_id: Optional[int]
+    is_active: bool
+    created_at: datetime
+    updated_at: Optional[datetime]
+    created_by: Optional[str]
+    updated_by: Optional[str]
+
+    class Config:
+        from_attributes = True
+
+
+@router.get("/configs", response_model=List[ConfigResponse])
+def get_configs(
+    search: Optional[str] = Query(None),
+    environment: Optional[str] = Query(None),
+    model_id: Optional[int] = Query(None),
+    supplier_id: Optional[int] = Query(None),
+    is_active: Optional[bool] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """获取配置列表"""
+    query = db.query(ModelConfig)
+    
+    if search:
+        query = query.filter(
+            (ModelConfig.key.contains(search)) | 
+            (ModelConfig.name.contains(search))
+        )
+    if environment:
+        query = query.filter(ModelConfig.environment == environment)
+    if model_id:
+        query = query.filter(ModelConfig.model_id == model_id)
+    if supplier_id:
+        query = query.filter(ModelConfig.supplier_id == supplier_id)
+    if is_active is not None:
+        query = query.filter(ModelConfig.is_active == is_active)
+    
+    configs = query.order_by(ModelConfig.created_at.desc()).all()
+    return configs
+
+
+@router.post("/configs", response_model=ConfigResponse)
+def create_config(config: ConfigCreate, db: Session = Depends(get_db)):
+    """创建配置"""
+    # 检查key是否已存在
+    existing = db.query(ModelConfig).filter(ModelConfig.key == config.key).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="配置key已存在")
+    
+    db_config = ModelConfig(**config.dict())
+    db.add(db_config)
+    db.commit()
+    db.refresh(db_config)
+    return db_config
+
+
+@router.get("/configs/{config_id}", response_model=ConfigResponse)
+def get_config(config_id: int, db: Session = Depends(get_db)):
+    """获取配置详情"""
+    config = db.query(ModelConfig).filter(ModelConfig.id == config_id).first()
+    if not config:
+        raise HTTPException(status_code=404, detail="配置不存在")
+    return config
+
+
+@router.put("/configs/{config_id}", response_model=ConfigResponse)
+def update_config(config_id: int, config: ConfigUpdate, db: Session = Depends(get_db)):
+    """更新配置"""
+    db_config = db.query(ModelConfig).filter(ModelConfig.id == config_id).first()
+    if not db_config:
+        raise HTTPException(status_code=404, detail="配置不存在")
+    
+    # 保存旧版本
+    if config.value is not None and config.value != db_config.value:
+        version = ModelConfigVersion(
+            config_id=config_id,
+            value=db_config.value,
+            value_type=db_config.value_type,
+            changed_by=db_config.updated_by
+        )
+        db.add(version)
+    
+    for key, value in config.dict(exclude_unset=True).items():
+        setattr(db_config, key, value)
+    
+    db.commit()
+    db.refresh(db_config)
+    return db_config
+
+
+@router.delete("/configs/{config_id}")
+def delete_config(config_id: int, db: Session = Depends(get_db)):
+    """删除配置"""
+    db_config = db.query(ModelConfig).filter(ModelConfig.id == config_id).first()
+    if not db_config:
+        raise HTTPException(status_code=404, detail="配置不存在")
+    
+    db.delete(db_config)
+    db.commit()
+    return {"message": "配置删除成功"}
+
+
+@router.post("/configs/{config_id}/rollback/{version_id}")
+def rollback_config(config_id: int, version_id: int, db: Session = Depends(get_db)):
+    """回滚配置到指定版本"""
+    config = db.query(ModelConfig).filter(ModelConfig.id == config_id).first()
+    if not config:
+        raise HTTPException(status_code=404, detail="配置不存在")
+    
+    version = db.query(ModelConfigVersion).filter(
+        ModelConfigVersion.id == version_id,
+        ModelConfigVersion.config_id == config_id
+    ).first()
+    if not version:
+        raise HTTPException(status_code=404, detail="版本不存在")
+    
+    # 保存当前版本
+    current_version = ModelConfigVersion(
+        config_id=config_id,
+        value=config.value,
+        value_type=config.value_type,
+        changed_by=config.updated_by
     )
+    db.add(current_version)
+    
+    # 回滚
+    config.value = version.value
+    config.value_type = version.value_type
+    db.commit()
+    
+    return {"message": "配置回滚成功"}
 
 
-@router.post("/suppliers/{supplier_id}/models/{model_id}/parameters", response_model=Dict[str, Any])
-def create_model_parameter(
-    supplier_id: int,
-    model_id: int,
-    param_data: ModelParameterCreate,
-    db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
+# ========== 生命周期管理 ==========
+
+class LifecycleCreate(BaseModel):
+    model_id: int
+    current_status: str = LifecycleStatus.DRAFT.value
+    version: Optional[str] = None
+    release_notes: Optional[str] = None
+    migration_guide: Optional[str] = None
+
+
+class LifecycleUpdate(BaseModel):
+    current_status: Optional[str] = None
+    version: Optional[str] = None
+    release_notes: Optional[str] = None
+    migration_guide: Optional[str] = None
+
+
+class TransitionCreate(BaseModel):
+    from_status: str
+    to_status: str
+    reason: Optional[str] = None
+
+
+class ApprovalCreate(BaseModel):
+    approver: str
+    approval_status: str
+    comments: Optional[str] = None
+
+
+class LifecycleResponse(BaseModel):
+    id: int
+    model_id: int
+    current_status: str
+    previous_status: Optional[str]
+    status_changed_at: datetime
+    status_changed_by: Optional[str]
+    version: Optional[str]
+    release_notes: Optional[str]
+    migration_guide: Optional[str]
+    is_active: bool
+    created_at: datetime
+    updated_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+class ApprovalResponse(BaseModel):
+    id: int
+    lifecycle_id: int
+    transition_id: int
+    approver: str
+    approval_status: str
+    comments: Optional[str]
+    created_at: datetime
+    updated_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+# 注意：/lifecycles/approvals 必须在 /lifecycles/{lifecycle_id} 之前定义
+@router.get("/lifecycles/approvals", response_model=List[ApprovalResponse])
+def get_approvals(
+    lifecycle_id: Optional[int] = Query(None),
+    status: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
 ):
-    """创建模型参数"""
-    # 验证模型是否存在
-    model = db.query(ModelDB).filter(
-        ModelDB.id == model_id,
-        ModelDB.supplier_id == supplier_id
-    ).first()
-    if not model:
-        raise HTTPException(status_code=404, detail="模型不存在")
-    
-    try:
-        # 创建或更新参数
-        param = ParameterManager.create_or_update_model_parameter(db, model_id, param_data)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    
-    # 获取完整参数并返回
-    model_params = ParameterManager.get_model_parameters(db, model_id)
-    return {
-        "model_id": model_id,
-        "supplier_id": supplier_id,
-        "parameters": model_params
-    }
+    """获取审批列表"""
+    query = db.query(LifecycleApproval)
+
+    if lifecycle_id:
+        query = query.filter(LifecycleApproval.lifecycle_id == lifecycle_id)
+    if status:
+        query = query.filter(LifecycleApproval.approval_status == status)
+
+    approvals = query.order_by(LifecycleApproval.created_at.desc()).all()
+    return approvals
 
 
-@router.put("/suppliers/{supplier_id}/models/{model_id}/parameters/{parameter_name}", response_model=Dict[str, Any])
-def update_model_parameter(
-    supplier_id: int,
-    model_id: int,
-    parameter_name: str,
-    param_data: ModelParameterUpdate,
-    db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
+@router.get("/lifecycles", response_model=List[LifecycleResponse])
+def get_lifecycles(
+    model_id: Optional[int] = Query(None),
+    status: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
 ):
-    """更新模型参数"""
-    # 验证模型是否存在
-    model = db.query(ModelDB).filter(
-        ModelDB.id == model_id,
-        ModelDB.supplier_id == supplier_id
+    """获取生命周期列表"""
+    query = db.query(ModelLifecycle)
+    
+    if model_id:
+        query = query.filter(ModelLifecycle.model_id == model_id)
+    if status:
+        query = query.filter(ModelLifecycle.current_status == status)
+    
+    lifecycles = query.order_by(ModelLifecycle.created_at.desc()).all()
+    return lifecycles
+
+
+@router.post("/lifecycles", response_model=LifecycleResponse)
+def create_lifecycle(lifecycle: LifecycleCreate, db: Session = Depends(get_db)):
+    """创建生命周期"""
+    # 检查模型是否已有生命周期
+    existing = db.query(ModelLifecycle).filter(
+        ModelLifecycle.model_id == lifecycle.model_id
     ).first()
-    if not model:
-        raise HTTPException(status_code=404, detail="模型不存在")
+    if existing:
+        raise HTTPException(status_code=400, detail="该模型已有生命周期记录")
     
-    # 查找现有参数
-    param = db.query(ModelParameter).filter(
-        ModelParameter.model_id == model_id,
-        ModelParameter.parameter_name == parameter_name
-    ).first()
+    db_lifecycle = ModelLifecycle(**lifecycle.dict())
+    db.add(db_lifecycle)
+    db.commit()
+    db.refresh(db_lifecycle)
+    return db_lifecycle
+
+
+@router.get("/lifecycles/{lifecycle_id}", response_model=LifecycleResponse)
+def get_lifecycle(lifecycle_id: int, db: Session = Depends(get_db)):
+    """获取生命周期详情"""
+    lifecycle = db.query(ModelLifecycle).filter(ModelLifecycle.id == lifecycle_id).first()
+    if not lifecycle:
+        raise HTTPException(status_code=404, detail="生命周期记录不存在")
+    return lifecycle
+
+
+@router.put("/lifecycles/{lifecycle_id}", response_model=LifecycleResponse)
+def update_lifecycle(lifecycle_id: int, lifecycle: LifecycleUpdate, db: Session = Depends(get_db)):
+    """更新生命周期"""
+    db_lifecycle = db.query(ModelLifecycle).filter(ModelLifecycle.id == lifecycle_id).first()
+    if not db_lifecycle:
+        raise HTTPException(status_code=404, detail="生命周期记录不存在")
     
-    if not param:
-        raise HTTPException(status_code=404, detail="参数不存在")
-    
-    try:
-        # 在更新前创建版本记录
-        ParameterManager._create_parameter_version(db, param, "system")
-        
-        # 更新参数字段
-        for field, value in param_data.model_dump(exclude_unset=True).items():
-            setattr(param, field, value)
-        
-        # 如果更新了参数值和类型，进行验证
-        if param_data.parameter_value is not None and param_data.parameter_type is not None:
-            ParameterManager._convert_parameter_value(param_data.parameter_value, param_data.parameter_type)
-        elif param_data.parameter_value is not None:
-            ParameterManager._convert_parameter_value(param_data.parameter_value, param.parameter_type)
-        elif param_data.parameter_type is not None:
-            ParameterManager._convert_parameter_value(param.parameter_value, param_data.parameter_type)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    for key, value in lifecycle.dict(exclude_unset=True).items():
+        setattr(db_lifecycle, key, value)
     
     db.commit()
-    db.refresh(param)
+    db.refresh(db_lifecycle)
+    return db_lifecycle
+
+
+@router.post("/lifecycles/{lifecycle_id}/transitions")
+def create_transition(lifecycle_id: int, transition: TransitionCreate, db: Session = Depends(get_db)):
+    """创建状态流转"""
+    lifecycle = db.query(ModelLifecycle).filter(ModelLifecycle.id == lifecycle_id).first()
+    if not lifecycle:
+        raise HTTPException(status_code=404, detail="生命周期记录不存在")
     
-    # 获取完整参数并返回
-    model_params = ParameterManager.get_model_parameters(db, model_id)
-    return {
-        "model_id": model_id,
-        "supplier_id": supplier_id,
-        "parameters": model_params
-    }
+    db_transition = LifecycleTransition(
+        lifecycle_id=lifecycle_id,
+        **transition.dict()
+    )
+    db.add(db_transition)
+    
+    # 更新生命周期状态
+    lifecycle.previous_status = lifecycle.current_status
+    lifecycle.current_status = transition.to_status
+    lifecycle.status_changed_at = datetime.utcnow()
+    
+    db.commit()
+    db.refresh(db_transition)
+    return db_transition
 
 
-@router.delete("/suppliers/{supplier_id}/models/{model_id}/parameters/{parameter_name}", response_model=Dict[str, Any])
-def delete_model_parameter(
-    supplier_id: int,
-    model_id: int,
-    parameter_name: str,
-    db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
+@router.post("/lifecycles/{lifecycle_id}/approvals")
+def create_approval(lifecycle_id: int, approval: ApprovalCreate, db: Session = Depends(get_db)):
+    """创建审批记录"""
+    lifecycle = db.query(ModelLifecycle).filter(ModelLifecycle.id == lifecycle_id).first()
+    if not lifecycle:
+        raise HTTPException(status_code=404, detail="生命周期记录不存在")
+    
+    db_approval = LifecycleApproval(
+        lifecycle_id=lifecycle_id,
+        **approval.dict()
+    )
+    db.add(db_approval)
+    db.commit()
+    db.refresh(db_approval)
+    return db_approval
+
+
+# ========== 配额管理 ==========
+
+class QuotaCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    model_id: Optional[int] = None
+    supplier_id: Optional[int] = None
+    user_id: Optional[str] = None
+    api_key_id: Optional[str] = None
+    max_requests: int = 1000
+    max_tokens: int = 1000000
+    max_cost: float = 100.0
+    period: str = QuotaPeriod.DAILY.value
+    warning_threshold: float = 0.8
+    is_active: bool = True
+
+
+class QuotaUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    max_requests: Optional[int] = None
+    max_tokens: Optional[int] = None
+    max_cost: Optional[float] = None
+    period: Optional[str] = None
+    warning_threshold: Optional[float] = None
+    is_active: Optional[bool] = None
+
+
+class QuotaUsageCreate(BaseModel):
+    requests_used: int = 0
+    tokens_used: int = 0
+    cost_incurred: float = 0.0
+    details: Optional[dict] = None
+
+
+class QuotaResponse(BaseModel):
+    id: int
+    name: str
+    description: Optional[str]
+    model_id: Optional[int]
+    supplier_id: Optional[int]
+    user_id: Optional[str]
+    api_key_id: Optional[str]
+    max_requests: int
+    max_tokens: int
+    max_cost: float
+    current_requests: int
+    current_tokens: int
+    current_cost: float
+    period: str
+    period_start: Optional[datetime]
+    period_end: Optional[datetime]
+    warning_threshold: float
+    is_active: bool
+    is_exceeded: bool
+    created_at: datetime
+    updated_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+@router.get("/quotas", response_model=List[QuotaResponse])
+def get_quotas(
+    search: Optional[str] = Query(None),
+    model_id: Optional[int] = Query(None),
+    supplier_id: Optional[int] = Query(None),
+    user_id: Optional[str] = Query(None),
+    period: Optional[str] = Query(None),
+    is_active: Optional[bool] = Query(None),
+    db: Session = Depends(get_db)
 ):
-    """删除模型参数"""
-    # 验证模型是否存在
-    model = db.query(ModelDB).filter(
-        ModelDB.id == model_id,
-        ModelDB.supplier_id == supplier_id
-    ).first()
-    if not model:
-        raise HTTPException(status_code=404, detail="模型不存在")
+    """获取配额列表"""
+    query = db.query(ModelQuota)
     
-    # 删除参数
-    deleted = ParameterManager.delete_model_parameter(db, model_id, parameter_name)
+    if search:
+        query = query.filter(ModelQuota.name.contains(search))
+    if model_id:
+        query = query.filter(ModelQuota.model_id == model_id)
+    if supplier_id:
+        query = query.filter(ModelQuota.supplier_id == supplier_id)
+    if user_id:
+        query = query.filter(ModelQuota.user_id == user_id)
+    if period:
+        query = query.filter(ModelQuota.period == period)
+    if is_active is not None:
+        query = query.filter(ModelQuota.is_active == is_active)
     
-    if not deleted:
-        raise HTTPException(status_code=404, detail="参数不存在")
-    
-    # 返回更新后的所有参数
-    parameters = ParameterManager.get_model_parameters(db, model_id)
-    
-    return {
-        "model_id": model_id,
-        "supplier_id": supplier_id,
-        "parameters": parameters
-    }
+    quotas = query.order_by(ModelQuota.created_at.desc()).all()
+    return quotas
 
 
-# 通用参数管理端点，支持不同级别参数查询
-@router.get("/parameters", response_model=Dict[str, Any])
-def get_parameters(
-    supplier_id: Optional[int] = None,
-    model_id: Optional[int] = None,
-    level: str = "system",
-    db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
-):
-    """
-    获取指定级别的参数
-    
-    Args:
-        supplier_id: 供应商ID
-        model_id: 模型ID
-        level: 参数级别 (model_type, model, agent)
-        db: 数据库会话
-        current_user: 当前用户
-        
-    Returns:
-        参数列表
-    """
-    try:
-        parameters = []
-        
-        if level == "model" and supplier_id and model_id:
-            # 模型级别参数
-            parameters = ParameterManager.get_model_parameters_with_templates(db, model_id)
-        elif level == "model_type":
-            # 模型类型级别参数
-            if supplier_id:
-                # 获取供应商的所有模型，然后提取模型类型参数
-                models = db.query(ModelDB).filter(ModelDB.supplier_id == supplier_id).all()
-                model_type_ids = set(model.model_type_id for model in models if model.model_type_id)
-                
-                for model_type_id in model_type_ids:
-                    model_type_params = ParameterManager.get_model_type_parameters(db, model_type_id)
-                    if model_type_params:
-                        # 将字典参数转换为列表格式
-                        for param_name, param_value in model_type_params.items():
-                            parameters.append({
-                                "parameter_name": param_name,
-                                "parameter_value": param_value,
-                                "parameter_type": "string",  # 默认类型，实际应从模板获取
-                                "description": f"模型类型级别参数: {param_name}",
-                                "level": "model_type",
-                                "model_type_id": model_type_id,
-                                "supplier_id": supplier_id
-                            })
-            else:
-                # 没有提供supplier_id时，返回空数组
-                parameters = []
-        elif level == "agent" and supplier_id:
-            # 代理级别参数
-            # 由于当前数据库设计中代理和模型没有直接关联，
-            # 这里返回所有代理的参数配置
-            from app.models.agent import Agent
-            
-            # 获取所有代理
-            agents = db.query(Agent).all()
-            
-            parameters = []
-            for agent in agents:
-                agent_params = ParameterManager.get_agent_parameters(db, agent.id)
-                parameters.extend(agent_params)
-        elif level == "agent" and not supplier_id:
-            # 没有提供supplier_id时，返回所有代理的参数配置
-            from app.models.agent import Agent
-            
-            # 获取所有代理
-            agents = db.query(Agent).all()
-            
-            parameters = []
-            for agent in agents:
-                agent_params = ParameterManager.get_agent_parameters(db, agent.id)
-                parameters.extend(agent_params)
-        
-        return {"parameters": parameters}
-    except Exception as e:
-        print(f"获取参数失败: {str(e)}")
-        import traceback
-        print(f"错误堆栈: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=f"获取参数失败: {str(e)}")
+@router.post("/quotas", response_model=QuotaResponse)
+def create_quota(quota: QuotaCreate, db: Session = Depends(get_db)):
+    """创建配额"""
+    db_quota = ModelQuota(**quota.dict())
+    db.add(db_quota)
+    db.commit()
+    db.refresh(db_quota)
+    return db_quota
 
 
-# 参数版本控制相关路由
-@router.get("/suppliers/{supplier_id}/models/{model_id}/parameters/{parameter_id}/versions", response_model=List[Dict[str, Any]])
-def get_parameter_versions(
-    supplier_id: int,
-    model_id: int,
-    parameter_id: int,
-    db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
-):
-    """
-    获取参数的所有版本历史
-    
-    Args:
-        supplier_id: 供应商ID
-        model_id: 模型ID
-        parameter_id: 参数ID
-        db: 数据库会话
-        current_user: 当前用户
-        
-    Returns:
-        参数版本历史列表
-    """
-    # 验证模型是否存在
-    model = db.query(ModelDB).filter(
-        ModelDB.id == model_id,
-        ModelDB.supplier_id == supplier_id
-    ).first()
-    if not model:
-        raise HTTPException(status_code=404, detail="模型不存在")
-    
-    # 验证参数是否存在且属于该模型
-    parameter = db.query(ModelParameter).filter(
-        ModelParameter.id == parameter_id,
-        ModelParameter.model_id == model_id
-    ).first()
-    if not parameter:
-        raise HTTPException(status_code=404, detail="参数不存在")
-    
-    # 获取参数版本历史
-    versions = ParameterManager.get_parameter_versions(db, parameter_id)
-    
-    # 转换为响应格式
-    response = []
-    for version in versions:
-        response.append({
-            "id": version.id,
-            "parameter_id": version.parameter_id,
-            "version_number": version.version_number,
-            "parameter_value": version.parameter_value,
-            "updated_at": version.updated_at,
-            "updated_by": version.updated_by
-        })
-    
-    return response
+@router.get("/quotas/{quota_id}", response_model=QuotaResponse)
+def get_quota(quota_id: int, db: Session = Depends(get_db)):
+    """获取配额详情"""
+    quota = db.query(ModelQuota).filter(ModelQuota.id == quota_id).first()
+    if not quota:
+        raise HTTPException(status_code=404, detail="配额不存在")
+    return quota
 
 
-@router.post("/suppliers/{supplier_id}/models/{model_id}/parameters/{parameter_id}/revert/{version_number}", response_model=Dict[str, Any])
-def revert_parameter_to_version(
-    supplier_id: int,
-    model_id: int,
-    parameter_id: int,
-    version_number: int,
-    db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
-):
-    """
-    将参数回滚到指定版本
+@router.put("/quotas/{quota_id}", response_model=QuotaResponse)
+def update_quota(quota_id: int, quota: QuotaUpdate, db: Session = Depends(get_db)):
+    """更新配额"""
+    db_quota = db.query(ModelQuota).filter(ModelQuota.id == quota_id).first()
+    if not db_quota:
+        raise HTTPException(status_code=404, detail="配额不存在")
     
-    Args:
-        supplier_id: 供应商ID
-        model_id: 模型ID
-        parameter_id: 参数ID
-        version_number: 要回滚到的版本号
-        db: 数据库会话
-        current_user: 当前用户
-        
-    Returns:
-        更新后的参数信息和模型参数列表
-    """
-    # 验证模型是否存在
-    model = db.query(ModelDB).filter(
-        ModelDB.id == model_id,
-        ModelDB.supplier_id == supplier_id
-    ).first()
-    if not model:
-        raise HTTPException(status_code=404, detail="模型不存在")
+    for key, value in quota.dict(exclude_unset=True).items():
+        setattr(db_quota, key, value)
     
-    # 验证参数是否存在且属于该模型
-    parameter = db.query(ModelParameter).filter(
-        ModelParameter.id == parameter_id,
-        ModelParameter.model_id == model_id
-    ).first()
-    if not parameter:
-        raise HTTPException(status_code=404, detail="参数不存在")
-    
-    try:
-        # 执行回滚操作
-        updated_parameter = ParameterManager.revert_parameter_to_version(
-            db=db,
-            parameter_id=parameter_id,
-            version_number=version_number,
-            updated_by="system"  # 可以根据实际用户信息修改
-        )
-        
-        # 获取更新后的所有参数
-        parameters = ParameterManager.get_model_parameters(db, model_id)
-        
-        return {
-            "model_id": model_id,
-            "supplier_id": supplier_id,
-            "parameter": {
-                "id": updated_parameter.id,
-                "parameter_name": updated_parameter.parameter_name,
-                "parameter_value": updated_parameter.parameter_value,
-                "parameter_type": updated_parameter.parameter_type,
-                "description": updated_parameter.description,
-                "parameter_source": updated_parameter.parameter_source,
-                "is_override": updated_parameter.is_override,
-                "is_default": updated_parameter.is_default
-            },
-            "parameters": parameters
-        }
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    db.commit()
+    db.refresh(db_quota)
+    return db_quota
 
 
-@router.post("/suppliers/{supplier_id}/models/{model_id}/parameters/batch", response_model=Dict[str, Any])
-def batch_update_model_parameters(
-    supplier_id: int,
-    model_id: int,
-    params_data: List[Dict[str, Any]],
-    db: Session = Depends(get_db),
-    current_user: MockUser = Depends(get_mock_user)
-):
-    """
-    批量更新模型参数
+@router.delete("/quotas/{quota_id}")
+def delete_quota(quota_id: int, db: Session = Depends(get_db)):
+    """删除配额"""
+    db_quota = db.query(ModelQuota).filter(ModelQuota.id == quota_id).first()
+    if not db_quota:
+        raise HTTPException(status_code=404, detail="配额不存在")
     
-    Args:
-        supplier_id: 供应商ID
-        model_id: 模型ID
-        params_data: 参数数据列表，每个元素包含parameter_name、parameter_value、parameter_type等字段
-        db: 数据库会话
-        current_user: 当前用户
-        
-    Returns:
-        更新后的模型参数列表
-    """
-    # 验证模型是否存在
-    model = db.query(ModelDB).filter(
-        ModelDB.id == model_id,
-        ModelDB.supplier_id == supplier_id
-    ).first()
-    if not model:
-        raise HTTPException(status_code=404, detail="模型不存在")
+    db.delete(db_quota)
+    db.commit()
+    return {"message": "配额删除成功"}
+
+
+@router.post("/quotas/{quota_id}/usage")
+def record_usage(quota_id: int, usage: QuotaUsageCreate, db: Session = Depends(get_db)):
+    """记录配额使用"""
+    quota = db.query(ModelQuota).filter(ModelQuota.id == quota_id).first()
+    if not quota:
+        raise HTTPException(status_code=404, detail="配额不存在")
     
-    try:
-        # 执行批量更新操作
-        ParameterManager.batch_update_model_parameters(
-            db=db,
-            model_id=model_id,
-            params_data=params_data,
-            updated_by="system"  # 可以根据实际用户信息修改
-        )
-        
-        # 获取更新后的所有参数
-        parameters = ParameterManager.get_model_parameters(db, model_id)
-        
-        return {
-            "model_id": model_id,
-            "supplier_id": supplier_id,
-            "parameters": parameters
-        }
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    # 创建使用记录
+    db_usage = QuotaUsage(quota_id=quota_id, **usage.dict())
+    db.add(db_usage)
+    
+    # 更新配额使用量
+    quota.current_requests += usage.requests_used
+    quota.current_tokens += usage.tokens_used
+    quota.current_cost += usage.cost_incurred
+    
+    # 检查是否超出配额
+    if (quota.current_requests >= quota.max_requests or
+        quota.current_tokens >= quota.max_tokens or
+        quota.current_cost >= quota.max_cost):
+        quota.is_exceeded = True
+    
+    db.commit()
+    db.refresh(db_usage)
+    return db_usage
+
+
+@router.post("/quotas/{quota_id}/reset")
+def reset_quota(quota_id: int, db: Session = Depends(get_db)):
+    """重置配额使用量"""
+    quota = db.query(ModelQuota).filter(ModelQuota.id == quota_id).first()
+    if not quota:
+        raise HTTPException(status_code=404, detail="配额不存在")
+    
+    quota.current_requests = 0
+    quota.current_tokens = 0
+    quota.current_cost = 0.0
+    quota.is_exceeded = False
+    quota.period_start = datetime.utcnow()
+    
+    db.commit()
+    return {"message": "配额重置成功"}
