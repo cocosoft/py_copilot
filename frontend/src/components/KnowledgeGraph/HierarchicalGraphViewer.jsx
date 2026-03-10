@@ -252,7 +252,7 @@ const HierarchicalGraphViewer = ({
         const isActive = currentLevel === level.id;
         const isAvailable = level.id === 'global' || 
           (level.id === 'knowledge_base' && knowledgeBaseId) ||
-          (level.id === 'document' && documentId);
+          (level.id === 'document' && (documentId || knowledgeBaseId));
         
         return (
           <button

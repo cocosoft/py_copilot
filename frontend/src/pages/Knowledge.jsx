@@ -7,6 +7,7 @@ import KnowledgeGraphManager from '../components/KnowledgeGraph/KnowledgeGraphMa
 import KnowledgeGraph from '../components/KnowledgeGraph';
 import EntityConfirmationList from '../components/KnowledgeGraph/EntityConfirmationList';
 import HierarchicalGraphViewer from '../components/KnowledgeGraph/HierarchicalGraphViewer';
+import VectorizationManager from '../components/Vectorization/VectorizationManager';
 import websocketService from '../services/websocketService';
 import {
   uploadDocument,
@@ -119,7 +120,7 @@ const Knowledge = () => {
   const [activeTab, setActiveTab] = useState('basic'); // 'basic' 或 'permissions'
   
   // 主界面标签页状态
-  const [mainActiveTab, setMainActiveTab] = useState('documents'); // 'documents', 'knowledge-graph', 'entity-config', 'entity-maintenance'
+  const [mainActiveTab, setMainActiveTab] = useState('documents'); // 'documents', 'knowledge-graph', 'vectorization'
   
   // 标签管理相关状态
   const [tags, setTags] = useState([]);
@@ -1973,13 +1974,19 @@ const Knowledge = () => {
         
         {/* 主界面标签页导航 */}
         <div className="main-tab-navigation">
-          <button 
+          <button
             className={`main-tab-btn ${mainActiveTab === 'documents' ? 'active' : ''}`}
             onClick={() => setMainActiveTab('documents')}
           >
             文档管理
           </button>
-          <button 
+          <button
+            className={`main-tab-btn ${mainActiveTab === 'vectorization' ? 'active' : ''}`}
+            onClick={() => setMainActiveTab('vectorization')}
+          >
+            向量化管理
+          </button>
+          <button
             className={`main-tab-btn ${mainActiveTab === 'knowledge-graph' ? 'active' : ''}`}
             onClick={() => setMainActiveTab('knowledge-graph')}
           >
@@ -2543,11 +2550,18 @@ const Knowledge = () => {
           </>
         )}
         
+        {/* 向量化管理界面 */}
+        {mainActiveTab === 'vectorization' && (
+          <div className="vectorization-section">
+            <VectorizationManager />
+          </div>
+        )}
+
         {/* 知识图谱界面 - 使用新的 KnowledgeGraphManager 组件 */}
         {mainActiveTab === 'knowledge-graph' && (
           <div className="knowledge-graph-section">
             {selectedKnowledgeBase ? (
-              <KnowledgeGraphManager 
+              <KnowledgeGraphManager
                 knowledgeBaseId={selectedKnowledgeBase.id}
                 knowledgeBaseName={selectedKnowledgeBase.name}
               />

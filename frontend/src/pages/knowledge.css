@@ -1809,6 +1809,20 @@
   background: linear-gradient(90deg, #dc3545 0%, #f44336 100%);
 }
 
+/* 向量化管理相关样式 */
+.vectorization-section {
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 0;
+  margin-bottom: 0;
+  height: calc(100vh - 280px);
+  min-height: 500px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 /* 知识图谱相关样式 */
 .knowledge-graph-section {
   background-color: #ffffff;
