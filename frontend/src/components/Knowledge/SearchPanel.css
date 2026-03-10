@@ -1,0 +1,165 @@
+/**
+ * 搜索面板组件样式
+ */
+
+/* 工具栏区域 */
+.knowledge-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e1e8ed;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* 搜索容器 */
+.search-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 200px;
+  max-width: 400px;
+}
+
+.knowledge-search {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #e1e8ed;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.knowledge-search:focus {
+  outline: none;
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.search-btn {
+  padding: 8px 12px;
+  background-color: #f8f9fa;
+  border: 1px solid #e1e8ed;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.search-btn:hover {
+  background-color: #e9ecef;
+}
+
+/* 工具栏操作 */
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* 导入按钮 */
+.import-btn {
+  padding: 8px 16px;
+  background-color: #1890ff;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+  display: inline-block;
+}
+
+.import-btn:hover {
+  background-color: #40a9ff;
+}
+
+.import-btn[disabled] {
+  background-color: #d9d9d9;
+  cursor: not-allowed;
+}
+
+/* 上传提示 */
+.upload-hint {
+  color: #666;
+  font-size: 12px;
+  margin-left: 8px;
+}
+
+/* 批量处理按钮 */
+.batch-process-btn {
+  background-color: #52c41a;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.batch-process-btn:hover {
+  background-color: #73d13d;
+}
+
+/* 批量处理中提示 */
+.batch-processing-hint {
+  color: #1890ff;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* 创建按钮 */
+.create-btn {
+  padding: 8px 16px;
+  background-color: #f8f9fa;
+  border: 1px solid #e1e8ed;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.create-btn:hover {
+  background-color: #e9ecef;
+}
+
+.create-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 主界面标签页导航 */
+.main-tab-navigation {
+  display: flex;
+  gap: 4px;
+  padding: 0 20px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e1e8ed;
+}
+
+.main-tab-btn {
+  padding: 12px 20px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+  transition: all 0.2s;
+}
+
+.main-tab-btn:hover {
+  color: #1890ff;
+}
+
+.main-tab-btn.active {
+  color: #1890ff;
+  border-bottom-color: #1890ff;
+}
