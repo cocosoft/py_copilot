@@ -1,0 +1,211 @@
+/**
+ * 增强版虚拟列表样式 - FE-001
+ * 
+ * 优化滚动性能，确保60fps流畅度
+ */
+
+/* 容器 */
+.enhanced-virtual-list-container {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  position: relative;
+  -webkit-overflow-scrolling: touch;
+  
+  /* 优化滚动性能 */
+  will-change: scroll-position;
+  contain: layout style paint;
+}
+
+/* 滚动时优化 */
+.enhanced-virtual-list-container.scrolling {
+  pointer-events: none;
+}
+
+.enhanced-virtual-list-container.scrolling .virtual-list-item {
+  pointer-events: auto;
+}
+
+/* 内容区域 */
+.virtual-list-content {
+  position: relative;
+  width: 100%;
+}
+
+/* 项目容器 */
+.virtual-list-items {
+  position: absolute;
+  left: 0;
+  right: 0;
+  will-change: transform;
+  contain: layout style;
+}
+
+/* 列表项 */
+.virtual-list-item {
+  box-sizing: border-box;
+  width: 100%;
+  contain: layout style paint;
+}
+
+/* 粘性项目 */
+.virtual-list-sticky {
+  background: inherit;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Header */
+.virtual-list-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: inherit;
+}
+
+/* Footer */
+.virtual-list-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: inherit;
+}
+
+/* 加载更多 */
+.virtual-list-load-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  gap: 8px;
+  color: #666;
+  font-size: 14px;
+}
+
+/* 空状态 */
+.virtual-list-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  color: #999;
+  text-align: center;
+}
+
+.virtual-list-empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.virtual-list-empty p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* 加载状态 */
+.virtual-list-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  color: #666;
+}
+
+.virtual-list-loading p {
+  margin: 16px 0 0;
+  font-size: 14px;
+}
+
+/* 加载动画 */
+.virtual-list-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #1890ff;
+  border-radius: 50%;
+  animation: virtual-list-spin 1s linear infinite;
+}
+
+.virtual-list-spinner.small {
+  width: 20px;
+  height: 20px;
+  border-width: 2px;
+}
+
+@keyframes virtual-list-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* 滚动条样式优化 */
+.enhanced-virtual-list-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.enhanced-virtual-list-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.enhanced-virtual-list-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.enhanced-virtual-list-container::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 深色模式 */
+@media (prefers-color-scheme: dark) {
+  .enhanced-virtual-list-container::-webkit-scrollbar-track {
+    background: #2c2c2c;
+  }
+  
+  .enhanced-virtual-list-container::-webkit-scrollbar-thumb {
+    background: #555;
+  }
+  
+  .enhanced-virtual-list-container::-webkit-scrollbar-thumb:hover {
+    background: #666;
+  }
+  
+  .virtual-list-empty {
+    color: #666;
+  }
+  
+  .virtual-list-loading {
+    color: #999;
+  }
+  
+  .virtual-list-load-more {
+    color: #999;
+  }
+}
+
+/* 性能优化：减少重绘 */
+.virtual-list-item * {
+  contain: layout style;
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+  .enhanced-virtual-list-container {
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .virtual-list-empty {
+    padding: 32px 16px;
+  }
+  
+  .virtual-list-empty-icon {
+    font-size: 36px;
+  }
+}

@@ -9,6 +9,7 @@ import useAuthStore from './authStore';
 import useModelStore from './modelStore';
 import useSupplierStore from './supplierStore';
 import useApiStore from './apiStore';
+import useKnowledgeStore from './knowledgeStore';
 
 /**
  * 根状态管理store
@@ -39,6 +40,7 @@ const useRootStore = create(
               useModelStore.getState().initialize?.(),
               useSupplierStore.getState().initialize?.(),
               useApiStore.getState().initialize?.(),
+              useKnowledgeStore.getState().initialize?.(),
             ]);
 
             set((state) => {
@@ -61,6 +63,7 @@ const useRootStore = create(
           useModelStore.getState().reset();
           useSupplierStore.getState().reset();
           useApiStore.getState().reset?.();
+          useKnowledgeStore.getState().reset();
           
           set((state) => {
             state.isInitialized = false;
@@ -102,6 +105,7 @@ const useRootStore = create(
             model: useModelStore,
             supplier: useSupplierStore,
             api: useApiStore,
+            knowledge: useKnowledgeStore,
           };
 
           const store = storeMap[storeName];
@@ -120,6 +124,7 @@ const useRootStore = create(
             model: useModelStore.getState(),
             supplier: useSupplierStore.getState(),
             api: useApiStore.getState(),
+            knowledge: useKnowledgeStore.getState(),
             root: get(),
           };
         },
@@ -138,6 +143,7 @@ export {
   useModelStore,
   useSupplierStore,
   useApiStore,
+  useKnowledgeStore,
   useRootStore,
 };
 
@@ -149,6 +155,7 @@ export const useCombinedStores = (storeNames) => {
     model: useModelStore(),
     supplier: useSupplierStore(),
     api: useApiStore(),
+    knowledge: useKnowledgeStore(),
   };
 
   return storeNames.reduce((acc, name) => {

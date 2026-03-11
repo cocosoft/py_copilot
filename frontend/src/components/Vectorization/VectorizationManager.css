@@ -13,9 +13,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--border-color, #e0e0e0);
+  margin-bottom: 16px;
 }
 
 .vectorization-header h2 {
@@ -27,6 +25,50 @@
 .header-actions {
   display: flex;
   gap: 12px;
+}
+
+/* 子页面导航 */
+.sub-page-navigation {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding: 4px;
+  background: var(--bg-secondary, #f0f0f0);
+  border-radius: 8px;
+}
+
+.sub-page-btn {
+  padding: 10px 20px;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  color: var(--text-secondary, #666);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sub-page-btn:hover {
+  background: rgba(255, 255, 255, 0.5);
+  color: var(--text-primary, #333);
+}
+
+.sub-page-btn.active {
+  background: white;
+  color: var(--primary-color, #2196f3);
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 子页面内容 */
+.sub-page-content {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 /* 统计卡片 */
@@ -539,6 +581,145 @@
   }
 }
 
+/* 概览页面样式 */
+.overview-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.recent-activity,
+.quick-actions {
+  background: var(--bg-secondary, #f8f9fa);
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.recent-activity h3,
+.quick-actions h3 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  color: var(--text-primary, #333);
+}
+
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.activity-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, #e0e0e0);
+}
+
+.activity-item .doc-title {
+  font-weight: 500;
+  color: var(--text-primary, #333);
+}
+
+.activity-item .status {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.activity-item .status.success {
+  background: rgba(76, 175, 80, 0.1);
+  color: #4caf50;
+}
+
+.activity-item .status.processing {
+  background: rgba(33, 150, 243, 0.1);
+  color: #2196f3;
+}
+
+.activity-item .status.pending {
+  background: rgba(255, 152, 0, 0.1);
+  color: #ff9800;
+}
+
+.empty-activity {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-secondary, #999);
+  font-style: italic;
+}
+
+.quick-actions .action-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+/* 配置页面样式 */
+.config-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.config-section {
+  background: var(--bg-secondary, #f8f9fa);
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.config-section h3 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  color: var(--text-primary, #333);
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color, #e0e0e0);
+}
+
+.config-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.config-form .form-group {
+  margin-bottom: 0;
+}
+
+.config-form .form-group.checkbox {
+  display: flex;
+  align-items: center;
+}
+
+.config-form .form-group.checkbox label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0;
+  cursor: pointer;
+}
+
+.config-form .form-group.checkbox input[type="checkbox"] {
+  width: auto;
+}
+
+.help-text {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-secondary, #999);
+}
+
+.config-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-color, #e0e0e0);
+}
+
 /* 深色模式支持 */
 @media (prefers-color-scheme: dark) {
   .vectorization-manager {
@@ -548,7 +729,8 @@
   .stat-card,
   .toolbar,
   .documents-table-container,
-  .modal-content {
+  .modal-content,
+  .sub-page-content {
     background: var(--bg-secondary, #2d2d2d);
   }
   
@@ -571,6 +753,25 @@
   }
   
   .chunk-content {
+    background: var(--bg-secondary, #2d2d2d);
+  }
+  
+  .recent-activity,
+  .quick-actions,
+  .config-section {
+    background: var(--bg-tertiary, #3d3d3d);
+  }
+  
+  .activity-item {
+    background: var(--bg-secondary, #2d2d2d);
+    border-color: var(--border-color, #444);
+  }
+  
+  .sub-page-navigation {
+    background: var(--bg-tertiary, #3d3d3d);
+  }
+  
+  .sub-page-btn.active {
     background: var(--bg-secondary, #2d2d2d);
   }
 }

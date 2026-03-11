@@ -6,5 +6,64 @@
   "knowledgeBase": "Knowledge Base",
   "document": "Document",
   "entities": "Entities",
-  "relations": "Relations"
+  "relations": "Relations",
+  "vectorization": {
+    "title": "Vectorization Management",
+    "config": "Config",
+    "configTitle": "Vectorization Config",
+    "chunksTitle": "Vector Chunks",
+    "chars": "chars",
+    "selectKnowledgeBase": "Select Knowledge Base",
+    "searchPlaceholder": "Search documents...",
+    "batchProcessSelected": "Batch Process Selected",
+    "batchProcessAll": "Batch Process All",
+    "empty": "No documents",
+    "stats": {
+      "total": "Total",
+      "vectorized": "Vectorized",
+      "unvectorized": "Unvectorized",
+      "processing": "Processing",
+      "failed": "Failed"
+    },
+    "filter": {
+      "all": "All Status",
+      "unvectorized": "Unvectorized",
+      "processing": "Processing",
+      "vectorized": "Vectorized",
+      "failed": "Failed"
+    },
+    "tabs": {
+      "pending": "Pending",
+      "completed": "Completed",
+      "all": "All"
+    },
+    "table": {
+      "title": "Title",
+      "status": "Status",
+      "progress": "Progress",
+      "chunks": "Chunks",
+      "actions": "Actions"
+    },
+    "status": {
+      "vectorized": "Vectorized",
+      "processing": "Processing",
+      "failed": "Failed",
+      "pending": "Pending"
+    },
+    "action": {
+      "vectorize": "Vectorize",
+      "viewChunks": "View Chunks"
+    },
+    "config": {
+      "chunkSize": "Chunk Size",
+      "chunkOverlap": "Chunk Overlap",
+      "embeddingModel": "Embedding Model",
+      "batchSize": "Batch Size"
+    },
+    "models": {
+      "default": "Default Model",
+      "text-embedding-3-small": "Text Embedding 3 Small",
+      "text-embedding-3-large": "Text Embedding 3 Large"
+    }
+  }
 }

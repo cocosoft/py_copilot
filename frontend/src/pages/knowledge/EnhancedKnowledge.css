@@ -1,0 +1,571 @@
+/**
+ * 增强版知识库页面样式
+ * 
+ * 包含虚拟列表、状态管理集成后的样式
+ */
+
+/* 页面容器 */
+.enhanced-knowledge-page {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* 页面头部 */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.page-header h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+/* 知识库选择器 */
+.knowledge-base-selector {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.knowledge-base-selector select {
+  padding: 8px 16px;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  font-size: 14px;
+  min-width: 200px;
+  background-color: white;
+  cursor: pointer;
+}
+
+.knowledge-base-selector select:focus {
+  outline: none;
+  border-color: #4a90d9;
+  box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.1);
+}
+
+/* 统计信息栏 */
+.stats-bar {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+  border-radius: 8px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 24px;
+  background: white;
+  border-radius: 6px;
+  min-width: 100px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-item.vectorized .stat-value {
+  color: #52c41a;
+}
+
+.stat-item.processing .stat-value {
+  color: #faad14;
+}
+
+.stat-item.failed .stat-value {
+  color: #f5222d;
+}
+
+.stat-item.pending .stat-value {
+  color: #8c8c8c;
+}
+
+/* 工具栏 */
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  gap: 16px;
+}
+
+.search-box {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  max-width: 400px;
+}
+
+.search-box input {
+  flex: 1;
+  padding: 10px 16px;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.search-box input:focus {
+  outline: none;
+  border-color: #4a90d9;
+  box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.1);
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.toggle-virtual-list {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #666;
+  cursor: pointer;
+}
+
+.toggle-virtual-list input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+/* 按钮样式 */
+.btn-primary,
+.btn-secondary,
+.btn-danger,
+.btn-text {
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-primary {
+  background-color: #4a90d9;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #3a7bc8;
+}
+
+.btn-secondary {
+  background-color: #f0f0f0;
+  color: #333;
+  border: 1px solid #d0d0d0;
+}
+
+.btn-secondary:hover {
+  background-color: #e0e0e0;
+}
+
+.btn-danger {
+  background-color: #ff4d4f;
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #ff7875;
+}
+
+.btn-text {
+  background: none;
+  color: #4a90d9;
+  padding: 8px 12px;
+}
+
+.btn-text:hover {
+  background-color: rgba(74, 144, 217, 0.1);
+}
+
+.btn-icon {
+  padding: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 16px;
+}
+
+.btn-icon:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* 批量操作栏 */
+.batch-actions-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background-color: #e6f7ff;
+  border: 1px solid #91d5ff;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+.batch-actions-bar span {
+  font-weight: 500;
+  color: #096dd9;
+}
+
+/* 批量操作进度条 */
+.batch-progress-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  background-color: #f6ffed;
+  border: 1px solid #b7eb8f;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+.progress-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 120px;
+}
+
+.progress-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #52c41a;
+}
+
+.progress-count {
+  font-size: 12px;
+  color: #73d13d;
+  margin-top: 2px;
+}
+
+.progress-bar-container {
+  flex: 1;
+  height: 8px;
+  background-color: #e8e8e8;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #52c41a, #73d13d);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progress-percentage {
+  font-size: 14px;
+  font-weight: 600;
+  color: #52c41a;
+  min-width: 45px;
+  text-align: right;
+}
+
+/* 文档列表区域 */
+.documents-section {
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  min-height: 400px;
+}
+
+/* 虚拟列表容器 */
+.documents-virtual-list {
+  height: 600px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* 普通列表容器 */
+.documents-list {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 文档卡片 */
+.document-card {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.document-card:hover {
+  border-color: #4a90d9;
+  box-shadow: 0 2px 8px rgba(74, 144, 217, 0.15);
+}
+
+.document-card.selected {
+  border-color: #4a90d9;
+  background-color: #f0f7ff;
+}
+
+.document-card.status-vectorized {
+  border-left: 4px solid #52c41a;
+}
+
+.document-card.status-processing {
+  border-left: 4px solid #faad14;
+}
+
+.document-card.status-failed {
+  border-left: 4px solid #f5222d;
+}
+
+.document-card.status-pending {
+  border-left: 4px solid #d9d9d9;
+}
+
+/* 文档卡片头部 */
+.document-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.document-index {
+  font-size: 12px;
+  color: #999;
+  font-weight: 500;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-badge.status-vectorized {
+  background-color: #f6ffed;
+  color: #52c41a;
+}
+
+.status-badge.status-processing {
+  background-color: #fffbe6;
+  color: #faad14;
+}
+
+.status-badge.status-failed {
+  background-color: #fff1f0;
+  color: #f5222d;
+}
+
+.status-badge.status-pending {
+  background-color: #f5f5f5;
+  color: #8c8c8c;
+}
+
+/* 文档卡片内容 */
+.document-card-content {
+  flex: 1;
+}
+
+.document-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 8px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.document-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+  color: #666;
+  margin: 0;
+}
+
+/* 文档卡片操作 */
+.document-card-actions {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.document-card:hover .document-card-actions {
+  opacity: 1;
+}
+
+/* 加载状态 */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #666;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e0e0e0;
+  border-top-color: #4a90d9;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 错误状态 */
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #f5222d;
+  text-align: center;
+}
+
+.error-state button {
+  margin-top: 16px;
+}
+
+/* 空状态 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  text-align: center;
+  color: #666;
+}
+
+.empty-state p {
+  margin-bottom: 20px;
+  font-size: 16px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .enhanced-knowledge-page {
+    padding: 12px;
+  }
+
+  .page-header {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .knowledge-base-selector {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .knowledge-base-selector select {
+    width: 100%;
+  }
+
+  .stats-bar {
+    flex-wrap: wrap;
+  }
+
+  .stat-item {
+    flex: 1;
+    min-width: calc(50% - 8px);
+  }
+
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-box {
+    max-width: none;
+  }
+
+  .toolbar-actions {
+    justify-content: space-between;
+  }
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.document-card {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* 滚动条样式 */
+.documents-virtual-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.documents-virtual-list::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 4px;
+}
+
+.documents-virtual-list::-webkit-scrollbar-thumb {
+  background: #c0c0c0;
+  border-radius: 4px;
+}
+
+.documents-virtual-list::-webkit-scrollbar-thumb:hover {
+  background: #a0a0a0;
+}

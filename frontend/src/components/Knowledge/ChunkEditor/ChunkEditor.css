@@ -1,0 +1,556 @@
+/**
+ * 交互式片段编辑器样式 - FE-007
+ *
+ * @task FE-007
+ * @phase 前端功能拓展
+ */
+
+/* ==================== 主容器 ==================== */
+
+.chunk-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #f5f5f5;
+}
+
+/* ==================== 工具栏 ==================== */
+
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  background: #fff;
+  border-bottom: 1px solid #e8e8e8;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.document-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.unsaved-indicator {
+  color: #faad14;
+  font-weight: 700;
+}
+
+.toolbar-center {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toolbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  color: #595959;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.toolbar-btn:hover:not(:disabled) {
+  background: #f5f5f5;
+  border-color: #1890ff;
+  color: #1890ff;
+}
+
+.toolbar-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 24px;
+  background: #e8e8e8;
+  margin: 0 8px;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ==================== 按钮样式 ==================== */
+
+.btn-primary,
+.btn-secondary,
+.btn-small {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.btn-primary {
+  background: #1890ff;
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #40a9ff;
+}
+
+.btn-primary:disabled {
+  background: #d9d9d9;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: #fff;
+  color: #595959;
+  border: 1px solid #d9d9d9;
+}
+
+.btn-secondary:hover {
+  border-color: #1890ff;
+  color: #1890ff;
+}
+
+.btn-small {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.btn-small.secondary {
+  background: #f5f5f5;
+  color: #595959;
+  border: 1px solid #d9d9d9;
+}
+
+/* ==================== 统计栏 ==================== */
+
+.editor-stats {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 8px 24px;
+  background: #fafafa;
+  border-bottom: 1px solid #e8e8e8;
+  font-size: 13px;
+  color: #8c8c8c;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ==================== 主编辑区 ==================== */
+
+.editor-main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ==================== 片段列表面板 ==================== */
+
+.chunks-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.chunks-panel.with-preview {
+  flex: 0 0 60%;
+}
+
+/* ==================== 片段项 ==================== */
+
+.chunk-item {
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  transition: all 0.2s;
+}
+
+.chunk-item:hover {
+  border-color: #1890ff;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.1);
+}
+
+.chunk-item.selected {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.chunk-item.editing {
+  border-color: #faad14;
+}
+
+/* ==================== 片段头部 ==================== */
+
+.chunk-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.chunk-index {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1890ff;
+  background: #e6f7ff;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.chunk-range {
+  font-size: 12px;
+  color: #8c8c8c;
+  font-family: monospace;
+}
+
+.chunk-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.chunk-item:hover .chunk-actions {
+  opacity: 1;
+}
+
+.chunk-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: #8c8c8c;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.chunk-action-btn:hover {
+  background: #f0f0f0;
+  color: #1890ff;
+}
+
+.chunk-action-btn.danger:hover {
+  background: #fff1f0;
+  color: #ff4d4f;
+}
+
+/* ==================== 片段内容 ==================== */
+
+.chunk-content {
+  padding: 16px;
+}
+
+.chunk-content p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.8;
+  color: #262626;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.chunk-split-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 8px;
+  background: #f6ffed;
+  border: 1px dashed #b7eb8f;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #52c41a;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.chunk-item:hover .chunk-split-hint {
+  opacity: 1;
+}
+
+/* ==================== 编辑区域 ==================== */
+
+.chunk-edit-area {
+  padding: 16px;
+}
+
+.chunk-edit-area textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 14px;
+  line-height: 1.8;
+  resize: vertical;
+  min-height: 120px;
+  font-family: inherit;
+}
+
+.chunk-edit-area textarea:focus {
+  outline: none;
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.chunk-edit-area textarea.error {
+  border-color: #ff4d4f;
+}
+
+.validation-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #fff1f0;
+  border: 1px solid #ffa39e;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #ff4d4f;
+}
+
+.chunk-edit-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* ==================== 片段元数据 ==================== */
+
+.chunk-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px;
+  background: #fafafa;
+  border-top: 1px solid #f0f0f0;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.meta-item.quality-0,
+.meta-item.quality-1,
+.meta-item.quality-2,
+.meta-item.quality-3 {
+  color: #ff4d4f;
+}
+
+.meta-item.quality-4,
+.meta-item.quality-5,
+.meta-item.quality-6 {
+  color: #faad14;
+}
+
+.meta-item.quality-7,
+.meta-item.quality-8,
+.meta-item.quality-9 {
+  color: #52c41a;
+}
+
+/* ==================== 预览面板 ==================== */
+
+.preview-panel {
+  flex: 0 0 40%;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-left: 1px solid #e8e8e8;
+}
+
+.preview-panel h4 {
+  margin: 0;
+  padding: 16px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #262626;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.preview-content {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  font-size: 14px;
+  line-height: 2;
+  color: #262626;
+}
+
+.preview-chunk {
+  cursor: pointer;
+  transition: background 0.2s;
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+.preview-chunk:hover {
+  background: #e6f7ff;
+}
+
+.preview-chunk.highlighted {
+  background: #fff7e6;
+  box-shadow: 0 0 0 2px #ffd591;
+}
+
+/* ==================== 文档选择器 ==================== */
+
+.chunk-editor-selector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  padding: 48px;
+}
+
+.chunk-editor-selector h3 {
+  margin: 0 0 32px 0;
+  font-size: 20px;
+  color: #262626;
+}
+
+.document-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  width: 100%;
+  max-width: 800px;
+}
+
+.document-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.document-item:hover {
+  border-color: #1890ff;
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.15);
+}
+
+.document-item svg {
+  color: #1890ff;
+}
+
+.document-info h4 {
+  margin: 0 0 4px 0;
+  font-size: 15px;
+  color: #262626;
+}
+
+.document-info p {
+  margin: 0;
+  font-size: 13px;
+  color: #8c8c8c;
+}
+
+/* ==================== 响应式适配 ==================== */
+
+@media (max-width: 1024px) {
+  .chunks-panel.with-preview {
+    flex: 0 0 50%;
+  }
+
+  .preview-panel {
+    flex: 0 0 50%;
+  }
+}
+
+@media (max-width: 768px) {
+  .editor-main {
+    flex-direction: column;
+  }
+
+  .chunks-panel.with-preview {
+    flex: 1;
+  }
+
+  .preview-panel {
+    display: none;
+  }
+
+  .editor-toolbar {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .toolbar-center {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ==================== 滚动条样式 ==================== */
+
+.chunks-panel::-webkit-scrollbar,
+.preview-content::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.chunks-panel::-webkit-scrollbar-track,
+.preview-content::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 4px;
+}
+
+.chunks-panel::-webkit-scrollbar-thumb,
+.preview-content::-webkit-scrollbar-thumb {
+  background: #c0c0c0;
+  border-radius: 4px;
+}
+
+.chunks-panel::-webkit-scrollbar-thumb:hover,
+.preview-content::-webkit-scrollbar-thumb:hover {
+  background: #a0a0a0;
+}

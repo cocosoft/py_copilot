@@ -1,0 +1,391 @@
+/**
+ * 片段列表样式 - FE-001 虚拟列表优化
+ */
+
+.chunk-list-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* 头部信息 */
+.chunk-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.chunk-count {
+  font-size: 14px;
+  font-weight: 500;
+  color: #262626;
+}
+
+.chunk-stats {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+/* 列表内容 */
+.chunk-list-content {
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* 列表项 */
+.chunk-list-item {
+  padding: 16px;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.chunk-list-item:hover {
+  background: #f5f5f5;
+}
+
+.chunk-list-item.selected {
+  background: #e6f7ff;
+  border-left: 3px solid #1890ff;
+}
+
+.chunk-list-item.expanded {
+  background: #fafafa;
+}
+
+/* 头部 */
+.chunk-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.chunk-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chunk-index {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1890ff;
+  background: #e6f7ff;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.chunk-status {
+  display: flex;
+  align-items: center;
+}
+
+.status-badge {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.status-badge.archived {
+  background: #f5f5f5;
+  color: #8c8c8c;
+}
+
+.chunk-meta {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.chunk-header-right {
+  display: flex;
+  align-items: center;
+}
+
+.chunk-expand-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #8c8c8c;
+  transition: all 0.2s;
+}
+
+.chunk-expand-btn:hover {
+  background: #f0f0f0;
+  color: #262626;
+}
+
+/* 内容区域 */
+.chunk-content {
+  position: relative;
+}
+
+.chunk-content.expanded {
+  margin-top: 12px;
+}
+
+.chunk-text {
+  position: relative;
+  padding-left: 20px;
+}
+
+.chunk-quote-icon {
+  position: absolute;
+  left: 0;
+  top: 2px;
+  color: #d9d9d9;
+}
+
+.chunk-text p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #595959;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.chunk-truncated {
+  color: #8c8c8c;
+}
+
+/* 元数据 */
+.chunk-metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #e8e8e8;
+}
+
+.metadata-tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  background: #f5f5f5;
+  border-radius: 4px;
+  color: #8c8c8c;
+}
+
+/* 操作栏 */
+.chunk-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e8e8e8;
+}
+
+.chunk-actions button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  background: #fff;
+  color: #595959;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.chunk-actions button:hover {
+  border-color: #1890ff;
+  color: #1890ff;
+}
+
+.chunk-actions button.danger {
+  border-color: #ff4d4f;
+  color: #ff4d4f;
+}
+
+.chunk-actions button.danger:hover {
+  background: #fff1f0;
+}
+
+/* 骨架屏 */
+.chunk-skeleton {
+  padding: 4px 0;
+}
+
+.chunk-skeleton-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.chunk-skeleton-index {
+  width: 50px;
+  height: 20px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.chunk-skeleton-status {
+  width: 60px;
+  height: 16px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.chunk-skeleton-content {
+  width: 100%;
+  height: 60px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* 底部信息 */
+.chunk-list-footer {
+  padding: 12px 16px;
+  border-top: 1px solid #f0f0f0;
+  background: #fafafa;
+  font-size: 13px;
+  color: #8c8c8c;
+  text-align: center;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .chunk-list-header {
+    padding: 10px 12px;
+  }
+
+  .chunk-list-item {
+    padding: 12px;
+  }
+
+  .chunk-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .chunk-header-left {
+    width: 100%;
+  }
+
+  .chunk-meta {
+    width: 100%;
+  }
+
+  .chunk-actions {
+    flex-wrap: wrap;
+  }
+}
+
+/* 深色模式 */
+@media (prefers-color-scheme: dark) {
+  .chunk-list-container {
+    background: #1f1f1f;
+  }
+
+  .chunk-list-header,
+  .chunk-list-footer {
+    background: #141414;
+    border-color: #303030;
+  }
+
+  .chunk-count {
+    color: #e6e6e6;
+  }
+
+  .chunk-list-item {
+    border-color: #303030;
+  }
+
+  .chunk-list-item:hover {
+    background: #2c2c2c;
+  }
+
+  .chunk-list-item.selected {
+    background: #111b26;
+    border-left-color: #177ddc;
+  }
+
+  .chunk-list-item.expanded {
+    background: #141414;
+  }
+
+  .chunk-index {
+    background: #111b26;
+    color: #177ddc;
+  }
+
+  .chunk-expand-btn:hover {
+    background: #2c2c2c;
+    color: #e6e6e6;
+  }
+
+  .chunk-quote-icon {
+    color: #434343;
+  }
+
+  .chunk-text p {
+    color: #bfbfbf;
+  }
+
+  .chunk-metadata {
+    border-color: #303030;
+  }
+
+  .metadata-tag {
+    background: #2c2c2c;
+    color: #8c8c8c;
+  }
+
+  .chunk-actions {
+    border-color: #303030;
+  }
+
+  .chunk-actions button {
+    background: #1f1f1f;
+    border-color: #434343;
+    color: #bfbfbf;
+  }
+
+  .chunk-actions button:hover {
+    border-color: #177ddc;
+    color: #177ddc;
+  }
+
+  .status-badge.archived {
+    background: #2c2c2c;
+    color: #8c8c8c;
+  }
+
+  .chunk-skeleton-index,
+  .chunk-skeleton-status,
+  .chunk-skeleton-content {
+    background: #303030;
+  }
+}

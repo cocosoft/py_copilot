@@ -2,11 +2,9 @@
  * 向量化管理组件
  * 
  * 提供完整的文档向量化功能，包括：
- * - 向量化任务列表管理
- * - 批量向量化操作
- * - 向量化配置管理
- * - 向量化进度监控
- * - 向量片段查看
+ * - 概览：统计信息和整体状态
+ * - 批量向量化：批量处理文档
+ * - 配置：向量化参数设置
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -26,7 +24,10 @@ import './VectorizationManager.css';
  * 向量化管理组件
  */
 const VectorizationManager = () => {
-  const { t } = useTranslation();
+  const { t } = useTranslation(['knowledge', 'common']);
+  
+  // 子页面状态：overview, batch, config
+  const [activeSubPage, setActiveSubPage] = useState('overview');
   
   // 状态管理
   const [knowledgeBases, setKnowledgeBases] = useState([]);
@@ -36,7 +37,6 @@ const VectorizationManager = () => {
   const [loading, setLoading] = useState(false);
   const [selectedDocuments, setSelectedDocuments] = useState([]);
   const [processingTasks, setProcessingTasks] = useState({});
-  const [activeTab, setActiveTab] = useState('pending'); // 'pending', 'completed', 'all'
   
   // 配置状态
   const [config, setConfig] = useState({
@@ -49,10 +49,9 @@ const VectorizationManager = () => {
   
   // 搜索和过滤
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all'); // 'all', 'vectorized', 'unvectorized', 'processing'
+  const [filterStatus, setFilterStatus] = useState('all');
   
   // 模态框状态
-  const [showConfigModal, setShowConfigModal] = useState(false);
   const [showChunksModal, setShowChunksModal] = useState(false);
   const [selectedDocForChunks, setSelectedDocForChunks] = useState(null);
   const [documentChunks, setDocumentChunks] = useState([]);
@@ -121,7 +120,6 @@ const VectorizationManager = () => {
   const applyFilters = (docs, query, status) => {
     let filtered = [...docs];
     
-    // 搜索过滤
     if (query) {
       filtered = filtered.filter(doc => 
         doc.title.toLowerCase().includes(query.toLowerCase()) ||
@@ -129,7 +127,6 @@ const VectorizationManager = () => {
       );
     }
     
-    // 状态过滤
     if (status !== 'all') {
       switch (status) {
         case 'vectorized':
@@ -149,13 +146,6 @@ const VectorizationManager = () => {
       }
     }
     
-    // 根据活动标签页过滤
-    if (activeTab === 'pending') {
-      filtered = filtered.filter(d => !d.is_vectorized);
-    } else if (activeTab === 'completed') {
-      filtered = filtered.filter(d => d.is_vectorized);
-    }
-    
     setFilteredDocuments(filtered);
   };
 
@@ -172,11 +162,9 @@ const VectorizationManager = () => {
       const result = await vectorizeDocument(documentId);
       
       if (result.status === 'processing') {
-        // 开始追踪进度
         trackProcessingProgress(documentId);
       }
       
-      // 重新加载文档列表
       await loadDocuments();
     } catch (error) {
       console.error('向量化失败:', error);
@@ -271,6 +259,15 @@ const VectorizationManager = () => {
     }
   };
 
+  /**
+   * 保存配置
+   */
+  const handleSaveConfig = () => {
+    // 这里可以添加保存配置到后端的逻辑
+    console.log('保存配置:', config);
+    alert('配置已保存');
+  };
+
   // 初始化加载
   useEffect(() => {
     loadKnowledgeBases();
@@ -284,23 +281,13 @@ const VectorizationManager = () => {
   // 过滤条件变化时重新应用过滤
   useEffect(() => {
     applyFilters(documents, searchQuery, filterStatus);
-  }, [searchQuery, filterStatus, activeTab, documents]);
+  }, [searchQuery, filterStatus, documents]);
 
-  return (
-    <div className="vectorization-manager">
-      {/* 头部 */}
-      <div className="vectorization-header">
-        <h2>{t('vectorization.title', '向量化管理')}</h2>
-        <div className="header-actions">
-          <button 
-            className="btn btn-secondary"
-            onClick={() => setShowConfigModal(true)}
-          >
-            ⚙️ {t('vectorization.config', '配置')}
-          </button>
-        </div>
-      </div>
-
+  /**
+   * 渲染概览页面
+   */
+  const renderOverview = () => (
+    <div className="overview-page">
       {/* 统计卡片 */}
       <div className="stats-cards">
         <div className="stat-card">
@@ -325,10 +312,59 @@ const VectorizationManager = () => {
         </div>
       </div>
 
+      {/* 最近活动 */}
+      <div className="recent-activity">
+        <h3>最近活动</h3>
+        <div className="activity-list">
+          {documents.slice(0, 5).map(doc => {
+            const task = processingTasks[doc.id];
+            const isProcessing = task?.status === 'processing' || doc.document_metadata?.processing_status === 'processing';
+            
+            return (
+              <div key={doc.id} className="activity-item">
+                <span className="doc-title">{doc.title}</span>
+                <span className={`status ${doc.is_vectorized ? 'success' : isProcessing ? 'processing' : 'pending'}`}>
+                  {doc.is_vectorized ? '已向量化' : isProcessing ? '处理中' : '待处理'}
+                </span>
+              </div>
+            );
+          })}
+          {documents.length === 0 && (
+            <div className="empty-activity">暂无活动</div>
+          )}
+        </div>
+      </div>
+
+      {/* 快速操作 */}
+      <div className="quick-actions">
+        <h3>快速操作</h3>
+        <div className="action-buttons">
+          <button 
+            className="btn btn-primary"
+            onClick={() => setActiveSubPage('batch')}
+            disabled={stats.unvectorized === 0}
+          >
+            🚀 开始批量向量化
+          </button>
+          <button 
+            className="btn btn-secondary"
+            onClick={() => setActiveSubPage('config')}
+          >
+            ⚙️ 配置参数
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  /**
+   * 渲染批量向量化页面
+   */
+  const renderBatch = () => (
+    <div className="batch-page">
       {/* 工具栏 */}
       <div className="toolbar">
         <div className="toolbar-left">
-          {/* 知识库选择 */}
           <select 
             className="knowledge-base-select"
             value={selectedKnowledgeBase || ''}
@@ -340,7 +376,6 @@ const VectorizationManager = () => {
             ))}
           </select>
 
-          {/* 搜索框 */}
           <input
             type="text"
             className="search-input"
@@ -349,7 +384,6 @@ const VectorizationManager = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
 
-          {/* 状态过滤 */}
           <select 
             className="filter-select"
             value={filterStatus}
@@ -364,7 +398,6 @@ const VectorizationManager = () => {
         </div>
 
         <div className="toolbar-right">
-          {/* 批量操作按钮 */}
           <button 
             className="btn btn-primary"
             onClick={handleBatchVectorize}
@@ -375,31 +408,6 @@ const VectorizationManager = () => {
               : t('vectorization.batchProcessAll', '批量处理全部')}
           </button>
         </div>
-      </div>
-
-      {/* 标签页 */}
-      <div className="tabs">
-        <button 
-          className={`tab ${activeTab === 'pending' ? 'active' : ''}`}
-          onClick={() => setActiveTab('pending')}
-        >
-          {t('vectorization.tabs.pending', '待处理')}
-          {stats.unvectorized > 0 && <span className="badge">{stats.unvectorized}</span>}
-        </button>
-        <button 
-          className={`tab ${activeTab === 'completed' ? 'active' : ''}`}
-          onClick={() => setActiveTab('completed')}
-        >
-          {t('vectorization.tabs.completed', '已完成')}
-          {stats.vectorized > 0 && <span className="badge">{stats.vectorized}</span>}
-        </button>
-        <button 
-          className={`tab ${activeTab === 'all' ? 'active' : ''}`}
-          onClick={() => setActiveTab('all')}
-        >
-          {t('vectorization.tabs.all', '全部')}
-          <span className="badge">{stats.total}</span>
-        </button>
       </div>
 
       {/* 文档列表 */}
@@ -501,63 +509,133 @@ const VectorizationManager = () => {
           </div>
         )}
       </div>
+    </div>
+  );
 
-      {/* 配置模态框 */}
-      {showConfigModal && (
-        <div className="modal-overlay" onClick={() => setShowConfigModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>{t('vectorization.configTitle', '向量化配置')}</h3>
-              <button className="close-btn" onClick={() => setShowConfigModal(false)}>×</button>
-            </div>
-            <div className="modal-body">
-              <div className="form-group">
-                <label>{t('vectorization.config.chunkSize', '分块大小')}</label>
-                <input 
-                  type="number" 
-                  value={config.chunkSize}
-                  onChange={(e) => setConfig({...config, chunkSize: Number(e.target.value)})}
-                />
-              </div>
-              <div className="form-group">
-                <label>{t('vectorization.config.chunkOverlap', '分块重叠')}</label>
-                <input 
-                  type="number" 
-                  value={config.chunkOverlap}
-                  onChange={(e) => setConfig({...config, chunkOverlap: Number(e.target.value)})}
-                />
-              </div>
-              <div className="form-group">
-                <label>{t('vectorization.config.embeddingModel', '嵌入模型')}</label>
-                <select 
-                  value={config.embeddingModel}
-                  onChange={(e) => setConfig({...config, embeddingModel: e.target.value})}
-                >
-                  <option value="default">{t('vectorization.models.default', '默认模型')}</option>
-                  <option value="text-embedding-3-small">{t('vectorization.models.text-embedding-3-small', 'Text Embedding 3 Small')}</option>
-                  <option value="text-embedding-3-large">{t('vectorization.models.text-embedding-3-large', 'Text Embedding 3 Large')}</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label>{t('vectorization.config.batchSize', '批处理大小')}</label>
-                <input 
-                  type="number" 
-                  value={config.batchSize}
-                  onChange={(e) => setConfig({...config, batchSize: Number(e.target.value)})}
-                />
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowConfigModal(false)}>
-                {t('common.cancel', '取消')}
-              </button>
-              <button className="btn btn-primary" onClick={() => setShowConfigModal(false)}>
-                {t('common.save', '保存')}
-              </button>
-            </div>
+  /**
+   * 渲染配置页面
+   */
+  const renderConfig = () => (
+    <div className="config-page">
+      <div className="config-section">
+        <h3>分块配置</h3>
+        <div className="config-form">
+          <div className="form-group">
+            <label>{t('vectorization.config.chunkSize', '分块大小')}</label>
+            <input 
+              type="number" 
+              value={config.chunkSize}
+              onChange={(e) => setConfig({...config, chunkSize: Number(e.target.value)})}
+              min={100}
+              max={2000}
+            />
+            <span className="help-text">每个文本块的最大字符数</span>
+          </div>
+          <div className="form-group">
+            <label>{t('vectorization.config.chunkOverlap', '分块重叠')}</label>
+            <input 
+              type="number" 
+              value={config.chunkOverlap}
+              onChange={(e) => setConfig({...config, chunkOverlap: Number(e.target.value)})}
+              min={0}
+              max={500}
+            />
+            <span className="help-text">相邻文本块之间的重叠字符数</span>
           </div>
         </div>
-      )}
+      </div>
+
+      <div className="config-section">
+        <h3>模型配置</h3>
+        <div className="config-form">
+          <div className="form-group">
+            <label>{t('vectorization.config.embeddingModel', '嵌入模型')}</label>
+            <select 
+              value={config.embeddingModel}
+              onChange={(e) => setConfig({...config, embeddingModel: e.target.value})}
+            >
+              <option value="default">{t('vectorization.models.default', '默认模型')}</option>
+              <option value="text-embedding-3-small">{t('vectorization.models.text-embedding-3-small', 'Text Embedding 3 Small')}</option>
+              <option value="text-embedding-3-large">{t('vectorization.models.text-embedding-3-large', 'Text Embedding 3 Large')}</option>
+            </select>
+            <span className="help-text">用于生成向量嵌入的模型</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="config-section">
+        <h3>批处理配置</h3>
+        <div className="config-form">
+          <div className="form-group">
+            <label>{t('vectorization.config.batchSize', '批处理大小')}</label>
+            <input 
+              type="number" 
+              value={config.batchSize}
+              onChange={(e) => setConfig({...config, batchSize: Number(e.target.value)})}
+              min={1}
+              max={50}
+            />
+            <span className="help-text">同时处理的文档数量</span>
+          </div>
+          <div className="form-group checkbox">
+            <label>
+              <input 
+                type="checkbox" 
+                checked={config.autoProcess}
+                onChange={(e) => setConfig({...config, autoProcess: e.target.checked})}
+              />
+              自动处理新上传的文档
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div className="config-actions">
+        <button className="btn btn-secondary" onClick={() => setActiveSubPage('overview')}>
+          {t('common.cancel', '取消')}
+        </button>
+        <button className="btn btn-primary" onClick={handleSaveConfig}>
+          {t('common.save', '保存')}
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="vectorization-manager">
+      {/* 头部 */}
+      <div className="vectorization-header">
+        <h2>{t('vectorization.title', '向量化管理')}</h2>
+      </div>
+
+      {/* 子页面导航 */}
+      <div className="sub-page-navigation">
+        <button
+          className={`sub-page-btn ${activeSubPage === 'overview' ? 'active' : ''}`}
+          onClick={() => setActiveSubPage('overview')}
+        >
+          📊 概览
+        </button>
+        <button
+          className={`sub-page-btn ${activeSubPage === 'batch' ? 'active' : ''}`}
+          onClick={() => setActiveSubPage('batch')}
+        >
+          🚀 批量向量化
+        </button>
+        <button
+          className={`sub-page-btn ${activeSubPage === 'config' ? 'active' : ''}`}
+          onClick={() => setActiveSubPage('config')}
+        >
+          ⚙️ 配置
+        </button>
+      </div>
+
+      {/* 子页面内容 */}
+      <div className="sub-page-content">
+        {activeSubPage === 'overview' && renderOverview()}
+        {activeSubPage === 'batch' && renderBatch()}
+        {activeSubPage === 'config' && renderConfig()}
+      </div>
 
       {/* 向量片段模态框 */}
       {showChunksModal && selectedDocForChunks && (

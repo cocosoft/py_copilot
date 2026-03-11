@@ -1,0 +1,215 @@
+/**
+ * 知识库导航组件样式
+ */
+
+.knowledge-navigation {
+  padding: 24px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+  border-radius: 12px;
+  margin-bottom: 24px;
+}
+
+/* 导航头部 */
+.nav-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.nav-header h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 8px 0;
+}
+
+.nav-header .nav-description {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+}
+
+/* 导航网格 */
+.nav-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+/* 导航卡片 */
+.nav-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  border-left: 4px solid var(--card-color, #4a90d9);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.nav-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border-color: var(--card-color, #4a90d9);
+}
+
+/* 卡片头部 */
+.nav-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.nav-icon {
+  font-size: 32px;
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--card-color, #4a90d9) 0%, rgba(74, 144, 217, 0.8) 100%);
+  border-radius: 12px;
+  color: white;
+}
+
+.nav-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+/* 卡片描述 */
+.nav-card > .nav-description {
+  font-size: 14px;
+  color: #666;
+  margin: 0 0 16px 0;
+  line-height: 1.5;
+}
+
+/* 功能列表 */
+.nav-features {
+  margin-bottom: 16px;
+}
+
+.features-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.features-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.feature-tag {
+  padding: 4px 10px;
+  background: rgba(74, 144, 217, 0.1);
+  color: #4a90d9;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* 导航操作 */
+.nav-action {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.action-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--card-color, #4a90d9);
+  transition: transform 0.2s;
+}
+
+.nav-card:hover .action-text {
+  transform: translateX(4px);
+}
+
+/* 导航底部 */
+.nav-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.nav-footer p {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+}
+
+.version-badge {
+  padding: 4px 10px;
+  background: linear-gradient(135deg, #4a90d9 0%, #3a7bc8 100%);
+  color: white;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .knowledge-navigation {
+    padding: 16px;
+  }
+
+  .nav-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .nav-card {
+    padding: 20px;
+  }
+
+  .nav-icon {
+    font-size: 24px;
+    width: 48px;
+    height: 48px;
+  }
+
+  .nav-title {
+    font-size: 16px;
+  }
+}
+
+/* 动画效果 */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.nav-card {
+  animation: fadeInUp 0.4s ease-out;
+}
+
+.nav-card:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+.nav-card:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.nav-card:nth-child(3) {
+  animation-delay: 0.3s;
+}

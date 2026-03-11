@@ -8,6 +8,7 @@ import KnowledgeGraph from '../components/KnowledgeGraph';
 import EntityConfirmationList from '../components/KnowledgeGraph/EntityConfirmationList';
 import HierarchicalGraphViewer from '../components/KnowledgeGraph/HierarchicalGraphViewer';
 import VectorizationManager from '../components/Vectorization/VectorizationManager';
+import KnowledgeNavigation from '../components/KnowledgeNavigation';
 import websocketService from '../services/websocketService';
 import {
   uploadDocument,
@@ -120,7 +121,7 @@ const Knowledge = () => {
   const [activeTab, setActiveTab] = useState('basic'); // 'basic' 或 'permissions'
   
   // 主界面标签页状态
-  const [mainActiveTab, setMainActiveTab] = useState('documents'); // 'documents', 'knowledge-graph', 'vectorization'
+  const [mainActiveTab, setMainActiveTab] = useState('documents'); // 'documents', 'vectorization', 'knowledge-graph'
   
   // 标签管理相关状态
   const [tags, setTags] = useState([]);
@@ -1731,6 +1732,9 @@ const Knowledge = () => {
 
   return (
     <div className="knowledge-container">
+      {/* 增强版功能导航入口 */}
+      <KnowledgeNavigation />
+
       {/* 左侧知识库侧边栏 */}
       <div className="knowledge-sidebar">
         <div className="sidebar-header">
@@ -2549,7 +2553,7 @@ const Knowledge = () => {
         )}
           </>
         )}
-        
+
         {/* 向量化管理界面 */}
         {mainActiveTab === 'vectorization' && (
           <div className="vectorization-section">

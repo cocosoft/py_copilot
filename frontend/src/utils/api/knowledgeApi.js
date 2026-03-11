@@ -10,7 +10,10 @@ export const createKnowledgeBase = async (name, description) => {
 };
 
 export const getKnowledgeBases = async (skip = 0, limit = 10) => {
-    const response = await request('/v1/knowledge/knowledge-bases', {    method: 'GET',    params: { skip, limit }    });
+    const response = await request('/v1/knowledge/knowledge-bases', {
+        method: 'GET',
+        params: { skip, limit }
+    });
     return response;
 };
 
@@ -226,7 +229,8 @@ export const processDocument = async (documentId) => {
 // Document Vectorization API（兼容旧接口）
 export const vectorizeDocument = async (documentId) => {
     const response = await request(`/v1/knowledge/documents/${documentId}/vectorize`, {
-        method: 'POST'
+        method: 'POST',
+        timeout: 300000  // 向量化操作可能需要较长时间，设置5分钟超时
     });
     return response;
 };
@@ -321,6 +325,34 @@ export const getProcessingQueueStatus = async () => {
     const response = await request('/v1/knowledge/processing-queue/status', {
         method: 'GET',
         timeout: 60000  // 60秒超时，队列状态查询可能因后端繁忙而延迟
+    });
+    return response;
+};
+
+/**
+ * 从文本中提取实体
+ *
+ * @param {string} text - 要分析的文本
+ * @returns {Promise<Object>} 提取的实体列表
+ */
+/**
+ * 实体识别
+ * @param {string|Object} params - 文本或参数对象
+ * @param {string} params.text - 要识别的文本
+ * @param {string[]} params.entity_types - 实体类型列表
+ * @param {number} params.threshold - 置信度阈值
+ * @param {number} params.model_id - 模型ID
+ * @param {Object} params.model_config - 模型配置
+ */
+export const extractEntities = async (params) => {
+    // 兼容旧版调用方式（直接传入字符串）
+    const requestData = typeof params === 'string' 
+        ? { text: params }
+        : params;
+    
+    const response = await request('/v1/knowledge-graph/extract-entities', {
+        method: 'POST',
+        data: requestData
     });
     return response;
 };

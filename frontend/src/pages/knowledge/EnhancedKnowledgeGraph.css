@@ -1,0 +1,652 @@
+/**
+ * 增强版知识图谱页面样式
+ *
+ * 包含一体化知识查看器、关联网络可视化的样式
+ */
+
+/* 页面容器 */
+.enhanced-knowledge-graph-page {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 100px);
+}
+
+/* 页面头部 */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e0e0e0;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.page-header h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+/* 知识库选择器 */
+.knowledge-base-selector select {
+  padding: 10px 16px;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  font-size: 14px;
+  min-width: 220px;
+  background-color: white;
+  cursor: pointer;
+}
+
+.knowledge-base-selector select:focus {
+  outline: none;
+  border-color: #4a90d9;
+  box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.1);
+}
+
+/* 图谱统计 */
+.graph-stats {
+  display: flex;
+  gap: 24px;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 8px;
+}
+
+.graph-stats .stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.graph-stats .stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #4a90d9;
+}
+
+.graph-stats .stat-label {
+  font-size: 12px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* 视图切换栏 */
+.view-switcher {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 4px;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  width: fit-content;
+}
+
+.view-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+  transition: all 0.2s;
+}
+
+.view-button:hover {
+  background-color: rgba(255, 255, 255, 0.5);
+  color: #333;
+}
+
+.view-button.active {
+  background-color: white;
+  color: #4a90d9;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.view-icon {
+  font-size: 16px;
+}
+
+/* 视图内容 */
+.view-content {
+  flex: 1;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  overflow: hidden;
+  min-height: 500px;
+}
+
+/* 传统图谱视图 */
+.traditional-graph-view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.graph-toolbar {
+  padding: 16px;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.graph-container {
+  flex: 1;
+  position: relative;
+}
+
+.empty-graph {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 40px;
+  text-align: center;
+  color: #666;
+}
+
+.empty-graph p {
+  margin-bottom: 20px;
+  font-size: 16px;
+}
+
+/* 底部工具栏 */
+.bottom-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.toolbar-left,
+.toolbar-right {
+  display: flex;
+  gap: 8px;
+}
+
+/* 按钮样式 */
+.btn-primary,
+.btn-secondary,
+.btn-icon {
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-primary {
+  background-color: #4a90d9;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #3a7bc8;
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background-color: #f0f0f0;
+  color: #333;
+  border: 1px solid #d0d0d0;
+}
+
+.btn-secondary:hover {
+  background-color: #e0e0e0;
+}
+
+.btn-icon {
+  padding: 8px 12px;
+  background: white;
+  border: 1px solid #d0d0d0;
+  font-size: 16px;
+}
+
+.btn-icon:hover {
+  background-color: #f5f5f5;
+}
+
+/* 小旋转器 */
+.spinner-small {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 加载状态 */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 80px 20px;
+  color: #666;
+}
+
+.loading-state .spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e0e0e0;
+  border-top-color: #4a90d9;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+/* 错误状态 */
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 80px 20px;
+  color: #f5222d;
+  text-align: center;
+}
+
+.error-state button {
+  margin-top: 16px;
+}
+
+/* 空状态 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 80px 20px;
+  text-align: center;
+  color: #666;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .enhanced-knowledge-graph-page {
+    padding: 12px;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .graph-stats {
+    width: 100%;
+    justify-content: space-around;
+  }
+
+  .view-switcher {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .view-button {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+
+  .bottom-toolbar {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .toolbar-left,
+  .toolbar-right {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.view-content > * {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* 滚动条样式 */
+.view-switcher::-webkit-scrollbar {
+  height: 4px;
+}
+
+.view-switcher::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.view-switcher::-webkit-scrollbar-thumb {
+  background: #c0c0c0;
+  border-radius: 2px;
+}
+
+/* 实体识别按钮 */
+.btn-entity-recognition {
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-entity-recognition:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(114, 46, 209, 0.3);
+}
+
+.btn-entity-recognition.active {
+  background: linear-gradient(135deg, #531dab 0%, #722ed1 100%);
+}
+
+/* 实体识别面板 */
+.entity-recognition-panel {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  overflow: hidden;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.entity-recognition-panel .panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.entity-recognition-panel .panel-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.entity-recognition-panel .btn-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.entity-recognition-panel .btn-close:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #333;
+}
+
+.entity-recognition-panel .panel-content {
+  padding: 20px;
+}
+
+/* 模型信息 */
+.entity-recognition-panel .model-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #e6f7ff 0%, #f0f5ff 100%);
+  border-radius: 6px;
+  border: 1px solid #91d5ff;
+}
+
+.entity-recognition-panel .model-label {
+  font-size: 13px;
+  color: #666;
+}
+
+.entity-recognition-panel .model-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #096dd9;
+}
+
+/* 实体类型选择 */
+.entity-recognition-panel .entity-types-selection {
+  margin-bottom: 16px;
+}
+
+.entity-recognition-panel .entity-types-selection > label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.entity-recognition-panel .entity-types-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.entity-recognition-panel .checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #555;
+  cursor: pointer;
+  padding: 6px 10px;
+  background: #f5f5f5;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.entity-recognition-panel .checkbox-label:hover {
+  background: #e8e8e8;
+}
+
+.entity-recognition-panel .checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* 置信度阈值控制 */
+.entity-recognition-panel .threshold-control {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.entity-recognition-panel .threshold-control label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.entity-recognition-panel .threshold-control input[type="range"] {
+  width: 100%;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #d9d9d9;
+  border-radius: 3px;
+  outline: none;
+}
+
+.entity-recognition-panel .threshold-control input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: #4a90d9;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.entity-recognition-panel .threshold-control input[type="range"]::-webkit-slider-thumb:hover {
+  background: #357abd;
+  transform: scale(1.1);
+}
+
+.entity-recognition-panel textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 100px;
+  font-family: inherit;
+  margin-bottom: 16px;
+}
+
+.entity-recognition-panel textarea:focus {
+  outline: none;
+  border-color: #722ed1;
+  box-shadow: 0 0 0 3px rgba(114, 46, 209, 0.1);
+}
+
+.entity-recognition-panel .panel-actions {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.entity-recognition-panel .error-message {
+  padding: 12px;
+  background: #fff2f0;
+  border: 1px solid #ffccc7;
+  border-radius: 6px;
+  color: #f5222d;
+  font-size: 14px;
+}
+
+/* 识别到的实体列表 */
+.recognized-entities {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.recognized-entities h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.entities-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.entity-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%);
+  border: 1px solid #b7eb8f;
+  border-radius: 16px;
+  font-size: 13px;
+  color: #389e0d;
+  font-weight: 500;
+}
+
+.entity-tag small {
+  font-size: 11px;
+  color: #666;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.entity-tag.person {
+  background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%);
+  border-color: #91d5ff;
+  color: #096dd9;
+}
+
+.entity-tag.organization {
+  background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%);
+  border-color: #b7eb8f;
+  color: #389e0d;
+}
+
+.entity-tag.location {
+  background: linear-gradient(135deg, #fff7e6 0%, #ffd591 100%);
+  border-color: #ffc069;
+  color: #d46b08;
+}
+
+.entity-tag.time {
+  background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%);
+  border-color: #d3adf7;
+  color: #722ed1;
+}

@@ -28,6 +28,8 @@ class KnowledgeBase(Base):
     kb_relationships = relationship("KBRelationship", cascade="all, delete-orphan")
     # 关系：一个知识库有一个模型配置
     model_configs = relationship("KnowledgeBaseModelConfig", back_populates="knowledge_base", cascade="all, delete-orphan", uselist=False)
+    # 关系：一个知识库包含多个统一知识单元
+    knowledge_units = relationship("UnifiedKnowledgeUnit", back_populates="knowledge_base", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<KnowledgeBase(id={self.id}, name='{self.name}')>"

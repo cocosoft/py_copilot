@@ -1,0 +1,934 @@
+/**
+ * 批量处理向导样式 - FE-005
+ *
+ * @task FE-005
+ * @phase 前端功能拓展
+ */
+
+/* ==================== 向导容器 ==================== */
+
+.batch-processing-wizard-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+}
+
+.batch-processing-wizard {
+  background: #fff;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+/* ==================== 向导头部 ==================== */
+
+.wizard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.wizard-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.btn-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  font-size: 24px;
+  color: #8c8c8c;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.btn-close:hover {
+  background: #f5f5f5;
+  color: #262626;
+}
+
+/* ==================== 步骤指示器 ==================== */
+
+.step-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.step-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+.step-number {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #f0f0f0;
+  color: #8c8c8c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  transition: all 0.3s;
+}
+
+.step-item.active .step-number {
+  background: #1890ff;
+  color: #fff;
+}
+
+.step-item.completed .step-number {
+  background: #52c41a;
+  color: #fff;
+}
+
+.step-title {
+  font-size: 14px;
+  color: #8c8c8c;
+  font-weight: 500;
+}
+
+.step-item.active .step-title {
+  color: #1890ff;
+}
+
+.step-item.completed .step-title {
+  color: #52c41a;
+}
+
+.step-connector {
+  width: 60px;
+  height: 2px;
+  background: #f0f0f0;
+  margin: 0 16px;
+}
+
+.step-item.completed + .step-item .step-connector {
+  background: #52c41a;
+}
+
+/* ==================== 步骤内容 ==================== */
+
+.wizard-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.wizard-step {
+  min-height: 400px;
+}
+
+.step-header {
+  margin-bottom: 24px;
+}
+
+.step-header.center {
+  text-align: center;
+}
+
+.step-header h3 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.step-header p {
+  margin: 0;
+  font-size: 14px;
+  color: #8c8c8c;
+}
+
+.status-icon {
+  margin-bottom: 16px;
+}
+
+/* ==================== 文档选择步骤 ==================== */
+
+.filters-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.search-box {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.search-box input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 14px;
+}
+
+.filters-bar select {
+  padding: 8px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 14px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.view-toggle {
+  display: flex;
+  gap: 4px;
+}
+
+.view-toggle button {
+  padding: 8px 12px;
+  border: 1px solid #d9d9d9;
+  background: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.view-toggle button:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.view-toggle button:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.view-toggle button.active {
+  background: #1890ff;
+  color: #fff;
+  border-color: #1890ff;
+}
+
+.select-all-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #fafafa;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.select-all-bar .count {
+  font-size: 13px;
+  color: #8c8c8c;
+}
+
+/* 文档列表 */
+
+.documents-container {
+  display: grid;
+  gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.documents-container.list {
+  grid-template-columns: 1fr;
+}
+
+.documents-container.grid {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+.document-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.document-card:hover {
+  border-color: #1890ff;
+  background: #f6ffed;
+}
+
+.document-card.selected {
+  border-color: #1890ff;
+  background: #e6f7ff;
+}
+
+.card-checkbox input {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.card-icon {
+  color: #1890ff;
+}
+
+.card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.doc-title {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #262626;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.doc-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.status-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.status-badge.pending {
+  background: #f0f0f0;
+  color: #595959;
+}
+
+.status-badge.processing {
+  background: #e6f7ff;
+  color: #1890ff;
+}
+
+.status-badge.completed {
+  background: #f6ffed;
+  color: #52c41a;
+}
+
+.status-badge.error {
+  background: #fff1f0;
+  color: #ff4d4f;
+}
+
+.file-type,
+.file-size {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.card-extra {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 24px;
+  color: #8c8c8c;
+}
+
+.empty-state p {
+  margin-top: 16px;
+}
+
+/* ==================== 参数配置步骤 ==================== */
+
+.config-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.config-section h4 {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.option-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.option-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border: 2px solid #f0f0f0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.option-card:hover {
+  border-color: #d9d9d9;
+}
+
+.option-card.selected {
+  border-color: #1890ff;
+  background: #e6f7ff;
+}
+
+.card-radio {
+  padding-top: 2px;
+}
+
+.radio-indicator {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #d9d9d9;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.radio-indicator.checked {
+  border-color: #1890ff;
+  background: #1890ff;
+  box-shadow: inset 0 0 0 4px #fff;
+}
+
+.card-info h5 {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #262626;
+}
+
+.card-info p {
+  margin: 0;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+/* 滑块控制 */
+
+.slider-control {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.slider-control input[type="range"] {
+  flex: 1;
+  height: 6px;
+  -webkit-appearance: none;
+  background: #f0f0f0;
+  border-radius: 3px;
+  outline: none;
+}
+
+.slider-control input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  background: #1890ff;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.slider-value {
+  min-width: 80px;
+  font-size: 14px;
+  color: #262626;
+  font-weight: 500;
+  text-align: right;
+}
+
+/* 复选框组 */
+
+.checkbox-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.checkbox-item:hover {
+  background: #fafafa;
+}
+
+.checkbox-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.checkbox-item span {
+  font-size: 14px;
+  color: #262626;
+}
+
+/* ==================== 处理步骤 ==================== */
+
+.progress-section {
+  margin: 32px 0;
+}
+
+.progress-bar {
+  height: 8px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #1890ff, #40a9ff);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progress-stats {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 13px;
+  color: #8c8c8c;
+}
+
+.results-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 24px 0;
+}
+
+.summary-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.summary-card.success {
+  background: #f6ffed;
+}
+
+.summary-card.error {
+  background: #fff1f0;
+}
+
+.summary-card.skipped {
+  background: #fffbe6;
+}
+
+.summary-card .count {
+  display: block;
+  font-size: 24px;
+  font-weight: 700;
+  color: #262626;
+}
+
+.summary-card .label {
+  font-size: 13px;
+  color: #8c8c8c;
+}
+
+.current-document {
+  text-align: center;
+  padding: 16px;
+  background: #fafafa;
+  border-radius: 4px;
+  margin: 16px 0;
+}
+
+.current-document .label {
+  color: #8c8c8c;
+  margin-right: 8px;
+}
+
+.current-document .name {
+  color: #262626;
+  font-weight: 500;
+}
+
+.action-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.btn-cancel,
+.btn-retry {
+  padding: 10px 24px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-cancel {
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  color: #595959;
+}
+
+.btn-cancel:hover {
+  border-color: #ff4d4f;
+  color: #ff4d4f;
+}
+
+.btn-retry {
+  background: #1890ff;
+  border: none;
+  color: #fff;
+}
+
+.btn-retry:hover {
+  background: #40a9ff;
+}
+
+/* ==================== 结果预览步骤 ==================== */
+
+.results-overview {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.overview-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.overview-item.success {
+  background: #f6ffed;
+}
+
+.overview-item.error {
+  background: #fff1f0;
+}
+
+.overview-item.skipped {
+  background: #fffbe6;
+}
+
+.overview-item .number {
+  display: block;
+  font-size: 28px;
+  font-weight: 700;
+  color: #262626;
+}
+
+.overview-item .label {
+  font-size: 14px;
+  color: #8c8c8c;
+}
+
+.result-filters {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.result-filters button {
+  padding: 8px 16px;
+  border: 1px solid #d9d9d9;
+  background: #fff;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.result-filters button.active {
+  background: #1890ff;
+  color: #fff;
+  border-color: #1890ff;
+}
+
+.results-list {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+}
+
+.result-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.result-item:last-child {
+  border-bottom: none;
+}
+
+.result-item.success {
+  background: #f6ffed;
+}
+
+.result-item.error {
+  background: #fff1f0;
+}
+
+.result-item.skipped {
+  background: #fffbe6;
+}
+
+.result-icon {
+  padding-top: 2px;
+}
+
+.result-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.result-info h5 {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #262626;
+}
+
+.error-message {
+  margin: 0;
+  font-size: 12px;
+  color: #ff4d4f;
+}
+
+.success-details {
+  margin: 0;
+  font-size: 12px;
+  color: #52c41a;
+}
+
+.result-time {
+  font-size: 12px;
+  color: #8c8c8c;
+  white-space: nowrap;
+}
+
+.preview-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.btn-download,
+.btn-process-more {
+  padding: 10px 24px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-download {
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  color: #595959;
+}
+
+.btn-download:hover {
+  border-color: #1890ff;
+  color: #1890ff;
+}
+
+.btn-process-more {
+  background: #1890ff;
+  border: none;
+  color: #fff;
+}
+
+.btn-process-more:hover {
+  background: #40a9ff;
+}
+
+/* ==================== 向导底部 ==================== */
+
+.wizard-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.btn-prev,
+.btn-next,
+.btn-start,
+.btn-finish {
+  padding: 10px 24px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-prev {
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  color: #595959;
+}
+
+.btn-prev:hover {
+  border-color: #1890ff;
+  color: #1890ff;
+}
+
+.btn-next,
+.btn-start,
+.btn-finish {
+  background: #1890ff;
+  border: none;
+  color: #fff;
+}
+
+.btn-next:hover:not(:disabled),
+.btn-start:hover,
+.btn-finish:hover {
+  background: #40a9ff;
+}
+
+.btn-next:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ==================== 动画 ==================== */
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+/* ==================== 响应式 ==================== */
+
+@media (max-width: 768px) {
+  .batch-processing-wizard-overlay {
+    padding: 0;
+  }
+
+  .batch-processing-wizard {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 0;
+  }
+
+  .step-indicator {
+    padding: 16px;
+  }
+
+  .step-title {
+    display: none;
+  }
+
+  .step-connector {
+    width: 30px;
+  }
+
+  .results-summary,
+  .results-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .option-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .checkbox-group {
+    grid-template-columns: 1fr;
+  }
+
+  .documents-container.grid {
+    grid-template-columns: 1fr;
+  }
+}

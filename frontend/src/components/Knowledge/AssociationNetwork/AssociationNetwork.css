@@ -1,0 +1,523 @@
+/**
+ * 关联网络可视化样式 - FE-010
+ *
+ * @task FE-010
+ * @phase 前端功能拓展
+ */
+
+/* ==================== 主容器 ==================== */
+
+.association-network {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #f5f5f5;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* ==================== 工具栏 ==================== */
+
+.network-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: #fff;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.toolbar-left h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.stats-badge {
+  padding: 4px 12px;
+  background: #f5f5f5;
+  border-radius: 12px;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toolbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  color: #595959;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.toolbar-btn:hover {
+  background: #f5f5f5;
+  border-color: #1890ff;
+  color: #1890ff;
+}
+
+.toolbar-btn.active {
+  background: #e6f7ff;
+  border-color: #1890ff;
+  color: #1890ff;
+}
+
+/* ==================== 过滤器 ==================== */
+
+.network-filters {
+  padding: 12px 20px;
+  background: #fafafa;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.filter-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.filter-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.filter-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 16px;
+  font-size: 12px;
+  color: #595959;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.filter-tag:hover {
+  border-color: #1890ff;
+  color: #1890ff;
+}
+
+.filter-tag.active {
+  background: #e6f7ff;
+  border-color: #1890ff;
+  color: #1890ff;
+}
+
+.filter-count {
+  padding: 2px 6px;
+  background: #f0f0f0;
+  border-radius: 10px;
+  font-size: 10px;
+  color: #8c8c8c;
+}
+
+.filter-tag.active .filter-count {
+  background: #1890ff20;
+  color: #1890ff;
+}
+
+/* ==================== 网络图容器 ==================== */
+
+.network-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.network-container svg {
+  width: 100%;
+  height: 100%;
+  background: #fff;
+}
+
+/* 节点样式 */
+
+.network-node {
+  transition: opacity 0.2s;
+}
+
+.network-node:hover circle {
+  filter: brightness(1.1);
+}
+
+.network-node.selected circle {
+  stroke: #1890ff;
+  stroke-width: 3;
+}
+
+.network-node.hovered circle {
+  filter: drop-shadow(0 0 8px rgba(24, 144, 255, 0.5));
+}
+
+.network-node.related circle {
+  stroke: #52c41a;
+  stroke-width: 2;
+}
+
+/* 连线标签 */
+
+.link-label {
+  pointer-events: none;
+  text-shadow: 0 0 4px #fff, 0 0 4px #fff;
+}
+
+/* ==================== 图例 ==================== */
+
+.network-legend {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  padding: 16px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  min-width: 150px;
+}
+
+.network-legend h5 {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.legend-label {
+  flex: 1;
+  font-size: 12px;
+  color: #595959;
+}
+
+.legend-count {
+  font-size: 11px;
+  color: #8c8c8c;
+}
+
+/* ==================== 详情弹窗 ==================== */
+
+.node-detail-popup {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 360px;
+  max-height: 80%;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  z-index: 100;
+}
+
+.popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: #f5f5f5;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.popup-header h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: #8c8c8c;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.close-btn:hover {
+  background: #e8e8e8;
+  color: #595959;
+}
+
+.popup-content {
+  padding: 20px;
+  overflow-y: auto;
+  max-height: calc(80vh - 60px);
+}
+
+.detail-section {
+  margin-bottom: 20px;
+}
+
+.detail-section:last-child {
+  margin-bottom: 0;
+}
+
+.detail-section h5 {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-label {
+  font-size: 13px;
+  color: #8c8c8c;
+}
+
+.detail-value {
+  font-size: 13px;
+  color: #262626;
+  font-weight: 500;
+}
+
+.type-badge {
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.detail-description {
+  margin: 0;
+  padding: 12px;
+  background: #f5f5f5;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #595959;
+  line-height: 1.6;
+}
+
+.related-links {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.related-link-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #f5f5f5;
+  border-radius: 6px;
+}
+
+.link-type {
+  width: 60px;
+  font-size: 11px;
+  color: #595959;
+}
+
+.strength-bar {
+  flex: 1;
+  height: 6px;
+  background: #e8e8e8;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.strength-fill {
+  height: 100%;
+  background: #52c41a;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.strength-value {
+  width: 40px;
+  text-align: right;
+  font-size: 11px;
+  color: #52c41a;
+  font-weight: 500;
+}
+
+/* ==================== 统计面板 ==================== */
+
+.network-stats {
+  padding: 12px 20px;
+  background: #fff;
+  border-top: 1px solid #e8e8e8;
+}
+
+.stats-row {
+  display: flex;
+  gap: 24px;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #595959;
+}
+
+.stat-item svg {
+  color: #1890ff;
+}
+
+/* ==================== 控制面板切换 ==================== */
+
+.association-network-wrapper {
+  position: relative;
+}
+
+.controls-toggle {
+  position: absolute;
+  bottom: 80px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  color: #595959;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+  transition: all 0.2s;
+}
+
+.controls-toggle:hover {
+  background: #f5f5f5;
+  border-color: #1890ff;
+  color: #1890ff;
+}
+
+/* ==================== 响应式适配 ==================== */
+
+@media (max-width: 768px) {
+  .network-toolbar {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .toolbar-right {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .network-filters {
+    padding: 12px 16px;
+  }
+
+  .filter-tags {
+    gap: 6px;
+  }
+
+  .filter-tag {
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+
+  .network-legend {
+    position: relative;
+    top: auto;
+    right: auto;
+    margin: 16px;
+    box-shadow: none;
+    border: 1px solid #e8e8e8;
+  }
+
+  .node-detail-popup {
+    width: calc(100% - 32px);
+    max-height: 70%;
+  }
+
+  .stats-row {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+}
+
+/* ==================== 动画效果 ==================== */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -45%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
+.node-detail-popup {
+  animation: fadeIn 0.2s ease;
+}
+
+/* 节点悬停动画 */
+
+.network-node circle {
+  transition: all 0.2s ease;
+}
+
+.network-node:hover circle {
+  transform: scale(1.1);
+}
+
+/* 连线悬停效果 */
+
+line {
+  transition: stroke 0.2s, stroke-width 0.2s, opacity 0.2s;
+}

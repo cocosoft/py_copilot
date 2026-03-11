@@ -53,8 +53,19 @@ export const queryKeys = {
 
   // Knowledge
   knowledge: ['knowledge'],
+  knowledgeBases: () => [...queryKeys.knowledge, 'bases'],
+  knowledgeBase: (id) => [...queryKeys.knowledge, 'base', id],
+  knowledgeDocuments: (params) => [...queryKeys.knowledge, 'documents', params],
+  knowledgeDocument: (id) => [...queryKeys.knowledge, 'document', id],
+  knowledgeChunks: (documentId, params) => [...queryKeys.knowledge, 'chunks', documentId, params],
+  knowledgeChunk: (id) => [...queryKeys.knowledge, 'chunk', id],
+  knowledgeEntities: (params) => [...queryKeys.knowledge, 'entities', params],
+  knowledgeEntity: (id) => [...queryKeys.knowledge, 'entity', id],
+  knowledgeRelationships: (params) => [...queryKeys.knowledge, 'relationships', params],
   knowledgeGraph: ['knowledge', 'graph'],
   semanticSearch: ['knowledge', 'search'],
+  knowledgeStats: (baseId) => [...queryKeys.knowledge, 'stats', baseId],
+  knowledgeProcessing: (documentId) => [...queryKeys.knowledge, 'processing', documentId],
 
   // Workflows
   workflows: ['workflows'],

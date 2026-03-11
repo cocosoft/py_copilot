@@ -1,0 +1,625 @@
+/**
+ * 质量评估面板样式 - FE-004
+ *
+ * @task FE-004
+ * @phase 前端功能拓展
+ */
+
+/* ==================== 面板容器 ==================== */
+
+.quality-panel {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.quality-panel.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 24px;
+  color: #8c8c8c;
+}
+
+.quality-panel.empty p {
+  margin-top: 16px;
+  font-size: 14px;
+}
+
+/* ==================== 面板头部 ==================== */
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.panel-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-batch-reprocess {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #1890ff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-batch-reprocess:hover:not(:disabled) {
+  background: #40a9ff;
+}
+
+.btn-batch-reprocess:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ==================== 标签页 ==================== */
+
+.panel-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 24px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.panel-tabs button {
+  position: relative;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-size: 14px;
+  color: #595959;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.panel-tabs button:hover {
+  color: #1890ff;
+}
+
+.panel-tabs button.active {
+  color: #1890ff;
+  border-bottom-color: #1890ff;
+  background: #fff;
+}
+
+.panel-tabs .badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  background: #ff4d4f;
+  color: #fff;
+  font-size: 11px;
+  border-radius: 9px;
+}
+
+/* ==================== 标签内容 ==================== */
+
+.tab-content {
+  padding: 24px;
+}
+
+/* ==================== 分数卡片 ==================== */
+
+.score-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.quality-score-card {
+  background: #fafafa;
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid #f0f0f0;
+}
+
+.score-header {
+  margin-bottom: 16px;
+}
+
+.score-header h4 {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #262626;
+}
+
+.score-header .subtitle {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.score-content {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.score-circle {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.score-inner {
+  width: 80px;
+  height: 80px;
+  background: #fff;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.score-value {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.score-label {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.score-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.quality-level {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.trend-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: #595959;
+}
+
+/* 统计卡片 */
+
+.stat-card {
+  background: #fafafa;
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid #f0f0f0;
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: #595959;
+}
+
+.stat-value {
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.stat-desc {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+/* ==================== 图表区域 ==================== */
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 24px;
+}
+
+.chart-container {
+  background: #fafafa;
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid #f0f0f0;
+}
+
+.chart-title {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #262626;
+}
+
+/* ==================== 异常片段列表 ==================== */
+
+.anomaly-chunk-list {
+  background: #fafafa;
+  border-radius: 8px;
+  border: 1px solid #f0f0f0;
+  overflow: hidden;
+}
+
+.list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: #f5f5f5;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.list-header h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #262626;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.list-header .count {
+  color: #8c8c8c;
+  font-weight: 400;
+}
+
+.list-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.list-actions select {
+  padding: 6px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 13px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.btn-reprocess-all {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #52c41a;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-reprocess-all:hover:not(:disabled) {
+  background: #73d13d;
+}
+
+.btn-reprocess-all:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 片段列表 */
+
+.chunk-list {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.chunk-item {
+  border-bottom: 1px solid #f0f0f0;
+  transition: background 0.2s;
+}
+
+.chunk-item:last-child {
+  border-bottom: none;
+}
+
+.chunk-item:hover {
+  background: #f5f5f5;
+}
+
+.chunk-item.selected {
+  background: #e6f7ff;
+}
+
+.chunk-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  cursor: pointer;
+}
+
+.chunk-header input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.chunk-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.chunk-id {
+  font-size: 13px;
+  font-weight: 500;
+  color: #262626;
+}
+
+.chunk-source {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.chunk-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.anomaly-badge,
+.score-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.btn-expand {
+  padding: 4px;
+  background: transparent;
+  border: none;
+  color: #8c8c8c;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.btn-expand:hover {
+  color: #1890ff;
+}
+
+/* 片段详情 */
+
+.chunk-details {
+  padding: 16px 20px 16px 52px;
+  background: #fff;
+  border-top: 1px solid #f0f0f0;
+}
+
+.detail-section {
+  margin-bottom: 16px;
+}
+
+.detail-section:last-child {
+  margin-bottom: 0;
+}
+
+.detail-section h5 {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #595959;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.chunk-content {
+  padding: 12px;
+  background: #f5f5f5;
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #262626;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+/* 问题列表 */
+
+.issue-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.issue-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 0;
+  font-size: 13px;
+  color: #595959;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.issue-list li:last-child {
+  border-bottom: none;
+}
+
+.issue-list li.issue-high {
+  color: #ff4d4f;
+}
+
+.issue-list li.issue-medium {
+  color: #faad14;
+}
+
+.issue-list li.issue-low {
+  color: #8c8c8c;
+}
+
+/* 维度评分 */
+
+.dimension-scores {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dimension-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dimension-name {
+  width: 80px;
+  font-size: 12px;
+  color: #595959;
+  text-transform: capitalize;
+}
+
+.dimension-bar {
+  flex: 1;
+  height: 8px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.dimension-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.dimension-value {
+  width: 32px;
+  font-size: 12px;
+  color: #262626;
+  font-weight: 500;
+  text-align: right;
+}
+
+/* 片段操作 */
+
+.chunk-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.btn-reprocess {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #1890ff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-reprocess:hover:not(:disabled) {
+  background: #40a9ff;
+}
+
+.btn-reprocess:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ==================== 动画 ==================== */
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+/* ==================== 响应式 ==================== */
+
+@media (max-width: 768px) {
+  .score-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .panel-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .list-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .chunk-header {
+    flex-wrap: wrap;
+  }
+
+  .chunk-badges {
+    width: 100%;
+    margin-top: 8px;
+  }
+}
