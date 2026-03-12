@@ -235,6 +235,35 @@ export const vectorizeDocument = async (documentId) => {
     return response;
 };
 
+/**
+ * 异步向量化文档
+ * 启动向量化任务后立即返回，通过WebSocket监听进度
+ *
+ * @param {number} documentId - 文档ID
+ * @returns {Promise<Object>} 包含taskId的任务信息
+ */
+export const vectorizeDocumentAsync = async (documentId) => {
+    const response = await request(`/v1/knowledge/documents/${documentId}/vectorize-async`, {
+        method: 'POST',
+        timeout: 10000  // 异步接口快速返回，10秒超时足够
+    });
+    return response;
+};
+
+/**
+ * 获取文档向量化任务状态
+ *
+ * @param {number} documentId - 文档ID
+ * @returns {Promise<Object>} 任务状态
+ */
+export const getVectorizationStatus = async (documentId) => {
+    const response = await request(`/v1/knowledge/documents/${documentId}/vectorize-status`, {
+        method: 'GET',
+        timeout: 10000
+    });
+    return response;
+};
+
 // Document Chunks API
 export const getDocumentChunks = async (documentId) => {
     const response = await request(`/v1/knowledge/documents/${documentId}/chunks`, {

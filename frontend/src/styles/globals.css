@@ -1,5 +1,6 @@
 /* 引入设计系统 */
 @import './design-system.css';
+@import './design-tokens.css';
 
 * {
   margin: 0;

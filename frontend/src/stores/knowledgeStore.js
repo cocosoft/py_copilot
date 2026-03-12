@@ -10,6 +10,10 @@
 import { create } from 'zustand';
 import { devtools, persist, subscribeWithSelector } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
+import { enableMapSet } from 'immer';
+
+// 启用 Immer 的 MapSet 插件
+enableMapSet();
 
 /**
  * 知识库状态类型定义
@@ -129,6 +133,18 @@ const initialState = {
   batchOperation: null,
   batchProgress: 0,
   batchResults: [],
+
+  // 处理队列
+  processingQueue: [],
+  isProcessing: false,
+  processingProgress: 0,
+
+  // 搜索历史
+  searchHistory: [],
+  searchSuggestions: [],
+
+  // 消息通知
+  notifications: [],
 };
 
 /**
@@ -591,6 +607,15 @@ const useKnowledgeStore = create(
           },
 
           /**
+           * 设置侧边栏折叠状态
+           */
+          setSidebarCollapsed: (collapsed) => {
+            set((state) => {
+              state.sidebarCollapsed = collapsed;
+            });
+          },
+
+          /**
            * 设置活动标签
            */
           setActiveTab: (tab) => {
@@ -690,6 +715,194 @@ const useKnowledgeStore = create(
             });
           },
 
+          // ==================== 批量操作 ====================
+
+          /**
+           * 开始批量操作
+           */
+          startBatchOperation: (operation) => {
+            set((state) => {
+              state.batchOperation = operation;
+              state.batchProgress = 0;
+              state.batchResults = [];
+            });
+          },
+
+          /**
+           * 更新批量操作进度
+           */
+          updateBatchProgress: (progress, results) => {
+            set((state) => {
+              state.batchProgress = progress;
+              if (results) {
+                state.batchResults = results;
+              }
+            });
+          },
+
+          /**
+           * 结束批量操作
+           */
+          endBatchOperation: () => {
+            set((state) => {
+              state.batchOperation = null;
+              state.batchProgress = 0;
+            });
+          },
+
+          // ==================== 处理队列 ====================
+
+          /**
+           * 添加到处理队列
+           */
+          addToProcessingQueue: (task) => {
+            set((state) => {
+              state.processingQueue.push({
+                id: Date.now(),
+                ...task,
+                status: 'pending',
+              });
+            });
+          },
+
+          /**
+           * 更新处理队列任务
+           */
+          updateProcessingTask: (taskId, updates) => {
+            set((state) => {
+              const task = state.processingQueue.find((t) => t.id === taskId);
+              if (task) {
+                Object.assign(task, updates);
+              }
+            });
+          },
+
+          /**
+           * 从处理队列移除
+           */
+          removeFromProcessingQueue: (taskId) => {
+            set((state) => {
+              state.processingQueue = state.processingQueue.filter(
+                (t) => t.id !== taskId
+              );
+            });
+          },
+
+          /**
+           * 清空处理队列
+           */
+          clearProcessingQueue: () => {
+            set((state) => {
+              state.processingQueue = [];
+              state.isProcessing = false;
+              state.processingProgress = 0;
+            });
+          },
+
+          /**
+           * 设置处理状态
+           */
+          setProcessing: (isProcessing, progress = 0) => {
+            set((state) => {
+              state.isProcessing = isProcessing;
+              state.processingProgress = progress;
+            });
+          },
+
+          /**
+           * 开始处理队列
+           */
+          startProcessing: () => {
+            set((state) => {
+              state.isProcessing = true;
+            });
+          },
+
+          /**
+           * 暂停处理
+           */
+          pauseProcessing: () => {
+            set((state) => {
+              state.isProcessing = false;
+            });
+          },
+
+          /**
+           * 恢复处理
+           */
+          resumeProcessing: () => {
+            set((state) => {
+              state.isProcessing = true;
+            });
+          },
+
+          // ==================== 搜索历史 ====================
+
+          /**
+           * 添加搜索历史
+           */
+          addSearchHistory: (query) => {
+            set((state) => {
+              if (!query.trim()) return;
+              // 避免重复
+              const filtered = state.searchHistory.filter((h) => h !== query);
+              state.searchHistory = [query, ...filtered].slice(0, 20);
+            });
+          },
+
+          /**
+           * 清空搜索历史
+           */
+          clearSearchHistory: () => {
+            set((state) => {
+              state.searchHistory = [];
+            });
+          },
+
+          /**
+           * 设置搜索建议
+           */
+          setSearchSuggestions: (suggestions) => {
+            set((state) => {
+              state.searchSuggestions = suggestions;
+            });
+          },
+
+          // ==================== 消息通知 ====================
+
+          /**
+           * 添加通知
+           */
+          addNotification: (notification) => {
+            set((state) => {
+              state.notifications.push({
+                id: Date.now(),
+                timestamp: Date.now(),
+                ...notification,
+              });
+            });
+          },
+
+          /**
+           * 移除通知
+           */
+          removeNotification: (notificationId) => {
+            set((state) => {
+              state.notifications = state.notifications.filter(
+                (n) => n.id !== notificationId
+              );
+            });
+          },
+
+          /**
+           * 清空通知
+           */
+          clearNotifications: () => {
+            set((state) => {
+              state.notifications = [];
+            });
+          },
+
           /**
            * 重置状态
            */
@@ -719,6 +932,7 @@ const useKnowledgeStore = create(
           sidebarCollapsed: state.sidebarCollapsed,
           activeTab: state.activeTab,
           documentsPageSize: state.documentsPageSize,
+          searchHistory: state.searchHistory,
         }),
       }
     ),

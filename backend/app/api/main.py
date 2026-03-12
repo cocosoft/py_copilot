@@ -404,9 +404,14 @@ async def log_requests(request: Request, call_next):
 def root():
     return {"message": "Py Copilot API is running"}
 
-# 健康检查端点
+# 健康检查端点 - 同时保留根路径和 /api 路径
 @app.get("/health")
 def health_check():
+    return {"status": "healthy"}
+
+# 在 /api 路由下的健康检查端点
+@app.get("/api/health")
+def api_health_check():
     return {"status": "healthy"}
 
 # 详细健康检查端点

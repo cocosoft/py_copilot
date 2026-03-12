@@ -1,0 +1,272 @@
+/**
+ * 上传按钮组件样式
+ */
+
+.upload-button-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ==================== 拖拽区域 ==================== */
+
+.upload-dropzone {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border: 2px dashed #d9d9d9;
+  border-radius: 8px;
+  background: #fafafa;
+  transition: all 0.2s ease;
+}
+
+.upload-dropzone:hover {
+  border-color: #40a9ff;
+  background: #f0f9ff;
+}
+
+.upload-dropzone.dragging {
+  border-color: #1890ff;
+  background: #e6f7ff;
+  border-style: solid;
+}
+
+.upload-input {
+  display: none;
+}
+
+.upload-hint {
+  font-size: 13px;
+  color: #8c8c8c;
+}
+
+/* ==================== 上传队列 ==================== */
+
+.upload-queue {
+  background: #ffffff;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.upload-queue-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #262626;
+}
+
+.upload-queue-clear {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #8c8c8c;
+  transition: all 0.2s ease;
+}
+
+.upload-queue-clear:hover {
+  background: #f0f0f0;
+  color: #595959;
+}
+
+.upload-queue-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* ==================== 队列项 ==================== */
+
+.upload-queue-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  transition: all 0.2s ease;
+}
+
+.upload-queue-item:last-child {
+  border-bottom: none;
+}
+
+.upload-queue-item:hover {
+  background: #fafafa;
+}
+
+.upload-queue-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: #f0f0f0;
+  border-radius: 6px;
+  color: #595959;
+  flex-shrink: 0;
+}
+
+.upload-queue-item-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.upload-queue-item-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #262626;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upload-queue-item-size {
+  font-size: 11px;
+  color: #8c8c8c;
+}
+
+.upload-queue-item-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 60px;
+  flex-shrink: 0;
+}
+
+.status-pending {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.status-success {
+  color: #52c41a;
+}
+
+.status-error {
+  font-size: 12px;
+  color: #ff4d4f;
+}
+
+/* ==================== 进度条 ==================== */
+
+.upload-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.upload-progress-bar {
+  flex: 1;
+  height: 4px;
+  background: #e6f7ff;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.upload-progress-bar::after {
+  content: '';
+  display: block;
+  height: 100%;
+  background: #1890ff;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.upload-progress span {
+  font-size: 11px;
+  color: #8c8c8c;
+  white-space: nowrap;
+}
+
+/* ==================== 移除按钮 ==================== */
+
+.upload-queue-item-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #8c8c8c;
+  opacity: 0;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.upload-queue-item:hover .upload-queue-item-remove {
+  opacity: 1;
+}
+
+.upload-queue-item-remove:hover {
+  background: #f0f0f0;
+  color: #595959;
+}
+
+/* ==================== 响应式适配 ==================== */
+
+@media (max-width: 768px) {
+  .upload-dropzone {
+    flex-direction: column;
+    text-align: center;
+    gap: 8px;
+  }
+
+  .upload-queue-item {
+    padding: 10px 12px;
+  }
+
+  .upload-queue-item-remove {
+    opacity: 1;
+  }
+}
+
+/* ==================== 动画效果 ==================== */
+
+@keyframes queueItemEnter {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.upload-queue-item {
+  animation: queueItemEnter 0.3s ease-out;
+}
+
+@keyframes queueItemExit {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+}
+
+.upload-queue-item.removing {
+  animation: queueItemExit 0.3s ease-in forwards;
+}

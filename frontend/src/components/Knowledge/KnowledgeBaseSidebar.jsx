@@ -68,7 +68,7 @@ const KnowledgeBaseSidebar = ({
             <div className="loading-spinner"></div>
             <span>加载中...</span>
           </div>
-        ) : knowledgeBases.length > 0 ? (
+        ) : knowledgeBases?.length > 0 ? (
           <div className="sidebar-list">
             {knowledgeBases.map(kb => (
               <div

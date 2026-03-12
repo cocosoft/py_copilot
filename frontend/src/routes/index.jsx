@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
 import Loading from '../components/Common/Loading';
+import { knowledgeRoutes } from './knowledgeRoutes';
 
 const Home = lazy(() => import('../pages/Home'));
 const Chat = lazy(() => import('../pages/Chat'));
@@ -57,7 +58,21 @@ const AppRoutes = () => {
         <Route path="video" element={<Video />} />
         <Route path="voice" element={<Voice />} />
         <Route path="translate" element={<Translate />} />
-        <Route path="knowledge" element={<Knowledge />} />
+        {/* 新版知识库路由 - 使用嵌套路由 */}
+        <Route path={knowledgeRoutes.path} element={knowledgeRoutes.element}>
+          {knowledgeRoutes.children.map((child, index) => (
+            <Route
+              key={index}
+              index={child.index}
+              path={child.path}
+              element={child.element}
+            />
+          ))}
+        </Route>
+        
+        {/* 旧版知识库页面 - 保持兼容 */}
+        <Route path="knowledge-old" element={<Knowledge />} />
+        
         {/* 增强版知识库页面（向量化管理模块优化） */}
         <Route path="knowledge/enhanced" element={<EnhancedKnowledge />} />
         <Route path="knowledge/vectorization" element={<EnhancedVectorization />} />

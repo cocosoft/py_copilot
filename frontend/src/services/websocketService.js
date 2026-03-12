@@ -214,7 +214,11 @@ class WebSocketService {
       if (handler) {
         handler(message);
       } else {
-        console.warn(`未找到消息类型 '${message.type}' 的处理器`);
+        // 忽略系统消息类型的警告
+        const systemMessageTypes = ['connection_established', 'pong', 'heartbeat'];
+        if (!systemMessageTypes.includes(message.type)) {
+          console.warn(`未找到消息类型 '${message.type}' 的处理器`);
+        }
       }
     } catch (error) {
       console.error('解析WebSocket消息失败:', error);

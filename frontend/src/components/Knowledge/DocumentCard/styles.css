@@ -1,0 +1,232 @@
+/**
+ * 文档卡片组件样式
+ */
+
+/* ==================== 通用样式 ==================== */
+
+.document-card {
+  background: #ffffff;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.document-card:hover {
+  border-color: #d9d9d9;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.document-card.selected {
+  border-color: #1890ff;
+  background: #e6f7ff;
+}
+
+.document-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.document-card__title {
+  font-weight: 500;
+  color: #262626;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.document-card__meta {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin: 0;
+}
+
+.document-card__status {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid;
+  white-space: nowrap;
+}
+
+.document-card__checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #1890ff;
+}
+
+.document-card__more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #8c8c8c;
+  opacity: 0;
+  transition: all 0.2s ease;
+}
+
+.document-card:hover .document-card__more {
+  opacity: 1;
+}
+
+.document-card__more:hover {
+  background: #f5f5f5;
+  color: #595959;
+}
+
+/* ==================== 列表视图 ==================== */
+
+.document-card--list {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+}
+
+.document-card--list .document-card__checkbox-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.document-card--list .document-card__icon {
+  width: 40px;
+  height: 40px;
+}
+
+.document-card--list .document-card__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.document-card--list .document-card__title {
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.document-card--list .document-card__status-wrapper {
+  flex-shrink: 0;
+}
+
+/* ==================== 网格视图 ==================== */
+
+.document-card--grid {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 12px;
+}
+
+.document-card--grid .document-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.document-card--grid .document-card__icon {
+  width: 48px;
+  height: 48px;
+}
+
+.document-card--grid .document-card__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.document-card--grid .document-card__title {
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+.document-card--grid .document-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+}
+
+.document-card--grid .document-card__more {
+  opacity: 1;
+}
+
+/* ==================== 响应式适配 ==================== */
+
+@media (max-width: 768px) {
+  .document-card--list {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+
+  .document-card--list .document-card__icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .document-card--list .document-card__title {
+    font-size: 13px;
+  }
+
+  .document-card--list .document-card__meta {
+    font-size: 11px;
+  }
+
+  .document-card--list .document-card__status {
+    font-size: 11px;
+    padding: 2px 6px;
+  }
+
+  .document-card__more {
+    opacity: 1;
+    width: 24px;
+    height: 24px;
+  }
+}
+
+/* ==================== 动画效果 ==================== */
+
+@keyframes cardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.document-card {
+  animation: cardEnter 0.3s ease-out;
+}
+
+/* ==================== 选中状态动画 ==================== */
+
+.document-card.selected {
+  animation: selectedPulse 0.3s ease-out;
+}
+
+@keyframes selectedPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(24, 144, 255, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(24, 144, 255, 0.2);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(24, 144, 255, 0);
+  }
+}

@@ -1,0 +1,310 @@
+/**
+ * 知识图谱页面样式
+ */
+
+.knowledge-graph {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #ffffff;
+}
+
+/* ==================== 空状态 ==================== */
+
+.knowledge-graph-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 64px 24px;
+  text-align: center;
+}
+
+.knowledge-graph-empty .empty-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+
+.knowledge-graph-empty h3 {
+  font-size: 18px;
+  font-weight: 500;
+  color: #262626;
+  margin: 0 0 8px 0;
+}
+
+.knowledge-graph-empty p {
+  font-size: 14px;
+  color: #8c8c8c;
+  margin: 0;
+}
+
+/* ==================== 工具栏 ==================== */
+
+.knowledge-graph-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #ffffff;
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.toolbar-left h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #262626;
+  margin: 0;
+}
+
+.graph-stats {
+  font-size: 13px;
+  color: #8c8c8c;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* 缩放控制 */
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: #f5f5f5;
+  border-radius: 6px;
+}
+
+.zoom-controls button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: #ffffff;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #595959;
+  transition: all 0.2s ease;
+}
+
+.zoom-controls button:hover {
+  border-color: #40a9ff;
+  color: #1890ff;
+}
+
+.zoom-level {
+  min-width: 50px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: #262626;
+}
+
+/* ==================== 主内容区 ==================== */
+
+.knowledge-graph-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ==================== 图谱画布 ==================== */
+
+.graph-canvas-wrapper {
+  flex: 1;
+  position: relative;
+  background: #fafafa;
+  overflow: hidden;
+}
+
+.graph-canvas {
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+
+.graph-canvas:active {
+  cursor: grabbing;
+}
+
+/* 加载状态 */
+.graph-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #f0f0f0;
+  border-top-color: #1890ff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.graph-loading span {
+  font-size: 14px;
+  color: #595959;
+}
+
+/* ==================== 节点详情面板 ==================== */
+
+.node-detail-panel {
+  width: 300px;
+  background: #ffffff;
+  border-left: 1px solid #f0f0f0;
+  display: flex;
+  flex-direction: column;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.node-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.node-detail-header h4 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #262626;
+  margin: 0;
+}
+
+.close-detail {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 20px;
+  color: #8c8c8c;
+  transition: all 0.2s ease;
+}
+
+.close-detail:hover {
+  background: #f5f5f5;
+  color: #595959;
+}
+
+.node-detail-content {
+  flex: 1;
+  padding: 16px 20px;
+  overflow-y: auto;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.detail-item:last-child {
+  border-bottom: none;
+}
+
+.detail-item label {
+  font-size: 12px;
+  color: #8c8c8c;
+  font-weight: 500;
+}
+
+.detail-item span {
+  font-size: 14px;
+  color: #262626;
+}
+
+.type-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  width: fit-content;
+}
+
+.type-badge.concept {
+  background: #e6f7ff;
+  color: #1890ff;
+}
+
+.type-badge.entity {
+  background: #f6ffed;
+  color: #52c41a;
+}
+
+.type-badge.relation {
+  background: #fffbe6;
+  color: #faad14;
+}
+
+/* ==================== 响应式适配 ==================== */
+
+@media (max-width: 768px) {
+  .knowledge-graph-toolbar {
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+
+  .toolbar-right {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .node-detail-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+  }
+}
