@@ -68,6 +68,39 @@ class ProcessManager:
         except Exception as e:
             print(f"终止端口 {port} 进程时出错: {e}")
     
+    def start_chroma(self):
+        """启动 ChromaDB 服务"""
+        print("\n=== 启动 ChromaDB 服务 ===")
+        
+        # 清理端口
+        self.kill_processes_on_port(8008)
+        
+        # 启动服务
+        try:
+            os.chdir(self.backend_dir)
+            cmd = ['python', 'chroma_server.py']
+            
+            print("启动命令:", ' '.join(cmd))
+            print("ChromaDB 服务正在启动...")
+            
+            subprocess.Popen(cmd, creationflags=subprocess.CREATE_NEW_CONSOLE)
+            
+            # 等待服务启动
+            for i in range(10):
+                time.sleep(1)
+                if self.check_port(8008):
+                    print("✓ ChromaDB 服务启动成功！")
+                    print("  地址: http://localhost:8008")
+                    return True
+                print(f"  等待服务启动... ({i+1}/10)")
+            
+            print("✗ ChromaDB 服务启动超时")
+            return False
+            
+        except Exception as e:
+            print(f"✗ 启动 ChromaDB 服务失败: {e}")
+            return False
+    
     def start_backend(self):
         """启动后端服务"""
         print("\n=== 启动后端服务 ===")
@@ -144,6 +177,9 @@ class ProcessManager:
         """停止所有服务"""
         print("\n=== 停止所有服务 ===")
         
+        print("停止 ChromaDB 服务...")
+        self.kill_processes_on_port(8008)
+        
         print("停止后端服务...")
         self.kill_processes_on_port(8007)
         
@@ -164,13 +200,16 @@ class ProcessManager:
         """检查服务状态"""
         print("\n=== 服务状态 ===")
         
+        chroma_running = self.check_port(8008)
         backend_running = self.check_port(8007)
         frontend_running = self.check_port(5173)
         
+        print(f"ChromaDB 服务 (8008): {'✓ 运行中' if chroma_running else '✗ 未运行'}")
         print(f"后端服务 (8007): {'✓ 运行中' if backend_running else '✗ 未运行'}")
         print(f"前端服务 (5173): {'✓ 运行中' if frontend_running else '✗ 未运行'}")
         
         return {
+            'chroma': chroma_running,
             'backend': backend_running,
             'frontend': frontend_running
         }
@@ -185,6 +224,7 @@ def main():
         print("  stop     - 停止所有服务")
         print("  restart  - 重启所有服务")
         print("  status   - 检查服务状态")
+        print("  chroma   - 仅启动 ChromaDB")
         print("  backend  - 仅启动后端")
         print("  frontend - 仅启动前端")
         return
@@ -192,6 +232,8 @@ def main():
     command = sys.argv[1].lower()
     
     if command == 'start':
+        manager.start_chroma()
+        time.sleep(2)
         manager.start_backend()
         manager.start_frontend()
     elif command == 'stop':
@@ -200,6 +242,8 @@ def main():
         manager.restart_all()
     elif command == 'status':
         manager.status()
+    elif command == 'chroma':
+        manager.start_chroma()
     elif command == 'backend':
         manager.start_backend()
     elif command == 'frontend':

@@ -4,42 +4,187 @@
  * 显示知识库列表，支持选择、创建、导入、导出和删除操作
  */
 
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { FaDownload } from 'react-icons/fa';
+import useKnowledgeStore from '../../stores/knowledgeStore';
+import { getKnowledgeBases, createKnowledgeBase, deleteKnowledgeBase, exportKnowledgeBase, importKnowledgeBase } from '../../utils/api/knowledgeApi';
+import { message } from '../UI/Message/Message';
 import './KnowledgeBaseSidebar.css';
 
 /**
  * 知识库侧边栏组件
  *
  * @param {Object} props - 组件属性
- * @param {Array} props.knowledgeBases - 知识库列表
- * @param {Object} props.selectedKnowledgeBase - 选中的知识库
- * @param {boolean} props.loading - 是否加载中
- * @param {number} props.currentPage - 当前页码
- * @param {number} props.totalPages - 总页数
- * @param {number} props.totalKbs - 知识库总数
- * @param {Function} props.onSelect - 选择知识库回调
- * @param {Function} props.onCreate - 创建知识库回调
- * @param {Function} props.onImport - 导入知识库回调
- * @param {Function} props.onExport - 导出知识库回调
- * @param {Function} props.onDelete - 删除知识库回调
- * @param {Function} props.onPageChange - 页码变化回调
+ * @param {boolean} props.collapsed - 是否折叠
  * @returns {JSX.Element} 知识库侧边栏
  */
-const KnowledgeBaseSidebar = ({
-  knowledgeBases,
-  selectedKnowledgeBase,
-  loading,
-  currentPage,
-  totalPages,
-  totalKbs,
-  onSelect,
-  onCreate,
-  onImport,
-  onExport,
-  onDelete,
-  onPageChange
-}) => {
+const KnowledgeBaseSidebar = ({ collapsed }) => {
+  const {
+    currentKnowledgeBase,
+    setCurrentKnowledgeBase,
+    setKnowledgeBases,
+    knowledgeBases
+  } = useKnowledgeStore();
+
+  const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalKbs, setTotalKbs] = useState(0);
+  const pageSize = 10;
+
+  /**
+   * 加载知识库列表
+   */
+  const fetchKnowledgeBases = useCallback(async () => {
+    setLoading(true);
+    try {
+      const skip = (currentPage - 1) * pageSize;
+      const response = await getKnowledgeBases(skip, pageSize);
+
+      const kbs = Array.isArray(response) ? response : (response.items || response.data || []);
+      const total = Array.isArray(response) ? response.length : (response.total || kbs.length);
+
+      setKnowledgeBases(kbs, total);
+      setTotalKbs(total);
+      setTotalPages(Math.ceil(total / pageSize));
+    } catch (error) {
+      message.error({ content: '加载知识库列表失败：' + error.message });
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPage, setKnowledgeBases]);
+
+  // 初始加载
+  useEffect(() => {
+    fetchKnowledgeBases();
+  }, [fetchKnowledgeBases]);
+
+  /**
+   * 选择知识库
+   */
+  const handleSelect = useCallback((kb) => {
+    setCurrentKnowledgeBase(kb);
+  }, [setCurrentKnowledgeBase]);
+
+  /**
+   * 创建知识库
+   */
+  const handleCreate = useCallback(async () => {
+    const name = prompt('请输入知识库名称：');
+    if (!name) return;
+
+    const description = prompt('请输入知识库描述（可选）：');
+
+    try {
+      await createKnowledgeBase(name, description || '');
+      message.success({ content: '知识库创建成功' });
+      fetchKnowledgeBases();
+    } catch (error) {
+      message.error({ content: '创建失败：' + error.message });
+    }
+  }, [fetchKnowledgeBases]);
+
+  /**
+   * 导入知识库
+   */
+  const handleImport = useCallback(async () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      try {
+        const content = await file.text();
+        const data = JSON.parse(content);
+        await importKnowledgeBase(data);
+        message.success({ content: '知识库导入成功' });
+        fetchKnowledgeBases();
+      } catch (error) {
+        message.error({ content: '导入失败：' + error.message });
+      }
+    };
+    input.click();
+  }, [fetchKnowledgeBases]);
+
+  /**
+   * 导出知识库
+   */
+  const handleExport = useCallback(async (kb) => {
+    try {
+      const data = await exportKnowledgeBase(kb.id);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `knowledge-base-${kb.name}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      message.success({ content: '导出成功' });
+    } catch (error) {
+      message.error({ content: '导出失败：' + error.message });
+    }
+  }, []);
+
+  /**
+   * 删除知识库
+   */
+  const handleDelete = useCallback(async (kb) => {
+    if (!confirm(`确定要删除知识库 "${kb.name}" 吗？此操作不可恢复。`)) {
+      return;
+    }
+
+    try {
+      await deleteKnowledgeBase(kb.id);
+      message.success({ content: '知识库已删除' });
+      if (currentKnowledgeBase?.id === kb.id) {
+        setCurrentKnowledgeBase(null);
+      }
+      fetchKnowledgeBases();
+    } catch (error) {
+      message.error({ content: '删除失败：' + error.message });
+    }
+  }, [currentKnowledgeBase, setCurrentKnowledgeBase, fetchKnowledgeBases]);
+
+  /**
+   * 页码变化
+   */
+  const handlePageChange = useCallback((page) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  }, [totalPages]);
+
+  // 如果折叠，显示简化视图
+  if (collapsed) {
+    return (
+      <div className="knowledge-sidebar collapsed">
+        <div className="sidebar-header">
+          <button
+            className="sidebar-btn create-btn"
+            onClick={handleCreate}
+            title="新建知识库"
+          >
+            +
+          </button>
+        </div>
+        <div className="sidebar-content collapsed">
+          {knowledgeBases.map(kb => (
+            <div
+              key={kb.id}
+              className={`sidebar-item collapsed ${currentKnowledgeBase?.id === kb.id ? 'active' : ''}`}
+              onClick={() => handleSelect(kb)}
+              title={kb.name}
+            >
+              <div className="sidebar-item-icon">📚</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="knowledge-sidebar">
       <div className="sidebar-header">
@@ -47,14 +192,14 @@ const KnowledgeBaseSidebar = ({
         <div className="sidebar-actions">
           <button
             className="sidebar-btn create-btn"
-            onClick={onCreate}
+            onClick={handleCreate}
             title="新建知识库"
           >
             +
           </button>
           <button
             className="sidebar-btn import-btn"
-            onClick={onImport}
+            onClick={handleImport}
             title="导入知识库"
           >
             📥
@@ -73,8 +218,8 @@ const KnowledgeBaseSidebar = ({
             {knowledgeBases.map(kb => (
               <div
                 key={kb.id}
-                className={`sidebar-item ${selectedKnowledgeBase?.id === kb.id ? 'active' : ''}`}
-                onClick={() => onSelect(kb)}
+                className={`sidebar-item ${currentKnowledgeBase?.id === kb.id ? 'active' : ''}`}
+                onClick={() => handleSelect(kb)}
                 title={kb.description || kb.name}
               >
                 <div className="sidebar-item-icon">📚</div>
@@ -89,7 +234,7 @@ const KnowledgeBaseSidebar = ({
                     className="sidebar-action-btn export-btn"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onExport(kb);
+                      handleExport(kb);
                     }}
                     title="导出"
                   >
@@ -99,7 +244,7 @@ const KnowledgeBaseSidebar = ({
                     className="sidebar-action-btn delete-btn"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onDelete(kb);
+                      handleDelete(kb);
                     }}
                     title="删除"
                   >
@@ -112,7 +257,7 @@ const KnowledgeBaseSidebar = ({
         ) : (
           <div className="sidebar-empty">
             <span>暂无知识库</span>
-            <button onClick={onCreate}>创建知识库</button>
+            <button onClick={handleCreate}>创建知识库</button>
           </div>
         )}
       </div>
@@ -126,14 +271,14 @@ const KnowledgeBaseSidebar = ({
           <div className="sidebar-pagination-controls">
             <button
               className="sidebar-page-btn"
-              onClick={() => onPageChange(currentPage - 1)}
+              onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
             >
               ‹
             </button>
             <button
               className="sidebar-page-btn"
-              onClick={() => onPageChange(currentPage + 1)}
+              onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
             >
               ›

@@ -1,7 +1,8 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, JSON, ForeignKey, Table, Boolean, Float
+from sqlalchemy import Column, Integer, String, DateTime, Text, JSON, ForeignKey, Table, Boolean, Float, UniqueConstraint
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.core.database import Base
+import uuid
 
 # 文档和标签的多对多关系表
 document_tag_association = Table(
@@ -25,19 +26,25 @@ class KnowledgeBase(Base):
     # 关系：一个知识库包含多个KB级实体
     kb_entities = relationship("KBEntity", back_populates="knowledge_base", cascade="all, delete-orphan")
     # 关系：一个知识库包含多个KB级关系
-    kb_relationships = relationship("KBRelationship", cascade="all, delete-orphan")
+    kb_relationships = relationship("KBRelationship", back_populates="knowledge_base", cascade="all, delete-orphan")
     # 关系：一个知识库有一个模型配置
     model_configs = relationship("KnowledgeBaseModelConfig", back_populates="knowledge_base", cascade="all, delete-orphan", uselist=False)
-    # 关系：一个知识库包含多个统一知识单元
-    knowledge_units = relationship("UnifiedKnowledgeUnit", back_populates="knowledge_base", cascade="all, delete-orphan")
+    # 关系：一个知识库包含多个权限记录
+    permissions = relationship("KnowledgeBasePermission", back_populates="knowledge_base", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<KnowledgeBase(id={self.id}, name='{self.name}')>"
+
+def generate_uuid():
+    """生成文档UUID"""
+    return f"doc-{uuid.uuid4()}"
+
 
 class KnowledgeDocument(Base):
     __tablename__ = "knowledge_documents"
 
     id = Column(Integer, primary_key=True, index=True)
+    uuid = Column(String(40), nullable=False, unique=True, index=True, default=generate_uuid)  # 全局唯一UUID，对外暴露
     knowledge_base_id = Column(Integer, ForeignKey("knowledge_bases.id"), nullable=False)
     title = Column(String(255), nullable=False)
     file_path = Column(String(500), nullable=True)
@@ -46,11 +53,16 @@ class KnowledgeDocument(Base):
     document_metadata = Column(JSON, nullable=True)
     created_at = Column(DateTime, nullable=False, default=func.now())
     updated_at = Column(DateTime, nullable=True, onupdate=func.now())
-    vector_id = Column(String(100), nullable=True)
+    vector_id = Column(String(100), nullable=True)  # 向量ID，使用uuid格式
     is_vectorized = Column(Integer, nullable=False, default=0)  # 0: 未向量化, 1: 已向量化
     version = Column(Integer, default=1)  # 文档版本
     is_current = Column(Boolean, nullable=False, default=True)  # 是否为当前版本 (True: 是, False: 历史版本)
-    file_hash = Column(String(64), nullable=True, index=True)  # 文件MD5哈希值，用于去重检测
+    file_hash = Column(String(64), nullable=True, index=True)  # 文件SHA256哈希值，用于去重检测
+
+    # 添加唯一约束：同一知识库内file_hash唯一
+    __table_args__ = (
+        UniqueConstraint('knowledge_base_id', 'file_hash', name='uix_kb_file_hash'),
+    )
     
     # 关系：一个文档属于一个知识库
     knowledge_base = relationship("KnowledgeBase", back_populates="documents")
@@ -102,6 +114,10 @@ class DocumentEntity(Base):
     kb_entity = relationship("KBEntity", back_populates="document_entities")
     # 关系：关联到全局级实体
     global_entity = relationship("GlobalEntity")
+    # 关系：作为源实体的关系
+    source_relationships = relationship("EntityRelationship", foreign_keys="EntityRelationship.source_id", cascade="all, delete-orphan")
+    # 关系：作为目标实体的关系
+    target_relationships = relationship("EntityRelationship", foreign_keys="EntityRelationship.target_id", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<DocumentEntity(id={self.id}, entity_text='{self.entity_text}', entity_type='{self.entity_type}')>"
@@ -243,7 +259,7 @@ class KBRelationship(Base):
     updated_at = Column(DateTime, nullable=True, onupdate=func.now())
     
     # 关系
-    knowledge_base = relationship("KnowledgeBase")
+    knowledge_base = relationship("KnowledgeBase", back_populates="kb_relationships")
     source_entity = relationship("KBEntity", foreign_keys=[source_kb_entity_id])
     target_entity = relationship("KBEntity", foreign_keys=[target_kb_entity_id])
     
@@ -302,7 +318,7 @@ class KnowledgeBasePermission(Base):
     updated_at = Column(DateTime, nullable=True, onupdate=func.now())
     
     # 关系
-    knowledge_base = relationship("KnowledgeBase")
-    
+    knowledge_base = relationship("KnowledgeBase", back_populates="permissions")
+
     def __repr__(self):
         return f"<KnowledgeBasePermission(id={self.id}, user_id={self.user_id}, role='{self.role}')>"

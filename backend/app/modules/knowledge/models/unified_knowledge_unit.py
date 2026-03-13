@@ -140,7 +140,7 @@ class UnifiedKnowledgeUnit(Base):
     processed_at = Column(DateTime, nullable=True, comment="处理完成时间")
     
     # 关系
-    knowledge_base = relationship("KnowledgeBase", back_populates="knowledge_units")
+    # knowledge_base = relationship("KnowledgeBase", back_populates="knowledge_units")
     
     # 父单元关系
     parent_unit = relationship(

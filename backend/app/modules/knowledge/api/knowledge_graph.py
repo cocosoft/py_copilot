@@ -6,7 +6,7 @@ from pydantic import validator
 
 from app.core.database import get_db
 from app.modules.knowledge.models.knowledge_document import KnowledgeDocument
-from app.services.knowledge.knowledge_graph_service import KnowledgeGraphService
+from app.services.knowledge.graph.knowledge_graph_service import KnowledgeGraphService
 
 # 导入知识图谱相关的schemas
 from app.modules.knowledge.schemas.knowledge import (
@@ -23,10 +23,11 @@ from pydantic import BaseModel
 class EntityExtractionRequest(BaseModel):
     document_id: Optional[int] = None
     text: Optional[str] = None
-    
+    knowledge_base_id: Optional[int] = None  # 知识库ID，用于加载知识库级提取策略配置
+
     class Config:
         extra = "forbid"  # 禁止额外的字段
-    
+
     @validator('*')
     def check_either_document_id_or_text(cls, v, values, field):
         """验证必须提供document_id或text中的一个"""
@@ -116,9 +117,11 @@ async def extract_entities(
             # 从文本内容直接提取实体和关系（不存储到数据库）
             if not request.text.strip():
                 raise HTTPException(status_code=400, detail="文本内容不能为空")
-            
-            # 直接从文本提取实体和关系
-            entities, relationships = knowledge_graph_service.text_processor.extract_entities_relationships(request.text)
+
+            # 使用 _get_text_processor 方法获取文本处理器
+            text_processor = knowledge_graph_service._get_text_processor(db, request.knowledge_base_id)
+            # 直接从文本提取实体和关系（使用 await 调用异步函数）
+            entities, relationships = await text_processor.extract_entities_relationships(request.text)
             
             # 转换实体格式以匹配前端预期
             formatted_entities = []
@@ -189,10 +192,11 @@ async def get_document_entities(document_id: int, db: Session = Depends(get_db))
 
 
 @router.post("/extract-keywords", response_model=KeywordExtractionResponse)
-async def extract_keywords(request: KeywordExtractionRequest):
+async def extract_keywords(request: KeywordExtractionRequest, db: Session = Depends(get_db)):
     """提取文本关键词"""
     try:
-        keywords = knowledge_graph_service.text_processor.extract_keywords(request.text, request.max_keywords)
+        text_processor = knowledge_graph_service._get_text_processor(db)
+        keywords = text_processor.extract_keywords(request.text, request.max_keywords)
         # 转换关键词格式，将"word"字段改为"text"字段
         formatted_keywords = []
         for keyword in keywords:
@@ -210,10 +214,11 @@ async def extract_keywords(request: KeywordExtractionRequest):
 
 
 @router.post("/calculate-similarity", response_model=TextSimilarityResponse)
-async def calculate_text_similarity(request: TextSimilarityRequest):
+async def calculate_text_similarity(request: TextSimilarityRequest, db: Session = Depends(get_db)):
     """计算文本相似度"""
     try:
-        similarity = knowledge_graph_service.text_processor.calculate_similarity(request.text1, request.text2)
+        text_processor = knowledge_graph_service._get_text_processor(db)
+        similarity = text_processor.calculate_similarity(request.text1, request.text2)
         return {
             "similarity": similarity,
             "success": True
@@ -233,9 +238,10 @@ async def get_document_chunks(request: DocumentChunksRequest, db: Session = Depe
         
         if not document:
             raise HTTPException(status_code=404, detail="文档不存在")
-        
+
         # 使用高级文本处理器进行分块
-        chunks = knowledge_graph_service.text_processor.semantic_chunking(document.content)
+        text_processor = knowledge_graph_service._get_text_processor(db)
+        chunks = text_processor.semantic_chunking(document.content)
         
         return {
             "chunks": chunks,

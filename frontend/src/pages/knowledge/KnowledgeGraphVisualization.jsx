@@ -11,6 +11,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import HierarchicalGraphVisualizer, { LayerType } from '../../components/knowledgeGraph/HierarchicalGraphVisualizer';
+import { getKnowledgeBaseGraphStats } from '../../utils/api/knowledgeGraphApi';
 import './KnowledgeGraphVisualization.css';
 
 /**
@@ -47,21 +48,19 @@ const KnowledgeGraphVisualization = () => {
   useEffect(() => {
     const loadGraphStats = async () => {
       try {
-        // 实际项目中应该调用API
-        // const response = await fetch(`/api/v1/knowledge-graph/${knowledgeBaseId}/stats`);
-        // const data = await response.json();
-        
-        // 模拟数据
+        // 调用真实 API 获取图谱统计
+        const stats = await getKnowledgeBaseGraphStats(parseInt(knowledgeBaseId));
+
+        // 转换后端数据为前端格式
+        const entityTypes = Object.entries(stats.entity_types || {}).map(([type, count]) => ({
+          type,
+          count
+        }));
+
         setGraphStats({
-          totalEntities: 1250,
-          totalRelationships: 3420,
-          entityTypes: [
-            { type: 'PERSON', count: 450 },
-            { type: 'ORGANIZATION', count: 320 },
-            { type: 'LOCATION', count: 280 },
-            { type: 'PRODUCT', count: 120 },
-            { type: 'EVENT', count: 80 }
-          ]
+          totalEntities: stats.total_entities || 0,
+          totalRelationships: stats.total_relationships || 0,
+          entityTypes: entityTypes
         });
       } catch (error) {
         console.error('加载图谱统计失败:', error);

@@ -13,7 +13,7 @@ from app.core.database import get_db
 from app.modules.knowledge.models.knowledge_document import (
     DocumentEntity, KBEntity, GlobalEntity, KnowledgeDocument
 )
-from app.services.knowledge.knowledge_graph_service import KnowledgeGraphService
+from app.services.knowledge.graph.knowledge_graph_service import KnowledgeGraphService
 
 router = APIRouter(tags=["实体维护"])
 

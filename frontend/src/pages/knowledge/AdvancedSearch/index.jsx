@@ -9,6 +9,7 @@ import { FiSearch, FiFilter, FiClock, FiBookmark, FiX } from 'react-icons/fi';
 import useKnowledgeStore from '../../../stores/knowledgeStore';
 import { Button } from '../../../components/UI';
 import { message } from '../../../components/UI/Message/Message';
+import { searchDocuments } from '../../../utils/api/knowledgeApi';
 import './styles.css';
 
 /**
@@ -45,25 +46,30 @@ const AdvancedSearch = () => {
 
     setIsSearching(true);
     try {
-      // TODO: 替换为实际 API 调用
-      // const response = await knowledgeApi.semanticSearch({
-      //   knowledgeBaseId: currentKnowledgeBase?.id,
-      //   query,
-      //   filters,
-      // });
+      // 调用真实 API 进行搜索
+      const searchResults = await searchDocuments(
+        query,
+        20,
+        currentKnowledgeBase?.id,
+        'relevance',
+        'desc',
+        filters.fileTypes || [],
+        filters.dateRange?.start,
+        filters.dateRange?.end
+      );
 
-      // 模拟搜索结果
-      const mockResults = Array.from({ length: 10 }, (_, i) => ({
-        id: `result-${i}`,
-        title: `搜索结果 ${i + 1}`,
-        content: `这是与 "${query}" 相关的文档内容片段...`,
-        score: 0.95 - i * 0.05,
-        documentId: `doc-${i}`,
-        documentName: `文档 ${i + 1}.pdf`,
-        highlight: `<mark>${query}</mark>`,
+      // 转换后端数据为前端格式
+      const formattedResults = (searchResults || []).map((result, index) => ({
+        id: result.id || `result-${index}`,
+        title: result.title || '无标题',
+        content: result.content || result.chunk_content || '无内容',
+        score: result.score || result.similarity || 0,
+        documentId: result.document_id || result.id,
+        documentName: result.document_name || result.title || '未知文档',
+        highlight: result.highlight || result.content || '',
       }));
 
-      setResults(mockResults);
+      setResults(formattedResults);
       addSearchHistory(query);
     } catch (error) {
       message.error({ content: '搜索失败：' + error.message });

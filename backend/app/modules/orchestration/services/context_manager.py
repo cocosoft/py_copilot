@@ -8,7 +8,7 @@ from app.modules.memory.services.memory_service import MemoryService
 from app.schemas.memory import MemoryCreate
 from app.core.database import get_db
 from app.services.llm_service import LLMService
-from app.services.knowledge.semantic_search_service import SemanticSearchService
+from app.services.knowledge.retrieval.semantic_search_service import SemanticSearchService
 
 logger = logging.getLogger(__name__)
 

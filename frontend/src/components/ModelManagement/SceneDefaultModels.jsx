@@ -113,13 +113,15 @@ const SceneDefaultModels = ({
             </div>
             <ModelSelectDropdown
               models={modelsForScene}
-              selectedModel={modelsForScene.find(model => model.id === sceneDefaultModels[scene.key]) || null}
+              selectedModel={modelsForScene.find(model =>
+                (model.id || model.model_id) === sceneDefaultModels[scene.key]
+              ) || null}
               onModelSelect={onModelSelect(scene.key)}
               placeholder="请选择模型"
               disabled={isLoading}
               scene={scene.key}
               getModelBadge={(model) => {
-                const score = capabilityScores[`${scene.key}_${model.id}`];
+                const score = capabilityScores[`${scene.key}_${model.id || model.model_id}`];
                 if (score) {
                   return (
                     <span className={`capability-badge ${score >= 90 ? 'excellent' : score >= 80 ? 'good' : score >= 70 ? 'fair' : 'poor'}`}>

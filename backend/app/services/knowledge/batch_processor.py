@@ -10,9 +10,9 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 import time
 
-from app.services.knowledge.llm_extractor import LLMEntityExtractor
-from app.services.knowledge.advanced_text_processor import AdvancedTextProcessor
-from app.services.knowledge.entity_extraction_cache import EntityExtractionCache
+from app.services.knowledge.extraction.llm_extractor import LLMEntityExtractor
+from app.services.knowledge.core.advanced_text_processor import AdvancedTextProcessor
+from app.services.knowledge.extraction.entity_extraction_cache import EntityExtractionCache
 
 logger = logging.getLogger(__name__)
 
@@ -197,7 +197,7 @@ class BatchDocumentProcessor:
             max_workers: 最大并发工作线程数
         """
         self.max_workers = max_workers
-        from app.services.knowledge.document_processor import DocumentProcessor
+        from app.services.knowledge.core.document_processor import DocumentProcessor
         self.document_processor = DocumentProcessor()
         
     async def process_documents_batch(
@@ -337,7 +337,7 @@ class BatchKnowledgeGraphBuilder:
         """
         self.max_workers = max_workers
         self.knowledge_base_id = knowledge_base_id
-        from app.services.knowledge.knowledge_graph_service import KnowledgeGraphService
+        from app.services.knowledge.graph.knowledge_graph_service import KnowledgeGraphService
         self.kg_service = KnowledgeGraphService()
         
     async def build_graphs_batch(

@@ -9,7 +9,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from app.modules.knowledge.services.knowledge_service import KnowledgeService
-from app.services.knowledge.retrieval_service import RetrievalService, AdvancedRetrievalService
+from app.services.knowledge.retrieval.retrieval_service import RetrievalService, AdvancedRetrievalService
 from app.agents.knowledge_integration import AgentKnowledgeIntegration
 
 logger = logging.getLogger(__name__)

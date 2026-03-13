@@ -12,7 +12,7 @@ from app.modules.knowledge.models.knowledge_document import (
     KBEntity, KBRelationship,
     GlobalEntity, GlobalRelationship
 )
-from app.services.knowledge.hierarchical_build_service import HierarchicalBuildService
+from app.services.knowledge.graph.hierarchical_build_service import HierarchicalBuildService
 
 router = APIRouter()
 

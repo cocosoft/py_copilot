@@ -10,7 +10,7 @@ from app.services.local_llm.memory_analysis import LocalMemoryAnalysisService
 
 from app.models.memory import GlobalMemory, UserMemoryConfig, MemoryAccessLog, ConversationMemoryMapping, KnowledgeMemoryMapping, MemoryAssociation
 from app.schemas.memory import MemoryCreate, MemoryUpdate, MemoryStats, MemoryPatterns
-from app.services.knowledge.chroma_service import ChromaService
+from app.services.knowledge.vectorization.chroma_service import ChromaService
 from app.services.memory_cache_service import memory_cache_service
 import app.log_system.structured_logger
 memory_logger = app.log_system.structured_logger.memory_logger

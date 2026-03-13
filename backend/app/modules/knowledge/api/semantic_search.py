@@ -4,7 +4,7 @@ from typing import List, Optional, Dict, Any
 
 from app.core.database import get_db
 from app.modules.knowledge.services.knowledge_service import KnowledgeService
-from app.services.knowledge.semantic_search_service import SemanticSearchService
+from app.services.knowledge.retrieval.semantic_search_service import SemanticSearchService
 from app.modules.knowledge.schemas.knowledge import (
     SearchResponse,
     AdvancedSearchResponse,

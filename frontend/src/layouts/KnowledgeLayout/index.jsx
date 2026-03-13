@@ -14,7 +14,8 @@ import {
   FiSearch, 
   FiSettings,
   FiMenu,
-  FiChevronLeft
+  FiChevronLeft,
+  FiTag
 } from 'react-icons/fi';
 import useKnowledgeStore from '../../stores/knowledgeStore';
 import KnowledgeBaseSidebar from '../../components/Knowledge/KnowledgeBaseSidebar';
@@ -26,8 +27,9 @@ import './styles.css';
  */
 const TABS = [
   { key: 'documents', label: '文档管理', icon: FiFileText, path: '/knowledge/documents' },
-  { key: 'graph', label: '知识图谱', icon: FiShare2, path: '/knowledge/graph' },
+  { key: 'entities', label: '实体识别', icon: FiTag, path: '/knowledge/entities' },
   { key: 'vectorization', label: '向量化', icon: FiZap, path: '/knowledge/vectorization' },
+  { key: 'graph', label: '知识图谱', icon: FiShare2, path: '/knowledge/graph' },
   { key: 'search', label: '高级搜索', icon: FiSearch, path: '/knowledge/search' },
   { key: 'settings', label: '设置', icon: FiSettings, path: '/knowledge/settings' },
 ];

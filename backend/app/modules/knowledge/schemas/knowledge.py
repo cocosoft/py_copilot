@@ -42,11 +42,13 @@ class KnowledgeDocumentUpdate(BaseModel):
 
 class KnowledgeDocument(KnowledgeDocumentBase):
     id: int
+    uuid: Optional[str] = None  # 文档全局唯一UUID
     created_at: datetime
     updated_at: Optional[datetime] = None
     vector_id: Optional[str] = None
     is_vectorized: int
-    
+    file_hash: Optional[str] = None  # 文件内容哈希，用于去重
+
     class Config:
         from_attributes = True
 

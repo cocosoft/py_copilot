@@ -1,18 +1,19 @@
 /**
  * 批量操作工具栏组件
- * 
+ *
  * 提供文档批量选择、导出、向量化、删除等操作
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { FiDownload, FiTrash2, FiZap, FiX, FiCheckSquare, FiSquare } from 'react-icons/fi';
 import useKnowledgeStore from '../../../stores/knowledgeStore';
-import { Button } from '../../UI';
+import { Button, showSuccess, showError, showWarning } from '../../UI';
+import { batchDeleteDocuments, batchDownloadDocuments } from '../../../utils/api/knowledgeApi';
 import './BatchOperationToolbar.css';
 
 /**
  * 批量操作工具栏
- * 
+ *
  * 当选中文档时显示，提供批量操作功能
  */
 const BatchOperationToolbar = () => {
@@ -22,7 +23,12 @@ const BatchOperationToolbar = () => {
     toggleDocumentSelection,
     setSelectedDocuments,
     isProcessing,
+    fetchDocuments,
+    currentKnowledgeBase,
   } = useKnowledgeStore();
+
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const selectedCount = selectedDocuments.length;
   const totalCount = documents.length;
@@ -46,11 +52,40 @@ const BatchOperationToolbar = () => {
   };
 
   /**
-   * 处理批量导出
+   * 处理批量下载
    */
-  const handleBatchExport = () => {
-    // TODO: 实现批量导出逻辑
-    console.log('批量导出:', selectedDocuments);
+  const handleBatchDownload = async () => {
+    if (selectedCount === 0) {
+      showWarning('请先选择要下载的文档');
+      return;
+    }
+
+    setIsDownloading(true);
+    try {
+      // 获取选中文档的uuid或id
+      const selectedDocs = documents.filter(doc =>
+        selectedDocuments.some(id => String(id) === String(doc.id))
+      );
+      const docIds = selectedDocs.map(doc => doc.uuid || doc.id);
+
+      const blob = await batchDownloadDocuments(docIds);
+
+      // 创建下载链接
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `documents_${new Date().getTime()}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      showSuccess(`成功下载 ${selectedCount} 个文档`);
+    } catch (error) {
+      showError('批量下载失败：' + error.message);
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   /**
@@ -59,15 +94,52 @@ const BatchOperationToolbar = () => {
   const handleBatchVectorize = () => {
     // TODO: 实现批量向量化逻辑
     console.log('批量向量化:', selectedDocuments);
+    showWarning('批量向量化功能开发中...');
   };
 
   /**
    * 处理批量删除
    */
-  const handleBatchDelete = () => {
-    // TODO: 实现批量删除逻辑
-    if (window.confirm(`确定要删除选中的 ${selectedCount} 个文档吗？`)) {
-      console.log('批量删除:', selectedDocuments);
+  const handleBatchDelete = async () => {
+    if (selectedCount === 0) {
+      showWarning('请先选择要删除的文档');
+      return;
+    }
+
+    if (!window.confirm(`确定要删除选中的 ${selectedCount} 个文档吗？\n此操作不可恢复！`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      // 获取选中文档的uuid或id
+      const selectedDocs = documents.filter(doc =>
+        selectedDocuments.some(id => String(id) === String(doc.id))
+      );
+      const docIds = selectedDocs.map(doc => doc.uuid || doc.id);
+
+      const result = await batchDeleteDocuments(docIds);
+
+      if (result.success_count > 0) {
+        showSuccess(`成功删除 ${result.success_count} 个文档`);
+      }
+
+      if (result.failed_count > 0) {
+        showWarning(`${result.failed_count} 个文档删除失败`);
+        console.error('删除失败的文档:', result.failed_documents);
+      }
+
+      // 清空选择
+      setSelectedDocuments([]);
+
+      // 刷新文档列表
+      if (currentKnowledgeBase) {
+        fetchDocuments(currentKnowledgeBase.id);
+      }
+    } catch (error) {
+      showError('批量删除失败：' + error.message);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -109,10 +181,11 @@ const BatchOperationToolbar = () => {
           variant="secondary"
           size="small"
           icon={<FiDownload />}
-          onClick={handleBatchExport}
-          disabled={isProcessing}
+          onClick={handleBatchDownload}
+          disabled={isProcessing || isDownloading}
+          loading={isDownloading}
         >
-          导出
+          下载
         </Button>
 
         <Button
@@ -120,7 +193,7 @@ const BatchOperationToolbar = () => {
           size="small"
           icon={<FiZap />}
           onClick={handleBatchVectorize}
-          disabled={isProcessing}
+          disabled={isProcessing || isDeleting || isDownloading}
         >
           向量化
         </Button>
@@ -130,7 +203,8 @@ const BatchOperationToolbar = () => {
           size="small"
           icon={<FiTrash2 />}
           onClick={handleBatchDelete}
-          disabled={isProcessing}
+          disabled={isProcessing || isDeleting || isDownloading}
+          loading={isDeleting}
         >
           删除
         </Button>

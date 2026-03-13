@@ -5,7 +5,7 @@ from typing import Dict, Any, List, Optional
 import asyncio
 
 from app.core.microservices import MicroserviceConfig, get_service_registry
-from app.services.knowledge.semantic_search_service import SemanticSearchService
+from app.services.knowledge.retrieval.semantic_search_service import SemanticSearchService
 from app.services.web_search_service import WebSearchService
 
 

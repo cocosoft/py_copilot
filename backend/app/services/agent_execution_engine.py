@@ -498,7 +498,7 @@ class AgentExecutionEngine:
             raise ValueError("知识检索需要query参数")
         
         # 调用知识检索服务
-        from app.services.knowledge.retrieval_service import RetrievalService
+        from app.services.knowledge.retrieval.retrieval_service import RetrievalService
         retrieval_service = RetrievalService()
         results = retrieval_service.search_documents(query, limit=params.get("top_k", 5))
         

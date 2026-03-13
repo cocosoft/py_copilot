@@ -14,6 +14,7 @@ const KnowledgeGraph = lazy(() => import('../pages/knowledge/KnowledgeGraph'));
 const VectorizationManagement = lazy(() => import('../pages/knowledge/VectorizationManagement'));
 const AdvancedSearch = lazy(() => import('../pages/knowledge/AdvancedSearch'));
 const KnowledgeSettings = lazy(() => import('../pages/knowledge/KnowledgeSettings'));
+const EntityRecognition = lazy(() => import('../pages/knowledge/EntityRecognition'));
 
 /**
  * 页面加载占位符
@@ -57,6 +58,10 @@ export const knowledgeRoutes = {
     {
       path: 'vectorization',
       element: withSuspense(VectorizationManagement),
+    },
+    {
+      path: 'entities',
+      element: withSuspense(EntityRecognition),
     },
     {
       path: 'search',

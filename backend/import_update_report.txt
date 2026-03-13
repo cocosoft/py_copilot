@@ -1,0 +1,144 @@
+导入路径更新报告
+============================================================
+
+共更新 37 个文件
+
+文件: app\agents\knowledge_integration.py
+  - from app.services.knowledge.retrieval_service -> from app.services.knowledge.retrieval.retrieval_service
+
+文件: app\api\microservices\search_service.py
+  - from app.services.knowledge.semantic_search_service -> from app.services.knowledge.retrieval.semantic_search_service
+
+文件: app\api\v1\knowledge_graph_config.py
+  - from app.services.knowledge.advanced_text_processor -> from app.services.knowledge.core.advanced_text_processor
+
+文件: app\modules\function_calling\tools\text_processing_tool_new.py
+  - from app.services.knowledge.text_processor -> from app.services.knowledge.core.text_processor
+
+文件: app\modules\knowledge\api\entity_maintenance_api.py
+  - from app.services.knowledge.knowledge_graph_service -> from app.services.knowledge.graph.knowledge_graph_service
+
+文件: app\modules\knowledge\api\hierarchical_graph_api.py
+  - from app.services.knowledge.hierarchical_build_service -> from app.services.knowledge.graph.hierarchical_build_service
+
+文件: app\modules\knowledge\api\knowledge.py
+  - from app.services.knowledge.retrieval_service -> from app.services.knowledge.retrieval.retrieval_service
+  - from app.services.knowledge.processing_progress_service -> from app.services.knowledge.utils.processing_progress_service
+
+文件: app\modules\knowledge\api\knowledge_graph.py
+  - from app.services.knowledge.knowledge_graph_service -> from app.services.knowledge.graph.knowledge_graph_service
+
+文件: app\modules\knowledge\api\knowledge_graph_api.py
+  - from app.services.knowledge.knowledge_graph_service -> from app.services.knowledge.graph.knowledge_graph_service
+  - from app.services.knowledge.batch_graph_builder -> from app.services.knowledge.graph.batch_graph_builder
+
+文件: app\modules\knowledge\api\semantic_search.py
+  - from app.services.knowledge.semantic_search_service -> from app.services.knowledge.retrieval.semantic_search_service
+
+文件: app\modules\knowledge\services\knowledge_service.py
+  - from app.services.knowledge.document_processor -> from app.services.knowledge.core.document_processor
+  - from app.services.knowledge.document_parser -> from app.services.knowledge.core.document_parser
+  - from app.services.knowledge.text_processor -> from app.services.knowledge.core.text_processor
+  - from app.services.knowledge.retrieval_service -> from app.services.knowledge.retrieval.retrieval_service
+  - from app.services.knowledge.processing_progress_service -> from app.services.knowledge.utils.processing_progress_service
+
+文件: app\modules\memory\services\memory_service.py
+  - from app.services.knowledge.chroma_service -> from app.services.knowledge.vectorization.chroma_service
+
+文件: app\modules\orchestration\services\context_manager.py
+  - from app.services.knowledge.semantic_search_service -> from app.services.knowledge.retrieval.semantic_search_service
+
+文件: app\modules\orchestration\services\knowledge_retrieval_agent.py
+  - from app.services.knowledge.retrieval_service -> from app.services.knowledge.retrieval.retrieval_service
+
+文件: app\modules\workflow\services\node_executors.py
+  - from app.services.knowledge.advanced_text_processor -> from app.services.knowledge.core.advanced_text_processor
+  - from app.services.knowledge.knowledge_graph_service -> from app.services.knowledge.graph.knowledge_graph_service
+  - from app.services.knowledge.semantic_search_service -> from app.services.knowledge.retrieval.semantic_search_service
+
+文件: app\services\agent_execution_engine.py
+  - from app.services.knowledge.retrieval_service -> from app.services.knowledge.retrieval.retrieval_service
+
+文件: app\services\knowledge\adaptive_document_processor.py
+  - from app.services.knowledge.document_parser -> from app.services.knowledge.core.document_parser
+  - from app.services.knowledge.advanced_text_processor -> from app.services.knowledge.core.advanced_text_processor
+  - from app.services.knowledge.chroma_service -> from app.services.knowledge.vectorization.chroma_service
+  - from app.services.knowledge.knowledge_graph_service -> from app.services.knowledge.graph.knowledge_graph_service
+  - from app.services.knowledge.processing_progress_service -> from app.services.knowledge.utils.processing_progress_service
+
+文件: app\services\knowledge\batch_processor.py
+  - from app.services.knowledge.document_processor -> from app.services.knowledge.core.document_processor
+  - from app.services.knowledge.advanced_text_processor -> from app.services.knowledge.core.advanced_text_processor
+  - from app.services.knowledge.llm_extractor -> from app.services.knowledge.extraction.llm_extractor
+  - from app.services.knowledge.entity_extraction_cache -> from app.services.knowledge.extraction.entity_extraction_cache
+  - from app.services.knowledge.knowledge_graph_service -> from app.services.knowledge.graph.knowledge_graph_service
+
+文件: app\services\knowledge\data_migration_service.py
+  - from app.services.knowledge.chroma_service -> from app.services.knowledge.vectorization.chroma_service
+
+文件: app\services\knowledge\multi_level_index_service.py
+  - from app.services.knowledge.vector_store_adapter -> from app.services.knowledge.vectorization.vector_store_adapter
+
+文件: app\services\knowledge\read_write_split_service.py
+  - from app.services.knowledge.vector_store_adapter -> from app.services.knowledge.vectorization.vector_store_adapter
+
+文件: app\services\knowledge\transactional_vector_manager.py
+  - from app.services.knowledge.chroma_service -> from app.services.knowledge.vectorization.chroma_service
+
+文件: app\services\knowledge\unified_processing_pipeline.py
+  - from app.services.knowledge.document_parser -> from app.services.knowledge.core.document_parser
+  - from app.services.knowledge.advanced_text_processor -> from app.services.knowledge.core.advanced_text_processor
+  - from app.services.knowledge.chroma_service -> from app.services.knowledge.vectorization.chroma_service
+  - from app.services.knowledge.knowledge_graph_service -> from app.services.knowledge.graph.knowledge_graph_service
+
+文件: app\services\knowledge\unified_transaction_service.py
+  - from app.services.knowledge.chroma_service -> from app.services.knowledge.vectorization.chroma_service
+
+文件: app\services\knowledge\vector_version_manager.py
+  - from app.services.knowledge.chroma_service -> from app.services.knowledge.vectorization.chroma_service
+
+文件: app\services\knowledge\alignment\cross_kb_linking_service.py
+  - from app.services.knowledge.bert_entity_aligner -> from app.services.knowledge.alignment.bert_entity_aligner
+  - from app.services.knowledge.faiss_index_service -> from app.services.knowledge.vectorization.faiss_index_service
+
+文件: app\services\knowledge\alignment\entity_alignment_service.py
+  - from app.services.knowledge.bert_entity_aligner -> from app.services.knowledge.alignment.bert_entity_aligner
+
+文件: app\services\knowledge\extraction\llm_extractor.py
+  - from app.services.knowledge.entity_extraction_cache -> from app.services.knowledge.extraction.entity_extraction_cache
+
+文件: app\services\knowledge\graph\batch_graph_builder.py
+  - from app.services.knowledge.knowledge_graph_service -> from app.services.knowledge.graph.knowledge_graph_service
+
+文件: app\services\knowledge\graph\graph_builder.py
+  - from app.services.knowledge.llm_extractor -> from app.services.knowledge.extraction.llm_extractor
+
+文件: app\services\knowledge\graph\hierarchical_build_service.py
+  - from app.services.knowledge.entity_alignment_service -> from app.services.knowledge.alignment.entity_alignment_service
+  - from app.services.knowledge.cross_kb_linking_service -> from app.services.knowledge.alignment.cross_kb_linking_service
+  - from app.services.knowledge.knowledge_graph_service -> from app.services.knowledge.graph.knowledge_graph_service
+
+文件: app\services\knowledge\graph\knowledge_graph_service.py
+  - from app.services.knowledge.advanced_text_processor -> from app.services.knowledge.core.advanced_text_processor
+  - from app.services.knowledge.graph_builder -> from app.services.knowledge.graph.graph_builder
+
+文件: app\services\knowledge\retrieval\cached_retrieval_service.py
+  - from app.services.knowledge.chroma_service -> from app.services.knowledge.vectorization.chroma_service
+  - from app.services.knowledge.retrieval_service -> from app.services.knowledge.retrieval.retrieval_service
+
+文件: app\services\knowledge\retrieval\semantic_search_service.py
+  - from app.services.knowledge.chroma_service -> from app.services.knowledge.vectorization.chroma_service
+  - from app.services.knowledge.knowledge_graph_service -> from app.services.knowledge.graph.knowledge_graph_service
+  - from app.services.knowledge.retrieval_service -> from app.services.knowledge.retrieval.retrieval_service
+  - from app.services.knowledge.rerank_service -> from app.services.knowledge.retrieval.rerank_service
+
+文件: app\services\knowledge\retrieval\unified_retrieval_service.py
+  - from app.services.knowledge.chroma_service -> from app.services.knowledge.vectorization.chroma_service
+  - from app.services.knowledge.cached_retrieval_service -> from app.services.knowledge.retrieval.cached_retrieval_service
+
+文件: app\services\knowledge\vectorization\vector_store_adapter.py
+  - from app.services.knowledge.chroma_service -> from app.services.knowledge.vectorization.chroma_service
+
+文件: app\workflows\knowledge_workflow.py
+  - from app.services.knowledge.retrieval_service -> from app.services.knowledge.retrieval.retrieval_service
+

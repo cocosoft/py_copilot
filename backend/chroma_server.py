@@ -233,29 +233,76 @@ async def get_documents_by_metadata(collection_name: str, request: GetDocumentsR
             embedding_function=embedding_function
         )
 
+        all_ids = []
+        all_documents = []
+        all_metadatas = []
+
         # 转换过滤器格式以适应 ChromaDB 的 where 语法
         # ChromaDB 支持 $eq, $ne, $gt, $gte, $lt, $lte, $in, $nin 等操作符
-        chroma_filters = None
         if request.filters:
+            # 首先尝试使用原始值查询
             chroma_filters = {}
             for key, value in request.filters.items():
-                # 将简单的键值对转换为 ChromaDB 的 $eq 格式
                 chroma_filters[key] = {"$eq": value}
 
-        logger.info(f"查询过滤器: {chroma_filters}")
+            logger.info(f"查询过滤器(原始值): {chroma_filters}")
 
-        # 使用 where 参数根据元数据过滤文档
-        results = collection.get(
-            where=chroma_filters
-        )
+            try:
+                results = collection.get(where=chroma_filters)
+                all_ids.extend(results.get("ids", []))
+                all_documents.extend(results.get("documents", []))
+                all_metadatas.extend(results.get("metadatas", []))
+            except Exception as e:
+                logger.warning(f"原始值查询失败: {e}")
+
+            # 对于整数类型的值，同时尝试字符串格式查询
+            # 因为 ChromaDB 可能会将整数存储为字符串
+            string_filters = {}
+            has_string_filter = False
+            for key, value in request.filters.items():
+                if isinstance(value, int):
+                    string_filters[key] = {"$eq": str(value)}
+                    has_string_filter = True
+                elif isinstance(value, str):
+                    # 如果值是字符串，尝试整数格式
+                    try:
+                        int_value = int(value)
+                        string_filters[key] = {"$eq": int_value}
+                        has_string_filter = True
+                    except ValueError:
+                        pass
+
+            if has_string_filter and string_filters != chroma_filters:
+                logger.info(f"查询过滤器(转换值): {string_filters}")
+                try:
+                    results = collection.get(where=string_filters)
+                    # 合并结果，避免重复
+                    existing_ids = set(all_ids)
+                    for i, doc_id in enumerate(results.get("ids", [])):
+                        if doc_id not in existing_ids:
+                            all_ids.append(doc_id)
+                            all_documents.append(results.get("documents", [])[i] if i < len(results.get("documents", [])) else "")
+                            all_metadatas.append(results.get("metadatas", [])[i] if i < len(results.get("metadatas", [])) else {})
+                except Exception as e:
+                    logger.warning(f"转换值查询失败: {e}")
+        else:
+            # 没有过滤器，获取所有文档
+            results = collection.get()
+            all_ids = results.get("ids", [])
+            all_documents = results.get("documents", [])
+            all_metadatas = results.get("metadatas", [])
+
+        logger.info(f"查询完成，找到 {len(all_ids)} 个结果")
 
         return {
-            "ids": results.get("ids", []),
-            "documents": results.get("documents", []),
-            "metadatas": results.get("metadatas", [])
+            "ids": all_ids,
+            "documents": all_documents,
+            "metadatas": all_metadatas
         }
     except Exception as e:
         logger.error(f"根据元数据获取文档失败: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":

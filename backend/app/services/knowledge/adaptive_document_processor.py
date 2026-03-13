@@ -16,7 +16,7 @@ import asyncio
 from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
 
-from app.services.knowledge.processing_progress_service import processing_progress_service
+from app.services.knowledge.utils.processing_progress_service import processing_progress_service
 from app.services.knowledge.adaptive_batch_processor import (
     AdaptiveBatchProcessor,
     BatchConfig,
@@ -41,19 +41,19 @@ class AdaptiveDocumentProcessor:
             batch_config: 批次配置，使用默认配置如果未提供
         """
         # 使用现有的文档解析器
-        from app.services.knowledge.document_parser import DocumentParser
+        from app.services.knowledge.core.document_parser import DocumentParser
         self.parser = DocumentParser()
 
         # 使用高级文本处理器
-        from app.services.knowledge.advanced_text_processor import AdvancedTextProcessor
+        from app.services.knowledge.core.advanced_text_processor import AdvancedTextProcessor
         self.text_processor = AdvancedTextProcessor()
 
         # 使用现有的 ChromaService
-        from app.services.knowledge.chroma_service import ChromaService
+        from app.services.knowledge.vectorization.chroma_service import ChromaService
         self.chroma_service = ChromaService()
 
         # 使用知识图谱服务
-        from app.services.knowledge.knowledge_graph_service import KnowledgeGraphService
+        from app.services.knowledge.graph.knowledge_graph_service import KnowledgeGraphService
         self.knowledge_graph_service = KnowledgeGraphService()
 
         # 初始化自适应批次处理器

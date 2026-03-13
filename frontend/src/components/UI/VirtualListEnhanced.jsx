@@ -4,7 +4,7 @@
  * 基于 @tanstack/react-virtual 实现，支持动态高度和无限滚动
  */
 
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import './VirtualList.css';
 
@@ -38,6 +38,7 @@ const VirtualListEnhanced = ({
 }) => {
   const parentRef = useRef(null);
   const endReachedCalledRef = useRef(false);
+  const measureElementsRef = useRef(new Map());
 
   // 使用 tanstack virtual
   const virtualizer = useVirtualizer({
@@ -45,8 +46,37 @@ const VirtualListEnhanced = ({
     getScrollElement: () => parentRef.current,
     estimateSize: () => estimateSize,
     overscan,
-    measureElement: (el) => el.getBoundingClientRect().height,
   });
+
+  /**
+   * 创建安全的测量 ref 回调
+   * 使用 requestAnimationFrame 延迟测量，避免在渲染过程中调用 flushSync
+   *
+   * @param {number} index - 元素索引
+   * @returns {Function} ref 回调函数
+   */
+  const createMeasureRef = useCallback((index) => {
+    return (element) => {
+      if (!element) {
+        // 元素卸载时清理
+        const prevElement = measureElementsRef.current.get(index);
+        if (prevElement) {
+          measureElementsRef.current.delete(index);
+        }
+        return;
+      }
+
+      // 存储元素引用
+      measureElementsRef.current.set(index, element);
+
+      // 使用 requestAnimationFrame 延迟测量，避免 flushSync 警告
+      requestAnimationFrame(() => {
+        if (element && virtualizer.measureElement) {
+          virtualizer.measureElement(element);
+        }
+      });
+    };
+  }, [virtualizer]);
 
   // 监听滚动，触发加载更多
   const handleScroll = useCallback(() => {
@@ -64,6 +94,19 @@ const VirtualListEnhanced = ({
   }, [onEndReached, endReachedThreshold, hasMore, loading]);
 
   const virtualItems = virtualizer.getVirtualItems();
+
+  /**
+   * 当数据变化时，清理不再需要的元素引用
+   */
+  useEffect(() => {
+    // 清理不在当前虚拟列表中的元素引用
+    const currentIndices = new Set(virtualItems.map(item => item.index));
+    for (const index of measureElementsRef.current.keys()) {
+      if (!currentIndices.has(index)) {
+        measureElementsRef.current.delete(index);
+      }
+    }
+  }, [virtualItems]);
 
   // 渲染空状态
   if (items.length === 0 && !loading) {
@@ -98,7 +141,7 @@ const VirtualListEnhanced = ({
         {virtualItems.map((virtualItem) => (
           <div
             key={virtualItem.key}
-            ref={virtualizer.measureElement}
+            ref={createMeasureRef(virtualItem.index)}
             data-index={virtualItem.index}
             className="virtual-list-item"
             style={{

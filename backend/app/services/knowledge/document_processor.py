@@ -32,11 +32,21 @@ class DocumentProcessor:
         self.knowledge_graph_service = KnowledgeGraphService()
 
     def process_document(self, file_path: str, file_type: str, document_id: int,
-                        knowledge_base_id: Optional[int] = None, db: Session = None) -> Dict[str, Any]:
-        """完整文档处理流程 - 集成图谱化操作和进度反馈"""
+                        knowledge_base_id: Optional[int] = None, db: Session = None,
+                        document_uuid: Optional[str] = None) -> Dict[str, Any]:
+        """完整文档处理流程 - 集成图谱化操作和进度反馈
 
-        # 初始化进度追踪
-        doc_id_str = str(document_id)
+        Args:
+            file_path: 文件路径
+            file_type: 文件类型
+            document_id: 文档ID（数据库自增ID）
+            knowledge_base_id: 知识库ID
+            db: 数据库会话
+            document_uuid: 文档UUID（用于向量存储）
+        """
+
+        # 使用uuid作为进度追踪ID（如果提供）
+        doc_id_str = document_uuid if document_uuid else str(document_id)
         processing_progress_service.start_processing(doc_id_str, total_steps=6)
 
         try:
@@ -113,12 +123,14 @@ class DocumentProcessor:
                 )
 
                 # 准备当前批次数据
+                # 使用uuid作为向量存储的document_id（如果提供）
+                vector_doc_id = document_uuid if document_uuid else str(document_id)
                 batch_documents = []
                 for i, chunk in enumerate(current_batch_chunks):
                     global_idx = start_idx + i
-                    chunk_id = f"{document_id}_chunk_{global_idx}"
+                    chunk_id = f"{vector_doc_id}_chunk_{global_idx}"
                     metadata = {
-                        "document_id": document_id,
+                        "document_id": vector_doc_id,  # 使用uuid作为document_id
                         "knowledge_base_id": knowledge_base_id,
                         "chunk_index": global_idx,
                         "total_chunks": total_chunks,
@@ -155,9 +167,9 @@ class DocumentProcessor:
                     logger.warning(f"批次 {batch_idx + 1} 批量处理失败: {batch_result.get('error')}, 回退到逐个处理")
                     for i, chunk in enumerate(current_batch_chunks):
                         global_idx = start_idx + i
-                        chunk_id = f"{document_id}_chunk_{global_idx}"
+                        chunk_id = f"{vector_doc_id}_chunk_{global_idx}"
                         metadata = {
-                            "document_id": document_id,
+                            "document_id": vector_doc_id,  # 使用uuid作为document_id
                             "knowledge_base_id": knowledge_base_id,
                             "chunk_index": global_idx,
                             "total_chunks": total_chunks,

@@ -28,7 +28,7 @@ from app.modules.knowledge.models.knowledge_document import (
     KnowledgeDocument,
     DocumentChunk
 )
-from app.services.knowledge.chroma_service import ChromaService
+from app.services.knowledge.vectorization.chroma_service import ChromaService
 
 logger = logging.getLogger(__name__)
 

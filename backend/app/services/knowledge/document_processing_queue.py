@@ -23,6 +23,21 @@ class ProcessingTask:
     retry_count: int = 0
     max_retries: int = 3
 
+    def __lt__(self, other):
+        """
+        实现小于比较，用于优先级队列排序
+
+        @param other: 另一个ProcessingTask对象
+        @return: 如果当前任务优先级更高则返回True
+        """
+        if not isinstance(other, ProcessingTask):
+            return NotImplemented
+        # 优先级数字小的先处理
+        if self.priority != other.priority:
+            return self.priority < other.priority
+        # 优先级相同则先创建的先处理
+        return self.created_at < other.created_at
+
 
 class DocumentProcessingQueue:
     """

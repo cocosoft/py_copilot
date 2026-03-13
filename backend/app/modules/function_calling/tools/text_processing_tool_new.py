@@ -16,7 +16,7 @@ from app.modules.function_calling.tool_schemas import (
     ToolExecutionResult,
     ToolCategory
 )
-from app.services.knowledge.text_processor import KnowledgeTextProcessor
+from app.services.knowledge.core.advanced_text_processor import AdvancedTextProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -39,9 +39,9 @@ class TextProcessingTool(ServiceTool):
         获取文本处理服务实例
         
         Returns:
-            KnowledgeTextProcessor: 文本处理服务实例
+            AdvancedTextProcessor: 文本处理服务实例
         """
-        return KnowledgeTextProcessor()
+        return AdvancedTextProcessor()
     
     def _get_metadata(self) -> ToolMetadata:
         """

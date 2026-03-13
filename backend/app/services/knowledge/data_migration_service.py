@@ -37,7 +37,7 @@ from app.modules.knowledge.models.unified_knowledge_unit import (
     AssociationType
 )
 from app.services.knowledge.unified_knowledge_service import UnifiedKnowledgeService
-from app.services.knowledge.chroma_service import ChromaService
+from app.services.knowledge.vectorization.chroma_service import ChromaService
 
 logger = logging.getLogger(__name__)
 

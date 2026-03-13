@@ -1,5 +1,5 @@
 from typing import List, Dict, Any, Optional
-from app.services.knowledge.retrieval_service import AdvancedRetrievalService
+from app.services.knowledge.retrieval.retrieval_service import AdvancedRetrievalService
 from app.modules.memory.services.memory_service import MemoryService
 from sqlalchemy.orm import Session
 

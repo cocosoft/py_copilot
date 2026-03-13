@@ -4,23 +4,26 @@
  * 管理知识库的配置和参数
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FiSave, FiTrash2, FiAlertTriangle } from 'react-icons/fi';
 import useKnowledgeStore from '../../../stores/knowledgeStore';
 import { Button } from '../../../components/UI';
 import { message } from '../../../components/UI/Message/Message';
+import { updateKnowledgeBase, deleteKnowledgeBase } from '../../../utils/api/knowledgeApi';
 import './styles.css';
 
 /**
  * 知识库设置页面
  */
 const KnowledgeSettings = () => {
-  const { currentKnowledgeBase } = useKnowledgeStore();
+  const { currentKnowledgeBase, setCurrentKnowledgeBase } = useKnowledgeStore();
+  const navigate = useNavigate();
 
   // 本地状态
   const [settings, setSettings] = useState({
-    name: currentKnowledgeBase?.name || '',
-    description: currentKnowledgeBase?.description || '',
+    name: '',
+    description: '',
     isPublic: false,
     autoVectorize: true,
     chunkSize: 1000,
@@ -33,6 +36,17 @@ const KnowledgeSettings = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  // 当当前知识库变化时更新设置
+  useEffect(() => {
+    if (currentKnowledgeBase) {
+      setSettings(prev => ({
+        ...prev,
+        name: currentKnowledgeBase.name || '',
+        description: currentKnowledgeBase.description || '',
+      }));
+    }
+  }, [currentKnowledgeBase]);
+
   /**
    * 保存设置
    */
@@ -41,16 +55,29 @@ const KnowledgeSettings = () => {
 
     setIsSaving(true);
     try {
-      // TODO: 替换为实际 API 调用
-      // await knowledgeApi.updateKnowledgeBase(currentKnowledgeBase.id, settings);
-      
+      // 调用真实 API 更新知识库
+      const updatedKB = await updateKnowledgeBase(
+        currentKnowledgeBase.id,
+        settings.name,
+        settings.description
+      );
+
+      // 更新 store 中的当前知识库
+      if (updatedKB) {
+        setCurrentKnowledgeBase({
+          ...currentKnowledgeBase,
+          name: settings.name,
+          description: settings.description,
+        });
+      }
+
       message.success({ content: '设置已保存' });
     } catch (error) {
       message.error({ content: '保存失败：' + error.message });
     } finally {
       setIsSaving(false);
     }
-  }, [currentKnowledgeBase, settings]);
+  }, [currentKnowledgeBase, settings, setCurrentKnowledgeBase]);
 
   /**
    * 删除知识库
@@ -59,15 +86,17 @@ const KnowledgeSettings = () => {
     if (!currentKnowledgeBase) return;
 
     try {
-      // TODO: 替换为实际 API 调用
-      // await knowledgeApi.deleteKnowledgeBase(currentKnowledgeBase.id);
-      
+      // 调用真实 API 删除知识库
+      await deleteKnowledgeBase(currentKnowledgeBase.id);
+
       message.success({ content: '知识库已删除' });
-      // TODO: 跳转到知识库列表
+      // 清空当前知识库并跳转到知识库列表
+      setCurrentKnowledgeBase(null);
+      navigate('/knowledge');
     } catch (error) {
       message.error({ content: '删除失败：' + error.message });
     }
-  }, [currentKnowledgeBase]);
+  }, [currentKnowledgeBase, setCurrentKnowledgeBase, navigate]);
 
   /**
    * 更新设置字段

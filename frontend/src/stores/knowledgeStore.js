@@ -180,10 +180,21 @@ const useKnowledgeStore = create(
 
           /**
            * 设置文档列表
+           * @param {Array} documents - 文档列表
+           * @param {number} total - 文档总数
+           * @param {boolean} append - 是否追加模式（用于加载更多）
            */
-          setDocuments: (documents, total) => {
+          setDocuments: (documents, total, append = false) => {
             set((state) => {
-              state.documents = documents;
+              if (append && state.documentsPage > 1) {
+                // 追加模式：合并现有数据和新数据
+                const existingIds = new Set(state.documents.map(d => d.id));
+                const newDocuments = documents.filter(d => !existingIds.has(d.id));
+                state.documents = [...state.documents, ...newDocuments];
+              } else {
+                // 替换模式：直接替换所有数据
+                state.documents = documents;
+              }
               state.documentsTotal = total;
 
               // 更新缓存
@@ -291,12 +302,16 @@ const useKnowledgeStore = create(
            * 切换文档选中状态
            */
           toggleDocumentSelection: (documentId) => {
+            const id = String(documentId);
+            console.log('[toggleDocumentSelection] 切换文档选中状态:', id);
             set((state) => {
-              const index = state.selectedDocuments.indexOf(documentId);
+              const index = state.selectedDocuments.findIndex(selectedId => String(selectedId) === id);
               if (index > -1) {
                 state.selectedDocuments.splice(index, 1);
+                console.log('[toggleDocumentSelection] 取消选中:', id, '当前选中:', state.selectedDocuments);
               } else {
-                state.selectedDocuments.push(documentId);
+                state.selectedDocuments.push(id);
+                console.log('[toggleDocumentSelection] 选中:', id, '当前选中:', state.selectedDocuments);
               }
             });
           },
@@ -316,7 +331,7 @@ const useKnowledgeStore = create(
           selectAllDocuments: (select) => {
             set((state) => {
               if (select) {
-                state.selectedDocuments = state.documents.map((d) => d.id);
+                state.selectedDocuments = state.documents.map((d) => String(d.id));
               } else {
                 state.selectedDocuments = [];
               }

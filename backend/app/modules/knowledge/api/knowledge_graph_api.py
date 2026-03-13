@@ -9,8 +9,8 @@ import uuid
 
 from app.core.database import get_db
 from app.modules.knowledge.models.knowledge_document import KnowledgeDocument
-from app.services.knowledge.knowledge_graph_service import KnowledgeGraphService
-from app.services.knowledge.batch_graph_builder import BatchGraphBuilder, BatchBuildResult
+from app.services.knowledge.graph.knowledge_graph_service import KnowledgeGraphService
+from app.services.knowledge.graph.batch_graph_builder import BatchGraphBuilder, BatchBuildResult
 
 logger = logging.getLogger(__name__)
 
@@ -129,6 +129,7 @@ async def _run_batch_build_task(
 class EntityExtractionRequest(BaseModel):
     document_id: Optional[int] = None
     text: Optional[str] = None
+    knowledge_base_id: Optional[int] = None  # 知识库ID，用于加载知识库级提取策略配置
 
     class Config:
         extra = "ignore"  # 忽略额外的字段，提高兼容性
@@ -272,9 +273,11 @@ async def extract_entities(
             # 从文本内容直接提取实体和关系（不存储到数据库）
             if not request.text.strip():
                 raise HTTPException(status_code=400, detail="文本内容不能为空")
-            
-            # 直接从文本提取实体和关系
-            entities, relationships = knowledge_graph_service.text_processor.extract_entities_relationships(request.text)
+
+            # 使用 _get_text_processor 方法获取文本处理器
+            text_processor = knowledge_graph_service._get_text_processor(db, request.knowledge_base_id)
+            # 直接从文本提取实体和关系（使用 await 调用异步函数）
+            entities, relationships = await text_processor.extract_entities_relationships(request.text)
             
             # 转换实体格式以匹配前端预期
             formatted_entities = []

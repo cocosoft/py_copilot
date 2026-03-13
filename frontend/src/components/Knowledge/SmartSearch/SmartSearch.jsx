@@ -5,19 +5,20 @@
  */
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { FiSearch, FiClock, FiX, FiFilter } from 'react-icons/fi';
+import { FiSearch, FiClock, FiX, FiFilter, FiFile, FiCalendar, FiTag } from 'react-icons/fi';
 import useKnowledgeStore from '../../../stores/knowledgeStore';
 import useDebounce from '../../../hooks/useDebounce';
 import './SmartSearch.css';
 
 /**
  * 智能搜索组件
- * 
- * 支持搜索建议、搜索历史、实时搜索
+ *
+ * 支持搜索建议、搜索历史、实时搜索、筛选功能
  */
 const SmartSearch = () => {
   const [query, setQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const inputRef = useRef(null);
   const dropdownRef = useRef(null);
 
@@ -29,6 +30,24 @@ const SmartSearch = () => {
     clearSearchHistory,
     setDocumentFilters,
   } = useKnowledgeStore();
+
+  // 文件类型选项
+  const fileTypeOptions = [
+    { value: '', label: '全部类型' },
+    { value: 'pdf', label: 'PDF' },
+    { value: 'doc', label: 'Word' },
+    { value: 'docx', label: 'Word' },
+    { value: 'txt', label: '文本' },
+    { value: 'md', label: 'Markdown' },
+  ];
+
+  // 排序选项
+  const sortOptions = [
+    { value: 'relevance', label: '相关度' },
+    { value: 'created_at', label: '创建时间' },
+    { value: 'title', label: '标题' },
+    { value: 'file_size', label: '文件大小' },
+  ];
 
   // 防抖搜索
   const debouncedQuery = useDebounce(query, 300);
@@ -89,6 +108,50 @@ const SmartSearch = () => {
     inputRef.current?.focus();
   };
 
+  // 处理文件类型筛选
+  const handleFileTypeChange = (e) => {
+    setDocumentFilters({
+      ...documentFilters,
+      fileType: e.target.value,
+    });
+  };
+
+  // 处理排序变更
+  const handleSortChange = (e) => {
+    setDocumentFilters({
+      ...documentFilters,
+      sortBy: e.target.value,
+    });
+  };
+
+  // 处理排序方向变更
+  const handleSortOrderChange = () => {
+    setDocumentFilters({
+      ...documentFilters,
+      sortOrder: documentFilters.sortOrder === 'asc' ? 'desc' : 'asc',
+    });
+  };
+
+  // 处理日期范围变更
+  const handleDateChange = (field, value) => {
+    setDocumentFilters({
+      ...documentFilters,
+      [field]: value,
+    });
+  };
+
+  // 清除所有筛选
+  const handleClearFilters = () => {
+    setDocumentFilters({
+      search: documentFilters.search || '',
+      fileType: '',
+      sortBy: 'relevance',
+      sortOrder: 'desc',
+      startDate: '',
+      endDate: '',
+    });
+  };
+
   // 删除单条历史记录
   const handleRemoveHistory = (e, history) => {
     e.stopPropagation();
@@ -97,7 +160,7 @@ const SmartSearch = () => {
   };
 
   const hasActiveFilters = Object.keys(documentFilters).some(
-    (key) => key !== 'search' && documentFilters[key]
+    (key) => key !== 'search' && documentFilters[key] && documentFilters[key] !== 'relevance' && documentFilters[key] !== 'desc'
   );
 
   return (
@@ -126,8 +189,83 @@ const SmartSearch = () => {
               已筛选
             </span>
           )}
+          <button
+            className={`smart-search-filter-btn ${showFilters ? 'active' : ''}`}
+            onClick={() => setShowFilters(!showFilters)}
+            title="筛选"
+          >
+            <FiFilter />
+          </button>
         </div>
       </div>
+
+      {/* 筛选面板 */}
+      {showFilters && (
+        <div className="smart-search-filters">
+          <div className="filter-row">
+            <div className="filter-group">
+              <label><FiFile /> 文件类型</label>
+              <select
+                value={documentFilters.fileType || ''}
+                onChange={handleFileTypeChange}
+              >
+                {fileTypeOptions.map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="filter-group">
+              <label>排序方式</label>
+              <div className="sort-controls">
+                <select
+                  value={documentFilters.sortBy || 'relevance'}
+                  onChange={handleSortChange}
+                >
+                  {sortOptions.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  className="sort-order-btn"
+                  onClick={handleSortOrderChange}
+                  title={documentFilters.sortOrder === 'asc' ? '升序' : '降序'}
+                >
+                  {documentFilters.sortOrder === 'asc' ? '↑' : '↓'}
+                </button>
+              </div>
+            </div>
+
+            <div className="filter-group">
+              <label><FiCalendar /> 开始日期</label>
+              <input
+                type="date"
+                value={documentFilters.startDate || ''}
+                onChange={(e) => handleDateChange('startDate', e.target.value)}
+              />
+            </div>
+
+            <div className="filter-group">
+              <label><FiCalendar /> 结束日期</label>
+              <input
+                type="date"
+                value={documentFilters.endDate || ''}
+                onChange={(e) => handleDateChange('endDate', e.target.value)}
+              />
+            </div>
+
+            {hasActiveFilters && (
+              <button className="clear-filters-btn" onClick={handleClearFilters}>
+                <FiX /> 清除筛选
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 下拉面板 */}
       {isFocused && (

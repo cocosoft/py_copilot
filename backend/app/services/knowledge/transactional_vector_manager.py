@@ -26,7 +26,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.database import get_db_pool
-from app.services.knowledge.chroma_service import ChromaService
+from app.services.knowledge.vectorization.chroma_service import ChromaService
 
 logger = logging.getLogger(__name__)
 

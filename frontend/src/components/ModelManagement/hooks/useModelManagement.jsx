@@ -73,7 +73,10 @@ const useModelManagement = () => {
 
   // 场景模型选择处理
   const handleSceneModelSelect = useCallback((scene) => (model) => {
-    setSceneDefaultModels(prev => ({ ...prev, [scene]: model.id }));
+    // 兼容 model.id 和 model.model_id 两种字段名
+    const modelId = model.id || model.model_id;
+    console.log(`选择场景 ${scene} 的模型:`, modelId, model);
+    setSceneDefaultModels(prev => ({ ...prev, [scene]: modelId }));
     setValidationErrors(prev => {
       const newErrors = { ...prev };
       delete newErrors[scene];
@@ -84,24 +87,25 @@ const useModelManagement = () => {
   // 验证表单
   const validateForm = useCallback(() => {
     const errors = {};
-    
-    // 验证全局模型
-    if (!globalDefaultModel) {
-      const globalError = validateModelSelection(null, 'global');
-      Object.assign(errors, globalError);
-    }
-    
-    // 验证场景模型
+
+    // 验证全局模型（可选，不强制要求）
+    // if (!globalDefaultModel) {
+    //   const globalError = validateModelSelection(null, 'global');
+    //   Object.assign(errors, globalError);
+    // }
+
+    // 场景模型验证 - 不强制要求所有场景都必须选择模型
+    // 只验证已选择的模型是否有效
     Object.entries(sceneDefaultModels).forEach(([scene, modelId]) => {
-      if (!modelId) {
-        const sceneError = validateModelSelection(null, 'scene', scene);
-        Object.assign(errors, sceneError);
+      // 如果选择了模型，验证模型ID是否有效
+      if (modelId && typeof modelId !== 'number') {
+        errors[scene] = `场景 ${scene} 的模型选择无效`;
       }
     });
-    
+
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
-  }, [globalDefaultModel, sceneDefaultModels, validateModelSelection]);
+  }, [globalDefaultModel, sceneDefaultModels]);
 
   // 计算模型的能力匹配度
   const calculateCapabilityScore = useCallback(async (model, scene) => {
@@ -400,6 +404,7 @@ const useModelManagement = () => {
     try {
       // 验证表单
       if (!validateForm()) {
+        console.log('表单验证失败', validationErrors);
         return;
       }
 
@@ -411,6 +416,7 @@ const useModelManagement = () => {
 
       // 保存全局默认模型（如果有选择）
       if (globalDefaultModel) {
+        console.log('保存全局默认模型:', globalDefaultModel);
         savePromises.push(
           defaultModelApi.setGlobalDefaultModel({
             model_id: globalDefaultModel
@@ -419,8 +425,10 @@ const useModelManagement = () => {
       }
 
       // 保存场景默认模型
+      console.log('保存场景默认模型:', sceneDefaultModels);
       Object.entries(sceneDefaultModels).forEach(([scene, modelId]) => {
         if (modelId) {
+          console.log(`保存场景 ${scene} 的默认模型:`, modelId);
           savePromises.push(
             defaultModelApi.setSceneDefaultModel({
               scene,
@@ -431,8 +439,11 @@ const useModelManagement = () => {
         }
       });
 
+      console.log(`开始保存 ${savePromises.length} 个配置...`);
+
       // 等待所有保存操作完成
-      await Promise.all(savePromises);
+      const results = await Promise.all(savePromises);
+      console.log('保存结果:', results);
 
       // 重新加载配置以确保UI同步
       await loadModelsAndConfigs();

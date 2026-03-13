@@ -660,7 +660,7 @@ async def preview_extraction(
 ):
     """预览实体提取效果"""
     try:
-        from app.services.knowledge.advanced_text_processor import AdvancedTextProcessor
+        from app.services.knowledge.core.advanced_text_processor import AdvancedTextProcessor
 
         processor = AdvancedTextProcessor(db, knowledge_base_id)
         entities, relationships = processor.extract_entities_relationships(text)

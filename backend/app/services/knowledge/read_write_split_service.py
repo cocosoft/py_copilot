@@ -17,7 +17,7 @@ from enum import Enum, auto
 from collections import deque
 import random
 
-from app.services.knowledge.vector_store_adapter import (
+from app.services.knowledge.vectorization.vector_store_adapter import (
     VectorStoreAdapter,
     VectorStoreConfig,
     VectorStoreBackend,

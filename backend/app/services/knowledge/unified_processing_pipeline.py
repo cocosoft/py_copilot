@@ -172,7 +172,7 @@ class DocumentParseHandler(PipelineStageHandler):
     
     def __init__(self):
         super().__init__(PipelineStage.DOCUMENT_PARSE)
-        from app.services.knowledge.document_parser import DocumentParser
+        from app.services.knowledge.core.document_parser import DocumentParser
         self.parser = DocumentParser()
     
     async def process(self, context: PipelineContext) -> StageResult:
@@ -227,7 +227,7 @@ class TextCleanHandler(PipelineStageHandler):
     
     def __init__(self):
         super().__init__(PipelineStage.TEXT_CLEAN)
-        from app.services.knowledge.advanced_text_processor import AdvancedTextProcessor
+        from app.services.knowledge.core.advanced_text_processor import AdvancedTextProcessor
         self.text_processor = AdvancedTextProcessor()
     
     async def process(self, context: PipelineContext) -> StageResult:
@@ -287,7 +287,7 @@ class SemanticChunkHandler(PipelineStageHandler):
     
     def __init__(self):
         super().__init__(PipelineStage.SEMANTIC_CHUNK)
-        from app.services.knowledge.advanced_text_processor import AdvancedTextProcessor
+        from app.services.knowledge.core.advanced_text_processor import AdvancedTextProcessor
         self.text_processor = AdvancedTextProcessor()
     
     async def process(self, context: PipelineContext) -> StageResult:
@@ -349,7 +349,7 @@ class EntityExtractHandler(PipelineStageHandler):
     
     def __init__(self):
         super().__init__(PipelineStage.ENTITY_EXTRACT)
-        from app.services.knowledge.advanced_text_processor import AdvancedTextProcessor
+        from app.services.knowledge.core.advanced_text_processor import AdvancedTextProcessor
         self.text_processor = AdvancedTextProcessor()
     
     async def process(self, context: PipelineContext) -> StageResult:
@@ -411,7 +411,7 @@ class RelationExtractHandler(PipelineStageHandler):
     
     def __init__(self):
         super().__init__(PipelineStage.RELATION_EXTRACT)
-        from app.services.knowledge.advanced_text_processor import AdvancedTextProcessor
+        from app.services.knowledge.core.advanced_text_processor import AdvancedTextProcessor
         self.text_processor = AdvancedTextProcessor()
     
     async def process(self, context: PipelineContext) -> StageResult:
@@ -475,7 +475,7 @@ class VectorizeHandler(PipelineStageHandler):
     
     def __init__(self):
         super().__init__(PipelineStage.VECTORIZE)
-        from app.services.knowledge.chroma_service import ChromaService
+        from app.services.knowledge.vectorization.chroma_service import ChromaService
         self.chroma_service = ChromaService()
         self.vector_manager = TransactionalVectorManager()
     
@@ -581,7 +581,7 @@ class KnowledgeGraphHandler(PipelineStageHandler):
     
     def __init__(self):
         super().__init__(PipelineStage.KNOWLEDGE_GRAPH)
-        from app.services.knowledge.knowledge_graph_service import KnowledgeGraphService
+        from app.services.knowledge.graph.knowledge_graph_service import KnowledgeGraphService
         self.kg_service = KnowledgeGraphService()
     
     async def process(self, context: PipelineContext) -> StageResult:

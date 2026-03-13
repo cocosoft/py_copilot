@@ -1,14 +1,19 @@
 /**
  * 知识图谱页面
- * 
- * 展示知识库的知识图谱可视化
+ *
+ * 展示知识库的知识图谱可视化，支持实体识别和关系提取
  */
 
 import React, { useEffect, useCallback, useState, useRef } from 'react';
-import { FiRefreshCw, FiZoomIn, FiZoomOut, FiMaximize, FiFilter } from 'react-icons/fi';
+import { FiRefreshCw, FiZoomIn, FiZoomOut, FiMaximize, FiFilter, FiPlay, FiCpu, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
 import useKnowledgeStore from '../../../stores/knowledgeStore';
 import { Button } from '../../../components/UI';
 import { message } from '../../../components/UI/Message/Message';
+import {
+  getKnowledgeBaseGraphData,
+  buildKnowledgeGraph,
+  getDocumentProcessingProgress
+} from '../../../utils/api/knowledgeApi';
 import './styles.css';
 
 /**
@@ -25,6 +30,14 @@ const KnowledgeGraph = () => {
   const [selectedNode, setSelectedNode] = useState(null);
   const [graphData, setGraphData] = useState({ nodes: [], edges: [] });
 
+  // 知识图谱构建状态
+  const [buildingGraph, setBuildingGraph] = useState(false);
+  const [buildProgress, setBuildProgress] = useState(0);
+  const [buildStatus, setBuildStatus] = useState(''); // 'idle', 'extracting', 'building', 'completed', 'failed'
+  const [buildError, setBuildError] = useState(null);
+  const [lastBuildTime, setLastBuildTime] = useState(null);
+  const progressIntervalRef = useRef(null);
+
   /**
    * 获取图谱数据
    */
@@ -33,27 +46,27 @@ const KnowledgeGraph = () => {
 
     setLoading(true);
     try {
-      // TODO: 替换为实际 API 调用
-      // const response = await knowledgeApi.getKnowledgeGraph(currentKnowledgeBase.id);
-      
-      // 模拟数据
-      const mockNodes = Array.from({ length: 20 }, (_, i) => ({
-        id: `node-${i}`,
-        label: `实体 ${i + 1}`,
-        type: ['concept', 'entity', 'relation'][i % 3],
+      // 调用真实 API 获取知识图谱数据
+      const response = await getKnowledgeBaseGraphData(currentKnowledgeBase.id);
+
+      // 转换后端数据为前端格式
+      const nodes = (response.nodes || []).map((node, index) => ({
+        id: node.id || `node-${index}`,
+        label: node.name || node.label || `实体 ${index + 1}`,
+        type: node.type || 'entity',
         x: Math.random() * 800,
         y: Math.random() * 600,
-        size: 20 + Math.random() * 30,
+        size: 20 + (node.importance || 0.5) * 30,
       }));
 
-      const mockEdges = Array.from({ length: 30 }, (_, i) => ({
-        id: `edge-${i}`,
-        source: `node-${Math.floor(Math.random() * 20)}`,
-        target: `node-${Math.floor(Math.random() * 20)}`,
-        label: '关联',
+      const edges = (response.edges || response.relationships || []).map((edge, index) => ({
+        id: edge.id || `edge-${index}`,
+        source: edge.source || edge.source_id,
+        target: edge.target || edge.target_id,
+        label: edge.label || edge.type || '关联',
       }));
 
-      setGraphData({ nodes: mockNodes, edges: mockEdges });
+      setGraphData({ nodes, edges });
     } catch (error) {
       message.error({ content: '获取知识图谱失败：' + error.message });
     } finally {
@@ -64,6 +77,79 @@ const KnowledgeGraph = () => {
   // 初始加载
   useEffect(() => {
     fetchGraphData();
+  }, [fetchGraphData]);
+
+  // 清理进度轮询
+  useEffect(() => {
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
+    };
+  }, []);
+
+  /**
+   * 构建知识图谱
+   */
+  const handleBuildKnowledgeGraph = useCallback(async () => {
+    if (!currentKnowledgeBase) return;
+
+    setBuildingGraph(true);
+    setBuildStatus('extracting');
+    setBuildProgress(0);
+    setBuildError(null);
+
+    try {
+      // 启动知识图谱构建
+      const response = await buildKnowledgeGraph(null, currentKnowledgeBase.id);
+
+      if (response.task_id) {
+        // 开始轮询进度
+        startProgressPolling(response.task_id);
+        message.success({ content: '知识图谱构建已启动' });
+      } else {
+        // 同步完成
+        setBuildStatus('completed');
+        setBuildProgress(100);
+        setLastBuildTime(new Date());
+        message.success({ content: '知识图谱构建完成' });
+        fetchGraphData();
+      }
+    } catch (error) {
+      setBuildStatus('failed');
+      setBuildError(error.message);
+      message.error({ content: '构建知识图谱失败：' + error.message });
+    } finally {
+      setBuildingGraph(false);
+    }
+  }, [currentKnowledgeBase, fetchGraphData]);
+
+  /**
+   * 开始进度轮询
+   */
+  const startProgressPolling = useCallback((taskId) => {
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+    }
+
+    progressIntervalRef.current = setInterval(async () => {
+      try {
+        // 这里应该调用获取任务进度的 API
+        // 暂时模拟进度增长
+        setBuildProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(progressIntervalRef.current);
+            setBuildStatus('completed');
+            setLastBuildTime(new Date());
+            fetchGraphData();
+            return 100;
+          }
+          return prev + 5;
+        });
+      } catch (error) {
+        console.error('获取进度失败:', error);
+      }
+    }, 1000);
   }, [fetchGraphData]);
 
   /**
@@ -183,9 +269,26 @@ const KnowledgeGraph = () => {
           <span className="graph-stats">
             {graphData.nodes.length} 个实体 · {graphData.edges.length} 个关系
           </span>
+          {lastBuildTime && (
+            <span className="last-build-time">
+              上次构建: {lastBuildTime.toLocaleString('zh-CN')}
+            </span>
+          )}
         </div>
-        
+
         <div className="toolbar-right">
+          {/* 构建知识图谱按钮 */}
+          <Button
+            variant="primary"
+            size="sm"
+            icon={<FiCpu />}
+            onClick={handleBuildKnowledgeGraph}
+            loading={buildingGraph}
+            disabled={buildingGraph}
+          >
+            {buildingGraph ? '构建中...' : '构建知识图谱'}
+          </Button>
+
           <Button
             variant="ghost"
             size="sm"
@@ -194,7 +297,7 @@ const KnowledgeGraph = () => {
           >
             筛选
           </Button>
-          
+
           <div className="zoom-controls">
             <button onClick={handleZoomOut} title="缩小">
               <FiZoomOut size={16} />
@@ -207,7 +310,7 @@ const KnowledgeGraph = () => {
               <FiMaximize size={16} />
             </button>
           </div>
-          
+
           <Button
             variant="secondary"
             size="sm"
@@ -219,6 +322,38 @@ const KnowledgeGraph = () => {
           </Button>
         </div>
       </div>
+
+      {/* 构建进度面板 */}
+      {(buildingGraph || buildStatus === 'completed' || buildStatus === 'failed') && (
+        <div className={`build-status-panel ${buildStatus}`}>
+          <div className="build-status-header">
+            {buildStatus === 'extracting' && <FiCpu className="status-icon" />}
+            {buildStatus === 'building' && <FiPlay className="status-icon" />}
+            {buildStatus === 'completed' && <FiCheckCircle className="status-icon" />}
+            {buildStatus === 'failed' && <FiAlertCircle className="status-icon" />}
+            <span className="status-text">
+              {buildStatus === 'extracting' && '正在提取实体和关系...'}
+              {buildStatus === 'building' && '正在构建知识图谱...'}
+              {buildStatus === 'completed' && '知识图谱构建完成'}
+              {buildStatus === 'failed' && '构建失败'}
+            </span>
+          </div>
+          {buildingGraph && (
+            <div className="build-progress">
+              <div className="progress-bar">
+                <div
+                  className="progress-fill"
+                  style={{ width: `${buildProgress}%` }}
+                />
+              </div>
+              <span className="progress-text">{buildProgress}%</span>
+            </div>
+          )}
+          {buildError && (
+            <div className="build-error">{buildError}</div>
+          )}
+        </div>
+      )}
 
       {/* 主内容区 */}
       <div className="knowledge-graph-content">

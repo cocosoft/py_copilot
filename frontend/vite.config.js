@@ -3,11 +3,11 @@ import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  // 加载环境变量
-  const env = loadEnv(mode, process.cwd(), '');
-  
+  // 加载环境变量（加载所有以 VITE_ 开头的环境变量）
+  const env = loadEnv(mode, process.cwd(), 'VITE_');
+
   // 使用环境变量中的API地址，如果没有则使用默认值
-    const apiBaseUrl = env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
+    const apiBaseUrl = env.VITE_API_BASE_URL || 'http://127.0.0.1:8007';
   
   return {
     plugins: [react()],
@@ -43,6 +43,7 @@ export default defineConfig(({ mode }) => {
       chunkSizeWarningLimit: 1000
     },
     server: {
+      port: 3000,
       proxy: {
         '/api': {
             target: apiBaseUrl,

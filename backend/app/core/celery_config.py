@@ -29,19 +29,28 @@ def create_celery_app(app_name: str = "knowledge_graph") -> Celery:
     """
     global celery_app
 
-    # 从环境变量获取Redis配置
-    redis_host = os.getenv("REDIS_HOST", "localhost")
-    redis_port = os.getenv("REDIS_PORT", "6379")
-    redis_db = os.getenv("REDIS_DB", "0")
-    redis_password = os.getenv("REDIS_PASSWORD", "")
-
-    # 构建Redis URL
-    if redis_password:
-        broker_url = f"redis://:{redis_password}@{redis_host}:{redis_port}/{redis_db}"
-        backend_url = f"redis://:{redis_password}@{redis_host}:{redis_port}/{int(redis_db) + 1}"
+    # 检查是否使用内存模式（开发/测试环境）
+    use_memory = os.getenv("CELERY_USE_MEMORY", "false").lower() == "true"
+    
+    if use_memory:
+        # 使用内存中的Redis替代方案（fakeredis）
+        logger.info("使用内存模式（fakeredis）启动Celery")
+        broker_url = "memory://"
+        backend_url = "cache+memory://"
     else:
-        broker_url = f"redis://{redis_host}:{redis_port}/{redis_db}"
-        backend_url = f"redis://{redis_host}:{redis_port}/{int(redis_db) + 1}"
+        # 从环境变量获取Redis配置
+        redis_host = os.getenv("REDIS_HOST", "localhost")
+        redis_port = os.getenv("REDIS_PORT", "6379")
+        redis_db = os.getenv("REDIS_DB", "0")
+        redis_password = os.getenv("REDIS_PASSWORD", "")
+
+        # 构建Redis URL
+        if redis_password:
+            broker_url = f"redis://:{redis_password}@{redis_host}:{redis_port}/{redis_db}"
+            backend_url = f"redis://:{redis_password}@{redis_host}:{redis_port}/{int(redis_db) + 1}"
+        else:
+            broker_url = f"redis://{redis_host}:{redis_port}/{redis_db}"
+            backend_url = f"redis://{redis_host}:{redis_port}/{int(redis_db) + 1}"
 
     celery_app = Celery(
         app_name,
@@ -51,6 +60,7 @@ def create_celery_app(app_name: str = "knowledge_graph") -> Celery:
             'app.tasks.knowledge_graph_tasks',
             'app.tasks.entity_extraction_tasks',
             'app.tasks.entity_alignment_tasks',
+            'app.tasks.knowledge.document_processing',
         ]
     )
 
@@ -83,6 +93,7 @@ def create_celery_app(app_name: str = "knowledge_graph") -> Celery:
             'app.tasks.knowledge_graph_tasks.*': {'queue': 'knowledge_graph'},
             'app.tasks.entity_extraction_tasks.*': {'queue': 'extraction'},
             'app.tasks.entity_alignment_tasks.*': {'queue': 'alignment'},
+            'app.tasks.knowledge.document_processing.*': {'queue': 'knowledge_processing'},
         },
 
         # 任务默认队列
@@ -98,7 +109,13 @@ def create_celery_app(app_name: str = "knowledge_graph") -> Celery:
     )
 
     logger.info(f"Celery应用创建成功: {app_name}")
-    logger.info(f"Broker: {broker_url.replace(redis_password, '***') if redis_password else broker_url}")
+    if use_memory:
+        logger.info(f"Broker: {broker_url}")
+    else:
+        logger.info(f"Broker: {broker_url.replace(redis_password, '***') if redis_password else broker_url}")
+
+    # 注册定时任务
+    register_periodic_tasks(celery_app)
 
     return celery_app
 
@@ -153,33 +170,46 @@ def setup_periodic_tasks(sender, **kwargs):
 from celery.schedules import crontab
 
 
-@celery_app.on_after_configure.connect
-def setup_periodic_tasks_connect(sender, **kwargs):
-    """连接定时任务配置"""
-    setup_periodic_tasks(sender, **kwargs)
+# ============== 系统任务（占位符，在create_celery_app后注册） ==============
 
-
-# ============== 系统任务 ==============
-
-@celery_app.task(bind=True)
-def cleanup_expired_results(self):
-    """清理过期的任务结果"""
-    try:
-        logger.info("开始清理过期任务结果")
-        # Celery会自动清理，这里可以添加额外的清理逻辑
-        return {"status": "success", "message": "过期结果已清理"}
-    except Exception as e:
-        logger.error(f"清理过期结果失败: {e}")
-        return {"status": "error", "message": str(e)}
-
-
-@celery_app.task(bind=True)
-def system_maintenance(self):
-    """系统维护任务"""
-    try:
-        logger.info("开始系统维护")
-        # 这里可以添加系统维护逻辑
-        return {"status": "success", "message": "系统维护完成"}
-    except Exception as e:
-        logger.error(f"系统维护失败: {e}")
-        return {"status": "error", "message": str(e)}
+def register_periodic_tasks(app: Celery):
+    """注册定时任务"""
+    
+    @app.on_after_configure.connect
+    def setup_periodic_tasks_connect(sender, **kwargs):
+        """连接定时任务配置"""
+        # 每小时清理过期任务结果
+        sender.add_periodic_task(
+            timedelta(hours=1),
+            cleanup_expired_results.s(),
+            name='cleanup-expired-results'
+        )
+        
+        # 每天凌晨进行系统维护
+        sender.add_periodic_task(
+            crontab(hour=2, minute=0),
+            system_maintenance.s(),
+            name='system-maintenance'
+        )
+    
+    @app.task(bind=True)
+    def cleanup_expired_results(self):
+        """清理过期的任务结果"""
+        try:
+            logger.info("开始清理过期任务结果")
+            return {"status": "success", "message": "过期结果已清理"}
+        except Exception as e:
+            logger.error(f"清理过期结果失败: {e}")
+            return {"status": "error", "message": str(e)}
+    
+    @app.task(bind=True)
+    def system_maintenance(self):
+        """系统维护任务"""
+        try:
+            logger.info("开始系统维护")
+            return {"status": "success", "message": "系统维护完成"}
+        except Exception as e:
+            logger.error(f"系统维护失败: {e}")
+            return {"status": "error", "message": str(e)}
+    
+    return cleanup_expired_results, system_maintenance

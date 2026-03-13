@@ -6,17 +6,17 @@ from sqlalchemy.orm import Session
 from fastapi import UploadFile, HTTPException
 
 from app.modules.knowledge.models.knowledge_document import KnowledgeBase, KnowledgeDocument, KnowledgeTag, document_tag_association
-from app.services.knowledge.document_parser import DocumentParser
-from app.services.knowledge.text_processor import KnowledgeTextProcessor
-from app.services.knowledge.retrieval_service import RetrievalService
-from app.services.knowledge.processing_progress_service import processing_progress_service
+from app.services.knowledge.core.document_parser import DocumentParser
+from app.services.knowledge.core.advanced_text_processor import AdvancedTextProcessor
+from app.services.knowledge.retrieval.retrieval_service import RetrievalService
+from app.services.knowledge.utils.processing_progress_service import processing_progress_service
 
 logger = logging.getLogger(__name__)
 
 class KnowledgeService:
     def __init__(self):
         self.document_parser = DocumentParser()
-        self.text_processor = KnowledgeTextProcessor()
+        self.text_processor = AdvancedTextProcessor()
         self.retrieval_service = RetrievalService()
     
     def is_supported_format(self, filename: str) -> bool:
@@ -80,11 +80,40 @@ class KnowledgeService:
             import traceback
             logger.error(f"错误堆栈: {traceback.format_exc()}")
         
-        # 2. 删除知识库时会自动删除所有关联的文档（通过cascade设置）
-        db.delete(knowledge_base)
-        db.commit()
-        logger.info(f"成功删除知识库: ID={knowledge_base_id}, 名称={knowledge_base.name}")
-        return True
+        # 2. 先删除关联的外键记录（避免外键约束错误）
+        try:
+            # 删除 translation_history 中关联的记录
+            from app.models.translation_history import TranslationHistory
+            db.query(TranslationHistory).filter(
+                TranslationHistory.knowledge_base_id == knowledge_base_id
+            ).update({TranslationHistory.knowledge_base_id: None})
+            
+            # 删除 knowledge_memory_mappings 中关联的记录
+            from app.models.memory import KnowledgeMemoryMapping
+            db.query(KnowledgeMemoryMapping).filter(
+                KnowledgeMemoryMapping.knowledge_base_id == knowledge_base_id
+            ).delete()
+            
+            db.commit()
+            logger.info(f"成功清理知识库 {knowledge_base_id} 的关联记录")
+        except Exception as e:
+            logger.error(f"清理关联记录失败: {str(e)}")
+            import traceback
+            logger.error(f"错误堆栈: {traceback.format_exc()}")
+            db.rollback()
+        
+        # 3. 删除知识库时会自动删除所有关联的文档（通过cascade设置）
+        try:
+            db.delete(knowledge_base)
+            db.commit()
+            logger.info(f"成功删除知识库: ID={knowledge_base_id}, 名称={knowledge_base.name}")
+            return True
+        except Exception as e:
+            logger.error(f"删除知识库数据库记录失败: {str(e)}")
+            import traceback
+            logger.error(f"错误堆栈: {traceback.format_exc()}")
+            db.rollback()
+            return False
     
     def _get_storage_paths(self, knowledge_base_id: int) -> tuple:
         """
@@ -221,7 +250,7 @@ class KnowledgeService:
                     db.commit()
 
                     # 使用DocumentProcessor进行完整文档处理
-                    from app.services.knowledge.document_processor import DocumentProcessor
+                    from app.services.knowledge.core.document_processor import DocumentProcessor
                     document_processor = DocumentProcessor()
 
                     # 处理文档
@@ -230,14 +259,15 @@ class KnowledgeService:
                         document.file_type,
                         document.id,
                         document.knowledge_base_id,
-                        db
+                        db,
+                        document.uuid  # 传入uuid用于向量存储
                     )
 
                     if processing_result.get("success"):
                         # 更新文档内容
                         document.content = processing_result.get("text", "")
                         document.is_vectorized = 1  # 标记为已向量化
-                        document.vector_id = f"doc_{document.id}"
+                        document.vector_id = document.uuid  # 使用uuid作为向量ID
                         document.document_metadata["chunks_count"] = len(processing_result.get("chunks", []))
                         document.document_metadata["entities_count"] = len(processing_result.get("entities", []))
                         document.document_metadata["relationships_count"] = len(processing_result.get("relationships", []))
@@ -341,7 +371,7 @@ class KnowledgeService:
             db.refresh(document)
 
             # 使用DocumentProcessor进行完整文档处理（包括图谱化）
-            from app.services.knowledge.document_processor import DocumentProcessor
+            from app.services.knowledge.core.document_processor import DocumentProcessor
             document_processor = DocumentProcessor()
 
             # 处理文档
@@ -350,7 +380,8 @@ class KnowledgeService:
                 document.file_type,
                 document.id,
                 document.knowledge_base_id,  # 传递knowledge_base_id
-                db
+                db,
+                document.uuid  # 传入uuid用于向量存储
             )
 
             if processing_result.get("success"):
@@ -362,7 +393,7 @@ class KnowledgeService:
                 document.document_metadata["graph_data_available"] = processing_result.get("graph_data") is not None
 
                 # 更新向量ID
-                document.vector_id = f"doc_{document.id}"
+                document.vector_id = document.uuid  # 使用uuid作为向量ID
                 db.commit()
 
                 logger.info(f"文档处理完成，包含 {len(processing_result.get('chunks', []))} 个片段和 {len(processing_result.get('entities', []))} 个实体")
@@ -517,6 +548,68 @@ class KnowledgeService:
     def get_document_by_id(self, document_id: int, db: Session) -> Optional[KnowledgeDocument]:
         """根据ID获取文档详情"""
         return db.query(KnowledgeDocument).filter(KnowledgeDocument.id == document_id).first()
+
+    def get_document_by_uuid(self, uuid: str, db: Session) -> Optional[KnowledgeDocument]:
+        """根据UUID获取文档详情"""
+        return db.query(KnowledgeDocument).filter(KnowledgeDocument.uuid == uuid).first()
+
+    def get_document_by_id_or_uuid(self, document_id: str, db: Session) -> Optional[KnowledgeDocument]:
+        """根据ID或UUID获取文档详情（自动识别）"""
+        # 如果包含'doc-'前缀，认为是UUID
+        if document_id.startswith('doc-'):
+            return self.get_document_by_uuid(document_id, db)
+        # 否则尝试作为整数ID处理
+        try:
+            doc_id = int(document_id)
+            return self.get_document_by_id(doc_id, db)
+        except ValueError:
+            # 如果不是整数，尝试作为UUID处理
+            return self.get_document_by_uuid(document_id, db)
+
+    def batch_delete_documents(self, db: Session, document_ids: List[str]) -> Dict[str, Any]:
+        """批量删除文档
+
+        Args:
+            db: 数据库会话
+            document_ids: 文档ID或UUID列表
+
+        Returns:
+            删除结果统计
+        """
+        success_count = 0
+        failed_count = 0
+        failed_documents = []
+
+        for doc_id in document_ids:
+            try:
+                # 根据ID或UUID获取文档
+                document = self.get_document_by_id_or_uuid(doc_id, db)
+                if not document:
+                    failed_count += 1
+                    failed_documents.append({"id": doc_id, "reason": "文档不存在"})
+                    continue
+
+                # 获取文档的数据库ID用于删除
+                db_document_id = document.id
+
+                # 调用单文档删除方法
+                result = self.delete_document(db, db_document_id)
+                if result:
+                    success_count += 1
+                else:
+                    failed_count += 1
+                    failed_documents.append({"id": doc_id, "reason": "删除失败"})
+            except Exception as e:
+                failed_count += 1
+                failed_documents.append({"id": doc_id, "reason": str(e)})
+                logger.error(f"批量删除文档 {doc_id} 失败: {str(e)}")
+
+        return {
+            "success_count": success_count,
+            "failed_count": failed_count,
+            "total_count": len(document_ids),
+            "failed_documents": failed_documents
+        }
     
     def vectorize_document(self, document_id: int, db: Session) -> bool:
         """对文档进行向量化处理 - 带进度报告"""
@@ -717,10 +810,10 @@ class KnowledgeService:
             )
 
             # 更新文档信息
-            document.vector_id = f"doc_{document.id}"
+            document.vector_id = document.uuid  # 使用uuid作为向量ID
             document.is_vectorized = 1
             db.commit()
-            print(f"文档向量化成功: {document.title} (ID: {document_id})")
+            print(f"文档向量化成功: {document.title} (ID: {document_id}, UUID: {document.uuid})")
 
             # 完成处理
             processing_progress_service.complete_processing(
@@ -912,7 +1005,81 @@ class KnowledgeService:
             print(f"前端相对路径: {relative_path}")
             
         return file_path, document.title
-    
+
+    def batch_download_documents(self, db: Session, document_ids: List[str]) -> Dict[str, Any]:
+        """批量下载文档
+
+        Args:
+            db: 数据库会话
+            document_ids: 文档ID或UUID列表
+
+        Returns:
+            包含成功和失败的文档列表
+        """
+        import zipfile
+        import io
+        from datetime import datetime
+
+        success_files = []
+        failed_documents = []
+
+        # 创建内存中的ZIP文件
+        zip_buffer = io.BytesIO()
+
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            for doc_id in document_ids:
+                try:
+                    # 根据ID或UUID获取文档
+                    document = self.get_document_by_id_or_uuid(doc_id, db)
+                    if not document:
+                        failed_documents.append({"id": doc_id, "reason": "文档不存在"})
+                        continue
+
+                    # 获取文件路径和文件名
+                    file_path, filename = self.download_document(db, document.id)
+                    if not file_path or not os.path.exists(file_path):
+                        failed_documents.append({"id": doc_id, "title": document.title, "reason": "文件不存在或已丢失"})
+                        continue
+
+                    # 读取文件内容并添加到ZIP
+                    with open(file_path, 'rb') as f:
+                        file_content = f.read()
+
+                    # 使用文档标题作为ZIP中的文件名（处理重名）
+                    zip_filename = filename
+                    counter = 1
+                    while zip_filename in [f["zip_name"] for f in success_files]:
+                        name, ext = os.path.splitext(filename)
+                        zip_filename = f"{name}_{counter}{ext}"
+                        counter += 1
+
+                    zip_file.writestr(zip_filename, file_content)
+                    success_files.append({
+                        "id": doc_id,
+                        "title": document.title,
+                        "zip_name": zip_filename,
+                        "original_path": file_path
+                    })
+
+                except Exception as e:
+                    failed_documents.append({"id": doc_id, "reason": str(e)})
+                    logger.error(f"批量下载文档 {doc_id} 失败: {str(e)}")
+
+        # 准备ZIP文件
+        zip_buffer.seek(0)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        zip_filename = f"documents_{timestamp}.zip"
+
+        return {
+            "zip_buffer": zip_buffer,
+            "zip_filename": zip_filename,
+            "success_count": len(success_files),
+            "failed_count": len(failed_documents),
+            "total_count": len(document_ids),
+            "success_files": success_files,
+            "failed_documents": failed_documents
+        }
+
     def get_all_tags(self, db: Session, knowledge_base_id: Optional[int] = None) -> List[Dict[str, Any]]:
         """获取所有标签，可选按知识库过滤"""
         query = db.query(KnowledgeTag)

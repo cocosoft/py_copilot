@@ -385,3 +385,79 @@ export const extractEntities = async (params) => {
     });
     return response;
 };
+
+/**
+ * 批量处理知识库中所有未处理的文档
+ * 
+ * 该接口会将知识库中所有尚未向量化的文档添加到处理队列中
+ * 进行解析、向量化、实体提取和知识图谱构建
+ * 
+ * @param {number} knowledgeBaseId - 知识库ID
+ * @returns {Promise<Object>} 批量处理结果
+ */
+export const batchProcessDocuments = async (knowledgeBaseId) => {
+    const response = await request(`/v1/knowledge/knowledge-bases/${knowledgeBaseId}/batch-process`, {
+        method: 'POST',
+        timeout: 60000  // 60秒超时，批量处理可能需要较长时间
+    });
+    return response;
+};
+
+/**
+ * 获取知识库中所有未处理的文档列表
+ *
+ * @param {number} knowledgeBaseId - 知识库ID
+ * @returns {Promise<Object>} 未处理文档列表
+ */
+export const getUnprocessedDocuments = async (knowledgeBaseId) => {
+    const response = await request(`/v1/knowledge/knowledge-bases/${knowledgeBaseId}/unprocessed-documents`, {
+        method: 'GET'
+    });
+    return response;
+};
+
+/**
+ * 获取知识库文档处理状态
+ *
+ * 返回当前处理队列的状态，包括队列大小、正在处理的文档数、
+ * 已完成的文档数、处理失败的文档数等信息
+ *
+ * @param {number} knowledgeBaseId - 知识库ID
+ * @returns {Promise<Object>} 处理状态信息
+ */
+export const getProcessingStatus = async (knowledgeBaseId) => {
+    const response = await request(`/v1/knowledge/knowledge-bases/${knowledgeBaseId}/processing-status`, {
+        method: 'GET',
+        timeout: 10000  // 10秒超时
+    });
+    return response;
+};
+
+/**
+ * 批量删除文档
+ *
+ * @param {string[]} documentIds - 文档ID或UUID列表
+ * @returns {Promise<Object>} 删除结果
+ */
+export const batchDeleteDocuments = async (documentIds) => {
+    const response = await request('/v1/knowledge/documents/batch-delete', {
+        method: 'POST',
+        data: { document_ids: documentIds }
+    });
+    return response;
+};
+
+/**
+ * 批量下载文档
+ *
+ * @param {string[]} documentIds - 文档ID或UUID列表
+ * @returns {Promise<Blob>} ZIP文件Blob
+ */
+export const batchDownloadDocuments = async (documentIds) => {
+    const response = await request('/v1/knowledge/documents/batch-download', {
+        method: 'POST',
+        data: { document_ids: documentIds },
+        responseType: 'blob'
+    });
+    return response;
+};

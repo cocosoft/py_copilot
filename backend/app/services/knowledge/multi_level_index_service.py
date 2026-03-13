@@ -17,7 +17,7 @@ from enum import Enum, auto
 from abc import ABC, abstractmethod
 import numpy as np
 
-from app.services.knowledge.vector_store_adapter import (
+from app.services.knowledge.vectorization.vector_store_adapter import (
     VectorStoreAdapter,
     VectorStoreConfig,
     VectorDocument,

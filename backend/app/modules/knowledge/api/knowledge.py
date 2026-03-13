@@ -1,8 +1,14 @@
+import os
+import logging
+
 from fastapi import APIRouter, UploadFile, File, HTTPException, Query, Depends, BackgroundTasks
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
+
+logger = logging.getLogger(__name__)
 
 from app.core.database import get_db
 from app.modules.knowledge.services.knowledge_service import KnowledgeService
@@ -11,7 +17,7 @@ from app.modules.knowledge.models.knowledge_document import (
     KnowledgeDocument as KnowledgeDocumentModel,
     KnowledgeBasePermission as KnowledgeBasePermissionModel
 )
-from app.services.knowledge.retrieval_service import AdvancedRetrievalService
+from app.services.knowledge.retrieval.retrieval_service import AdvancedRetrievalService
 from app.services.knowledge.document_processing_queue import document_processing_queue
 from app.modules.knowledge.schemas.knowledge import (
     KnowledgeDocument, SearchResponse, DocumentListResponse,
@@ -357,6 +363,7 @@ async def list_documents(
             document_models.append(
                 KnowledgeDocument(
                     id=doc.id,
+                    uuid=doc.uuid,
                     title=doc.title,
                     knowledge_base_id=doc.knowledge_base_id,
                     file_path=doc.file_path,
@@ -366,7 +373,8 @@ async def list_documents(
                     created_at=doc.created_at,
                     updated_at=doc.updated_at,
                     vector_id=doc.vector_id,
-                    is_vectorized=doc.is_vectorized
+                    is_vectorized=doc.is_vectorized,
+                    file_hash=doc.file_hash
                 )
             )
 
@@ -384,17 +392,18 @@ async def list_documents(
 
 @router.get("/documents/{document_id}", response_model=KnowledgeDocument)
 async def get_document_detail(
-    document_id: int,
+    document_id: str,
     db: Session = Depends(get_db)
 ):
-    """获取文档详情"""
+    """获取文档详情（支持ID或UUID）"""
     try:
-        document = knowledge_service.get_document_by_id(document_id, db)
+        document = knowledge_service.get_document_by_id_or_uuid(document_id, db)
         if not document:
             raise HTTPException(status_code=404, detail="文档不存在")
-        
+
         return KnowledgeDocument(
             id=document.id,
+            uuid=document.uuid,
             title=document.title,
             knowledge_base_id=document.knowledge_base_id,
             file_path=document.file_path,
@@ -404,7 +413,8 @@ async def get_document_detail(
             created_at=document.created_at,
             updated_at=document.updated_at,
             vector_id=document.vector_id,
-            is_vectorized=document.is_vectorized
+            is_vectorized=document.is_vectorized,
+            file_hash=document.file_hash
         )
     except HTTPException:
         raise
@@ -413,12 +423,17 @@ async def get_document_detail(
 
 @router.delete("/documents/{document_id}")
 async def delete_document(
-    document_id: int,
+    document_id: str,
     db: Session = Depends(get_db)
 ):
-    """删除文档"""
+    """删除文档（支持ID或UUID）"""
     try:
-        success = knowledge_service.delete_document(db, document_id)
+        # 根据ID或UUID获取文档
+        document = knowledge_service.get_document_by_id_or_uuid(document_id, db)
+        if not document:
+            raise HTTPException(status_code=404, detail="文档不存在")
+
+        success = knowledge_service.delete_document(db, document.id)
         if not success:
             raise HTTPException(status_code=404, detail="文档不存在")
         return {"message": "文档删除成功"}
@@ -426,6 +441,75 @@ async def delete_document(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail="删除失败")
+
+
+class BatchDeleteRequest(BaseModel):
+    """批量删除请求模型"""
+    document_ids: List[str]
+
+
+class BatchDeleteResponse(BaseModel):
+    """批量删除响应模型"""
+    success_count: int
+    failed_count: int
+    total_count: int
+    failed_documents: List[Dict[str, Any]]
+
+
+@router.post("/documents/batch-delete", response_model=BatchDeleteResponse)
+async def batch_delete_documents(
+    request: BatchDeleteRequest,
+    db: Session = Depends(get_db)
+):
+    """批量删除文档"""
+    try:
+        result = knowledge_service.batch_delete_documents(db, request.document_ids)
+        return BatchDeleteResponse(
+            success_count=result["success_count"],
+            failed_count=result["failed_count"],
+            total_count=result["total_count"],
+            failed_documents=result["failed_documents"]
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"批量删除失败: {str(e)}")
+
+
+class BatchDownloadRequest(BaseModel):
+    """批量下载请求模型"""
+    document_ids: List[str]
+
+
+@router.post("/documents/batch-download")
+async def batch_download_documents(
+    request: BatchDownloadRequest,
+    db: Session = Depends(get_db)
+):
+    """批量下载文档（打包为ZIP）"""
+    try:
+        result = knowledge_service.batch_download_documents(db, request.document_ids)
+
+        if result["success_count"] == 0:
+            raise HTTPException(status_code=404, detail="没有可下载的文档")
+
+        # 返回ZIP文件
+        from starlette.responses import StreamingResponse
+
+        zip_buffer = result["zip_buffer"]
+
+        def iterfile():
+            yield from zip_buffer
+
+        return StreamingResponse(
+            iterfile(),
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": f"attachment; filename={result['zip_filename']}"
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"批量下载失败: {str(e)}")
 
 
 @router.get("/documents/{document_id}/progress")
@@ -439,7 +523,7 @@ async def get_document_processing_progress(
     用于前端轮询查询文档处理状态
     """
     try:
-        from app.services.knowledge.processing_progress_service import processing_progress_service
+        from app.services.knowledge.utils.processing_progress_service import processing_progress_service
 
         # 首先检查文档是否存在
         document = knowledge_service.get_document_by_id(document_id, db)
@@ -513,15 +597,20 @@ async def get_processing_queue_status():
 
 @router.get("/documents/{document_id}/download")
 async def download_document(
-    document_id: int,
+    document_id: str,
     db: Session = Depends(get_db)
 ):
-    """下载文档"""
+    """下载文档（支持ID或UUID）"""
     try:
-        file_path, filename = knowledge_service.download_document(db, document_id)
+        # 根据ID或UUID获取文档
+        document = knowledge_service.get_document_by_id_or_uuid(document_id, db)
+        if not document:
+            raise HTTPException(status_code=404, detail="文档不存在")
+
+        file_path, filename = knowledge_service.download_document(db, document.id)
         if not file_path:
             raise HTTPException(status_code=404, detail="文档不存在或文件已丢失")
-        
+
         return FileResponse(
             path=file_path,
             filename=filename,
@@ -534,12 +623,17 @@ async def download_document(
 
 @router.get("/documents/{document_id}/chunks", response_model=List[KnowledgeDocumentChunk])
 async def get_document_chunks(
-    document_id: int,
+    document_id: str,
     db: Session = Depends(get_db)
 ):
-    """获取文档的向量片段列表"""
+    """获取文档的向量片段列表（支持ID或UUID）"""
     try:
-        chunks = knowledge_service.get_document_chunks(document_id, db)
+        # 根据ID或UUID获取文档
+        document = knowledge_service.get_document_by_id_or_uuid(document_id, db)
+        if not document:
+            raise HTTPException(status_code=404, detail="文档不存在")
+
+        chunks = knowledge_service.get_document_chunks(document.id, db)
         return chunks
     except HTTPException:
         raise
@@ -598,7 +692,7 @@ async def get_document_tags(
 
 @router.post("/documents/{document_id}/process")
 async def process_document(
-    document_id: int,
+    document_id: str,
     background_tasks: BackgroundTasks = None,
     db: Session = Depends(get_db)
 ):
@@ -608,8 +702,8 @@ async def process_document(
     上传文档后，调用此接口启动后续处理流程
     """
     try:
-        # 检查文档是否存在
-        document = knowledge_service.get_document_by_id(document_id, db)
+        # 检查文档是否存在（支持ID或UUID）
+        document = knowledge_service.get_document_by_id_or_uuid(document_id, db)
         if not document:
             raise HTTPException(status_code=404, detail="文档不存在")
 
@@ -1342,3 +1436,270 @@ async def remove_knowledge_base_permission(
         print(f"删除知识库权限失败: {str(e)}")
         print(f"详细堆栈: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"删除知识库权限失败: {str(e)}")
+
+
+@router.post("/knowledge-bases/{knowledge_base_id}/batch-process")
+async def batch_process_documents(
+    knowledge_base_id: int,
+    background_tasks: BackgroundTasks = None,
+    db: Session = Depends(get_db)
+):
+    """
+    批量处理知识库中所有未处理的文档
+
+    该接口会将知识库中所有尚未向量化的文档（content为空或未向量化的文档）
+    添加到处理队列中进行解析、向量化、实体提取和知识图谱构建。
+
+    Args:
+        knowledge_base_id: 知识库ID
+        background_tasks: 后台任务
+
+    Returns:
+        处理结果统计信息
+    """
+    try:
+        # 检查知识库是否存在
+        knowledge_base = knowledge_service.get_knowledge_base(knowledge_base_id, db)
+        if not knowledge_base:
+            raise HTTPException(status_code=404, detail="知识库不存在")
+
+        # 获取知识库中所有未处理的文档
+        # 条件：is_vectorized=0 或 content为空
+        unprocessed_docs = db.query(KnowledgeDocumentModel).filter(
+            KnowledgeDocumentModel.knowledge_base_id == knowledge_base_id,
+            (KnowledgeDocumentModel.is_vectorized == 0) | 
+            (KnowledgeDocumentModel.content == "") |
+            (KnowledgeDocumentModel.content.is_(None))
+        ).all()
+
+        if not unprocessed_docs:
+            return {
+                "success": True,
+                "message": "知识库中没有需要处理的文档",
+                "total_documents": 0,
+                "queued_documents": 0,
+                "skipped_documents": 0
+            }
+
+        total_count = len(unprocessed_docs)
+        queued_count = 0
+        skipped_count = 0
+        failed_count = 0
+        document_ids = []
+
+        # 获取队列状态
+        queue_status = document_processing_queue.get_queue_status()
+        current_queue_size = queue_status["queue_size"] + queue_status["processing_count"]
+
+        for document in unprocessed_docs:
+            try:
+                # 确保 document_metadata 不为 None
+                if document.document_metadata is None:
+                    document.document_metadata = {}
+
+                # 检查文件是否存在
+                if not document.file_path or not os.path.exists(document.file_path):
+                    logger.warning(f"文档 {document.id} 的文件不存在，跳过处理")
+                    document.document_metadata["processing_status"] = "failed"
+                    document.document_metadata["processing_error"] = "文件不存在"
+                    db.commit()
+                    skipped_count += 1
+                    continue
+
+                # 添加到处理队列
+                added = await document_processing_queue.add_document(
+                    document_id=document.id,
+                    knowledge_base_id=knowledge_base_id,
+                    document_name=document.title,
+                    priority=0
+                )
+
+                if added:
+                    queued_count += 1
+                    document_ids.append(document.id)
+                    # 更新文档状态为排队中
+                    document.document_metadata["processing_status"] = "queued"
+                    db.commit()
+                else:
+                    # 如果队列添加失败，使用后台任务处理
+                    if background_tasks:
+                        background_tasks.add_task(
+                            knowledge_service.process_document_async,
+                            document.id,
+                            knowledge_base_id
+                        )
+                    else:
+                        import asyncio
+                        asyncio.create_task(
+                            knowledge_service.process_document_async(document.id, knowledge_base_id)
+                        )
+                    queued_count += 1
+                    document_ids.append(document.id)
+
+            except Exception as e:
+                logger.error(f"添加文档 {document.id} 到处理队列失败: {e}")
+                failed_count += 1
+                # 确保 document_metadata 不为 None
+                if document.document_metadata is None:
+                    document.document_metadata = {}
+                document.document_metadata["processing_status"] = "failed"
+                document.document_metadata["processing_error"] = str(e)
+                db.commit()
+
+        return {
+            "success": True,
+            "message": f"批量处理已启动，共 {total_count} 个文档，成功加入队列 {queued_count} 个",
+            "knowledge_base_id": knowledge_base_id,
+            "knowledge_base_name": knowledge_base.name,
+            "total_documents": total_count,
+            "queued_documents": queued_count,
+            "skipped_documents": skipped_count,
+            "failed_documents": failed_count,
+            "document_ids": document_ids,
+            "queue_status": document_processing_queue.get_queue_status()
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        logger.error(f"批量处理文档失败: {str(e)}")
+        logger.error(f"详细堆栈: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"批量处理文档失败: {str(e)}")
+
+
+@router.get("/knowledge-bases/{knowledge_base_id}/unprocessed-documents")
+async def get_unprocessed_documents(
+    knowledge_base_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    获取知识库中所有未处理的文档列表
+
+    Args:
+        knowledge_base_id: 知识库ID
+
+    Returns:
+        未处理文档列表
+    """
+    try:
+        # 检查知识库是否存在
+        knowledge_base = knowledge_service.get_knowledge_base(knowledge_base_id, db)
+        if not knowledge_base:
+            raise HTTPException(status_code=404, detail="知识库不存在")
+
+        # 获取所有未处理的文档
+        unprocessed_docs = db.query(KnowledgeDocumentModel).filter(
+            KnowledgeDocumentModel.knowledge_base_id == knowledge_base_id,
+            (KnowledgeDocumentModel.is_vectorized == 0) | 
+            (KnowledgeDocumentModel.content == "") |
+            (KnowledgeDocumentModel.content.is_(None))
+        ).all()
+
+        documents_list = []
+        for doc in unprocessed_docs:
+            # 安全获取 document_metadata
+            metadata = doc.document_metadata or {}
+            doc_info = {
+                "id": doc.id,
+                "title": doc.title,
+                "file_type": doc.file_type,
+                "is_vectorized": doc.is_vectorized == 1,
+                "has_content": bool(doc.content and doc.content.strip()),
+                "content_length": len(doc.content) if doc.content else 0,
+                "processing_status": metadata.get("processing_status", "unknown"),
+                "created_at": doc.created_at.isoformat() if doc.created_at else None
+            }
+            documents_list.append(doc_info)
+
+        return {
+            "success": True,
+            "knowledge_base_id": knowledge_base_id,
+            "knowledge_base_name": knowledge_base.name,
+            "total_unprocessed": len(documents_list),
+            "documents": documents_list
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        logger.error(f"获取未处理文档列表失败: {str(e)}")
+        logger.error(f"详细堆栈: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"获取未处理文档列表失败: {str(e)}")
+
+
+@router.get("/knowledge-bases/{knowledge_base_id}/processing-status")
+async def get_processing_status(
+    knowledge_base_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    获取知识库文档处理状态
+
+    返回当前处理队列的状态，包括：
+    - 队列中等待处理的文档数
+    - 正在处理的文档数
+    - 已完成的文档数
+    - 处理失败的文档数
+    - 正在处理的具体文档列表
+
+    Args:
+        knowledge_base_id: 知识库ID
+
+    Returns:
+        处理状态信息
+    """
+    try:
+        # 检查知识库是否存在
+        knowledge_base = knowledge_service.get_knowledge_base(knowledge_base_id, db)
+        if not knowledge_base:
+            raise HTTPException(status_code=404, detail="知识库不存在")
+
+        # 获取队列状态
+        queue_status = document_processing_queue.get_queue_status()
+
+        # 获取知识库的文档统计
+        total_docs = db.query(KnowledgeDocumentModel).filter(
+            KnowledgeDocumentModel.knowledge_base_id == knowledge_base_id
+        ).count()
+
+        vectorized_docs = db.query(KnowledgeDocumentModel).filter(
+            KnowledgeDocumentModel.knowledge_base_id == knowledge_base_id,
+            KnowledgeDocumentModel.is_vectorized == 1
+        ).count()
+
+        unprocessed_docs = db.query(KnowledgeDocumentModel).filter(
+            KnowledgeDocumentModel.knowledge_base_id == knowledge_base_id,
+            (KnowledgeDocumentModel.is_vectorized == 0) |
+            (KnowledgeDocumentModel.content == "") |
+            (KnowledgeDocumentModel.content.is_(None))
+        ).count()
+
+        return {
+            "success": True,
+            "knowledge_base_id": knowledge_base_id,
+            "knowledge_base_name": knowledge_base.name,
+            "statistics": {
+                "total_documents": total_docs,
+                "vectorized_documents": vectorized_docs,
+                "unprocessed_documents": unprocessed_docs,
+                "vectorization_rate": round(vectorized_docs / total_docs * 100, 2) if total_docs > 0 else 0
+            },
+            "queue_status": {
+                "queue_size": queue_status["queue_size"],
+                "processing_count": queue_status["processing_count"],
+                "completed_count": queue_status["completed_count"],
+                "failed_count": queue_status["failed_count"],
+                "max_concurrent": queue_status["max_concurrent"]
+            },
+            "processing_documents": queue_status["processing_documents"]
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        logger.error(f"获取处理状态失败: {str(e)}")
+        logger.error(f"详细堆栈: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"获取处理状态失败: {str(e)}")

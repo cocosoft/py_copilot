@@ -6,7 +6,6 @@
 
 import React from 'react';
 import { FiFileText, FiImage, FiMusic, FiVideo, FiFile, FiMoreVertical } from 'react-icons/fi';
-import useKnowledgeStore from '../../../stores/knowledgeStore';
 import './styles.css';
 
 /**
@@ -127,15 +126,13 @@ const formatDate = (dateString) => {
  * @param {Function} props.onClick - 点击回调
  * @param {string} props.viewMode - 视图模式 (list | grid)
  */
-const DocumentCard = ({ 
-  document, 
-  isSelected = false, 
-  onSelect, 
+const DocumentCard = ({
+  document,
+  isSelected = false,
+  onSelect,
   onClick,
   viewMode = 'list'
 }) => {
-  const { toggleDocumentSelection } = useKnowledgeStore();
-
   const fileType = document.fileType?.toLowerCase() || 'unknown';
   const FileIcon = fileTypeIcons[fileType] || FiFile;
   const fileColor = fileTypeColors[fileType] || '#8c8c8c';
@@ -146,7 +143,7 @@ const DocumentCard = ({
    */
   const handleCheckboxClick = (e) => {
     e.stopPropagation();
-    toggleDocumentSelection(document.id);
+    e.preventDefault();
     onSelect?.(document);
   };
 
@@ -208,7 +205,8 @@ const DocumentCard = ({
             type="checkbox"
             className="document-card__checkbox"
             checked={isSelected}
-            onChange={handleCheckboxClick}
+            onClick={handleCheckboxClick}
+            readOnly
           />
         </div>
       </div>
@@ -226,7 +224,8 @@ const DocumentCard = ({
           type="checkbox"
           className="document-card__checkbox"
           checked={isSelected}
-          onChange={handleCheckboxClick}
+          onClick={handleCheckboxClick}
+          readOnly
         />
       </div>
 
@@ -266,4 +265,4 @@ const DocumentCard = ({
   );
 };
 
-export default DocumentCard;
+export default React.memo(DocumentCard);

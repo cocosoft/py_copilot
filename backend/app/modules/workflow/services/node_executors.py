@@ -4,9 +4,9 @@ import logging
 import traceback
 import json
 import asyncio
-from app.services.knowledge.knowledge_graph_service import KnowledgeGraphService
-from app.services.knowledge.semantic_search_service import SemanticSearchService
-from app.services.knowledge.advanced_text_processor import AdvancedTextProcessor
+from app.services.knowledge.graph.knowledge_graph_service import KnowledgeGraphService
+from app.services.knowledge.retrieval.semantic_search_service import SemanticSearchService
+from app.services.knowledge.core.advanced_text_processor import AdvancedTextProcessor
 
 # 导入 MCP 客户端
 from app.mcp.client.tool_proxy import tool_proxy_registry, execute_mcp_tool

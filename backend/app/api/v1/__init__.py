@@ -61,7 +61,8 @@ ROUTE_GROUPS: Dict[str, List[Dict]] = {
         {'module': 'app.modules.knowledge.api.knowledge_graph_api', 'prefix': '/knowledge-graph', 'tags': ['knowledge-graph']},
         {'module': 'app.modules.knowledge.api.hierarchical_graph_api', 'prefix': '/hierarchical-graph', 'tags': ['hierarchical-graph']},
         {'module': 'app.modules.knowledge.api.entity_config_api', 'tags': ['entity-config']},
-        {'module': 'app.modules.knowledge.api.entity_maintenance_api', 'prefix': '/entity-maintenance', 'tags': ['entity-maintenance']}
+        {'module': 'app.modules.knowledge.api.entity_maintenance_api', 'prefix': '/entity-maintenance', 'tags': ['entity-maintenance']},
+        {'module': 'app.api.v1.endpoints.knowledge_base', 'tags': ['knowledge-base']}
     ],
     'workflow': [
         {'module': 'app.modules.workflow.api.workflow', 'tags': ['workflows']}
