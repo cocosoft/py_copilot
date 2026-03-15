@@ -4,17 +4,21 @@
  * 提供实体提取、确认、编辑功能，支持从文档中自动识别实体
  */
 
-import React, { useEffect, useCallback, useState } from 'react';
-import { FiCpu, FiCheck, FiX, FiEdit2, FiTrash2, FiRefreshCw, FiFilter, FiSearch, FiBox } from 'react-icons/fi';
+import React, { useEffect, useCallback, useState, useMemo } from 'react';
+import { FiCpu, FiCheck, FiX, FiEdit2, FiTrash2, FiRefreshCw, FiFilter, FiSearch, FiBox, FiSettings, FiFolder } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
 import useKnowledgeStore from '../../../stores/knowledgeStore';
 import { Button } from '../../../components/UI';
 import { VirtualListEnhanced } from '../../../components/UI';
+import Modal from '../../../components/UI/Modal';
 import { message } from '../../../components/UI/Message/Message';
+import EntityConfigModal from '../../../components/Knowledge/EntityConfigModal';
 import {
   listDocuments,
   extractEntities,
   getDocument,
-  getDocumentChunks
+  getDocumentChunks,
+  getKnowledgeBaseEntities
 } from '../../../utils/api/knowledgeApi';
 import defaultModelApi from '../../../utils/api/defaultModelApi';
 import './styles.css';
@@ -48,6 +52,7 @@ const ENTITY_STATUS = {
  */
 const EntityRecognition = () => {
   const { currentKnowledgeBase } = useKnowledgeStore();
+  const navigate = useNavigate();
 
   // 本地状态
   const [documents, setDocuments] = useState([]);
@@ -57,6 +62,8 @@ const EntityRecognition = () => {
   const [loading, setLoading] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [extractProgress, setExtractProgress] = useState(0);
+  const [extractStage, setExtractStage] = useState('');
+  const [processedDocs, setProcessedDocs] = useState(0);
 
   // 默认模型状态
   const [defaultModel, setDefaultModel] = useState(null);
@@ -66,10 +73,113 @@ const EntityRecognition = () => {
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+
+  /**
+   * 搜索防抖处理
+   */
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // 编辑状态
   const [editingEntity, setEditingEntity] = useState(null);
   const [editForm, setEditForm] = useState({ name: '', type: '', description: '' });
+
+  // 配置弹窗状态
+  const [configModalVisible, setConfigModalVisible] = useState(false);
+
+  // 文档搜索状态
+  const [docSearchQuery, setDocSearchQuery] = useState('');
+
+  /**
+   * 过滤后的文档列表
+   */
+  const filteredDocuments = useMemo(() => {
+    if (!docSearchQuery.trim()) return documents;
+    const query = docSearchQuery.toLowerCase();
+    return documents.filter(doc =>
+      doc.title.toLowerCase().includes(query)
+    );
+  }, [documents, docSearchQuery]);
+
+  /**
+   * 全选文档
+   */
+  const handleSelectAllDocuments = () => {
+    setSelectedDocuments(filteredDocuments.map(doc => doc.id));
+  };
+
+  /**
+   * 清除文档选择
+   */
+  const handleClearDocumentSelection = () => {
+    setSelectedDocuments([]);
+  };
+
+  // 批量操作状态
+  const [selectedEntities, setSelectedEntities] = useState([]);
+
+  /**
+   * 全选实体
+   */
+  const handleSelectAllEntities = () => {
+    setSelectedEntities(filteredEntities.map(e => e.id));
+  };
+
+  /**
+   * 清除实体选择
+   */
+  const handleClearEntitySelection = () => {
+    setSelectedEntities([]);
+  };
+
+  /**
+   * 切换实体选择
+   */
+  const toggleEntitySelection = (entityId) => {
+    setSelectedEntities(prev =>
+      prev.includes(entityId)
+        ? prev.filter(id => id !== entityId)
+        : [...prev, entityId]
+    );
+  };
+
+  /**
+   * 批量确认实体
+   */
+  const handleBatchConfirm = () => {
+    const count = selectedEntities.length;
+    setEntities(prev =>
+      prev.map(e =>
+        selectedEntities.includes(e.id) && e.status === 'pending'
+          ? { ...e, status: 'confirmed' }
+          : e
+      )
+    );
+    setSelectedEntities([]);
+    message.success({ content: `已批量确认 ${count} 个实体` });
+  };
+
+  /**
+   * 批量拒绝实体
+   */
+  const handleBatchReject = () => {
+    const count = selectedEntities.length;
+    setEntities(prev =>
+      prev.map(e =>
+        selectedEntities.includes(e.id) && e.status === 'pending'
+          ? { ...e, status: 'rejected' }
+          : e
+      )
+    );
+    setSelectedEntities([]);
+    message.success({ content: `已批量拒绝 ${count} 个实体` });
+  };
 
   /**
    * 获取文档列表
@@ -86,25 +196,88 @@ const EntityRecognition = () => {
   }, [currentKnowledgeBase]);
 
   /**
+   * 从数据库加载知识库的实体
+   */
+  const loadKnowledgeBaseEntities = useCallback(async () => {
+    if (!currentKnowledgeBase) return;
+
+    try {
+      const response = await getKnowledgeBaseEntities(currentKnowledgeBase.id);
+      if (response && Array.isArray(response.entities)) {
+        const loadedEntities = response.entities.map((entity, index) => ({
+          id: `db-entity-${Date.now()}-${index}`,
+          name: entity.name || entity.text,
+          type: entity.type || 'concept',
+          description: entity.description || '',
+          documentId: entity.document_id,
+          documentName: entity.document_name || '未知文档',
+          confidence: entity.confidence || entity.score || 0.8,
+          status: entity.status || 'pending',
+          occurrences: entity.occurrences || 1,
+          source: 'database',
+          modelUsed: '已保存',
+        }));
+        setEntities(loadedEntities);
+      }
+    } catch (error) {
+      console.error('加载知识库实体失败:', error);
+    }
+  }, [currentKnowledgeBase]);
+
+  /**
    * 加载默认模型配置
+   * 按照优先级获取知识库专属的默认模型：
+   * 1. 知识库任务级: knowledge_kb_{kb_id}_extraction
+   * 2. 知识库级: knowledge_kb_{kb_id}
+   * 3. 任务级: knowledge_extraction
+   * 4. 通用知识库级: knowledge
    */
   const loadDefaultModel = useCallback(async () => {
     setLoadingModel(true);
     try {
-      // 获取知识库场景的默认模型（使用 'knowledge' 场景名称）
-      const response = await defaultModelApi.getSceneDefaultModel('knowledge');
+      if (!currentKnowledgeBase) {
+        setDefaultModel(null);
+        return;
+      }
+
+      const kbId = currentKnowledgeBase.id;
+      const scenes = [
+        `knowledge_kb_${kbId}_extraction`,
+        `knowledge_kb_${kbId}`,
+        'knowledge_extraction',
+        'knowledge'
+      ];
+
+      let response = null;
+      for (const scene of scenes) {
+        try {
+          console.log(`尝试获取场景 ${scene} 的默认模型`);
+          const sceneModel = await defaultModelApi.getSceneDefaultModel(scene);
+          if (sceneModel && sceneModel.model_id) {
+            console.log(`场景 ${scene} 的默认模型:`, sceneModel);
+            response = sceneModel;
+            break;
+          }
+        } catch (error) {
+          console.log(`场景 ${scene} 未配置模型，尝试下一个场景`);
+        }
+      }
+
       setDefaultModel(response);
+      if (!response) {
+        message.warning({ content: '未配置知识库场景的默认模型，将使用系统默认配置' });
+      }
     } catch (error) {
       console.error('获取默认模型失败:', error);
-      message.warning({ content: '未配置知识库场景的默认模型，将使用系统默认配置' });
+      message.warning({ content: '获取默认模型失败，将使用系统默认配置' });
       setDefaultModel(null);
     } finally {
       setLoadingModel(false);
     }
-  }, []);
+  }, [currentKnowledgeBase]);
 
   /**
-   * 执行实体提取 - 使用 LLM
+   * 执行实体提取 - 逐个文档处理并保存到数据库
    */
   const handleExtractEntities = useCallback(async () => {
     if (!currentKnowledgeBase) {
@@ -119,97 +292,86 @@ const EntityRecognition = () => {
 
     setExtracting(true);
     setExtractProgress(0);
+    setExtractStage('准备中...');
+    setProcessedDocs(0);
 
     try {
       // 获取默认模型配置
+      setExtractStage('获取模型配置...');
       const currentDefaultModel = defaultModel || await loadDefaultModel();
 
-      // 获取选中文档的内容
-      const documentContents = [];
+      let totalExtractedEntities = 0;
+      const allExtractedEntities = [];
+
+      // 逐个文档处理
       for (let i = 0; i < selectedDocuments.length; i++) {
         const docId = selectedDocuments[i];
         try {
-          // 获取文档详情和分块内容
-          const [docDetail, chunksData] = await Promise.all([
-            getDocument(docId),
-            getDocumentChunks(docId, 0, 100)
-          ]);
+          // 获取文档详情以获取文档名称
+          const docDetail = await getDocument(docId);
+          
+          setExtractStage(`处理文档 ${i + 1}/${selectedDocuments.length}: ${docDetail.title}`);
 
-          // 合并所有分块的内容
-          const chunks = chunksData.chunks || [];
-          const fullContent = chunks.map(chunk => chunk.content || chunk.text || '').join('\n\n');
+          // 构建实体提取参数 - 使用 document_id 参数（这样会自动保存到数据库）
+          const extractParams = {
+            document_id: docId,
+            entity_types: ENTITY_TYPES.map(t => t.value),
+            threshold: 0.7,
+            use_llm: true,
+            knowledge_base_id: currentKnowledgeBase.id,
+          };
 
-          documentContents.push({
-            id: docId,
-            title: docDetail.title || '未命名文档',
-            content: fullContent || docDetail.description || '',
-          });
+          // 如果有默认模型配置，添加到参数中
+          if (currentDefaultModel && currentDefaultModel.model_id) {
+            extractParams.model_id = currentDefaultModel.model_id;
+            extractParams.model_config = {
+              temperature: currentDefaultModel.temperature || 0.3,
+              max_tokens: currentDefaultModel.max_tokens || 2000,
+            };
+          }
+
+          // 调用实体提取 API
+          const response = await extractEntities(extractParams);
+
+          // 处理提取结果
+          const documentEntities = (response.entities || []).map((entity, index) => ({
+            id: `entity-${Date.now()}-${i}-${index}`,
+            name: entity.name || entity.text,
+            type: entity.type || 'concept',
+            description: entity.description || '',
+            documentId: docId,
+            documentName: docDetail.title || '未命名文档',
+            confidence: entity.confidence || entity.score || 0.8,
+            status: 'pending',
+            occurrences: entity.occurrences || 1,
+            source: 'llm',
+            modelUsed: currentDefaultModel?.model_name || '默认模型',
+          }));
+
+          totalExtractedEntities += documentEntities.length;
+          allExtractedEntities.push(...documentEntities);
+
         } catch (error) {
-          console.error(`获取文档 ${docId} 内容失败:`, error);
+          console.error(`处理文档 ${docId} 失败:`, error);
+          message.warning({ content: `文档 ${docId} 处理失败: ${error.message}` });
         }
-        setExtractProgress(Math.round(((i + 1) / selectedDocuments.length) * 20));
+
+        setProcessedDocs(i + 1);
+        setExtractProgress(Math.round(((i + 1) / selectedDocuments.length) * 100));
       }
 
-      if (documentContents.length === 0) {
-        message.warning({ content: '无法获取文档内容' });
-        setExtracting(false);
-        return;
-      }
-
-      // 合并所有文档内容
-      const combinedText = documentContents.map(doc =>
-        `文档标题: ${doc.title}\n\n${doc.content}`
-      ).join('\n\n---\n\n');
-
-      setExtractProgress(30);
-
-      // 构建实体提取参数
-      const extractParams = {
-        text: combinedText,
-        entity_types: ENTITY_TYPES.map(t => t.value),
-        threshold: 0.7,
-        use_llm: true,
-        knowledge_base_id: currentKnowledgeBase.id,
-        document_ids: selectedDocuments,
-      };
-
-      // 如果有默认模型配置，添加到参数中
-      if (currentDefaultModel && currentDefaultModel.model_id) {
-        extractParams.model_id = currentDefaultModel.model_id;
-        extractParams.model_config = {
-          temperature: currentDefaultModel.temperature || 0.3,
-          max_tokens: currentDefaultModel.max_tokens || 2000,
-        };
-      }
-
-      setExtractProgress(50);
-
-      // 调用实体提取 API（使用 LLM）
-      const response = await extractEntities(extractParams);
-
+      // 将所有提取的实体添加到前端状态
+      setEntities(prev => [...allExtractedEntities, ...prev]);
+      setExtractStage('完成');
       setExtractProgress(100);
-
-      // 处理提取结果
-      const extractedEntities = (response.entities || []).map((entity, index) => ({
-        id: `entity-${Date.now()}-${index}`,
-        name: entity.name || entity.text,
-        type: entity.type || 'concept',
-        description: entity.description || '',
-        documentId: entity.document_id || selectedDocuments[0],
-        documentName: entity.document_name || documentContents[0]?.title,
-        confidence: entity.confidence || entity.score || 0.8,
-        status: 'pending',
-        occurrences: entity.occurrences || 1,
-        source: 'llm',
-        modelUsed: currentDefaultModel?.model_name || '默认模型',
-      }));
-
-      setEntities(prev => [...extractedEntities, ...prev]);
-      message.success({ content: `成功提取 ${extractedEntities.length} 个实体` });
+      message.success({ content: `成功从 ${selectedDocuments.length} 个文档中提取 ${totalExtractedEntities} 个实体` });
     } catch (error) {
+      setExtractStage('提取失败');
       message.error({ content: '实体提取失败：' + error.message });
     } finally {
       setExtracting(false);
+      setExtractStage('');
+      setProcessedDocs(0);
     }
   }, [currentKnowledgeBase, selectedDocuments, documents, defaultModel, loadDefaultModel]);
 
@@ -230,8 +392,8 @@ const EntityRecognition = () => {
     }
 
     // 搜索筛选
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
+    if (debouncedSearchQuery.trim()) {
+      const query = debouncedSearchQuery.toLowerCase();
       result = result.filter(e =>
         e.name.toLowerCase().includes(query) ||
         e.description.toLowerCase().includes(query)
@@ -239,7 +401,7 @@ const EntityRecognition = () => {
     }
 
     setFilteredEntities(result);
-  }, [entities, filterType, filterStatus, searchQuery]);
+  }, [entities, filterType, filterStatus, debouncedSearchQuery]);
 
   /**
    * 切换文档选择
@@ -310,10 +472,26 @@ const EntityRecognition = () => {
   /**
    * 删除实体
    */
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [entityToDelete, setEntityToDelete] = useState(null);
+
   const handleDeleteEntity = (entityId) => {
-    if (!window.confirm('确定要删除这个实体吗？')) return;
-    setEntities(prev => prev.filter(e => e.id !== entityId));
-    message.success({ content: '实体已删除' });
+    setEntityToDelete(entityId);
+    setDeleteConfirmVisible(true);
+  };
+
+  const confirmDeleteEntity = () => {
+    if (entityToDelete) {
+      setEntities(prev => prev.filter(e => e.id !== entityToDelete));
+      message.success({ content: '实体已删除' });
+    }
+    setDeleteConfirmVisible(false);
+    setEntityToDelete(null);
+  };
+
+  const cancelDeleteEntity = () => {
+    setDeleteConfirmVisible(false);
+    setEntityToDelete(null);
   };
 
   /**
@@ -354,16 +532,25 @@ const EntityRecognition = () => {
               placeholder="描述（可选）"
             />
             <div className="edit-actions">
-              <button className="save-btn" onClick={() => handleSaveEdit(entity.id)}>
+              <button className="save-btn" onClick={() => handleSaveEdit(entity.id)} aria-label="保存修改">
                 <FiCheck size={16} />
               </button>
-              <button className="cancel-btn" onClick={handleCancelEdit}>
+              <button className="cancel-btn" onClick={handleCancelEdit} aria-label="取消编辑">
                 <FiX size={16} />
               </button>
             </div>
           </div>
         ) : (
           <>
+            {/* 批量选择框 */}
+            <div className="entity-checkbox">
+              <input
+                type="checkbox"
+                checked={selectedEntities.includes(entity.id)}
+                onChange={() => toggleEntitySelection(entity.id)}
+              />
+            </div>
+            
             <div className="entity-info">
               <div className="entity-header">
                 <span
@@ -396,6 +583,7 @@ const EntityRecognition = () => {
                     className="action-btn confirm"
                     onClick={() => handleConfirmEntity(entity.id)}
                     title="确认"
+                    aria-label="确认实体"
                   >
                     <FiCheck size={16} />
                   </button>
@@ -403,6 +591,7 @@ const EntityRecognition = () => {
                     className="action-btn reject"
                     onClick={() => handleRejectEntity(entity.id)}
                     title="拒绝"
+                    aria-label="拒绝实体"
                   >
                     <FiX size={16} />
                   </button>
@@ -412,6 +601,7 @@ const EntityRecognition = () => {
                 className="action-btn edit"
                 onClick={() => handleStartEdit(entity)}
                 title="编辑"
+                aria-label="编辑实体"
               >
                 <FiEdit2 size={16} />
               </button>
@@ -419,6 +609,7 @@ const EntityRecognition = () => {
                 className="action-btn delete"
                 onClick={() => handleDeleteEntity(entity.id)}
                 title="删除"
+                aria-label="删除实体"
               >
                 <FiTrash2 size={16} />
               </button>
@@ -427,13 +618,16 @@ const EntityRecognition = () => {
         )}
       </div>
     );
-  }, [editingEntity, editForm]);
+  }, [editingEntity, editForm, selectedEntities]);
 
-  // 初始加载
+  // 初始加载 - 当选择知识库时加载文档和实体
   useEffect(() => {
-    fetchDocuments();
-    loadDefaultModel();
-  }, [fetchDocuments, loadDefaultModel]);
+    if (currentKnowledgeBase) {
+      fetchDocuments();
+      loadKnowledgeBaseEntities();
+      loadDefaultModel();
+    }
+  }, [currentKnowledgeBase, fetchDocuments, loadKnowledgeBaseEntities, loadDefaultModel]);
 
   // 统计信息
   const stats = {
@@ -450,6 +644,26 @@ const EntityRecognition = () => {
         <div className="empty-icon">🔍</div>
         <h3>请选择一个知识库</h3>
         <p>从左侧边栏选择一个知识库开始实体识别</p>
+        
+        <div className="empty-actions">
+          <Button
+            variant="primary"
+            onClick={() => navigate('/knowledge/documents')}
+            icon={<FiFolder />}
+          >
+            前往知识库管理
+          </Button>
+        </div>
+        
+        <div className="empty-guide">
+          <h4>使用步骤</h4>
+          <ol>
+            <li>选择或创建一个知识库</li>
+            <li>上传文档到知识库</li>
+            <li>选择文档进行实体提取</li>
+            <li>确认或编辑提取的实体</li>
+          </ol>
+        </div>
       </div>
     );
   }
@@ -484,22 +698,59 @@ const EntityRecognition = () => {
       <div className="document-selection">
         <div className="selection-header">
           <h4>选择要处理的文档</h4>
-          {/* 默认模型信息 */}
-          <div className="model-info">
-            <FiBox size={14} />
-            {loadingModel ? (
-              <span className="model-loading">加载模型配置...</span>
-            ) : defaultModel ? (
-              <span className="model-name">
-                使用模型: {defaultModel.model_name || defaultModel.name || '默认模型'}
-              </span>
-            ) : (
-              <span className="model-warning">未配置默认模型，将使用系统默认</span>
-            )}
+          <div className="header-actions">
+            {/* 配置按钮 */}
+            <Button
+              variant="ghost"
+              size="small"
+              icon={<FiSettings />}
+              onClick={() => setConfigModalVisible(true)}
+              className="config-btn"
+            >
+              实体配置
+            </Button>
+            {/* 默认模型信息 */}
+            <div className="model-info">
+              <FiBox size={14} />
+              {loadingModel ? (
+                <span className="model-loading">加载模型配置...</span>
+              ) : defaultModel ? (
+                <span className="model-name">
+                  使用模型: {defaultModel.model_name || defaultModel.name || '默认模型'}
+                </span>
+              ) : (
+                <span className="model-warning">未配置默认模型，将使用系统默认</span>
+              )}
+            </div>
           </div>
         </div>
+        
+        {/* 文档搜索和选择操作 */}
+        <div className="document-list-header">
+          <div className="doc-search">
+            <FiSearch size={14} />
+            <input
+              type="text"
+              placeholder="搜索文档..."
+              value={docSearchQuery}
+              onChange={(e) => setDocSearchQuery(e.target.value)}
+            />
+          </div>
+          <div className="selection-actions">
+            <Button size="small" variant="ghost" onClick={handleSelectAllDocuments}>
+              全选
+            </Button>
+            <Button size="small" variant="ghost" onClick={handleClearDocumentSelection}>
+              清除
+            </Button>
+            <span className="selected-count">
+              已选 {selectedDocuments.length} / {documents.length} 个
+            </span>
+          </div>
+        </div>
+        
         <div className="document-list">
-          {documents.map(doc => (
+          {filteredDocuments.map(doc => (
             <label key={doc.id} className="document-checkbox">
               <input
                 type="checkbox"
@@ -510,6 +761,12 @@ const EntityRecognition = () => {
               <span className="document-type">{doc.file_type}</span>
             </label>
           ))}
+          {filteredDocuments.length === 0 && documents.length > 0 && (
+            <div className="no-results">没有匹配的文档</div>
+          )}
+          {documents.length === 0 && (
+            <div className="no-documents">暂无文档，请先上传文档到知识库</div>
+          )}
         </div>
         <Button
           variant="primary"
@@ -520,6 +777,27 @@ const EntityRecognition = () => {
         >
           {extracting ? `提取中 ${extractProgress}%` : '开始实体提取'}
         </Button>
+
+        {/* 提取进度显示 */}
+        {extracting && (
+          <div className="extraction-progress">
+            <div className="progress-bar">
+              <div
+                className="progress-fill"
+                style={{ width: `${extractProgress}%` }}
+              />
+            </div>
+            <div className="progress-info">
+              <span className="progress-stage">{extractStage}</span>
+              <span className="progress-percent">{extractProgress}%</span>
+            </div>
+            {processedDocs > 0 && selectedDocuments.length > 1 && (
+              <div className="progress-details">
+                <span>已处理文档: {processedDocs} / {selectedDocuments.length}</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 筛选栏 */}
@@ -558,6 +836,47 @@ const EntityRecognition = () => {
         </div>
       </div>
 
+      {/* 批量操作栏 */}
+      {entities.length > 0 && (
+        <div className="batch-actions-bar">
+          <label className="batch-checkbox">
+            <input
+              type="checkbox"
+              checked={selectedEntities.length === filteredEntities.length && filteredEntities.length > 0}
+              ref={input => {
+                if (input) {
+                  input.indeterminate = selectedEntities.length > 0 && selectedEntities.length < filteredEntities.length;
+                }
+              }}
+              onChange={(e) => e.target.checked ? handleSelectAllEntities() : handleClearEntitySelection()}
+            />
+            <span>全选</span>
+          </label>
+          
+          <span className="selection-info">
+            已选择 {selectedEntities.length} 个实体
+          </span>
+          
+          <Button
+            size="small"
+            variant="primary"
+            disabled={selectedEntities.length === 0}
+            onClick={handleBatchConfirm}
+          >
+            批量确认
+          </Button>
+          
+          <Button
+            size="small"
+            variant="danger"
+            disabled={selectedEntities.length === 0}
+            onClick={handleBatchReject}
+          >
+            批量拒绝
+          </Button>
+        </div>
+      )}
+
       {/* 实体列表 */}
       <div className="entities-list-container">
         <VirtualListEnhanced
@@ -574,6 +893,37 @@ const EntityRecognition = () => {
           }
         />
       </div>
+
+      {/* 实体配置弹窗 */}
+      <EntityConfigModal
+        visible={configModalVisible}
+        onClose={() => setConfigModalVisible(false)}
+        knowledgeBaseId={currentKnowledgeBase?.id}
+      />
+
+      {/* 删除确认弹窗 */}
+      <Modal
+        isOpen={deleteConfirmVisible}
+        onClose={cancelDeleteEntity}
+        title="确认删除"
+        size="small"
+        footer={
+          <>
+            <Button variant="ghost" onClick={cancelDeleteEntity}>
+              取消
+            </Button>
+            <Button variant="danger" onClick={confirmDeleteEntity}>
+              确认删除
+            </Button>
+          </>
+        }
+      >
+        <div className="delete-confirm-content">
+          <div className="delete-icon">🗑️</div>
+          <p>确定要删除这个实体吗？</p>
+          <p className="delete-hint">此操作无法撤销</p>
+        </div>
+      </Modal>
     </div>
   );
 };

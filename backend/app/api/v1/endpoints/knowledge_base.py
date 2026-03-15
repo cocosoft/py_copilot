@@ -110,6 +110,7 @@ async def batch_process_documents(
         try:
             from celery import group
             from app.tasks.knowledge.document_processing import process_document_task
+            from celery.exceptions import OperationalError
             
             # 创建任务组
             tasks = [
@@ -127,9 +128,9 @@ async def batch_process_documents(
                 message=f"批量处理任务已创建，共 {len(valid_doc_ids)} 个文档"
             )
             
-        except ImportError:
-            # Celery不可用，使用同步处理
-            logger.warning("Celery不可用，使用同步批量处理")
+        except (ImportError, OperationalError, Exception) as e:
+            # Celery不可用或连接失败，使用同步处理
+            logger.warning(f"Celery不可用或连接失败 ({e})，使用同步批量处理")
             
             # 生成任务ID
             import uuid
@@ -253,7 +254,7 @@ async def get_document_progress(
             raise HTTPException(status_code=404, detail="文档不存在")
         
         # 获取进度
-        from app.services.knowledge.utils.processing_progress_service import processing_progress_service
+        from app.services.knowledge.processing_progress_service import processing_progress_service
         
         progress = processing_progress_service.get_progress(str(document_id))
         

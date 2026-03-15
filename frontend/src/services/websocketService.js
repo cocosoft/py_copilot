@@ -8,7 +8,7 @@ class WebSocketService {
   constructor() {
     this.ws = null;
     this.clientId = null;
-    this.messageHandlers = new Map();
+    this.messageHandlers = new Map(); // 存储消息类型对应的处理器列表
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
     this.reconnectDelay = 3000;
@@ -35,7 +35,7 @@ class WebSocketService {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 
     // 开发环境通过 Vite 代理连接 WebSocket
-    if (window.location.port === '5173') {
+    if (window.location.port === '5173' || window.location.port === '3000') {
       // 使用相对路径，通过 Vite 代理
       return `${protocol}//${window.location.host}/api/v1/websocket/connect/${this.clientId}`;
     }
@@ -51,12 +51,10 @@ class WebSocketService {
    */
   async connect() {
     if (this.ws?.readyState === WebSocket.OPEN) {
-      console.log('WebSocket已连接');
       return Promise.resolve();
     }
 
     if (this.isConnecting) {
-      console.log('WebSocket正在连接中...');
       // 返回一个等待连接完成的Promise
       return new Promise((resolve, reject) => {
         const checkInterval = setInterval(() => {
@@ -95,7 +93,6 @@ class WebSocketService {
 
         this.ws.onopen = () => {
           clearTimeout(connectionTimeout);
-          console.log('WebSocket连接成功');
           this.isConnecting = false;
           this.reconnectAttempts = 0;
 
@@ -113,7 +110,6 @@ class WebSocketService {
         };
 
         this.ws.onclose = (event) => {
-          console.log(`WebSocket连接关闭: ${event.code} - ${event.reason}`);
           this.isConnecting = false;
 
           // 如果不是正常关闭且不是手动断开，尝试重连
@@ -145,7 +141,6 @@ class WebSocketService {
     }
 
     this.reconnectAttempts++;
-    console.log(`WebSocket将在 ${this.reconnectDelay}ms 后尝试第 ${this.reconnectAttempts} 次重连`);
 
     setTimeout(() => {
       this.connect().catch(error => {
@@ -163,7 +158,6 @@ class WebSocketService {
 
     // 如果正在连接中，等待连接完成或超时后再关闭
     if (this.isConnecting && this.ws?.readyState === WebSocket.CONNECTING) {
-      console.log('WebSocket正在连接中，等待连接完成后再断开');
       // 延迟关闭，让连接有机会完成或失败
       setTimeout(() => {
         if (this.ws) {
@@ -207,12 +201,17 @@ class WebSocketService {
   handleMessage(data) {
     try {
       const message = JSON.parse(data);
-      console.log('收到WebSocket消息:', message);
 
       // 根据消息类型分发到对应的处理器
-      const handler = this.messageHandlers.get(message.type);
-      if (handler) {
-        handler(message);
+      const handlers = this.messageHandlers.get(message.type);
+      if (handlers) {
+        handlers.forEach(handler => {
+          try {
+            handler(message);
+          } catch (error) {
+            console.error('执行消息处理器失败:', error);
+          }
+        });
       } else {
         // 忽略系统消息类型的警告
         const systemMessageTypes = ['connection_established', 'pong', 'heartbeat'];
@@ -229,17 +228,48 @@ class WebSocketService {
    * 注册消息处理器
    * @param {string} messageType 消息类型
    * @param {Function} handler 处理函数
+   * @returns {Function} 取消注册函数
    */
   on(messageType, handler) {
-    this.messageHandlers.set(messageType, handler);
+    if (!this.messageHandlers.has(messageType)) {
+      this.messageHandlers.set(messageType, []);
+    }
+    const handlers = this.messageHandlers.get(messageType);
+    handlers.push(handler);
+    
+    // 返回取消注册函数
+    return () => {
+      const handlers = this.messageHandlers.get(messageType);
+      if (handlers) {
+        const index = handlers.indexOf(handler);
+        if (index > -1) {
+          handlers.splice(index, 1);
+        }
+        if (handlers.length === 0) {
+          this.messageHandlers.delete(messageType);
+        }
+      }
+    };
   }
 
   /**
    * 取消注册消息处理器
    * @param {string} messageType 消息类型
+   * @param {Function} handler 处理函数（可选，如果不提供则移除所有该类型的处理器）
    */
-  off(messageType) {
-    this.messageHandlers.delete(messageType);
+  off(messageType, handler) {
+    const handlers = this.messageHandlers.get(messageType);
+    if (handlers) {
+      if (handler) {
+        const index = handlers.indexOf(handler);
+        if (index > -1) {
+          handlers.splice(index, 1);
+        }
+      } else {
+        // 移除所有该类型的处理器
+        this.messageHandlers.delete(messageType);
+      }
+    }
   }
 
   /**
@@ -254,7 +284,6 @@ class WebSocketService {
 
     // 如果未连接，将订阅请求加入待处理队列
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      console.log('WebSocket未连接，将订阅请求加入待处理队列');
       this.pendingSubscriptions.push(...normalizedIds);
       this.connect().catch(error => {
         console.error('WebSocket连接失败:', error);
@@ -279,7 +308,6 @@ class WebSocketService {
       document_ids: newIds
     });
 
-    console.log(`已订阅文档进度: ${newIds.join(', ')}`);
   }
 
   /**
@@ -308,7 +336,6 @@ class WebSocketService {
       document_ids: ids
     });
 
-    console.log(`已取消订阅文档进度: ${ids.join(', ')}`);
   }
 
   /**

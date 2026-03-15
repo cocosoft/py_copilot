@@ -1,4 +1,4 @@
-import { request } from '../apiUtils';
+import { request, requestWithRetry } from '../apiUtils';
 
 // Knowledge Base API
 export const createKnowledgeBase = async (name, description) => {
@@ -97,9 +97,10 @@ export const listDocuments = async (skip = 0, limit = 10, knowledgeBaseId = null
     return response;
 };
 
-export const getDocument = async (documentId) => {
+export const getDocument = async (documentId, options = {}) => {
     const response = await request(`/v1/knowledge/documents/${documentId}`, {
-        method: 'GET'
+        method: 'GET',
+        ...options
     });
     return response;
 };
@@ -219,10 +220,14 @@ export const searchDocumentsByTag = async (tagId, knowledgeBaseId = null) => {
  * @returns {Promise<Object>} 处理启动结果
  */
 export const processDocument = async (documentId) => {
-    const response = await request(`/v1/knowledge/documents/${documentId}/process`, {
+    console.log(`[knowledgeApi.processDocument] 开始调用API，文档ID: ${documentId}`);
+    const response = await requestWithRetry(`/v1/knowledge/documents/${documentId}/process`, {
         method: 'POST',
-        timeout: 120000  // 120秒超时，ChromaDB服务响应较慢时需要更长时间
+        timeout: 300000,  // 300秒超时（5分钟），后端响应可能较慢
+        maxRetries: 2,     // 最多重试2次
+        initialDelay: 2000  // 初始重试延迟2秒
     });
+    console.log(`[knowledgeApi.processDocument] API响应:`, response);
     return response;
 };
 
@@ -265,9 +270,11 @@ export const getVectorizationStatus = async (documentId) => {
 };
 
 // Document Chunks API
-export const getDocumentChunks = async (documentId) => {
+export const getDocumentChunks = async (documentId, skip = 0, limit = 50, options = {}) => {
     const response = await request(`/v1/knowledge/documents/${documentId}/chunks`, {
-        method: 'GET'
+        method: 'GET',
+        params: { skip, limit },
+        ...options
     });
     return response;
 };
@@ -324,9 +331,11 @@ export const getKnowledgeBaseGraphData = async (knowledgeBaseId) => {
  * @returns {Promise<Object>} 处理进度信息
  */
 export const getDocumentProcessingProgress = async (documentId) => {
-    const response = await request(`/v1/knowledge/documents/${documentId}/progress`, {
+    const response = await requestWithRetry(`/v1/knowledge/documents/${documentId}/progress`, {
         method: 'GET',
-        timeout: 30000  // 30秒超时，进度查询应该很快返回，但后端繁忙时可能需要更长时间
+        timeout: 60000,  // 增加超时时间到60秒
+        maxRetries: 3,   // 最多重试3次
+        initialDelay: 1000  // 初始重试延迟1秒
     });
     return response;
 };
@@ -426,9 +435,11 @@ export const getUnprocessedDocuments = async (knowledgeBaseId) => {
  * @returns {Promise<Object>} 处理状态信息
  */
 export const getProcessingStatus = async (knowledgeBaseId) => {
-    const response = await request(`/v1/knowledge/knowledge-bases/${knowledgeBaseId}/processing-status`, {
+    const response = await requestWithRetry(`/v1/knowledge/knowledge-bases/${knowledgeBaseId}/processing-status`, {
         method: 'GET',
-        timeout: 10000  // 10秒超时
+        timeout: 60000,  // 增加超时时间到60秒
+        maxRetries: 3,   // 最多重试3次
+        initialDelay: 1000  // 初始重试延迟1秒
     });
     return response;
 };
@@ -454,10 +465,36 @@ export const batchDeleteDocuments = async (documentIds) => {
  * @returns {Promise<Blob>} ZIP文件Blob
  */
 export const batchDownloadDocuments = async (documentIds) => {
-    const response = await request('/v1/knowledge/documents/batch-download', {
-        method: 'POST',
-        data: { document_ids: documentIds },
-        responseType: 'blob'
-    });
-    return response;
+  const response = await request('/v1/knowledge/documents/batch-download', {
+    method: 'POST',
+    data: { document_ids: documentIds },
+    responseType: 'blob'
+  });
+  return response;
+};
+
+/**
+ * 获取文档的实体列表
+ *
+ * @param {number} documentId - 文档ID
+ * @returns {Promise<Object>} 实体列表
+ */
+export const getDocumentEntities = async (documentId) => {
+  const response = await request(`/v1/knowledge-graph/documents/${documentId}/entities`, {
+    method: 'GET'
+  });
+  return response;
+};
+
+/**
+ * 获取知识库的所有实体列表
+ *
+ * @param {number} knowledgeBaseId - 知识库ID
+ * @returns {Promise<Object>} 实体列表
+ */
+export const getKnowledgeBaseEntities = async (knowledgeBaseId) => {
+  const response = await request(`/v1/knowledge-graph/knowledge-bases/${knowledgeBaseId}/entities`, {
+    method: 'GET'
+  });
+  return response;
 };

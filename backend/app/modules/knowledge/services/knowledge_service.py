@@ -9,7 +9,7 @@ from app.modules.knowledge.models.knowledge_document import KnowledgeBase, Knowl
 from app.services.knowledge.core.document_parser import DocumentParser
 from app.services.knowledge.core.advanced_text_processor import AdvancedTextProcessor
 from app.services.knowledge.retrieval.retrieval_service import RetrievalService
-from app.services.knowledge.utils.processing_progress_service import processing_progress_service
+from app.services.knowledge.processing_progress_service import processing_progress_service
 
 logger = logging.getLogger(__name__)
 
@@ -259,8 +259,7 @@ class KnowledgeService:
                         document.file_type,
                         document.id,
                         document.knowledge_base_id,
-                        db,
-                        document.uuid  # 传入uuid用于向量存储
+                        db
                     )
 
                     if processing_result.get("success"):
@@ -380,8 +379,7 @@ class KnowledgeService:
                 document.file_type,
                 document.id,
                 document.knowledge_base_id,  # 传递knowledge_base_id
-                db,
-                document.uuid  # 传入uuid用于向量存储
+                db
             )
 
             if processing_result.get("success"):
@@ -555,16 +553,20 @@ class KnowledgeService:
 
     def get_document_by_id_or_uuid(self, document_id: str, db: Session) -> Optional[KnowledgeDocument]:
         """根据ID或UUID获取文档详情（自动识别）"""
-        # 如果包含'doc-'前缀，认为是UUID
-        if document_id.startswith('doc-'):
-            return self.get_document_by_uuid(document_id, db)
-        # 否则尝试作为整数ID处理
         try:
-            doc_id = int(document_id)
-            return self.get_document_by_id(doc_id, db)
-        except ValueError:
-            # 如果不是整数，尝试作为UUID处理
-            return self.get_document_by_uuid(document_id, db)
+            # 如果包含'doc-'前缀，认为是UUID
+            if document_id.startswith('doc-'):
+                return self.get_document_by_uuid(document_id, db)
+            # 否则尝试作为整数ID处理
+            try:
+                doc_id = int(document_id)
+                return self.get_document_by_id(doc_id, db)
+            except ValueError:
+                # 如果不是整数，尝试作为UUID处理
+                return self.get_document_by_uuid(document_id, db)
+        except Exception as e:
+            logger.error(f"获取文档失败: {str(e)}")
+            return None
 
     def batch_delete_documents(self, db: Session, document_ids: List[str]) -> Dict[str, Any]:
         """批量删除文档
@@ -1198,13 +1200,19 @@ class KnowledgeService:
                 raise HTTPException(status_code=404, detail="文档不存在")
             
             # 获取向量片段
-            chunks = self.retrieval_service.get_document_chunks(document_id)
-            return chunks
+            try:
+                chunks = self.retrieval_service.get_document_chunks(document_id)
+                return chunks
+            except Exception as e:
+                logger.error(f"获取向量片段失败: {str(e)}")
+                # 向量服务失败时返回空列表，避免500错误
+                return []
         except HTTPException:
             raise
         except Exception as e:
-            print(f"获取文档向量片段失败: {str(e)}")
-            raise HTTPException(status_code=500, detail="获取文档向量片段失败")
+            logger.error(f"获取文档向量片段失败: {str(e)}")
+            # 其他错误时返回空列表，避免500错误
+            return []
 
     # Document Version Control Methods
     def get_document_versions(self, document_id: int, db: Session) -> List[KnowledgeDocument]:

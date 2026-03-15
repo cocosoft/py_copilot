@@ -107,13 +107,11 @@ export const request = async (endpoint, options = {}) => {
     };
   }
   
-  const timeout = options.timeout || 60000; // 默认超时时间增加到60秒
+  const timeout = options.timeout || 90000; // 默认超时时间增加到90秒
 
   let signal;
   let controller;
   let timeoutId = null;
-
-  // 调试日志
 
   try {
     if (options.signal) {
@@ -135,7 +133,6 @@ export const request = async (endpoint, options = {}) => {
     if (timeoutId) {
       clearTimeout(timeoutId);
     }
-
 
     // 检查响应状态
     if (!response.ok) {

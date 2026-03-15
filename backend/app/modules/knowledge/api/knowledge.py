@@ -419,6 +419,7 @@ async def get_document_detail(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"获取文档详情失败: {str(e)}")
         raise HTTPException(status_code=500, detail="获取文档详情失败")
 
 @router.delete("/documents/{document_id}")
@@ -523,7 +524,7 @@ async def get_document_processing_progress(
     用于前端轮询查询文档处理状态
     """
     try:
-        from app.services.knowledge.utils.processing_progress_service import processing_progress_service
+        from app.services.knowledge.processing_progress_service import processing_progress_service
 
         # 首先检查文档是否存在
         document = knowledge_service.get_document_by_id(document_id, db)
@@ -638,7 +639,9 @@ async def get_document_chunks(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail="获取文档向量片段失败")
+        logger.error(f"获取文档向量片段失败: {str(e)}")
+        # 出错时返回空列表，避免500错误
+        return []
 
 @router.get("/stats")
 async def get_knowledge_stats(db: Session = Depends(get_db)):
@@ -701,9 +704,11 @@ async def process_document(
 
     上传文档后，调用此接口启动后续处理流程
     """
+    logger.info(f"[process_document] 收到文档处理请求: {document_id}")
     try:
         # 检查文档是否存在（支持ID或UUID）
         document = knowledge_service.get_document_by_id_or_uuid(document_id, db)
+        logger.info(f"[process_document] 文档查询结果: {document}")
         if not document:
             raise HTTPException(status_code=404, detail="文档不存在")
 
@@ -748,12 +753,14 @@ async def process_document(
             }
 
         # 添加到处理队列
+        logger.info(f"[process_document] 尝试添加文档到队列: {document.id}")
         added = await document_processing_queue.add_document(
             document_id=document.id,
             knowledge_base_id=document.knowledge_base_id,
             document_name=document.title,
             priority=0
         )
+        logger.info(f"[process_document] 文档添加到队列结果: {added}")
 
         if added:
             # 更新文档状态为排队中
@@ -768,6 +775,7 @@ async def process_document(
             }
         else:
             # 如果添加失败，使用后台任务处理
+            logger.info(f"[process_document] 队列添加失败，使用后台任务处理: {document.id}")
             if background_tasks:
                 background_tasks.add_task(
                     knowledge_service.process_document_async,

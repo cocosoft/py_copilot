@@ -21,7 +21,7 @@ if __name__ == "__main__":
     uvicorn.run(
         app="app.api.main:app",
         host="0.0.0.0",
-        port=8007,
+        port=8009,
         reload=False,  # 禁用reload模式以避免多进程问题
         log_level=log_level,
         workers=1  # 明确使用单进程模式

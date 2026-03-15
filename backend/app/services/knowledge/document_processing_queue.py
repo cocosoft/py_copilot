@@ -109,10 +109,15 @@ class DocumentProcessingQueue:
                 logger.warning(f"文档 {document_id} 正在处理中，跳过")
                 return False
 
-            # 检查是否已完成
+            # 检查是否已完成（成功的文档不需要重新处理）
             if document_id in self._completed:
                 logger.warning(f"文档 {document_id} 已处理完成，跳过")
                 return False
+
+            # 如果文档之前处理失败了，允许重新处理
+            if document_id in self._failed:
+                logger.info(f"文档 {document_id} 之前处理失败，允许重新处理")
+                del self._failed[document_id]
 
         # 创建任务并添加到队列
         task = ProcessingTask(

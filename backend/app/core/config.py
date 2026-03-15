@@ -54,7 +54,7 @@ class Settings(BaseSettings):
     
     # 前端配置
     frontend_url: str = Field(default="http://localhost:5173", env="FRONTEND_URL")
-    frontend_ports: str = Field(default="5173,5174,5175,5176,5177", env="FRONTEND_PORTS")
+    frontend_ports: str = Field(default="3000,3002,5173,5174,5175,5176,5177", env="FRONTEND_PORTS")
     
     # Redis配置
     redis_host: str = Field(default="localhost", env="REDIS_HOST")

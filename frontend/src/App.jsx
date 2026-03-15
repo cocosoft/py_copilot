@@ -64,12 +64,13 @@ function MainApp() {
   const { t: tNav } = useTranslation('nav');
   const [isLanguageLoaded, setIsLanguageLoaded] = useState(false);
   
-  // 从后端加载语言设置
+  // 从后端加载语言设置（不阻塞页面加载）
   useEffect(() => {
     const loadLanguageFromBackend = async () => {
       try {
         const result = await request('/v1/settings', {
-          method: 'GET'
+          method: 'GET',
+          timeout: 10000 // 减少超时时间到10秒
         });
         
         if (result.success && result.data?.general?.language) {
@@ -87,11 +88,17 @@ function MainApp() {
         if (savedLanguage && savedLanguage !== i18n.language) {
           i18n.changeLanguage(savedLanguage);
         }
-      } finally {
-        setIsLanguageLoaded(true);
       }
     };
     
+    // 先使用 localStorage 中的语言设置，然后异步加载后端设置
+    const savedLanguage = localStorage.getItem('app-language');
+    if (savedLanguage && savedLanguage !== i18n.language) {
+      i18n.changeLanguage(savedLanguage);
+    }
+    setIsLanguageLoaded(true);
+    
+    // 异步加载后端语言设置
     loadLanguageFromBackend();
   }, [i18n]);
   

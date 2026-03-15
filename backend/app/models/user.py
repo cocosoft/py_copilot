@@ -3,8 +3,6 @@ from sqlalchemy import Column, Integer, String, Boolean, DateTime, func, Foreign
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
-# 导入相关模型
-from app.models.chat_enhancements import UploadedFile, VoiceInput, SearchQuery, AnalyzedImage
 
 
 class User(Base):

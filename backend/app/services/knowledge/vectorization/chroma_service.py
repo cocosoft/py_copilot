@@ -390,11 +390,26 @@ class ChromaService:
             )
 
             if response.status_code == 200:
-                data = response.json()
-                logger.info(f"根据元数据搜索完成，找到 {len(data.get('ids', []))} 个结果")
-                return data
+                try:
+                    data = response.json()
+                    logger.info(f"根据元数据搜索完成，找到 {len(data.get('ids', []))} 个结果")
+                    # 确保返回的数据结构完整
+                    if not isinstance(data, dict):
+                        logger.error("ChromaDB返回数据格式错误")
+                        return {"ids": [], "documents": [], "metadatas": []}
+                    # 确保所有必要的字段都存在
+                    if "ids" not in data:
+                        data["ids"] = []
+                    if "documents" not in data:
+                        data["documents"] = []
+                    if "metadatas" not in data:
+                        data["metadatas"] = []
+                    return data
+                except ValueError as e:
+                    logger.error(f"解析ChromaDB响应失败: {e}")
+                    return {"ids": [], "documents": [], "metadatas": []}
             else:
-                logger.error(f"根据元数据搜索失败: {response.text}")
+                logger.error(f"根据元数据搜索失败: {response.status_code} - {response.text}")
                 return {"ids": [], "documents": [], "metadatas": []}
         except Exception as e:
             logger.error(f"根据元数据搜索异常: {e}")

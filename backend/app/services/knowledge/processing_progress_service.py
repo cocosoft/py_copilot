@@ -9,6 +9,7 @@ import asyncio
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 import logging
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -74,23 +75,51 @@ class ProcessingProgressService:
             # 导入WebSocket消息处理器
             from app.websocket.message_handler import message_handler
 
-            # 获取当前事件循环，如果没有则创建一个新的
+            # 检查是否有订阅者，避免不必要的广播
+            subscriber_count = len(message_handler.document_progress_subscriptions.get(int(document_id), set()))
+            if subscriber_count == 0:
+                logger.debug(f"文档 {document_id} 没有WebSocket订阅者，跳过广播")
+                return
+
+            # 获取当前事件循环
             try:
                 loop = asyncio.get_running_loop()
+                # 在主进程中，使用asyncio创建任务
+                asyncio.create_task(message_handler.broadcast_document_progress(
+                    document_id=int(document_id),
+                    status=progress["status"],
+                    progress_percent=progress["progress_percent"],
+                    step_name=progress["step_name"],
+                    message=progress["message"],
+                    details=progress.get("details")
+                ))
+                logger.debug(f"已广播文档 {document_id} 进度到 {subscriber_count} 个订阅者")
             except RuntimeError:
-                # 没有运行的事件循环，创建一个新的
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
+                # 没有运行的事件循环（可能在Celery任务中）
+                # 使用线程来运行异步任务
+                def run_async_broadcast():
+                    try:
+                        # 创建新的事件循环
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        # 运行异步广播
+                        loop.run_until_complete(message_handler.broadcast_document_progress(
+                            document_id=int(document_id),
+                            status=progress["status"],
+                            progress_percent=progress["progress_percent"],
+                            step_name=progress["step_name"],
+                            message=progress["message"],
+                            details=progress.get("details")
+                        ))
+                        loop.close()
+                        logger.debug(f"已在后台线程广播文档 {document_id} 进度")
+                    except Exception as e:
+                        logger.debug(f"后台线程广播进度失败: {e}")
 
-            # 使用asyncio运行异步广播
-            asyncio.create_task(message_handler.broadcast_document_progress(
-                document_id=int(document_id),
-                status=progress["status"],
-                progress_percent=progress["progress_percent"],
-                step_name=progress["step_name"],
-                message=progress["message"],
-                details=progress.get("details")
-            ))
+                # 启动后台线程
+                thread = threading.Thread(target=run_async_broadcast, daemon=True)
+                thread.start()
+                logger.debug(f"已启动后台线程广播文档 {document_id} 进度")
         except Exception as e:
             logger.debug(f"WebSocket广播进度失败（可能无订阅者）: {e}")
 

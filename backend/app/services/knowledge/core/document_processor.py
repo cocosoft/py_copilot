@@ -3,7 +3,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 from sqlalchemy.orm import Session
 
-from app.services.knowledge.utils.processing_progress_service import processing_progress_service
+from app.services.knowledge.processing_progress_service import processing_progress_service
 
 logger = logging.getLogger(__name__)
 

@@ -8,15 +8,19 @@ import React, { useState } from 'react';
 import { FiDownload, FiTrash2, FiZap, FiX, FiCheckSquare, FiSquare } from 'react-icons/fi';
 import useKnowledgeStore from '../../../stores/knowledgeStore';
 import { Button, showSuccess, showError, showWarning } from '../../UI';
-import { batchDeleteDocuments, batchDownloadDocuments } from '../../../utils/api/knowledgeApi';
+import { batchDeleteDocuments, batchDownloadDocuments, processDocument } from '../../../utils/api/knowledgeApi';
+import websocketService from '../../../services/websocketService';
 import './BatchOperationToolbar.css';
 
 /**
  * 批量操作工具栏
  *
  * 当选中文档时显示，提供批量操作功能
+ *
+ * @param {Object} props - 组件属性
+ * @param {Function} props.onBatchVectorizeStart - 批量向量化开始回调，接收文档ID数组
  */
-const BatchOperationToolbar = () => {
+const BatchOperationToolbar = ({ onBatchVectorizeStart }) => {
   const {
     documents,
     selectedDocuments,
@@ -29,6 +33,7 @@ const BatchOperationToolbar = () => {
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isVectorizing, setIsVectorizing] = useState(false);
 
   const selectedCount = selectedDocuments.length;
   const totalCount = documents.length;
@@ -91,10 +96,64 @@ const BatchOperationToolbar = () => {
   /**
    * 处理批量向量化
    */
-  const handleBatchVectorize = () => {
-    // TODO: 实现批量向量化逻辑
-    console.log('批量向量化:', selectedDocuments);
-    showWarning('批量向量化功能开发中...');
+  const handleBatchVectorize = async () => {
+    if (selectedCount === 0) {
+      showWarning('请先选择要向量化的文档');
+      return;
+    }
+
+    setIsVectorizing(true);
+    try {
+      // 获取选中文档
+      const selectedDocs = documents.filter(doc =>
+        selectedDocuments.some(id => String(id) === String(doc.id))
+      );
+
+      // 依次处理每个文档
+      let successCount = 0;
+      let errorCount = 0;
+      const successfullyStartedDocs = [];
+
+      for (const doc of selectedDocs) {
+        try {
+          const docId = doc.uuid || doc.id;
+          console.log('[BatchVectorize] 启动文档处理:', docId);
+          console.log('[BatchVectorize] 调用processDocument API...');
+          const result = await processDocument(docId);
+          console.log('[BatchVectorize] 文档处理启动结果:', result);
+          successCount++;
+          successfullyStartedDocs.push(doc);
+        } catch (error) {
+          console.error('[BatchVectorize] 向量化失败:', doc.id, error);
+          errorCount++;
+        }
+      }
+
+      // 只有在API调用成功后才显示进度面板
+      if (successfullyStartedDocs.length > 0 && onBatchVectorizeStart) {
+        console.log('[BatchVectorize] 调用父组件回调，显示进度面板:', successfullyStartedDocs);
+        onBatchVectorizeStart(successfullyStartedDocs);
+      }
+
+      if (successCount > 0) {
+        showSuccess(`成功启动 ${successCount} 个文档的向量化`);
+      }
+      if (errorCount > 0) {
+        showWarning(`${errorCount} 个文档向量化失败`);
+      }
+
+      // 清空选择
+      setSelectedDocuments([]);
+
+      // 刷新文档列表
+      if (currentKnowledgeBase) {
+        fetchDocuments(currentKnowledgeBase.id);
+      }
+    } catch (error) {
+      showError('批量向量化失败：' + error.message);
+    } finally {
+      setIsVectorizing(false);
+    }
   };
 
   /**
@@ -193,7 +252,8 @@ const BatchOperationToolbar = () => {
           size="small"
           icon={<FiZap />}
           onClick={handleBatchVectorize}
-          disabled={isProcessing || isDeleting || isDownloading}
+          disabled={isProcessing || isDeleting || isDownloading || isVectorizing}
+          loading={isVectorizing}
         >
           向量化
         </Button>

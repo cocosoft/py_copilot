@@ -76,6 +76,9 @@ CORS_CREDENTIALS = True
 CORS_METHODS = ["*"]
 CORS_HEADERS = ["*"]
 
+logger.info(f"CORS配置 - 前端端口: {settings.frontend_ports}")
+logger.info(f"CORS配置 - 允许的源: {CORS_ORIGINS}")
+
 # 从dependencies模块导入数据库引擎
 from app.api.dependencies import engine
 

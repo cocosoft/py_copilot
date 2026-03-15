@@ -1,16 +1,20 @@
 /**
  * 知识库设置页面
- * 
- * 管理知识库的配置和参数
+ *
+ * 管理知识库的配置和参数，包括默认模型配置
  */
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiSave, FiTrash2, FiAlertTriangle } from 'react-icons/fi';
+import { FiSave, FiTrash2, FiAlertTriangle, FiCpu } from 'react-icons/fi';
 import useKnowledgeStore from '../../../stores/knowledgeStore';
 import { Button } from '../../../components/UI';
 import { message } from '../../../components/UI/Message/Message';
 import { updateKnowledgeBase, deleteKnowledgeBase } from '../../../utils/api/knowledgeApi';
+import defaultModelApi from '../../../utils/api/defaultModelApi';
+import { supplierApi } from '../../../utils/api/supplierApi';
+import ModelDataManager from '../../../services/modelDataManager';
+import ModelSelectDropdown from '../../../components/ModelManagement/ModelSelectDropdown';
 import './styles.css';
 
 /**
@@ -33,8 +37,115 @@ const KnowledgeSettings = () => {
     allowedFileTypes: ['.pdf', '.doc', '.docx', '.txt', '.md'],
   });
 
+  // 默认模型配置状态
+  const [defaultModelConfig, setDefaultModelConfig] = useState({
+    knowledgeModel: null,
+    extractionModel: null,
+  });
+  const [isSavingModelConfig, setIsSavingModelConfig] = useState(false);
+
+  // 嵌入模型列表状态
+  const [embeddingModels, setEmbeddingModels] = useState([]);
+  const [isLoadingEmbeddingModels, setIsLoadingEmbeddingModels] = useState(false);
+
   const [isSaving, setIsSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  /**
+   * 加载嵌入模型列表
+   * 使用与"设置-模型管理-默认模型"页面中"向量化场景"相同的API
+   */
+  const loadEmbeddingModels = useCallback(async () => {
+    setIsLoadingEmbeddingModels(true);
+    try {
+      // 使用supplierApi.getModelsByScene获取嵌入模型列表
+      // 这与SceneDefaultModels组件使用的API一致
+      console.log('开始加载嵌入模型列表...');
+      const response = await supplierApi.getModelsByScene('embedding');
+      console.log('嵌入模型API返回:', response);
+      let models = Array.isArray(response) ? response : (response?.models || response?.items || []);
+      console.log('解析后的模型列表:', models);
+
+      // 如果API返回的模型列表为空，尝试获取所有模型并进行筛选
+      if (models.length === 0) {
+        console.log('API返回空列表，尝试获取所有模型并进行筛选...');
+        const allModelsResponse = await supplierApi.getModels();
+        const allModels = Array.isArray(allModelsResponse) ? allModelsResponse : (allModelsResponse?.models || allModelsResponse?.items || []);
+        
+        // 使用与useModelManagement.jsx相同的回退逻辑
+        models = allModels.filter(model => {
+          const modelType = model.model_type_name || model.type || '';
+          const modelName = (model.model_name || model.name || '').toLowerCase();
+          const modelId = (model.model_id || '').toLowerCase();
+          
+          // 基本类型匹配
+          if (modelType === 'embedding') {
+            return true;
+          }
+          
+          // 根据模型名称和ID进行匹配
+          return modelName.includes('embedding') || 
+                 modelName.includes('embed') || 
+                 modelName.includes('bge') || 
+                 modelName.includes('baai') ||
+                 modelId.includes('embedding') ||
+                 modelId.includes('embed');
+        });
+        console.log('筛选后的模型列表:', models);
+      }
+
+      setEmbeddingModels(models);
+    } catch (error) {
+      console.error('加载嵌入模型列表失败:', error);
+      setEmbeddingModels([]);
+    } finally {
+      setIsLoadingEmbeddingModels(false);
+    }
+  }, []);
+
+  /**
+   * 加载默认模型配置
+   * 按照优先级获取知识库专属的默认模型
+   */
+  const loadDefaultModelConfig = useCallback(async () => {
+    if (!currentKnowledgeBase) return;
+
+    try {
+      const kbId = currentKnowledgeBase.id;
+      const scenes = [
+        { key: 'knowledge', scene: `knowledge_kb_${kbId}` },
+        { key: 'extraction', scene: `knowledge_kb_${kbId}_extraction` },
+      ];
+
+      const config = {
+        knowledgeModel: null,
+        extractionModel: null,
+      };
+
+      for (const { key, scene } of scenes) {
+        try {
+          const response = await defaultModelApi.getSceneDefaultModel(scene);
+          if (response && response.model_id) {
+            // 构造模型对象，用于ModelSelectDropdown
+            const modelObj = {
+              model_id: response.model_id,
+              model_name: response.model_name || response.model_id,
+              supplier_name: response.supplier_name || '未知供应商',
+              supplier_logo: response.supplier_logo,
+            };
+            config[key === 'knowledge' ? 'knowledgeModel' : 'extractionModel'] = modelObj;
+          }
+        } catch (error) {
+          // 该场景未配置模型，忽略错误
+          console.log(`场景 ${scene} 未配置模型`);
+        }
+      }
+
+      setDefaultModelConfig(config);
+    } catch (error) {
+      console.error('加载默认模型配置失败:', error);
+    }
+  }, [currentKnowledgeBase]);
 
   // 当当前知识库变化时更新设置
   useEffect(() => {
@@ -44,8 +155,56 @@ const KnowledgeSettings = () => {
         name: currentKnowledgeBase.name || '',
         description: currentKnowledgeBase.description || '',
       }));
+      // 加载默认模型配置
+      loadDefaultModelConfig();
+      // 加载嵌入模型列表
+      loadEmbeddingModels();
     }
-  }, [currentKnowledgeBase]);
+  }, [currentKnowledgeBase, loadDefaultModelConfig, loadEmbeddingModels]);
+
+  /**
+   * 保存默认模型配置
+   */
+  const handleSaveModelConfig = useCallback(async () => {
+    if (!currentKnowledgeBase) return;
+
+    setIsSavingModelConfig(true);
+    try {
+      const kbId = currentKnowledgeBase.id;
+
+      // 保存知识库级默认模型
+      if (defaultModelConfig.knowledgeModel) {
+        await defaultModelApi.setSceneDefaultModel({
+          scene: `knowledge_kb_${kbId}`,
+          model_id: parseInt(defaultModelConfig.knowledgeModel.model_id),
+          priority: 100,
+        });
+      }
+
+      // 保存知识库任务级默认模型（实体提取）
+      if (defaultModelConfig.extractionModel) {
+        await defaultModelApi.setSceneDefaultModel({
+          scene: `knowledge_kb_${kbId}_extraction`,
+          model_id: parseInt(defaultModelConfig.extractionModel.model_id),
+          priority: 100,
+        });
+      }
+
+      message.success({ content: '默认模型配置已保存' });
+    } catch (error) {
+      console.error('保存默认模型配置失败:', error);
+      message.error({ content: '保存默认模型配置失败：' + error.message });
+    } finally {
+      setIsSavingModelConfig(false);
+    }
+  }, [currentKnowledgeBase, defaultModelConfig]);
+
+  /**
+   * 更新默认模型配置
+   */
+  const updateModelConfig = (field, model) => {
+    setDefaultModelConfig(prev => ({ ...prev, [field]: model }));
+  };
 
   /**
    * 保存设置
@@ -133,7 +292,7 @@ const KnowledgeSettings = () => {
         {/* 基本信息 */}
         <section className="settings-section">
           <h3>基本信息</h3>
-          
+
           <div className="form-group">
             <label>知识库名称</label>
             <input
@@ -167,10 +326,72 @@ const KnowledgeSettings = () => {
           </div>
         </section>
 
+        {/* 默认模型配置 */}
+        <section className="settings-section">
+          <div className="section-header">
+            <h3>
+              <FiCpu style={{ marginRight: '8px' }} />
+              默认模型配置
+            </h3>
+            <Button
+              variant="primary"
+              size="small"
+              onClick={handleSaveModelConfig}
+              loading={isSavingModelConfig}
+            >
+              保存模型配置
+            </Button>
+          </div>
+
+          <div className="model-config-info">
+            <p className="help-text">
+              为当前知识库配置专属的默认模型。配置后，该知识库的所有操作（包括实体提取）将优先使用这些模型。
+            </p>
+          </div>
+
+          <div className="form-group">
+            <label>知识库默认模型</label>
+            <div className="model-select-wrapper">
+              <ModelSelectDropdown
+                selectedModel={defaultModelConfig.knowledgeModel}
+                onModelSelect={(model) => updateModelConfig('knowledgeModel', model)}
+                placeholder="-- 选择模型 --"
+                scene="knowledge"
+                singleLine={false}
+              />
+            </div>
+            <p className="help-text">
+              用于知识库的一般操作，如文档处理、问答等
+              {defaultModelConfig.knowledgeModel && (
+                <span className="scene-tag">场景: knowledge_kb_{currentKnowledgeBase.id}</span>
+              )}
+            </p>
+          </div>
+
+          <div className="form-group">
+            <label>实体提取专用模型</label>
+            <div className="model-select-wrapper">
+              <ModelSelectDropdown
+                selectedModel={defaultModelConfig.extractionModel}
+                onModelSelect={(model) => updateModelConfig('extractionModel', model)}
+                placeholder="-- 选择模型（可选）--"
+                scene="knowledge"
+                singleLine={false}
+              />
+            </div>
+            <p className="help-text">
+              专门用于实体提取任务，如果不设置则使用知识库默认模型
+              {defaultModelConfig.extractionModel && (
+                <span className="scene-tag">场景: knowledge_kb_{currentKnowledgeBase.id}_extraction</span>
+              )}
+            </p>
+          </div>
+        </section>
+
         {/* 向量化设置 */}
         <section className="settings-section">
           <h3>向量化设置</h3>
-          
+
           <div className="form-group checkbox">
             <label>
               <input
@@ -211,21 +432,26 @@ const KnowledgeSettings = () => {
 
           <div className="form-group">
             <label>嵌入模型</label>
-            <select
-              value={settings.embeddingModel}
-              onChange={(e) => updateSetting('embeddingModel', e.target.value)}
-            >
-              <option value="text-embedding-3-small">text-embedding-3-small</option>
-              <option value="text-embedding-3-large">text-embedding-3-large</option>
-              <option value="text-embedding-ada-002">text-embedding-ada-002</option>
-            </select>
+            <div className="model-select-wrapper">
+              <ModelSelectDropdown
+                models={embeddingModels}
+                selectedModel={embeddingModels.find(model =>
+                  String(model.id || model.model_id) === String(settings.embeddingModel)
+                ) || null}
+                onModelSelect={(model) => updateSetting('embeddingModel', model ? (model.id || model.model_id) : 'text-embedding-3-small')}
+                placeholder="-- 选择嵌入模型 --"
+                disabled={isLoadingEmbeddingModels}
+                singleLine={false}
+              />
+            </div>
+            <p className="help-text">用于将文档转换为向量表示</p>
           </div>
         </section>
 
         {/* 文件上传设置 */}
         <section className="settings-section">
           <h3>文件上传设置</h3>
-          
+
           <div className="form-group">
             <label>最大文件大小 (MB)</label>
             <input
@@ -263,7 +489,7 @@ const KnowledgeSettings = () => {
         {/* 危险操作 */}
         <section className="settings-section danger">
           <h3>危险操作</h3>
-          
+
           <div className="danger-zone">
             <div className="danger-info">
               <FiAlertTriangle size={24} color="#ff4d4f" />

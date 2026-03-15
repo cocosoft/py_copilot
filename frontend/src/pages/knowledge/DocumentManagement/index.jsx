@@ -4,11 +4,12 @@
  * 知识库文档管理主页面，整合所有新组件
  */
 
-import React, { useEffect, useCallback, useState, useMemo } from 'react';
+import React, { useEffect, useCallback, useState, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FiGrid, FiList, FiFilter, FiUpload, FiSearch, FiDownload, FiTrash2, FiFile, FiPlayCircle, FiLoader } from 'react-icons/fi';
 import useKnowledgeStore from '../../../stores/knowledgeStore';
 import BatchOperationToolbar from '../../../components/Knowledge/BatchOperationToolbar/BatchOperationToolbar';
+import ProcessingDocumentsPanel from '../../../components/Knowledge/ProcessingDocumentsPanel';
 import { VirtualListEnhanced } from '../../../components/UI';
 import DocumentCard from '../../../components/Knowledge/DocumentCard';
 import UploadButton from '../../../components/Knowledge/UploadButton';
@@ -25,9 +26,11 @@ import {
   batchProcessDocuments,
   getUnprocessedDocuments,
   getProcessingStatus,
+  getDocumentProcessingProgress,
   searchDocuments,
   getKnowledgeBases
 } from '../../../utils/api/knowledgeApi';
+import websocketService from '../../../services/websocketService';
 import './styles.css';
 
 /**
@@ -145,6 +148,9 @@ const DocumentManagement = () => {
   const [chunksLoading, setChunksLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('info'); // 'info', 'content', 'chunks'
 
+  // 请求取消控制器
+  const abortControllersRef = useRef(new Map());
+
   // 批量处理状态
   const [batchProcessing, setBatchProcessing] = useState(false);
   const [unprocessedCount, setUnprocessedCount] = useState(0);
@@ -154,6 +160,8 @@ const DocumentManagement = () => {
   // 实时处理进度状态
   const [processingStatus, setProcessingStatus] = useState(null);
   const [showProgressPanel, setShowProgressPanel] = useState(false);
+  const [processingDocuments, setProcessingDocuments] = useState(new Map());
+  const [processingProgress, setProcessingProgress] = useState(new Map());
 
   /**
    * 获取向量状态
@@ -171,9 +179,7 @@ const DocumentManagement = () => {
    * 获取文档列表
    */
   const fetchDocuments = useCallback(async () => {
-    console.log('[fetchDocuments] 开始获取文档列表, currentKnowledgeBase:', currentKnowledgeBase);
     if (!currentKnowledgeBase) {
-      console.log('[fetchDocuments] currentKnowledgeBase 为 null，跳过获取');
       return;
     }
 
@@ -183,16 +189,10 @@ const DocumentManagement = () => {
     try {
       let documents = [];
       let total = 0;
-
-      console.log('[fetchDocuments] 知识库ID:', currentKnowledgeBase.id);
-      console.log('[fetchDocuments] documentFilters:', documentFilters);
-
       // 检查是否有搜索关键词
       const searchQuery = documentFilters?.search?.trim();
-      console.log('[fetchDocuments] searchQuery:', searchQuery);
 
       if (searchQuery) {
-        console.log('[fetchDocuments] 使用搜索API');
         // 使用搜索API
         const searchResponse = await searchDocuments(
           searchQuery,
@@ -202,12 +202,9 @@ const DocumentManagement = () => {
           sortBy.split('-')[1] || 'desc'
         );
 
-        console.log('[fetchDocuments] 搜索API响应:', searchResponse);
 
         // 搜索API可能直接返回数组或包含results的对象
         const searchResults = Array.isArray(searchResponse) ? searchResponse : (searchResponse.results || []);
-        console.log('[fetchDocuments] 搜索结果数组:', searchResults);
-
         // 转换搜索结果
         documents = searchResults.map(result => ({
           id: String(result.id || result.document_id),
@@ -223,9 +220,6 @@ const DocumentManagement = () => {
         // 调用普通列表API
         const skip = (documentsPage - 1) * documentsPageSize;
         const isVectorized = filterStatus === 'all' ? null : filterStatus === 'vectorized';
-
-        console.log('[fetchDocuments] 调用 listDocuments:', { skip, limit: documentsPageSize, kbId: currentKnowledgeBase.id, isVectorized });
-
         const response = await listDocuments(
           skip,
           documentsPageSize,
@@ -233,7 +227,6 @@ const DocumentManagement = () => {
           isVectorized
         );
 
-        console.log('[fetchDocuments] API响应:', response);
 
         // 转换后端数据为前端格式
         documents = (response.documents || []).map(doc => ({
@@ -245,7 +238,6 @@ const DocumentManagement = () => {
           vectorizationStatus: getVectorizationStatus(doc),
         }));
         total = response.total || documents.length;
-        console.log('[fetchDocuments] 处理后的文档数:', documents.length, '总数:', total);
       }
 
       // 客户端排序（仅当不是搜索模式时）
@@ -272,7 +264,6 @@ const DocumentManagement = () => {
         }
       }
 
-      console.log('[fetchDocuments] 成功获取文档:', documents.length, '个, 总数:', total, '页码:', documentsPage, '是否追加:', documentsPage > 1);
       // 使用追加模式当页码大于1时
       setDocuments(documents, total, documentsPage > 1);
     } catch (error) {
@@ -323,7 +314,6 @@ const DocumentManagement = () => {
   // 组件加载时清除搜索关键词
   useEffect(() => {
     if (documentFilters?.search) {
-      console.log('[DocumentManagement] 清除搜索关键词');
       setDocumentFilters({ search: '' });
     }
   }, []);
@@ -341,7 +331,6 @@ const DocumentManagement = () => {
       const knowledgeBasesList = response.knowledge_bases || response;
 
       if (knowledgeBasesList.length > 0) {
-        console.log('[DocumentManagement] 自动选择第一个知识库:', knowledgeBasesList[0].name);
         setCurrentKnowledgeBase(knowledgeBasesList[0]);
       } else {
         console.warn('[DocumentManagement] 没有可用的知识库');
@@ -367,11 +356,39 @@ const DocumentManagement = () => {
       if (response.success) {
         setProcessingStatus(response);
 
-        // 如果有正在处理的文档，显示进度面板
+        // 更新正在处理的文档Map
+        const newProcessingDocs = new Map();
+        const newProcessingProgress = new Map();
+
+        if (response.processing_documents && response.processing_documents.length > 0) {
+          response.processing_documents.forEach(doc => {
+            newProcessingDocs.set(doc.document_id, {
+              id: doc.document_id,
+              name: doc.document_name
+            });
+            // 初始化进度信息
+            newProcessingProgress.set(doc.document_id, {
+              status: 'processing',
+              step_name: '处理中...',
+              progress_percentage: 0,
+              message: '文档正在处理中'
+            });
+          });
+        }
+
+        setProcessingDocuments(newProcessingDocs);
+        setProcessingProgress(newProcessingProgress);
+
+        // 如果有正在处理的文档，显示进度面板并获取详细进度
         const hasProcessing = response.queue_status.processing_count > 0 ||
                              response.queue_status.queue_size > 0;
         if (hasProcessing) {
           setShowProgressPanel(true);
+
+          // 获取每个处理中文档的详细进度
+          response.processing_documents?.forEach(doc => {
+            fetchDocumentProgressDetail(doc.document_id);
+          });
         }
 
         // 更新未处理数量
@@ -379,23 +396,213 @@ const DocumentManagement = () => {
       }
     } catch (error) {
       console.error('获取处理状态失败:', error);
+      // 只在开发环境显示详细错误，生产环境显示友好提示
+      if (import.meta.env.DEV) {
+        message.error({ content: `获取处理状态失败: ${error.message}` });
+      } else {
+        message.error({ content: '获取处理状态失败，请稍后重试' });
+      }
     }
   }, [currentKnowledgeBase]);
+
+  /**
+   * 获取单个文档的详细进度
+   */
+  const fetchDocumentProgressDetail = useCallback(async (documentId) => {
+    try {
+      const progress = await getDocumentProcessingProgress(documentId);
+
+      setProcessingProgress(prev => {
+        const newProgress = new Map(prev);
+        newProgress.set(documentId, {
+          status: progress.status || 'processing',
+          step_name: progress.step_name || progress.step || '处理中...',
+          progress_percentage: progress.progress_percentage || progress.progress || 0,
+          message: progress.message || '文档正在处理中',
+          current_step: progress.current_step,
+          total_steps: progress.total_steps,
+          ...progress
+        });
+        return newProgress;
+      });
+    } catch (error) {
+      console.error(`[fetchDocumentProgressDetail] 获取文档 ${documentId} 进度失败:`, error);
+      // 只在开发环境显示详细错误，生产环境显示友好提示
+      if (import.meta.env.DEV) {
+        message.error({ content: `获取文档进度失败: ${error.message}` });
+      }
+    }
+  }, []);
+
+  // 用户活动状态
+  const [userActive, setUserActive] = useState(true);
+
+  // 监听用户活动
+  useEffect(() => {
+    const handleUserActivity = () => {
+      setUserActive(true);
+      // 30秒无活动后标记为非活动
+      setTimeout(() => {
+        setUserActive(false);
+      }, 30000);
+    };
+
+    // 绑定事件监听器
+    window.addEventListener('mousemove', handleUserActivity);
+    window.addEventListener('keydown', handleUserActivity);
+    window.addEventListener('click', handleUserActivity);
+
+    return () => {
+      window.removeEventListener('mousemove', handleUserActivity);
+      window.removeEventListener('keydown', handleUserActivity);
+      window.removeEventListener('click', handleUserActivity);
+    };
+  }, []);
 
   // 轮询处理状态
   useEffect(() => {
     if (!currentKnowledgeBase) return;
 
+    // 轮询间隔时间（毫秒）- 进一步增加到15秒，减少后端压力
+    const POLLING_INTERVAL = 15000;
+    // 错误重试延迟（毫秒）
+    const ERROR_RETRY_DELAY = 25000;
+    
+    let intervalId = null;
+    let lastErrorTime = 0;
+    let isProcessing = false;
+
+    // 安全的获取处理状态函数
+    const safeFetchProcessingStatus = async () => {
+      // 检查是否在错误重试期间
+      if (lastErrorTime > 0 && (Date.now() - lastErrorTime) < ERROR_RETRY_DELAY) {
+        return;
+      }
+
+      // 避免并发请求
+      if (isProcessing) {
+        return;
+      }
+
+      // 只在用户活动或有处理任务时轮询
+      if (!userActive && processingStatus?.queue_status?.processing_count === 0 && processingStatus?.queue_status?.queue_size === 0) {
+        return;
+      }
+
+      isProcessing = true;
+      try {
+        await fetchProcessingStatus();
+        // 重置错误时间
+        lastErrorTime = 0;
+      } catch (error) {
+        console.error('轮询处理状态失败:', error);
+        // 记录错误时间
+        lastErrorTime = Date.now();
+      } finally {
+        isProcessing = false;
+      }
+    };
+
     // 立即获取一次
-    fetchProcessingStatus();
+    safeFetchProcessingStatus();
 
-    // 每3秒轮询一次
-    const interval = setInterval(() => {
-      fetchProcessingStatus();
-    }, 3000);
+    // 定时轮询
+    intervalId = setInterval(() => {
+      safeFetchProcessingStatus();
+    }, POLLING_INTERVAL);
 
-    return () => clearInterval(interval);
-  }, [currentKnowledgeBase, fetchProcessingStatus]);
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [currentKnowledgeBase, fetchProcessingStatus, userActive, processingStatus]);
+
+  // WebSocket 连接和进度监听
+  useEffect(() => {
+    if (!currentKnowledgeBase) return;
+
+    let reconnectAttempts = 0;
+    const MAX_RECONNECT_ATTEMPTS = 5;
+    const RECONNECT_DELAY = 5000;
+
+    // 连接 WebSocket
+    const connectWebSocket = async () => {
+      // 限制重连次数
+      if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+        console.error('[WebSocket] 达到最大重连次数，停止尝试');
+        return;
+      }
+
+      try {
+        await websocketService.connect();
+        // 重置重连计数器
+        reconnectAttempts = 0;
+        
+        // 连接成功后，重新订阅所有处理中文档
+        const processingDocIds = Array.from(processingDocuments.keys());
+        if (processingDocIds.length > 0) {
+          websocketService.subscribeToDocumentProgress(processingDocIds);
+        }
+      } catch (error) {
+        console.error('[WebSocket] 连接失败:', error);
+        reconnectAttempts++;
+        // 连接失败后，延迟重试，每次增加延迟时间
+        const delay = RECONNECT_DELAY * reconnectAttempts;
+        setTimeout(() => {
+          connectWebSocket();
+        }, delay);
+      }
+    };
+
+    connectWebSocket();
+
+    // 注册文档进度消息处理器
+    const handleDocumentProgress = (message) => {
+
+      if (message.document_id) {
+        setProcessingProgress(prev => {
+          const newProgress = new Map(prev);
+          newProgress.set(message.document_id, {
+            status: message.status || 'processing',
+            step_name: message.step_name || '处理中...',
+            progress_percentage: message.progress_percent || message.progress_percentage || 0,
+            message: message.message || '文档正在处理中',
+            ...message
+          });
+          return newProgress;
+        });
+
+        // 更新文档状态
+        setProcessingDocuments(prev => {
+          const newDocs = new Map(prev);
+          if (!newDocs.has(message.document_id)) {
+            newDocs.set(message.document_id, {
+              id: message.document_id,
+              name: message.document_name || `文档 ${message.document_id}`
+            });
+          }
+          return newDocs;
+        });
+
+        // 显示进度面板
+        setShowProgressPanel(true);
+
+        // 如果处理完成，取消订阅
+        if (message.status === 'completed' || message.status === 'failed') {
+          setTimeout(() => {
+            websocketService.unsubscribeFromDocumentProgress(message.document_id);
+          }, 2000);
+        }
+      }
+    };
+
+    websocketService.on('document_progress', handleDocumentProgress);
+
+    return () => {
+      websocketService.off('document_progress');
+    };
+  }, [currentKnowledgeBase, processingDocuments]);
 
   /**
    * 处理批量处理
@@ -425,6 +632,13 @@ const DocumentManagement = () => {
         setUnprocessedCount(response.total_documents - response.queued_documents);
         // 显示进度面板
         setShowProgressPanel(true);
+
+        // 订阅所有处理中文档的进度（WebSocket）
+        if (response.processing_documents && response.processing_documents.length > 0) {
+          const docIds = response.processing_documents.map(doc => doc.document_id || doc.id);
+          websocketService.subscribeToDocumentProgress(docIds);
+        }
+
         // 立即获取处理状态
         fetchProcessingStatus();
         // 刷新文档列表
@@ -488,58 +702,91 @@ const DocumentManagement = () => {
   }, [currentKnowledgeBase, fetchDocuments]);
 
   /**
+   * 取消之前的请求
+   */
+  const cancelPreviousRequest = useCallback((key) => {
+    const controller = abortControllersRef.current.get(key);
+    if (controller) {
+      controller.abort();
+      abortControllersRef.current.delete(key);
+    }
+  }, []);
+
+  /**
    * 获取文档详情
    */
   const fetchDocumentDetail = useCallback(async (docId) => {
     if (!docId) return;
 
+    // 取消之前的请求
+    cancelPreviousRequest('documentDetail');
+
+    // 创建新的控制器
+    const controller = new AbortController();
+    abortControllersRef.current.set('documentDetail', controller);
+
     setDocumentDetailLoading(true);
     try {
-      const doc = await getDocument(docId);
+      const doc = await getDocument(docId, { signal: controller.signal });
       setSelectedDocument(doc);
+      // 请求成功后清理控制器
+      cancelPreviousRequest('documentDetail');
     } catch (error) {
-      message.error({ content: '获取文档详情失败：' + error.message });
+      if (error.name !== 'AbortError') {
+        message.error({ content: '获取文档详情失败：' + error.message });
+      }
+      // 错误时也清理控制器（非 AbortError）
+      if (error.name !== 'AbortError') {
+        cancelPreviousRequest('documentDetail');
+      }
     } finally {
       setDocumentDetailLoading(false);
     }
-  }, []);
+  }, [cancelPreviousRequest]);
 
   /**
    * 获取文档片段
    */
   const fetchDocumentChunks = useCallback(async (docId) => {
     if (!docId) {
-      console.log('[fetchDocumentChunks] docId 为空，跳过获取');
       return;
     }
 
-    console.log('[fetchDocumentChunks] 开始获取向量片段, docId:', docId);
+    // 取消之前的请求
+    cancelPreviousRequest('documentChunks');
+
+    // 创建新的控制器
+    const controller = new AbortController();
+    abortControllersRef.current.set('documentChunks', controller);
+
     setChunksLoading(true);
     try {
-      const response = await getDocumentChunks(docId, 0, 50);
-      console.log('[fetchDocumentChunks] API 原始响应:', response);
+      const response = await getDocumentChunks(docId, 0, 50, { signal: controller.signal });
       // API 直接返回数组，不是 {chunks: [...]} 格式
       const chunks = Array.isArray(response) ? response : (response.chunks || []);
-      console.log(`[fetchDocumentChunks] 处理后的向量片段数: ${chunks.length}`);
-      console.log('[fetchDocumentChunks] 第一个片段:', chunks[0]);
       setDocumentChunks(chunks);
+      // 请求成功后清理控制器
+      cancelPreviousRequest('documentChunks');
     } catch (error) {
-      console.error('[fetchDocumentChunks] 获取文档片段失败:', error);
+      if (error.name !== 'AbortError') {
+        console.error('[fetchDocumentChunks] 获取文档片段失败:', error);
+      }
       setDocumentChunks([]);
+      // 错误时也清理控制器（非 AbortError）
+      if (error.name !== 'AbortError') {
+        cancelPreviousRequest('documentChunks');
+      }
     } finally {
       setChunksLoading(false);
     }
-  }, []);
+  }, [cancelPreviousRequest]);
 
   // 当 documentId 变化时，获取文档详情
   useEffect(() => {
-    console.log('[DocumentManagement] documentId 变化:', documentId);
     if (documentId) {
-      console.log('[DocumentManagement] 获取文档详情和向量片段, ID:', documentId);
       fetchDocumentDetail(documentId);
       fetchDocumentChunks(documentId);
     } else {
-      console.log('[DocumentManagement] 清空文档详情');
       setSelectedDocument(null);
       setDocumentChunks([]);
     }
@@ -609,14 +856,46 @@ const DocumentManagement = () => {
     try {
       // 使用uuid或id处理文档
       const docId = selectedDocument.uuid || selectedDocument.id;
+
+      // 添加到处理文档列表
+      setProcessingDocuments(prev => {
+        const newDocs = new Map(prev);
+        newDocs.set(docId, {
+          id: docId,
+          name: selectedDocument.title || `文档 ${docId}`
+        });
+        return newDocs;
+      });
+
+      // 初始化进度
+      setProcessingProgress(prev => {
+        const newProgress = new Map(prev);
+        newProgress.set(docId, {
+          status: 'processing',
+          step_name: '初始化...',
+          progress_percentage: 0,
+          message: '开始处理文档'
+        });
+        return newProgress;
+      });
+
+      // 订阅文档进度（WebSocket）
+      websocketService.subscribeToDocumentProgress(docId);
+
       await processDocument(docId);
       message.success({ content: '文档已向量化' });
+
+      // 显示进度面板
+      setShowProgressPanel(true);
+      // 立即获取处理状态
+      fetchProcessingStatus();
+
       fetchDocumentDetail(docId);
       fetchDocuments();
     } catch (error) {
       message.error({ content: '向量化失败：' + error.message });
     }
-  }, [selectedDocument, fetchDocumentDetail, fetchDocuments]);
+  }, [selectedDocument, fetchDocumentDetail, fetchDocuments, fetchProcessingStatus]);
 
   /**
    * 渲染文档项 - 使用稳定引用避免不必要的重渲染
@@ -777,7 +1056,46 @@ const DocumentManagement = () => {
       </div>
 
       {/* 批量操作工具栏 */}
-      {selectedDocuments.length > 0 && <BatchOperationToolbar />}
+      {selectedDocuments.length > 0 && (
+        <BatchOperationToolbar
+          onBatchVectorizeStart={(selectedDocs) => {
+            // 添加到处理列表
+            const docIds = [];
+            selectedDocs.forEach(doc => {
+              const docId = doc.uuid || doc.id;
+              docIds.push(docId);
+
+              // 添加到处理文档列表
+              setProcessingDocuments(prev => {
+                const newDocs = new Map(prev);
+                newDocs.set(docId, {
+                  id: docId,
+                  name: doc.title || `文档 ${docId}`
+                });
+                return newDocs;
+              });
+
+              // 初始化进度
+              setProcessingProgress(prev => {
+                const newProgress = new Map(prev);
+                newProgress.set(docId, {
+                  status: 'processing',
+                  step_name: '等待处理...',
+                  progress_percentage: 0,
+                  message: '文档正在排队处理'
+                });
+                return newProgress;
+              });
+            });
+
+            // 订阅所有文档进度（WebSocket）
+            websocketService.subscribeToDocumentProgress(docIds);
+
+            // 显示进度面板
+            setShowProgressPanel(true);
+          }}
+        />
+      )}
 
       {/* 实时处理进度面板 */}
       {showProgressPanel && processingStatus && (
@@ -836,20 +1154,12 @@ const DocumentManagement = () => {
               </div>
             </div>
 
-            {/* 正在处理的文档 */}
-            {processingStatus.processing_documents && processingStatus.processing_documents.length > 0 && (
-              <div className="processing-documents">
-                <div className="processing-documents-title">正在处理:</div>
-                {processingStatus.processing_documents.map((doc) => (
-                  <div key={doc.document_id} className="processing-document-item">
-                    <FiFile size={14} />
-                    <span className="document-name" title={doc.document_name}>
-                      {doc.document_name}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
+            {/* 正在处理的文档 - 使用ProcessingDocumentsPanel组件 */}
+            <ProcessingDocumentsPanel
+              processingDocuments={processingDocuments}
+              processingProgress={processingProgress}
+              queueStatus={processingStatus.queue_status}
+            />
 
             {/* 进度条 */}
             <div className="progress-bar-container">

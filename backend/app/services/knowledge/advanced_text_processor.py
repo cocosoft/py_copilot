@@ -231,20 +231,20 @@ class AdvancedTextProcessor:
         logger.info(f"合并后得到 {len(merged)} 个唯一实体")
         return merged
 
-    async def semantic_chunking(self, text: str, max_chunk_size: int = 1000, 
-                         min_chunk_size: int = 200, overlap: int = 100,
+    async def semantic_chunking(self, text: str, max_chunk_size: int = 1000,
+                         min_chunk_size: int = 200, overlap: int = 30,
                          semantic_threshold: float = 0.7) -> List[str]:
         """智能语义分块，基于句子边界和语义单元
-        
+
         使用LLM进行智能语义分块
-        
+
         Args:
             text: 输入文本
             max_chunk_size: 最大块大小
             min_chunk_size: 最小块大小
-            overlap: 重叠窗口大小
+            overlap: 重叠窗口大小，默认30以保证上下文连贯同时减少重复
             semantic_threshold: 语义相似度阈值
-        
+
         Returns:
             分块后的文本列表
         """
@@ -626,15 +626,15 @@ class AdvancedTextProcessor:
             return [], []
 
     def semantic_chunking_sync(self, text: str, max_chunk_size: int = 1000,
-                               min_chunk_size: int = 200, overlap: int = 100) -> List[str]:
+                               min_chunk_size: int = 200, overlap: int = 30) -> List[str]:
         """同步版本的语义分块
-        
+
         Args:
             text: 输入文本
             max_chunk_size: 最大块大小
             min_chunk_size: 最小块大小
-            overlap: 重叠窗口大小
-            
+            overlap: 重叠窗口大小，默认30以保证上下文连贯同时减少重复
+
         Returns:
             分块后的文本列表
         """

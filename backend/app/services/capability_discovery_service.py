@@ -115,13 +115,23 @@ class CapabilityDiscoveryService:
             "base_strength": 3
         },
         "embedding": {
-            "keywords": ["embedding", "vector", "representation", "encode", "encoder"],
+            "keywords": ["embedding", "vector", "representation", "encode", "encoder", "bge", "baai", "text-embedding", "embed"],
             "display_name": "文本嵌入",
             "description": "将文本转换为向量表示的能力",
             "capability_dimension": "comprehension",
             "domain": "nlp",
             "input_types": ["text"],
             "output_types": ["vector"],
+            "base_strength": 4
+        },
+        "rerank": {
+            "keywords": ["rerank", "re-rank", "ranking", "rank", "reorder", "sort", "cross-encoder", "colbert", "bge-rerank", "reranker"],
+            "display_name": "结果重排序",
+            "description": "对搜索结果进行重排序优化的能力",
+            "capability_dimension": "comprehension",
+            "domain": "nlp",
+            "input_types": ["text"],
+            "output_types": ["text"],
             "base_strength": 4
         },
         "translation": {

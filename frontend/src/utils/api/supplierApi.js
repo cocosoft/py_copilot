@@ -329,15 +329,19 @@ export const supplierApi = {
   // 获取所有模型
   getModels: async () => {
     try {
-      const response = await request('/v1/models', {
+      const response = await request('/v1/model-management/models/select', {
         method: 'GET'
       });
       
       // 处理后端返回格式
       let modelsData = [];
       
+      // 后端返回的是对象格式，检查是否有data属性
+      if (typeof response === 'object' && response !== null && Array.isArray(response.data)) {
+        modelsData = response.data;
+      }
       // 后端返回的是直接数组格式
-      if (Array.isArray(response)) {
+      else if (Array.isArray(response)) {
         modelsData = response;
       }
       // 如果是对象格式，检查是否有items属性
@@ -361,23 +365,27 @@ export const supplierApi = {
       const response = await request(`/v1/model-management/models/by-scene/${scene}`, {
         method: 'GET'
       });
-      
+
       // 处理后端返回格式
       let modelsData = [];
-      
+
       // 后端返回的是直接数组格式
       if (Array.isArray(response)) {
         modelsData = response;
+      }
+      // 如果是对象格式，检查是否有models属性（get_models_by_scene返回的是{status, message, models}格式）
+      else if (typeof response === 'object' && response !== null && Array.isArray(response.models)) {
+        modelsData = response.models;
       }
       // 如果是对象格式，检查是否有items属性
       else if (typeof response === 'object' && response !== null && Array.isArray(response.items)) {
         modelsData = response.items;
       }
-      // 如果是对象格式且有models属性
-      else if (typeof response === 'object' && response !== null && Array.isArray(response.models)) {
-        modelsData = response.models;
+      // 如果是对象格式且有data属性
+      else if (typeof response === 'object' && response !== null && Array.isArray(response.data)) {
+        modelsData = response.data;
       }
-      
+
       return modelsData;
     } catch (error) {
       throw error;

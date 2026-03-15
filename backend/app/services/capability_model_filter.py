@@ -23,8 +23,8 @@ class CapabilityBasedModelFilter:
         "tool": ["tool_calling", "api_integration", "function_execution"],
         "search": ["information_retrieval", "relevance_ranking", "semantic_search"],
         "mcp": ["multi_modal_processing", "cross_media_understanding", "unified_representation"],
-        "embedding": ["text_embedding", "semantic_embedding", "vector_representation"],
-        "rerank": ["result_reranking", "relevance_optimization", "ranking_refinement"]
+        "embedding": ["embedding", "text_embedding", "semantic_embedding", "vector_representation"],
+        "rerank": ["rerank", "result_reranking", "relevance_optimization", "ranking_refinement"]
     }
     
     def __init__(self, db: Session):

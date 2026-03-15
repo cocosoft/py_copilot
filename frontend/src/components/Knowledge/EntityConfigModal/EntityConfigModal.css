@@ -1,0 +1,587 @@
+/**
+ * 实体配置弹窗样式
+ */
+
+.entity-config-modal {
+  display: flex;
+  flex-direction: column;
+  min-height: 500px;
+  max-height: 70vh;
+}
+
+/* ==================== Tab 导航 ==================== */
+
+.config-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 0 16px 0;
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 16px;
+}
+
+.config-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #595959;
+  transition: all 0.2s ease;
+}
+
+.config-tab:hover {
+  background: #f5f5f5;
+  color: #262626;
+}
+
+.config-tab.active {
+  background: #e6f7ff;
+  color: #1890ff;
+  font-weight: 500;
+}
+
+.tab-icon {
+  font-size: 16px;
+}
+
+.tab-label {
+  white-space: nowrap;
+}
+
+/* ==================== 配置内容 ==================== */
+
+.config-content {
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
+}
+
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8c8c8c;
+  z-index: 10;
+}
+
+.config-section {
+  padding: 0;
+}
+
+.config-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.config-header h4 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #262626;
+  margin: 0;
+}
+
+.header-select select {
+  padding: 8px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #262626;
+  background: #fff;
+  cursor: pointer;
+  min-width: 160px;
+}
+
+.header-select select:focus {
+  outline: none;
+  border-color: #40a9ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+/* ==================== 表单样式 ==================== */
+
+.type-form,
+.rule-form {
+  padding: 16px;
+  background: #fafafa;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.form-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.form-row:last-of-type {
+  margin-bottom: 0;
+}
+
+.form-row label {
+  width: 80px;
+  font-size: 14px;
+  color: #595959;
+  flex-shrink: 0;
+}
+
+.form-row input[type="text"] {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #262626;
+}
+
+.form-row input[type="text"]:focus {
+  outline: none;
+  border-color: #40a9ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.form-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e8e8e8;
+}
+
+/* ==================== 颜色选择器 ==================== */
+
+.color-picker {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.color-option {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.color-option:hover {
+  transform: scale(1.1);
+}
+
+.color-option.selected {
+  border-color: #262626;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+}
+
+/* ==================== 实体类型列表 ==================== */
+
+.entity-types-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.entity-type-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.entity-type-item:hover {
+  border-color: #d9d9d9;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.type-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.type-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.type-name {
+  font-weight: 500;
+  color: #262626;
+}
+
+.type-key {
+  font-size: 12px;
+  color: #8c8c8c;
+  font-family: monospace;
+}
+
+.type-desc {
+  font-size: 13px;
+  color: #8c8c8c;
+  margin-left: 8px;
+}
+
+.type-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ==================== 开关样式 ==================== */
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #d9d9d9;
+  transition: 0.3s;
+  border-radius: 22px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background-color: #52c41a;
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+  transform: translateX(18px);
+}
+
+/* ==================== 规则列表 ==================== */
+
+.rules-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rule-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+}
+
+.rule-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.rule-name {
+  font-weight: 500;
+  color: #262626;
+}
+
+.rule-pattern {
+  font-size: 12px;
+  color: #722ed1;
+  background: #f9f0ff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.rule-desc {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.rule-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ==================== 词典管理 ==================== */
+
+.dict-input {
+  margin-bottom: 16px;
+}
+
+.dict-input textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  font-size: 14px;
+  resize: vertical;
+  margin-bottom: 8px;
+}
+
+.dict-input textarea:focus {
+  outline: none;
+  border-color: #40a9ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.dict-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.dictionary-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 16px;
+  background: #fafafa;
+  border-radius: 8px;
+  min-height: 100px;
+}
+
+.dict-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 16px;
+  font-size: 13px;
+  color: #262626;
+}
+
+.tag-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  background: transparent;
+  border: none;
+  color: #8c8c8c;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+}
+
+.tag-remove:hover {
+  color: #ff4d4f;
+}
+
+.dict-stats {
+  margin-top: 12px;
+  font-size: 13px;
+  color: #8c8c8c;
+  text-align: right;
+}
+
+/* ==================== 测试区域 ==================== */
+
+.test-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.test-textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  font-size: 14px;
+  resize: vertical;
+}
+
+.test-textarea:focus {
+  outline: none;
+  border-color: #40a9ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.test-results {
+  padding: 16px;
+  background: #fafafa;
+  border-radius: 8px;
+}
+
+.test-results h5 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #262626;
+  margin: 0 0 12px 0;
+}
+
+.result-stats {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: #8c8c8c;
+}
+
+.result-entities h6 {
+  font-size: 13px;
+  font-weight: 500;
+  color: #595959;
+  margin: 0 0 8px 0;
+}
+
+.entity-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.entity-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: #e6f7ff;
+  border: 1px solid #91d5ff;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.entity-tag .entity-type {
+  color: #1890ff;
+  font-weight: 500;
+}
+
+.entity-tag .entity-name {
+  color: #262626;
+}
+
+/* ==================== 高级设置 ==================== */
+
+.advanced-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.option-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+}
+
+.option-row.danger {
+  border-color: #ffccc7;
+  background: #fff2f0;
+}
+
+.option-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.option-label {
+  font-weight: 500;
+  color: #262626;
+}
+
+.option-desc {
+  font-size: 13px;
+  color: #8c8c8c;
+}
+
+.option-row.danger .option-label {
+  color: #ff4d4f;
+}
+
+/* ==================== 空状态提示 ==================== */
+
+.empty-hint {
+  text-align: center;
+  padding: 32px;
+  color: #8c8c8c;
+  font-size: 14px;
+}
+
+/* ==================== 响应式适配 ==================== */
+
+@media (max-width: 768px) {
+  .config-tabs {
+    flex-wrap: wrap;
+  }
+
+  .config-tab {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .form-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .form-row label {
+    width: auto;
+    margin-bottom: 4px;
+  }
+
+  .form-row input[type="text"] {
+    width: 100%;
+  }
+
+  .entity-type-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .type-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

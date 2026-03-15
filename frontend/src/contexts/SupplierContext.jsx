@@ -130,9 +130,14 @@ const SupplierProvider = ({ children }) => {
     }
   };
 
-  // 初始化加载供应商数据
+  // 初始化加载供应商数据（延迟加载，不阻塞页面）
   useEffect(() => {
-    loadSuppliers();
+    // 延迟加载，避免阻塞页面渲染
+    const timer = setTimeout(() => {
+      loadSuppliers();
+    }, 150);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   // 当供应商数据加载后，设置默认选中的供应商

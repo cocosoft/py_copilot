@@ -40,6 +40,38 @@
   margin: 0;
 }
 
+.entity-recognition-empty .empty-actions {
+  margin-top: 24px;
+}
+
+.entity-recognition-empty .empty-guide {
+  margin-top: 32px;
+  padding: 16px 24px;
+  background: #fafafa;
+  border-radius: 8px;
+  text-align: left;
+  max-width: 400px;
+}
+
+.entity-recognition-empty .empty-guide h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #262626;
+  margin: 0 0 12px 0;
+}
+
+.entity-recognition-empty .empty-guide ol {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.entity-recognition-empty .empty-guide li {
+  font-size: 13px;
+  color: #595959;
+  margin-bottom: 8px;
+  line-height: 1.6;
+}
+
 /* ==================== 统计卡片 ==================== */
 
 .stats-cards {
@@ -112,6 +144,20 @@
   margin-bottom: 12px;
 }
 
+.selection-header .header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.selection-header .config-btn {
+  color: #1890ff;
+}
+
+.selection-header .config-btn:hover {
+  background: #e6f7ff;
+}
+
 .model-info {
   display: flex;
   align-items: center;
@@ -141,6 +187,54 @@
   color: #fa8c16;
   background: #fff7e6;
   border-color: #ffd591;
+}
+
+/* 文档列表头部 */
+.document-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 16px;
+}
+
+.doc-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: #fafafa;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  flex: 1;
+  max-width: 300px;
+}
+
+.doc-search input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 13px;
+  color: #262626;
+  width: 100%;
+}
+
+.doc-search input::placeholder {
+  color: #bfbfbf;
+}
+
+.selection-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.selected-count {
+  font-size: 13px;
+  color: #8c8c8c;
+  padding: 4px 8px;
+  background: #f5f5f5;
+  border-radius: 4px;
 }
 
 .document-list {
@@ -189,6 +283,63 @@
   padding: 2px 6px;
   background: #e8e8e8;
   border-radius: 4px;
+}
+
+.no-results,
+.no-documents {
+  width: 100%;
+  text-align: center;
+  padding: 16px;
+  color: #8c8c8c;
+  font-size: 13px;
+}
+
+/* 提取进度显示 */
+.extraction-progress {
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  border-radius: 8px;
+}
+
+.progress-bar {
+  height: 8px;
+  background: #d9f7be;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #52c41a, #73d13d);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.progress-stage {
+  font-size: 13px;
+  color: #389e0d;
+  font-weight: 500;
+}
+
+.progress-percent {
+  font-size: 13px;
+  color: #52c41a;
+  font-weight: 600;
+}
+
+.progress-details {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #8c8c8c;
 }
 
 /* ==================== 筛选栏 ==================== */
@@ -252,6 +403,37 @@
   box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
 }
 
+/* ==================== 批量操作栏 ==================== */
+
+.batch-actions-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 24px;
+  background: #ffffff;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.batch-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #262626;
+}
+
+.batch-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.selection-info {
+  font-size: 13px;
+  color: #8c8c8c;
+}
+
 /* ==================== 实体列表 ==================== */
 
 .entities-list-container {
@@ -272,6 +454,18 @@
   border: 1px solid #f0f0f0;
   margin-bottom: 12px;
   transition: all 0.2s ease;
+}
+
+.entity-checkbox {
+  display: flex;
+  align-items: center;
+  padding-top: 4px;
+}
+
+.entity-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
 }
 
 .entity-item:hover {
@@ -502,6 +696,29 @@
   font-size: 14px;
   color: #8c8c8c;
   margin: 0;
+}
+
+/* ==================== 删除确认弹窗 ==================== */
+
+.delete-confirm-content {
+  text-align: center;
+  padding: 16px 0;
+}
+
+.delete-confirm-content .delete-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.delete-confirm-content p {
+  font-size: 15px;
+  color: #262626;
+  margin: 0 0 8px 0;
+}
+
+.delete-confirm-content .delete-hint {
+  font-size: 13px;
+  color: #8c8c8c;
 }
 
 /* ==================== 响应式适配 ==================== */

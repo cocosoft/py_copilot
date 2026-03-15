@@ -74,7 +74,7 @@ const useModelManagement = () => {
   // 场景模型选择处理
   const handleSceneModelSelect = useCallback((scene) => (model) => {
     // 兼容 model.id 和 model.model_id 两种字段名
-    const modelId = model.id || model.model_id;
+    const modelId = parseInt(model.id || model.model_id);
     console.log(`选择场景 ${scene} 的模型:`, modelId, model);
     setSceneDefaultModels(prev => ({ ...prev, [scene]: modelId }));
     setValidationErrors(prev => {
@@ -159,7 +159,7 @@ const useModelManagement = () => {
     }
     
     // 根据模型类型调整分数
-    if (model.type === scene) {
+    if (model.model_type_name === scene || model.type === scene) {
       baseScore += 0.1;
     }
     
@@ -304,7 +304,74 @@ const useModelManagement = () => {
           sceneModelsData[scene] = modelsForScene;
         }
         
-        setSceneModels(sceneModelsData);
+        // 检查是否有场景的模型列表为空，如果为空则使用回退逻辑
+        let needsFallback = false;
+        for (const scene of allScenes) {
+          if (sceneModelsData[scene].length === 0) {
+            needsFallback = true;
+            break;
+          }
+        }
+        
+        if (needsFallback) {
+          console.warn('部分场景的模型列表为空，使用默认模型列表');
+          // 使用默认模型列表
+          const defaultSceneModels = {};
+          
+          // 初始化所有场景为空数组
+          allScenes.forEach(scene => {
+            defaultSceneModels[scene] = [];
+          });
+          
+          // 为每个场景生成模型列表
+          for (const scene of allScenes) {
+            // 如果后端API返回了模型，使用后端返回的模型
+            if (sceneModelsData[scene].length > 0) {
+              defaultSceneModels[scene] = sceneModelsData[scene];
+            } else {
+              // 否则使用回退逻辑，根据模型名称进行筛选
+              defaultSceneModels[scene] = allModels.filter(model => {
+                const modelType = model.model_type_name || model.type || '';
+                const modelName = (model.model_name || model.name || '').toLowerCase();
+                const modelId = (model.model_id || '').toLowerCase();
+                
+                // 基本类型匹配
+                if (modelType === scene) {
+                  return true;
+                }
+                
+                // 聊天场景可以包含聊天类型的模型
+                if (scene === 'chat' && modelType === 'chat') {
+                  return true;
+                }
+                
+                // 根据场景和模型名称进行匹配
+                if (scene === 'embedding') {
+                  return modelName.includes('embedding') || 
+                         modelName.includes('embed') || 
+                         modelName.includes('bge') || 
+                         modelName.includes('baai') ||
+                         modelId.includes('embedding') ||
+                         modelId.includes('embed');
+                }
+                
+                if (scene === 'rerank') {
+                  return modelName.includes('rerank') || 
+                         modelName.includes('re-rank') || 
+                         modelName.includes('rank') ||
+                         modelId.includes('rerank') ||
+                         modelId.includes('re-rank');
+                }
+                
+                return false;
+              });
+            }
+          }
+          
+          setSceneModels(defaultSceneModels);
+        } else {
+          setSceneModels(sceneModelsData);
+        }
 
         // 异步计算所有场景的能力匹配度
         const scores = {};
@@ -337,8 +404,42 @@ const useModelManagement = () => {
         
         // 为每个场景生成模型列表
         for (const scene of allScenes) {
-          // 使用原有的筛选逻辑
-          defaultSceneModels[scene] = allModels.filter(model => model.type === scene || model.type === 'chat');
+          // 使用原有的筛选逻辑，同时根据模型名称进行筛选
+          defaultSceneModels[scene] = allModels.filter(model => {
+            const modelType = model.model_type_name || model.type || '';
+            const modelName = (model.model_name || model.name || '').toLowerCase();
+            const modelId = (model.model_id || '').toLowerCase();
+            
+            // 基本类型匹配
+            if (modelType === scene) {
+              return true;
+            }
+            
+            // 聊天场景可以包含聊天类型的模型
+            if (scene === 'chat' && modelType === 'chat') {
+              return true;
+            }
+            
+            // 根据场景和模型名称进行匹配
+            if (scene === 'embedding') {
+              return modelName.includes('embedding') || 
+                     modelName.includes('embed') || 
+                     modelName.includes('bge') || 
+                     modelName.includes('baai') ||
+                     modelId.includes('embedding') ||
+                     modelId.includes('embed');
+            }
+            
+            if (scene === 'rerank') {
+              return modelName.includes('rerank') || 
+                     modelName.includes('re-rank') || 
+                     modelName.includes('rank') ||
+                     modelId.includes('rerank') ||
+                     modelId.includes('re-rank');
+            }
+            
+            return false;
+          });
         }
         
         setSceneModels(defaultSceneModels);

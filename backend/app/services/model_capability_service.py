@@ -1049,7 +1049,8 @@ class IntelligentCapabilityDiscoveryService:
         'math': ['math', 'calculation', '数学', '计算'],
         'multimodal': ['multimodal', 'multi-modal', '多模态'],
         'function_calling': ['function', 'tool', 'api', '函数', '工具'],
-        'embedding': ['embedding', 'embed', '向量', 'embedding'],
+        'embedding': ['embedding', 'embed', '向量', 'embedding', 'bge', 'baai', 'text-embedding'],
+        'rerank': ['rerank', 're-rank', 'ranking', 'rank', 'reorder', 'sort', 'cross-encoder', 'colbert', 'bge-rerank', 'reranker'],
         'fine_tuning': ['fine-tune', 'finetune', '微调', 'training'],
         'streaming': ['stream', '流式'],
         'json_mode': ['json', 'structured'],
@@ -1281,6 +1282,220 @@ class IntelligentCapabilityDiscoveryService:
         
         return capabilities
     
+    # 能力详细配置信息（用于自动创建缺失的能力）
+    CAPABILITY_DETAILS = {
+        'embedding': {
+            'display_name': '文本嵌入',
+            'description': '将文本转换为向量表示的能力',
+            'capability_dimension': 'comprehension',
+            'domain': 'nlp',
+            'input_types': ['text'],
+            'output_types': ['vector'],
+            'base_strength': 4
+        },
+        'rerank': {
+            'display_name': '结果重排序',
+            'description': '对搜索结果进行重排序优化的能力',
+            'capability_dimension': 'comprehension',
+            'domain': 'nlp',
+            'input_types': ['text'],
+            'output_types': ['text'],
+            'base_strength': 4
+        },
+        'text_generation': {
+            'display_name': '文本生成',
+            'description': '生成自然语言文本的能力',
+            'capability_dimension': 'generation',
+            'domain': 'nlp',
+            'input_types': ['text'],
+            'output_types': ['text'],
+            'base_strength': 3
+        },
+        'text_classification': {
+            'display_name': '文本分类',
+            'description': '对文本进行分类的能力',
+            'capability_dimension': 'comprehension',
+            'domain': 'nlp',
+            'input_types': ['text'],
+            'output_types': ['text'],
+            'base_strength': 3
+        },
+        'image_generation': {
+            'display_name': '图像生成',
+            'description': '根据文本描述生成图像的能力',
+            'capability_dimension': 'generation',
+            'domain': 'cv',
+            'input_types': ['text'],
+            'output_types': ['image'],
+            'base_strength': 3
+        },
+        'code_generation': {
+            'display_name': '代码生成',
+            'description': '生成和补全程序代码的能力',
+            'capability_dimension': 'generation',
+            'domain': 'nlp',
+            'input_types': ['text', 'code'],
+            'output_types': ['code', 'text'],
+            'base_strength': 3
+        },
+        'speech_recognition': {
+            'display_name': '语音识别',
+            'description': '识别和理解语音内容的能力',
+            'capability_dimension': 'comprehension',
+            'domain': 'audio',
+            'input_types': ['audio'],
+            'output_types': ['text'],
+            'base_strength': 3
+        },
+        'text_to_speech': {
+            'display_name': '语音合成',
+            'description': '将文本转换为语音的能力',
+            'capability_dimension': 'generation',
+            'domain': 'audio',
+            'input_types': ['text'],
+            'output_types': ['audio'],
+            'base_strength': 3
+        },
+        'translation': {
+            'display_name': '机器翻译',
+            'description': '在不同语言之间进行翻译的能力',
+            'capability_dimension': 'generation',
+            'domain': 'nlp',
+            'input_types': ['text'],
+            'output_types': ['text'],
+            'base_strength': 3
+        },
+        'summarization': {
+            'display_name': '文本摘要',
+            'description': '对长文本进行摘要的能力',
+            'capability_dimension': 'generation',
+            'domain': 'nlp',
+            'input_types': ['text'],
+            'output_types': ['text'],
+            'base_strength': 3
+        },
+        'question_answering': {
+            'display_name': '问答系统',
+            'description': '回答问题的能力',
+            'capability_dimension': 'reasoning',
+            'domain': 'nlp',
+            'input_types': ['text'],
+            'output_types': ['text'],
+            'base_strength': 3
+        },
+        'knowledge_retrieval': {
+            'display_name': '知识检索',
+            'description': '从知识库中检索相关信息的能力',
+            'capability_dimension': 'comprehension',
+            'domain': 'nlp',
+            'input_types': ['text'],
+            'output_types': ['text'],
+            'base_strength': 3
+        },
+        'reasoning': {
+            'display_name': '逻辑推理',
+            'description': '进行逻辑推理和数学计算的能力',
+            'capability_dimension': 'reasoning',
+            'domain': 'reasoning',
+            'input_types': ['text'],
+            'output_types': ['text'],
+            'base_strength': 3
+        },
+        'math': {
+            'display_name': '数学计算',
+            'description': '进行数学计算的能力',
+            'capability_dimension': 'reasoning',
+            'domain': 'reasoning',
+            'input_types': ['text'],
+            'output_types': ['text'],
+            'base_strength': 3
+        },
+        'multimodal': {
+            'display_name': '多模态理解',
+            'description': '处理多种模态输入的能力',
+            'capability_dimension': 'multimodal',
+            'domain': 'multimodal',
+            'input_types': ['text', 'image', 'audio'],
+            'output_types': ['text', 'image'],
+            'base_strength': 3
+        },
+        'function_calling': {
+            'display_name': '函数调用',
+            'description': '调用外部函数和工具的能力',
+            'capability_dimension': 'interaction',
+            'domain': 'nlp',
+            'input_types': ['text'],
+            'output_types': ['text', 'json'],
+            'base_strength': 4
+        },
+        'long_context': {
+            'display_name': '长上下文处理',
+            'description': '处理超长文本上下文的能力',
+            'capability_dimension': 'memory',
+            'domain': 'nlp',
+            'input_types': ['text'],
+            'output_types': ['text'],
+            'base_strength': 3
+        },
+        'vision': {
+            'display_name': '视觉理解',
+            'description': '理解和分析图像内容的能力',
+            'capability_dimension': 'comprehension',
+            'domain': 'cv',
+            'input_types': ['image'],
+            'output_types': ['text'],
+            'base_strength': 3
+        },
+        'video': {
+            'display_name': '视频理解',
+            'description': '理解和分析视频内容的能力',
+            'capability_dimension': 'comprehension',
+            'domain': 'multimodal',
+            'input_types': ['video'],
+            'output_types': ['text'],
+            'base_strength': 3
+        }
+    }
+
+    @staticmethod
+    def _get_or_create_capability(db: Session, capability_name: str) -> Optional[ModelCapability]:
+        """获取或创建能力"""
+        capability = db.query(ModelCapability).filter(
+            ModelCapability.name == capability_name
+        ).first()
+        
+        if capability:
+            return capability
+        
+        # 能力不存在，尝试自动创建
+        details = IntelligentCapabilityDiscoveryService.CAPABILITY_DETAILS.get(capability_name)
+        if not details:
+            return None
+        
+        try:
+            new_capability = ModelCapability(
+                name=capability_name,
+                display_name=details['display_name'],
+                description=details['description'],
+                capability_dimension=details['capability_dimension'],
+                domain=details['domain'],
+                input_types=details['input_types'],
+                output_types=details['output_types'],
+                base_strength=details['base_strength'],
+                max_strength=5,
+                is_active=True,
+                is_system=False
+            )
+            db.add(new_capability)
+            db.commit()
+            db.refresh(new_capability)
+            print(f"[INFO] 自动创建能力: {capability_name}")
+            return new_capability
+        except Exception as e:
+            db.rollback()
+            print(f"[WARNING] 自动创建能力 {capability_name} 失败: {str(e)}")
+            return None
+
     @staticmethod
     def _discover_from_keywords(db: Session, model: ModelDB) -> List[Dict[str, Any]]:
         """基于模型名称和描述的关键词匹配"""
@@ -1299,9 +1514,8 @@ class IntelligentCapabilityDiscoveryService:
                     matched_keywords.append(keyword)
             
             if matched_keywords:
-                capability = db.query(ModelCapability).filter(
-                    ModelCapability.name == capability_name
-                ).first()
+                # 获取或自动创建能力
+                capability = IntelligentCapabilityDiscoveryService._get_or_create_capability(db, capability_name)
                 if capability and capability.id not in matched_capabilities:
                     # 根据匹配的关键词数量计算置信度
                     confidence = min(50 + len(matched_keywords) * 10, 90)

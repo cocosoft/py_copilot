@@ -6,8 +6,8 @@ export default defineConfig(({ mode }) => {
   // 加载环境变量（加载所有以 VITE_ 开头的环境变量）
   const env = loadEnv(mode, process.cwd(), 'VITE_');
 
-  // 使用环境变量中的API地址，如果没有则使用默认值
-    const apiBaseUrl = env.VITE_API_BASE_URL || 'http://127.0.0.1:8007';
+  // 直接硬编码后端地址
+    const apiBaseUrl = 'http://localhost:8007'
   
   return {
     plugins: [react()],

@@ -1,12 +1,5 @@
 // 屏蔽 i18next 的 Locize 赞助信息
 const originalConsoleLog = console.log;
-console.log = function(...args) {
-  const message = args.join(' ');
-  if (message.includes('Locize') || message.includes('locize.com') || message.includes('💙')) {
-    return;
-  }
-  originalConsoleLog.apply(console, args);
-};
 
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';

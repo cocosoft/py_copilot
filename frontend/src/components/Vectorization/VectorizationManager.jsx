@@ -7,7 +7,7 @@
  * - 配置：向量化参数设置
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   vectorizeDocument,
@@ -18,6 +18,7 @@ import {
   listDocuments,
   getKnowledgeBases
 } from '../../utils/api/knowledgeApi';
+import websocketService from '../../services/websocketService';
 import './VectorizationManager.css';
 
 /**
@@ -36,7 +37,6 @@ const VectorizationManager = () => {
   const [filteredDocuments, setFilteredDocuments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedDocuments, setSelectedDocuments] = useState([]);
-  const [processingTasks, setProcessingTasks] = useState({});
   
   // 配置状态
   const [config, setConfig] = useState({
@@ -64,6 +64,12 @@ const VectorizationManager = () => {
     processing: 0,
     failed: 0
   });
+
+  // 处理进度追踪状态
+  const [processingDocuments, setProcessingDocuments] = useState(new Map());
+  const [processingProgress, setProcessingProgress] = useState(new Map());
+  const processingIntervals = useRef(new Map());
+  const messageUnsubscribers = useRef(new Map()); // 存储消息处理器的取消函数
 
   /**
    * 加载知识库列表
@@ -150,28 +156,161 @@ const VectorizationManager = () => {
   };
 
   /**
+   * 开始追踪文档处理进度
+   * @param {number} documentId - 文档ID
+   * @param {string} documentName - 文档名称
+   */
+  const startProcessingTracking = (documentId, documentName) => {
+    // 添加到处理中列表
+    setProcessingDocuments(prev => {
+      const newMap = new Map(prev);
+      newMap.set(documentId, {
+        id: documentId,
+        name: documentName,
+        startTime: Date.now()
+      });
+      return newMap;
+    });
+
+    // 初始化进度
+    setProcessingProgress(prev => {
+      const newMap = new Map(prev);
+      newMap.set(documentId, {
+        status: 'processing',
+        progress_percent: 0,
+        step_name: '初始化',
+        message: '开始处理文档...'
+      });
+      return newMap;
+    });
+
+    // 使用WebSocket订阅文档进度
+    websocketService.subscribeToDocumentProgress(documentId);
+
+    // 注册文档进度处理器
+      const handleDocumentProgress = (message) => {
+        if (message.document_id != documentId) return;
+
+        // 直接使用message作为进度数据，因为后端发送的消息结构是直接包含进度数据的
+        const progressData = message;
+        
+        setProcessingProgress(prev => {
+          const newMap = new Map(prev);
+          newMap.set(documentId, {
+            status: progressData.status || 'processing',
+            progress_percent: progressData.progress_percent || 0,
+            step_name: progressData.step_name || '',
+            message: progressData.message || '',
+            error: progressData.error
+          });
+          return newMap;
+        });
+
+        // 如果处理完成或失败，停止追踪
+        if (progressData.status === 'completed' || progressData.status === 'failed') {
+          // 延迟一段时间后从处理列表中移除
+          setTimeout(() => {
+            stopProcessingTracking(documentId);
+          }, 3000);
+        }
+      };
+
+    // 注册消息处理器并存储取消函数
+    const unsubscribe = websocketService.on('document_progress', handleDocumentProgress);
+    messageUnsubscribers.current.set(documentId, unsubscribe);
+  };
+
+  /**
+   * 停止追踪文档处理进度
+   * @param {number} documentId - 文档ID
+   */
+  const stopProcessingTracking = (documentId) => {
+    // 清除轮询定时器
+    if (processingIntervals.current.has(documentId)) {
+      clearInterval(processingIntervals.current.get(documentId));
+      processingIntervals.current.delete(documentId);
+    }
+
+    // 取消消息处理器
+    if (messageUnsubscribers.current.has(documentId)) {
+      const unsubscribe = messageUnsubscribers.current.get(documentId);
+      if (unsubscribe) {
+        unsubscribe();
+      }
+      messageUnsubscribers.current.delete(documentId);
+    }
+
+    // 从处理列表中移除
+    setProcessingDocuments(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(documentId);
+      return newMap;
+    });
+
+    setProcessingProgress(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(documentId);
+      return newMap;
+    });
+
+    // 取消WebSocket订阅
+    websocketService.unsubscribeFromDocumentProgress(documentId);
+  };
+
+  /**
    * 处理单个文档向量化
    */
   const handleVectorize = async (documentId) => {
     try {
-      setProcessingTasks(prev => ({
-        ...prev,
-        [documentId]: { status: 'processing', progress: 0 }
-      }));
-      
+      // 获取文档信息
+      const doc = documents.find(d => d.id === documentId);
+      if (!doc) {
+        console.error('文档不存在:', documentId);
+        return;
+      }
+
+      // 立即开始追踪处理进度
+      startProcessingTracking(documentId, doc.title);
+
+      // 调用向量化API
       const result = await vectorizeDocument(documentId);
       
-      if (result.status === 'processing') {
-        trackProcessingProgress(documentId);
+      // 检查返回状态
+      if (result.is_vectorized) {
+        // 文档已经向量化
+        await loadDocuments();
+      } else if (result.status !== 'processing' && result.status !== 'queued') {
+        // 其他情况
+        await loadDocuments();
       }
-      
-      await loadDocuments();
     } catch (error) {
       console.error('向量化失败:', error);
-      setProcessingTasks(prev => ({
-        ...prev,
-        [documentId]: { status: 'failed', error: error.message }
-      }));
+      // 显示错误信息
+      setProcessingProgress(prev => {
+        const newMap = new Map(prev);
+        newMap.set(documentId, {
+          status: 'failed',
+          progress_percent: 0,
+          step_name: '错误',
+          message: error.message || '向量化失败',
+          error: error.message
+        });
+        return newMap;
+      });
+      
+      // 3秒后清除错误状态
+      setTimeout(() => {
+        setProcessingProgress(prev => {
+          const newMap = new Map(prev);
+          newMap.delete(documentId);
+          return newMap;
+        });
+        setProcessingDocuments(prev => {
+          const newMap = new Map(prev);
+          newMap.delete(documentId);
+          return newMap;
+        });
+      }, 3000);
     }
   };
 
@@ -188,37 +327,6 @@ const VectorizationManager = () => {
     }
     
     setSelectedDocuments([]);
-  };
-
-  /**
-   * 追踪处理进度
-   */
-  const trackProcessingProgress = async (documentId) => {
-    const checkProgress = async () => {
-      try {
-        const progress = await getDocumentProcessingProgress(documentId);
-        
-        setProcessingTasks(prev => ({
-          ...prev,
-          [documentId]: {
-            status: progress.status,
-            progress: progress.progress || 0,
-            step: progress.step,
-            message: progress.message
-          }
-        }));
-        
-        if (progress.status === 'processing') {
-          setTimeout(checkProgress, 2000);
-        } else if (progress.status === 'completed' || progress.status === 'failed') {
-          await loadDocuments();
-        }
-      } catch (error) {
-        console.error('获取进度失败:', error);
-      }
-    };
-    
-    checkProgress();
   };
 
   /**
@@ -273,6 +381,32 @@ const VectorizationManager = () => {
     loadKnowledgeBases();
   }, [loadKnowledgeBases]);
 
+  // 初始化WebSocket连接
+  useEffect(() => {
+    let isMounted = true;
+
+    // 组件挂载时连接WebSocket
+    websocketService.connect()
+      .then(() => {
+        if (isMounted) {
+          console.log('WebSocket连接成功');
+        }
+      })
+      .catch(error => {
+        if (isMounted) {
+          console.error('WebSocket连接失败:', error);
+        }
+      });
+
+    return () => {
+      // 组件卸载时断开WebSocket连接
+      if (isMounted) {
+        websocketService.disconnect();
+      }
+      isMounted = false;
+    };
+  }, []);
+
   // 知识库变化时重新加载文档
   useEffect(() => {
     loadDocuments();
@@ -282,6 +416,19 @@ const VectorizationManager = () => {
   useEffect(() => {
     applyFilters(documents, searchQuery, filterStatus);
   }, [searchQuery, filterStatus, documents]);
+
+  // 定期重新加载文档列表以更新处理状态
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (processingDocuments.size > 0) {
+        loadDocuments();
+      }
+    }, 5000); // 每5秒刷新一次
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [processingDocuments.size, loadDocuments]);
 
   /**
    * 渲染概览页面
@@ -317,15 +464,31 @@ const VectorizationManager = () => {
         <h3>最近活动</h3>
         <div className="activity-list">
           {documents.slice(0, 5).map(doc => {
-            const task = processingTasks[doc.id];
-            const isProcessing = task?.status === 'processing' || doc.document_metadata?.processing_status === 'processing';
+            const progress = processingProgress.get(doc.id);
+            const isProcessing = progress?.status === 'processing' || doc.document_metadata?.processing_status === 'processing';
             
             return (
               <div key={doc.id} className="activity-item">
-                <span className="doc-title">{doc.title}</span>
-                <span className={`status ${doc.is_vectorized ? 'success' : isProcessing ? 'processing' : 'pending'}`}>
-                  {doc.is_vectorized ? '已向量化' : isProcessing ? '处理中' : '待处理'}
-                </span>
+                <div className="activity-info">
+                  <span className="doc-title">{doc.title}</span>
+                  <span className={`status ${doc.is_vectorized ? 'success' : isProcessing ? 'processing' : 'pending'}`}>
+                    {doc.is_vectorized ? '已向量化' : isProcessing ? '处理中' : '待处理'}
+                  </span>
+                </div>
+                {isProcessing && progress && (
+                  <div className="activity-progress">
+                    <div className="progress-bar">
+                      <div 
+                        className="progress-fill" 
+                        style={{ width: `${progress.progress_percent}%` }}
+                      />
+                      <span className="progress-text">{progress.progress_percent}%</span>
+                    </div>
+                    {progress.step_name && (
+                      <div className="progress-step">{progress.step_name}</div>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -334,6 +497,60 @@ const VectorizationManager = () => {
           )}
         </div>
       </div>
+
+      {/* 处理进度面板 */}
+      {processingDocuments.size > 0 && (
+        <div className="processing-progress-panel">
+          <h3>处理进度</h3>
+          <div className="processing-list">
+            {Array.from(processingDocuments.values()).map(({ id, name }) => {
+              const progress = processingProgress.get(id);
+              if (!progress) return null;
+
+              const isCompleted = progress.status === 'completed';
+              const isFailed = progress.status === 'failed';
+              const isProcessing = progress.status === 'processing';
+
+              return (
+                <div key={id} className={`processing-item ${progress.status}`}>
+                  <div className="processing-header">
+                    <span className="processing-name" title={name}>
+                      {name.length > 30 ? name.substring(0, 30) + '...' : name}
+                    </span>
+                    <span className={`processing-status ${progress.status}`}>
+                      {isCompleted ? '✅ 完成' :
+                       isFailed ? '❌ 失败' :
+                       isProcessing ? '🔄 处理中' : '⏳ 等待中'}
+                    </span>
+                  </div>
+
+                  {isProcessing && (
+                    <div className="progress-bar">
+                      <div 
+                        className="progress-fill" 
+                        style={{ width: `${progress.progress_percent}%` }}
+                      />
+                      <span className="progress-text">{progress.progress_percent}%</span>
+                    </div>
+                  )}
+
+                  {progress.step_name && (
+                    <div className="processing-step">{progress.step_name}</div>
+                  )}
+
+                  {progress.message && (
+                    <div className="processing-message">{progress.message}</div>
+                  )}
+
+                  {isFailed && progress.error && (
+                    <div className="processing-error">{progress.error}</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* 快速操作 */}
       <div className="quick-actions">
@@ -434,8 +651,8 @@ const VectorizationManager = () => {
             </thead>
             <tbody>
               {filteredDocuments.map(doc => {
-                const task = processingTasks[doc.id];
-                const isProcessing = task?.status === 'processing' || doc.document_metadata?.processing_status === 'processing';
+                const progress = processingProgress.get(doc.id);
+                const isProcessing = progress?.status === 'processing' || doc.document_metadata?.processing_status === 'processing';
                 
                 return (
                   <tr key={doc.id} className={isProcessing ? 'processing' : ''}>
@@ -464,14 +681,20 @@ const VectorizationManager = () => {
                       )}
                     </td>
                     <td>
-                      {isProcessing && task && (
+                      {isProcessing && progress && (
                         <div className="progress-bar">
                           <div 
                             className="progress-fill" 
-                            style={{ width: `${task.progress}%` }}
+                            style={{ width: `${progress.progress_percent}%` }}
                           />
-                          <span className="progress-text">{task.progress}%</span>
+                          <span className="progress-text">{progress.progress_percent}%</span>
                         </div>
+                      )}
+                      {progress?.step_name && (
+                        <div className="progress-step">{progress.step_name}</div>
+                      )}
+                      {progress?.message && (
+                        <div className="progress-message">{progress.message}</div>
                       )}
                     </td>
                     <td>{doc.chunk_count || '-'}</td>

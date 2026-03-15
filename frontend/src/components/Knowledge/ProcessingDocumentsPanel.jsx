@@ -113,12 +113,12 @@ const ProcessingDocumentsPanel = ({ processingDocuments, processingProgress, que
               <div className="processing-progress-bar">
                 <div
                   className={`processing-progress-fill ${progress.status}`}
-                  style={{ width: `${progress.progress_percent || 0}%` }}
+                  style={{ width: `${progress.progress_percentage || progress.progress_percent || 0}%` }}
                 />
               </div>
               <div className="processing-details">
                 <span className="processing-step">{progress.step_name}</span>
-                <span className="processing-percent">{progress.progress_percent || 0}%</span>
+                <span className="processing-percent">{progress.progress_percentage || progress.progress_percent || 0}%</span>
               </div>
               {progress.message && (
                 <div className="processing-message">{progress.message}</div>

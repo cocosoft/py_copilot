@@ -84,16 +84,26 @@ const WorkspaceSelector = ({ showStorage = true }) => {
         }
     }, [showStorage]);
 
-    // 组件挂载时加载数据
+    // 组件挂载时加载数据（不阻塞页面）
     useEffect(() => {
-        loadWorkspaces();
-        loadCurrentWorkspace();
+        // 延迟加载，避免阻塞页面渲染
+        const timer = setTimeout(() => {
+            loadWorkspaces();
+            loadCurrentWorkspace();
+        }, 100);
+        
+        return () => clearTimeout(timer);
     }, [loadWorkspaces, loadCurrentWorkspace]);
 
-    // 当前工作空间变化时加载存储信息
+    // 当前工作空间变化时加载存储信息（延迟加载）
     useEffect(() => {
         if (currentWorkspace?.id) {
-            loadStorageInfo(currentWorkspace.id);
+            // 延迟加载存储信息，避免阻塞页面
+            const timer = setTimeout(() => {
+                loadStorageInfo(currentWorkspace.id);
+            }, 200);
+            
+            return () => clearTimeout(timer);
         }
     }, [currentWorkspace, loadStorageInfo]);
 

@@ -163,14 +163,76 @@ class KnowledgeGraphService:
                     entity_map[key] = entity
             entities = list(entity_map.values())
         
+        # 获取文档标题
+        document = db.query(KnowledgeDocument).filter(KnowledgeDocument.id == document_id).first()
+        document_name = document.title if document else '未知文档'
+        
         return [
             {
                 "id": entity.id,
                 "text": entity.entity_text,
+                "name": entity.entity_text,
                 "type": entity.entity_type,
                 "start_pos": entity.start_pos,
                 "end_pos": entity.end_pos,
-                "confidence": entity.confidence
+                "confidence": entity.confidence,
+                "document_id": entity.document_id,
+                "document_name": document_name,
+                "occurrences": 1,
+                "status": "pending",
+                "description": ""
+            }
+            for entity in entities
+        ]
+
+    def get_knowledge_base_entities(self, db: Session, knowledge_base_id: int, distinct: bool = True) -> List[Dict[str, Any]]:
+        """获取知识库的所有实体
+        
+        Args:
+            db: 数据库会话
+            knowledge_base_id: 知识库ID
+            distinct: 是否去重（默认True，按实体文本和类型去重）
+        """
+        # 获取知识库中的所有文档
+        documents = db.query(KnowledgeDocument).filter(
+            KnowledgeDocument.knowledge_base_id == knowledge_base_id
+        ).all()
+        
+        if not documents:
+            return []
+        
+        # 获取所有文档的实体
+        all_entities = []
+        document_ids = [doc.id for doc in documents]
+        document_map = {doc.id: doc.title for doc in documents}
+        
+        entities = db.query(DocumentEntity).filter(
+            DocumentEntity.document_id.in_(document_ids)
+        ).all()
+        
+        if distinct:
+            # 按实体文本和类型去重，保留置信度最高的
+            entity_map = {}
+            for entity in entities:
+                key = (entity.entity_text, entity.entity_type)
+                if key not in entity_map or entity.confidence > entity_map[key].confidence:
+                    entity_map[key] = entity
+            entities = list(entity_map.values())
+        
+        return [
+            {
+                "id": entity.id,
+                "text": entity.entity_text,
+                "name": entity.entity_text,
+                "type": entity.entity_type,
+                "start_pos": entity.start_pos,
+                "end_pos": entity.end_pos,
+                "confidence": entity.confidence,
+                "document_id": entity.document_id,
+                "document_name": document_map.get(entity.document_id, '未知文档'),
+                "occurrences": 1,
+                "status": "pending",
+                "description": ""
             }
             for entity in entities
         ]

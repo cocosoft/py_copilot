@@ -5,7 +5,7 @@ WebSocket消息处理器
 """
 import json
 import logging
-from typing import Dict, Any, Optional, Callable, Awaitable
+from typing import Dict, Any, Optional, Callable, Awaitable, Set
 from enum import Enum
 from datetime import datetime
 

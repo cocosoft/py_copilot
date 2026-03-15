@@ -115,18 +115,18 @@ class LLMTextProcessor:
         return None
     
     async def semantic_chunking(self, text: str, max_chunk_size: int = 1000,
-                                min_chunk_size: int = 200, overlap: int = 100) -> List[str]:
+                                min_chunk_size: int = 200, overlap: int = 30) -> List[str]:
         """
         智能语义分块
-        
+
         使用LLM进行智能分块，根据语义边界将文本分割成合适的块。
-        
+
         Args:
             text: 输入文本
             max_chunk_size: 最大块大小（字符数）
             min_chunk_size: 最小块大小（字符数）
-            overlap: 块之间的重叠大小（字符数）
-            
+            overlap: 块之间的重叠大小（字符数），默认30以保证上下文连贯同时减少重复
+
         Returns:
             分块后的文本列表
         """

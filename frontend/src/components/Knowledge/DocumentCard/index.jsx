@@ -143,8 +143,7 @@ const DocumentCard = ({
    */
   const handleCheckboxClick = (e) => {
     e.stopPropagation();
-    e.preventDefault();
-    onSelect?.(document);
+    onSelect?.(document.id);
   };
 
   /**
@@ -205,8 +204,7 @@ const DocumentCard = ({
             type="checkbox"
             className="document-card__checkbox"
             checked={isSelected}
-            onClick={handleCheckboxClick}
-            readOnly
+            onChange={handleCheckboxClick}
           />
         </div>
       </div>
@@ -224,8 +222,7 @@ const DocumentCard = ({
           type="checkbox"
           className="document-card__checkbox"
           checked={isSelected}
-          onClick={handleCheckboxClick}
-          readOnly
+          onChange={handleCheckboxClick}
         />
       </div>
 

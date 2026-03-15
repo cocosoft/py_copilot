@@ -130,6 +130,11 @@ class EntityExtractionRequest(BaseModel):
     document_id: Optional[int] = None
     text: Optional[str] = None
     knowledge_base_id: Optional[int] = None  # 知识库ID，用于加载知识库级提取策略配置
+    entity_types: Optional[List[str]] = None  # 实体类型列表
+    threshold: Optional[float] = 0.7  # 置信度阈值
+    use_llm: Optional[bool] = True  # 是否使用LLM提取
+    model_id: Optional[str] = None  # 模型ID
+    model_config_data: Optional[Dict[str, Any]] = None  # 模型配置
 
     class Config:
         extra = "ignore"  # 忽略额外的字段，提高兼容性
@@ -241,29 +246,52 @@ async def extract_entities(
 ):
     """从文档或文本中提取实体和关系"""
     try:
+        logger.info(f"[extract_entities] 收到实体提取请求: document_id={request.document_id}, "
+                   f"knowledge_base_id={request.knowledge_base_id}, use_llm={request.use_llm}, "
+                   f"model_id={request.model_id}")
+
         # 验证必须提供document_id或text参数
         if not request.document_id and not request.text:
+            logger.warning("[extract_entities] 请求参数错误: 必须提供document_id或text参数")
             raise HTTPException(status_code=400, detail="必须提供document_id或text参数")
-            
+
         if request.document_id:
             # 从文档中提取实体和关系
+            logger.info(f"[extract_entities] 开始从文档提取实体: document_id={request.document_id}")
+
             document = db.query(KnowledgeDocument).filter(
                 KnowledgeDocument.id == request.document_id
             ).first()
-            
+
             if not document:
+                logger.warning(f"[extract_entities] 文档不存在: document_id={request.document_id}")
                 raise HTTPException(status_code=404, detail="文档不存在")
-            
+
+            logger.info(f"[extract_entities] 文档信息: id={document.id}, title={document.title}, "
+                       f"content_length={len(document.content) if document.content else 0}")
+
+            # 确定知识库ID
+            kb_id = request.knowledge_base_id or document.knowledge_base_id
+            logger.info(f"[extract_entities] 使用知识库ID: {kb_id}")
+
             # 提取实体和关系并存储
-            result = knowledge_graph_service.extract_and_store_entities(db, document)
-            
+            result = knowledge_graph_service.extract_and_store_entities(
+                db, document, knowledge_base_id=kb_id
+            )
+
             if not result["success"]:
+                logger.error(f"[extract_entities] 实体提取失败: {result.get('error', '未知错误')}")
                 raise HTTPException(status_code=500, detail=result.get("error", "提取失败"))
-            
+
+            logger.info(f"[extract_entities] 实体提取成功: entities_count={result.get('entities_count', 0)}, "
+                       f"relationships_count={result.get('relationships_count', 0)}")
+
             # 获取存储的实体和关系
             entities = knowledge_graph_service.get_document_entities(db, request.document_id)
             relationships = knowledge_graph_service.get_document_relationships(db, request.document_id)
-            
+
+            logger.info(f"[extract_entities] 返回结果: entities={len(entities)}, relationships={len(relationships)}")
+
             return {
                 "entities": entities,
                 "relationships": relationships,
@@ -341,6 +369,18 @@ async def get_document_entities(
         return {"entities": entities}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取实体失败: {str(e)}")
+
+@router.get("/knowledge-bases/{knowledge_base_id}/entities")
+async def get_knowledge_base_entities(
+    knowledge_base_id: int,
+    db: Session = Depends(get_db)
+):
+    """获取知识库的所有实体"""
+    try:
+        entities = knowledge_graph_service.get_knowledge_base_entities(db, knowledge_base_id)
+        return {"entities": entities}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取知识库实体失败: {str(e)}")
 
 # 添加单数形式的路由以兼容前端请求
 @router.get("/document/{document_id}/entities")
