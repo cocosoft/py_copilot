@@ -24,7 +24,6 @@ const DevCenter = lazy(() => import('../pages/DevCenter'));
 // 增强版知识库相关页面（向量化管理模块优化）
 const EnhancedKnowledge = lazy(() => import('../pages/knowledge/EnhancedKnowledge'));
 const EnhancedVectorization = lazy(() => import('../pages/knowledge/EnhancedVectorization'));
-const EnhancedKnowledgeGraph = lazy(() => import('../pages/knowledge/EnhancedKnowledgeGraph'));
 
 /**
  * 重定向组件：将旧路由重定向到能力中心
@@ -76,7 +75,6 @@ const AppRoutes = () => {
         {/* 增强版知识库页面（向量化管理模块优化） */}
         <Route path="knowledge/enhanced" element={<EnhancedKnowledge />} />
         <Route path="knowledge/vectorization" element={<EnhancedVectorization />} />
-        <Route path="knowledge/graph" element={<EnhancedKnowledgeGraph />} />
         <Route path="workflow" element={<Workflow />} />
 
         {/* 废弃路由重定向 - 请使用能力中心 */}

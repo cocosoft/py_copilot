@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import * as d3 from 'd3';
 import KnowledgeGraph from '../KnowledgeGraph';
 import {
   analyzeCommunities,
@@ -141,6 +142,34 @@ const GraphVisualization = ({ knowledgeBaseId }) => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 缩放控制函数
+  const handleZoomIn = () => {
+    // 找到知识图谱SVG元素并执行缩放
+    const svg = document.querySelector('.knowledge-graph-svg');
+    if (svg) {
+      const zoom = d3.zoom();
+      d3.select(svg).transition().call(zoom.scaleBy, 1.2);
+    }
+  };
+
+  const handleZoomOut = () => {
+    // 找到知识图谱SVG元素并执行缩放
+    const svg = document.querySelector('.knowledge-graph-svg');
+    if (svg) {
+      const zoom = d3.zoom();
+      d3.select(svg).transition().call(zoom.scaleBy, 0.8);
+    }
+  };
+
+  const handleZoomReset = () => {
+    // 找到知识图谱SVG元素并执行缩放
+    const svg = document.querySelector('.knowledge-graph-svg');
+    if (svg) {
+      const zoom = d3.zoom();
+      d3.select(svg).transition().call(zoom.transform, d3.zoomIdentity);
     }
   };
 
@@ -354,9 +383,9 @@ const GraphVisualization = ({ knowledgeBaseId }) => {
         </div>
 
         <div className="graph-actions">
-          <button className="action-btn" title="放大">➕</button>
-          <button className="action-btn" title="缩小">➖</button>
-          <button className="action-btn" title="重置">⟲</button>
+          <button className="action-btn" title="放大" onClick={handleZoomIn}>➕</button>
+          <button className="action-btn" title="缩小" onClick={handleZoomOut}>➖</button>
+          <button className="action-btn" title="重置" onClick={handleZoomReset}>⟲</button>
         </div>
       </div>
 

@@ -131,15 +131,7 @@ const KnowledgeLayout = () => {
 
         {/* 内容区域 */}
         <main className="knowledge-content">
-          {currentKnowledgeBase ? (
-            <Outlet />
-          ) : (
-            <div className="knowledge-empty-state">
-              <div className="empty-state-icon">📚</div>
-              <h3>请选择一个知识库</h3>
-              <p>从左侧边栏选择一个知识库开始管理文档</p>
-            </div>
-          )}
+          <Outlet />
         </main>
       </div>
     </div>

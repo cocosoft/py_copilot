@@ -6,7 +6,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #f8f9fa;
+  background: #ffffff;
   border-radius: 12px;
   overflow: hidden;
 }
@@ -198,6 +198,7 @@
   flex: 1;
   overflow: hidden;
   padding: 16px;
+  background: #ffffff;
 }
 
 /* 图谱视图 */
@@ -214,6 +215,7 @@
   flex: 1;
   min-height: 400px;
   padding: 16px;
+  background: #ffffff;
 }
 
 /* 加载状态 */
@@ -468,7 +470,7 @@
 /* 暗色主题支持 */
 @media (prefers-color-scheme: dark) {
   .hierarchical-graph-viewer {
-    background: #1f1f1f;
+    background: #0f172a;
   }
   
   .level-selector,

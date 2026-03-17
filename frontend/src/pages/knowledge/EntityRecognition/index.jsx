@@ -18,7 +18,10 @@ import {
   extractEntities,
   getDocument,
   getDocumentChunks,
-  getKnowledgeBaseEntities
+  getKnowledgeBaseEntities,
+  batchUpdateEntityStatus,
+  updateEntityStatus,
+  getDocumentEntitiesFromMaintenance
 } from '../../../utils/api/knowledgeApi';
 import defaultModelApi from '../../../utils/api/defaultModelApi';
 import './styles.css';
@@ -152,33 +155,57 @@ const EntityRecognition = () => {
   /**
    * 批量确认实体
    */
-  const handleBatchConfirm = () => {
+  const handleBatchConfirm = async () => {
+    const dbEntityIds = selectedEntities.filter(id => !String(id).startsWith('extracted-'));
     const count = selectedEntities.length;
-    setEntities(prev =>
-      prev.map(e =>
-        selectedEntities.includes(e.id) && e.status === 'pending'
-          ? { ...e, status: 'confirmed' }
-          : e
-      )
-    );
-    setSelectedEntities([]);
-    message.success({ content: `已批量确认 ${count} 个实体` });
+
+    try {
+      // 将数据库中的实体状态更新为 confirmed
+      if (dbEntityIds.length > 0) {
+        await batchUpdateEntityStatus(dbEntityIds, 'confirmed');
+      }
+
+      // 更新前端状态
+      setEntities(prev =>
+        prev.map(e =>
+          selectedEntities.includes(e.id) && e.status === 'pending'
+            ? { ...e, status: 'confirmed' }
+            : e
+        )
+      );
+      setSelectedEntities([]);
+      message.success({ content: `已批量确认 ${count} 个实体` });
+    } catch (error) {
+      message.error({ content: '批量确认失败：' + error.message });
+    }
   };
 
   /**
    * 批量拒绝实体
    */
-  const handleBatchReject = () => {
+  const handleBatchReject = async () => {
+    const dbEntityIds = selectedEntities.filter(id => !String(id).startsWith('extracted-'));
     const count = selectedEntities.length;
-    setEntities(prev =>
-      prev.map(e =>
-        selectedEntities.includes(e.id) && e.status === 'pending'
-          ? { ...e, status: 'rejected' }
-          : e
-      )
-    );
-    setSelectedEntities([]);
-    message.success({ content: `已批量拒绝 ${count} 个实体` });
+
+    try {
+      // 将数据库中的实体状态更新为 rejected
+      if (dbEntityIds.length > 0) {
+        await batchUpdateEntityStatus(dbEntityIds, 'rejected');
+      }
+
+      // 更新前端状态
+      setEntities(prev =>
+        prev.map(e =>
+          selectedEntities.includes(e.id) && e.status === 'pending'
+            ? { ...e, status: 'rejected' }
+            : e
+        )
+      );
+      setSelectedEntities([]);
+      message.success({ content: `已批量拒绝 ${count} 个实体` });
+    } catch (error) {
+      message.error({ content: '批量拒绝失败：' + error.message });
+    }
   };
 
   /**
@@ -197,28 +224,43 @@ const EntityRecognition = () => {
 
   /**
    * 从数据库加载知识库的实体
+   * 从所有文档中加载实体，包含确认状态
    */
   const loadKnowledgeBaseEntities = useCallback(async () => {
     if (!currentKnowledgeBase) return;
 
     try {
-      const response = await getKnowledgeBaseEntities(currentKnowledgeBase.id);
-      if (response && Array.isArray(response.entities)) {
-        const loadedEntities = response.entities.map((entity, index) => ({
-          id: `db-entity-${Date.now()}-${index}`,
-          name: entity.name || entity.text,
-          type: entity.type || 'concept',
-          description: entity.description || '',
-          documentId: entity.document_id,
-          documentName: entity.document_name || '未知文档',
-          confidence: entity.confidence || entity.score || 0.8,
-          status: entity.status || 'pending',
-          occurrences: entity.occurrences || 1,
-          source: 'database',
-          modelUsed: '已保存',
-        }));
-        setEntities(loadedEntities);
+      // 先获取知识库的所有文档
+      const docsResponse = await listDocuments(0, 1000, currentKnowledgeBase.id, true);
+      const docs = docsResponse.documents || [];
+
+      // 从每个文档加载实体
+      const allEntities = [];
+      for (const doc of docs) {
+        try {
+          const response = await getDocumentEntitiesFromMaintenance(doc.id, { pageSize: 1000 });
+          if (response && Array.isArray(response.entities)) {
+            const docEntities = response.entities.map((entity) => ({
+              id: entity.id,  // 使用数据库中的真实ID
+              name: entity.text,
+              type: entity.type || 'concept',
+              description: '',
+              documentId: doc.id,
+              documentName: doc.title || '未命名文档',
+              confidence: entity.confidence || 0.8,
+              status: entity.status || 'pending',  // 从数据库读取状态
+              occurrences: 1,
+              source: 'database',
+              modelUsed: '已保存',
+            }));
+            allEntities.push(...docEntities);
+          }
+        } catch (docError) {
+          console.error(`加载文档 ${doc.id} 的实体失败:`, docError);
+        }
       }
+
+      setEntities(allEntities);
     } catch (error) {
       console.error('加载知识库实体失败:', error);
     }
@@ -323,8 +365,8 @@ const EntityRecognition = () => {
 
           // 如果有默认模型配置，添加到参数中
           if (currentDefaultModel && currentDefaultModel.model_id) {
-            extractParams.model_id = currentDefaultModel.model_id;
-            extractParams.model_config = {
+            extractParams.model_id = currentDefaultModel.model_id.toString();
+            extractParams.model_configuration = {
               temperature: currentDefaultModel.temperature || 0.3,
               max_tokens: currentDefaultModel.max_tokens || 2000,
             };
@@ -334,6 +376,8 @@ const EntityRecognition = () => {
           const response = await extractEntities(extractParams);
 
           // 处理提取结果
+          console.log('API 响应:', response);
+          console.log('API 响应实体:', response.entities);
           const documentEntities = (response.entities || []).map((entity, index) => ({
             id: `entity-${Date.now()}-${i}-${index}`,
             name: entity.name || entity.text,
@@ -347,6 +391,7 @@ const EntityRecognition = () => {
             source: 'llm',
             modelUsed: currentDefaultModel?.model_name || '默认模型',
           }));
+          console.log('处理后的实体:', documentEntities);
 
           totalExtractedEntities += documentEntities.length;
           allExtractedEntities.push(...documentEntities);
@@ -360,8 +405,34 @@ const EntityRecognition = () => {
         setExtractProgress(Math.round(((i + 1) / selectedDocuments.length) * 100));
       }
 
-      // 将所有提取的实体添加到前端状态
-      setEntities(prev => [...allExtractedEntities, ...prev]);
+      // 将所有提取的实体添加到前端状态，去重并保留已确认的实体
+      setEntities(prev => {
+        // 创建一个映射，键为实体文本和类型的组合，值为实体对象
+        const entityMap = new Map();
+        
+        // 先添加现有实体，已确认的实体优先级更高
+        prev.forEach(entity => {
+          const key = `${entity.name}-${entity.type}-${entity.documentId}`;
+          // 只保留已确认的实体或不在新提取列表中的实体
+          if (entity.status === 'confirmed' || !allExtractedEntities.some(e => 
+            e.name === entity.name && e.type === entity.type && e.documentId === entity.documentId
+          )) {
+            entityMap.set(key, entity);
+          }
+        });
+        
+        // 添加新提取的实体，跳过已确认的实体
+        allExtractedEntities.forEach(entity => {
+          const key = `${entity.name}-${entity.type}-${entity.documentId}`;
+          // 只有当该实体尚未被确认时才添加
+          if (!entityMap.has(key)) {
+            entityMap.set(key, entity);
+          }
+        });
+        
+        // 转换回数组
+        return Array.from(entityMap.values());
+      });
       setExtractStage('完成');
       setExtractProgress(100);
       message.success({ content: `成功从 ${selectedDocuments.length} 个文档中提取 ${totalExtractedEntities} 个实体` });
@@ -417,21 +488,39 @@ const EntityRecognition = () => {
   /**
    * 确认实体
    */
-  const handleConfirmEntity = (entityId) => {
-    setEntities(prev =>
-      prev.map(e => e.id === entityId ? { ...e, status: 'confirmed' } : e)
-    );
-    message.success({ content: '实体已确认' });
+  const handleConfirmEntity = async (entityId) => {
+    try {
+      // 如果是数据库中的实体（非临时提取的），更新后端状态
+      if (!String(entityId).startsWith('extracted-')) {
+        await updateEntityStatus(entityId, 'confirmed');
+      }
+
+      setEntities(prev =>
+        prev.map(e => e.id === entityId ? { ...e, status: 'confirmed' } : e)
+      );
+      message.success({ content: '实体已确认' });
+    } catch (error) {
+      message.error({ content: '确认实体失败：' + error.message });
+    }
   };
 
   /**
    * 拒绝实体
    */
-  const handleRejectEntity = (entityId) => {
-    setEntities(prev =>
-      prev.map(e => e.id === entityId ? { ...e, status: 'rejected' } : e)
-    );
-    message.success({ content: '实体已拒绝' });
+  const handleRejectEntity = async (entityId) => {
+    try {
+      // 如果是数据库中的实体（非临时提取的），更新后端状态
+      if (!String(entityId).startsWith('extracted-')) {
+        await updateEntityStatus(entityId, 'rejected');
+      }
+
+      setEntities(prev =>
+        prev.map(e => e.id === entityId ? { ...e, status: 'rejected' } : e)
+      );
+      message.success({ content: '实体已拒绝' });
+    } catch (error) {
+      message.error({ content: '拒绝实体失败：' + error.message });
+    }
   };
 
   /**

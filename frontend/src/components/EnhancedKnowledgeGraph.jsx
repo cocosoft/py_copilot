@@ -12,6 +12,7 @@ const EnhancedKnowledgeGraph = ({
   searchQuery = ''
 }) => {
   const svgRef = useRef();
+  const graphContentRef = useRef();
   const [graphData, setGraphData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -110,7 +111,7 @@ const EnhancedKnowledgeGraph = ({
     svg.selectAll("*").remove();
 
     // 适配后端数据格式：nodes -> entities, links -> relationships
-    const entities = graphData.entities || graphData.nodes || [];
+    const entities = filteredEntities.length > 0 ? filteredEntities : (graphData.entities || graphData.nodes || []);
     const relationships = graphData.relationships || graphData.links || [];
     
     // 预处理数据
@@ -123,8 +124,8 @@ const EnhancedKnowledgeGraph = ({
     
     const processedRelationships = relationships.map(rel => ({
       ...rel,
-      source: processedEntities.find(e => e.text === rel.subject) || { id: -1 },
-      target: processedEntities.find(e => e.text === rel.object) || { id: -1 }
+      source: processedEntities.find(e => e.name === rel.subject) || { id: -1 },
+      target: processedEntities.find(e => e.name === rel.object) || { id: -1 }
     })).filter(rel => rel.source.id !== -1 && rel.target.id !== -1);
 
     // 创建力导向图模拟
@@ -156,6 +157,7 @@ const EnhancedKnowledgeGraph = ({
 
     // 创建图形内容容器
     const graphContent = svg.append("g").attr("class", "graph-content");
+    graphContentRef.current = graphContent;
 
     // 创建连线
     const link = graphContent.append("g")
@@ -269,7 +271,7 @@ const EnhancedKnowledgeGraph = ({
     return () => {
       if (newSimulation) newSimulation.stop();
     };
-  }, [graphData, width, height, searchResults]);
+  }, [graphData, width, height, searchResults, filteredEntities]);
 
   const getEntityRadius = (entity) => {
     if (entity.isHighlighted) return 15;
@@ -316,6 +318,31 @@ const EnhancedKnowledgeGraph = ({
     link.href = url;
     link.download = 'knowledge-graph.svg';
     link.click();
+  };
+
+  // 缩放控制函数
+  const handleZoomIn = () => {
+    if (svgRef.current) {
+      d3.select(svgRef.current).transition().call(
+        d3.zoom().scaleBy, 1.2
+      );
+    }
+  };
+
+  const handleZoomOut = () => {
+    if (svgRef.current) {
+      d3.select(svgRef.current).transition().call(
+        d3.zoom().scaleBy, 0.8
+      );
+    }
+  };
+
+  const handleZoomReset = () => {
+    if (svgRef.current) {
+      d3.select(svgRef.current).transition().call(
+        d3.zoom().transform, d3.zoomIdentity
+      );
+    }
   };
 
   // 获取实际的实体类型
@@ -429,12 +456,19 @@ const EnhancedKnowledgeGraph = ({
         )}
       </div>
 
-      <svg
-        ref={svgRef}
-        width={width}
-        height={height}
-        className="enhanced-knowledge-graph-svg"
-      />
+      <div className="graph-container">
+        <svg
+          ref={svgRef}
+          width={width}
+          height={height}
+          className="enhanced-knowledge-graph-svg"
+        />
+        <div className="zoom-controls">
+          <button className="zoom-in" onClick={handleZoomIn} title="放大">+</button>
+          <button className="zoom-out" onClick={handleZoomOut} title="缩小">-</button>
+          <button className="zoom-reset" onClick={handleZoomReset} title="重置">⌂</button>
+        </div>
+      </div>
     </div>
   );
 };

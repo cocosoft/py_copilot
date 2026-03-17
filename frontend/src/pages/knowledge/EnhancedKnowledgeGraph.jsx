@@ -225,8 +225,8 @@ const EnhancedKnowledgeGraph = () => {
         text: recognitionText,
         entity_types: selectedEntityTypes,
         threshold: recognitionThreshold,
-        model_id: knowledgeSceneModel?.model_id || knowledgeSceneModel?.model?.id,
-        model_config: {
+        model_id: (knowledgeSceneModel?.model_id || knowledgeSceneModel?.model?.id)?.toString(),
+        model_configuration: {
           temperature: 0.1,
           max_tokens: 2000,
         }

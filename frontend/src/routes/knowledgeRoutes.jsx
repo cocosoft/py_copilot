@@ -10,7 +10,7 @@ import { Navigate } from 'react-router-dom';
 // 懒加载页面组件
 const KnowledgeLayout = lazy(() => import('../layouts/KnowledgeLayout'));
 const DocumentManagement = lazy(() => import('../pages/knowledge/DocumentManagement'));
-const KnowledgeGraph = lazy(() => import('../pages/knowledge/KnowledgeGraph'));
+const UnifiedKnowledgeGraph = lazy(() => import('../pages/knowledge/KnowledgeGraph/UnifiedKnowledgeGraph'));
 const VectorizationManagement = lazy(() => import('../pages/knowledge/VectorizationManagement'));
 const AdvancedSearch = lazy(() => import('../pages/knowledge/AdvancedSearch'));
 const KnowledgeSettings = lazy(() => import('../pages/knowledge/KnowledgeSettings'));
@@ -53,7 +53,7 @@ export const knowledgeRoutes = {
     },
     {
       path: 'graph',
-      element: withSuspense(KnowledgeGraph),
+      element: withSuspense(UnifiedKnowledgeGraph),
     },
     {
       path: 'vectorization',

@@ -1,29 +1,134 @@
 import React, { useState, useEffect, useRef } from 'react';
-import * as d3 from 'd3';
+import SimpleKnowledgeGraph from './SimpleKnowledgeGraph';
 import { request } from '../utils/apiUtils';
 import './KnowledgeGraph.css';
 
-const KnowledgeGraph = ({ documentId, textContent, graphData, width = 800, height = 600, responsive = true, style = {} }) => {
+/**
+ * 实体类型配置 - 包含颜色、图标、大小等视觉属性
+ * 增大节点尺寸以提高可见性
+ */
+const ENTITY_CONFIG = {
+  'PERSON': {
+    color: '#FF6B6B',
+    gradient: ['#FF6B6B', '#EE5A5A'],
+    icon: '👤',
+    size: 35,
+    label: '人物'
+  },
+  'ORGANIZATION': {
+    color: '#4ECDC4',
+    gradient: ['#4ECDC4', '#3DBDB5'],
+    icon: '🏢',
+    size: 40,
+    label: '组织'
+  },
+  'ORG': {
+    color: '#4ECDC4',
+    gradient: ['#4ECDC4', '#3DBDB5'],
+    icon: '🏢',
+    size: 40,
+    label: '组织'
+  },
+  'LOCATION': {
+    color: '#45B7D1',
+    gradient: ['#45B7D1', '#3AA0B9'],
+    icon: '📍',
+    size: 32,
+    label: '地点'
+  },
+  'LOC': {
+    color: '#45B7D1',
+    gradient: ['#45B7D1', '#3AA0B9'],
+    icon: '📍',
+    size: 32,
+    label: '地点'
+  },
+  'DATE': {
+    color: '#96CEB4',
+    gradient: ['#96CEB4', '#7FB8A0'],
+    icon: '📅',
+    size: 28,
+    label: '日期'
+  },
+  'MONEY': {
+    color: '#FECA57',
+    gradient: ['#FECA57', '#E5B548'],
+    icon: '💰',
+    size: 30,
+    label: '金额'
+  },
+  'TECH': {
+    color: '#A29BFE',
+    gradient: ['#A29BFE', '#8B84E8'],
+    icon: '💻',
+    size: 32,
+    label: '技术'
+  },
+  'PRODUCT': {
+    color: '#FD79A8',
+    gradient: ['#FD79A8', '#E86796'],
+    icon: '📦',
+    size: 32,
+    label: '产品'
+  },
+  'EVENT': {
+    color: '#FDCB6E',
+    gradient: ['#FDCB6E', '#E8B85F'],
+    icon: '📢',
+    size: 32,
+    label: '事件'
+  },
+  'CONCEPT': {
+    color: '#6C5CE7',
+    gradient: ['#6C5CE7', '#5B4BD4'],
+    icon: '💡',
+    size: 32,
+    label: '概念'
+  },
+  'default': {
+    color: '#A29BFE',
+    gradient: ['#A29BFE', '#8B84E8'],
+    icon: '🔹',
+    size: 30,
+    label: '实体'
+  }
+};
+
+/**
+ * 获取实体配置
+ * 
+ * @param {string} type - 实体类型
+ * @returns {Object} 实体配置对象
+ */
+const getEntityConfig = (type) => {
+  return ENTITY_CONFIG[type] || ENTITY_CONFIG['default'];
+};
+
+const KnowledgeGraph = ({ documentId, textContent, graphData, data, viewMode = 'force', filters = {}, onNodeClick, width = 800, height = 600, responsive = true, style = {} }) => {
   const svgRef = useRef();
   const containerRef = useRef();
+  const graphContentRef = useRef();
   const [internalGraphData, setInternalGraphData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [dimensions, setDimensions] = useState({ width, height });
+  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   
   // 响应式调整SVG尺寸
   useEffect(() => {
-    if (!responsive || !containerRef.current) return;
+    if (!responsive) return;
     
     // 获取容器尺寸
     const updateDimensions = () => {
-      const container = containerRef.current;
+      const container = graphContentRef.current;
       if (container) {
         const { clientWidth, clientHeight } = container;
-        setDimensions({ 
-          width: clientWidth - 40, // 减去padding
-          height: clientHeight - 40 // 减去padding
-        });
+        console.log('Graph content dimensions:', { clientWidth, clientHeight });
+        const newDimensions = {
+          width: clientWidth || 800,
+          height: clientHeight || 600
+        };
+        console.log('New dimensions:', newDimensions);
+        setDimensions(newDimensions);
       }
     };
     
@@ -47,14 +152,17 @@ const KnowledgeGraph = ({ documentId, textContent, graphData, width = 800, heigh
 
   // 加载知识图谱数据
   useEffect(() => {
-    if (graphData) {
+    if (data) {
+      // 如果提供了data，直接使用
+      setInternalGraphData(data);
+    } else if (graphData) {
       // 如果提供了graphData，直接使用
       setInternalGraphData(graphData);
     } else if (documentId || textContent) {
       // 否则从API加载数据
       loadGraphData();
     }
-  }, [documentId, textContent, graphData]);
+  }, [documentId, textContent, graphData, data]);
 
   const loadGraphData = async () => {
     setLoading(true);
@@ -74,6 +182,24 @@ const KnowledgeGraph = ({ documentId, textContent, graphData, width = 800, heigh
           method: 'POST',
           data: { text: textContent }
         });
+      } else {
+        // 生成示例知识图谱数据
+        data = {
+          entities: [
+            { id: 1, name: 'Python', type: 'TECH', properties: {} },
+            { id: 2, name: 'JavaScript', type: 'TECH', properties: {} },
+            { id: 3, name: 'React', type: 'TECH', properties: {} },
+            { id: 4, name: 'D3.js', type: 'TECH', properties: {} },
+            { id: 5, name: '知识图谱', type: 'CONCEPT', properties: {} }
+          ],
+          relationships: [
+            { id: 1, source: 1, target: 5, type: '相关', properties: {} },
+            { id: 2, source: 2, target: 5, type: '相关', properties: {} },
+            { id: 3, source: 3, target: 2, type: '基于', properties: {} },
+            { id: 4, source: 4, target: 2, type: '基于', properties: {} },
+            { id: 5, source: 4, target: 5, type: '用于', properties: {} }
+          ]
+        };
       }
       
       setInternalGraphData(data);
@@ -84,241 +210,7 @@ const KnowledgeGraph = ({ documentId, textContent, graphData, width = 800, heigh
     }
   };
 
-  // 渲染知识图谱
-  useEffect(() => {
-    // 使用internalGraphData作为主要数据源，如果外部提供了graphData则优先使用
-    const dataToRender = graphData || internalGraphData;
-    if (!dataToRender || !svgRef.current) return;
 
-    const svg = d3.select(svgRef.current);
-    svg.selectAll("*").remove(); // 清空SVG
-
-    // 创建一个g元素用于容纳所有知识图谱元素，这样zoom变换可以应用到整个组
-    const g = svg.append("g")
-      .attr("class", "graph-content");
-
-    // 设置zoom行为
-    const zoom = d3.zoom()
-      .scaleExtent([0.1, 4]) // 设置缩放范围，最小0.1倍，最大4倍
-      .on("zoom", (event) => {
-        g.attr("transform", event.transform);
-      });
-
-    // 应用zoom行为到svg
-    svg.call(zoom);
-    
-    // 确保SVG容器可以捕获鼠标事件
-    svg.style("cursor", "grab")
-      .on("mousedown", () => svg.style("cursor", "grabbing"))
-      .on("mouseup", () => svg.style("cursor", "grab"))
-      .on("mouseleave", () => svg.style("cursor", "default"));
-
-    // 确保dataToRender有必要的字段，兼容nodes/links和entities/relationships两种格式
-    const entities = dataToRender.nodes || dataToRender.entities || [];
-    const relationships = dataToRender.links || dataToRender.relationships || [];
-    
-    // 检查数据是否为空
-    if (entities.length === 0 && relationships.length === 0) {
-      // 显示空状态消息
-      g.append("text")
-        .attr("x", dimensions.width / 2)
-        .attr("y", dimensions.height / 2)
-        .attr("text-anchor", "middle")
-        .attr("fill", "#999")
-        .text("暂无知识图谱数据");
-      return;
-    }
-    
-    // 预处理数据：为实体添加id和name字段
-    const processedEntities = entities.map((entity, index) => ({
-      ...entity,
-      id: entity.id || `entity_${entity.entity_id || index}`,
-      name: entity.label || entity.text || entity.name || `实体${index}`
-    }));
-    
-    // 预处理关系：确保source和target是对象引用
-    const entityMap = {};
-    processedEntities.forEach(entity => {
-      entityMap[entity.id] = entity;
-    });
-    
-    const processedRelationships = relationships.map(rel => {
-      let source = rel.source;
-      let target = rel.target;
-      
-      // 如果source/target是字符串ID，查找对应的实体对象
-      if (typeof source === 'string' || typeof source === 'number') {
-        source = entityMap[source] || null;
-      }
-      if (typeof target === 'string' || typeof target === 'number') {
-        target = entityMap[target] || null;
-      }
-      
-      return {
-        ...rel,
-        source,
-        target,
-        relation: rel.label || rel.relation || '相关'
-      };
-    }).filter(rel => rel.source && rel.target);
-    
-    // 创建力导向图模拟
-    const simulation = d3.forceSimulation(processedEntities)
-      .force("link", d3.forceLink(processedRelationships).id(d => d.id).distance(100))
-      .force("charge", d3.forceManyBody().strength(-300))
-      .force("center", d3.forceCenter(dimensions.width / 2, dimensions.height / 2))
-      .force("collision", d3.forceCollide().radius(50));
-
-    // 创建连线
-    const link = g.append("g")
-      .attr("class", "links")
-      .selectAll("line")
-      .data(processedRelationships)
-      .enter().append("line")
-      .attr("stroke", "#999")
-      .attr("stroke-opacity", 0.6)
-      .attr("stroke-width", d => Math.sqrt(d.confidence || 1));
-
-    // 创建节点
-    const node = g.append("g")
-      .attr("class", "nodes")
-      .selectAll("g")
-      .data(processedEntities)
-      .enter().append("g")
-      .call(d3.drag()
-        .on("start", (event) => {
-          // 防止拖拽节点时触发zoom
-          event.sourceEvent?.stopPropagation();
-          dragstarted(event, event.subject);
-        })
-        .on("drag", (event) => {
-          // 防止拖拽节点时触发zoom
-          event.sourceEvent?.stopPropagation();
-          dragged(event, event.subject);
-        })
-        .on("end", (event) => {
-          dragended(event, event.subject);
-        }));
-        
-    // 确保节点可以捕获点击事件而不触发zoom
-    node.on("mousedown", (event) => {
-      event.stopPropagation();
-    });
-    
-    node.on("click", (event) => {
-      event.stopPropagation();
-    });
-
-    // 节点圆圈
-    node.append("circle")
-      .attr("r", d => {
-        // 根据实体重要性调整大小
-        if (d.type === 'PERSON') return 10;
-        if (d.type === 'ORGANIZATION' || d.type === 'ORG') return 12;
-        if (d.type === 'LOCATION' || d.type === 'LOC') return 8;
-        return 6;
-      })
-      .attr("fill", d => {
-        // 根据实体类型设置颜色
-        switch(d.type) {
-          case 'PERSON': return '#ff6b6b';
-          case 'ORGANIZATION':
-          case 'ORG': return '#4ecdc4';
-          case 'LOCATION':
-          case 'LOC': return '#45b7d1';
-          case 'DATE': return '#96ceb4';
-          case 'MONEY': return '#feca57';
-          default: return '#a29bfe';
-        }
-      })
-      .attr("stroke", "#fff")
-      .attr("stroke-width", 1.5);
-
-    // 节点标签
-    node.append("text")
-      .text(d => d.name)
-      .attr("font-size", "10px")
-      .attr("dx", 12)
-      .attr("dy", ".35em")
-      .attr("fill", "#2c3e50");
-
-    // 关系标签
-    const linkText = g.append("g")
-      .attr("class", "link-labels")
-      .selectAll("text")
-      .data(processedRelationships)
-      .enter().append("text")
-      .text(d => d.relation || d.type)
-      .attr("font-size", "8px")
-      .attr("fill", "#7f8c8d");
-
-    // 更新位置
-    simulation.on("tick", () => {
-      link
-        .attr("x1", d => d.source.x)
-        .attr("y1", d => d.source.y)
-        .attr("x2", d => d.target.x)
-        .attr("y2", d => d.target.y);
-
-      node
-        .attr("transform", d => `translate(${d.x},${d.y})`);
-
-      linkText
-        .attr("x", d => (d.source.x + d.target.x) / 2)
-        .attr("y", d => (d.source.y + d.target.y) / 2);
-    });
-
-    // 拖拽函数
-    function dragstarted(event, d) {
-      if (!event.active) simulation.alphaTarget(0.3).restart();
-      d.fx = d.x;
-      d.fy = d.y;
-    }
-
-    function dragged(event, d) {
-      d.fx = event.x;
-      d.fy = event.y;
-    }
-
-    function dragended(event, d) {
-      if (!event.active) simulation.alphaTarget(0);
-      d.fx = null;
-      d.fy = null;
-    }
-
-    // 双击节点放大显示
-    node.on("dblclick", (event, d) => {
-      // 阻止事件冒泡，避免触发zoom的dblclick
-      event.stopPropagation();
-      event.preventDefault();
-      
-      // 放大显示该节点及其关联节点
-      const connectedNodes = new Set([d.id]);
-      relationships.forEach(rel => {
-        if (rel.source.id === d.id) connectedNodes.add(rel.target.id);
-        if (rel.target.id === d.id) connectedNodes.add(rel.source.id);
-      });
-
-      node.style("opacity", n => connectedNodes.has(n.id) ? 1 : 0.1);
-      link.style("opacity", l => 
-        connectedNodes.has(l.source.id) && connectedNodes.has(l.target.id) ? 1 : 0.1
-      );
-    });
-
-    // 双击空白处重置视图
-    g.on("dblclick", (event) => {
-      // 阻止事件冒泡和默认行为
-      event.stopPropagation();
-      event.preventDefault();
-      
-      node.style("opacity", 1);
-      link.style("opacity", 1);
-    });
-    
-    // 确保SVG的双击不会触发默认缩放行为
-    svg.on("dblclick.zoom", null);
-
-  }, [graphData, dimensions]);
 
   if (loading) {
     return (
@@ -357,7 +249,10 @@ const KnowledgeGraph = ({ documentId, textContent, graphData, width = 800, heigh
   }
 
   // 使用internalGraphData作为主要数据源，如果外部提供了graphData则优先使用
-  const dataToRender = graphData || internalGraphData;
+  const dataToRender = internalGraphData;
+  
+  console.log('KnowledgeGraph dataToRender:', dataToRender);
+  console.log('KnowledgeGraph dimensions:', dimensions);
   
   if (!dataToRender) {
     return (
@@ -369,34 +264,52 @@ const KnowledgeGraph = ({ documentId, textContent, graphData, width = 800, heigh
     );
   }
 
-  // 获取实际的实体类型
+  /**
+   * 获取实际的实体类型
+   *
+   * @returns {Array} 实体类型列表
+   */
   const getActualEntityTypes = () => {
     if (!dataToRender) return [];
-    
+
     const entities = dataToRender.nodes || dataToRender.entities || [];
-    const entityTypes = [...new Set(entities.map(entity => entity.type || entity.group || '未知'))];
-    
-    // 实体类型映射到中文显示名称
-    const typeMapping = {
-      'PERSON': '人物',
-      'ORG': '组织',
-      'ORGANIZATION': '组织',
-      'LOC': '地点',
-      'LOCATION': '地点',
-      'TECH': '技术术语',
-      'PRODUCT': '产品',
-      'EVENT': '事件',
-      'CONCEPT': '概念',
-      'DATE': '日期',
-      'MONEY': '金额',
-      '未知': '未知类型'
-    };
-    
-    return entityTypes.map(type => ({
-      type,
-      displayName: typeMapping[type] || type,
-      cssClass: type.toLowerCase()
-    }));
+    const entityTypes = [...new Set(entities.map(entity => entity.type || entity.group || 'default'))];
+
+    return entityTypes.map(type => {
+      const config = getEntityConfig(type);
+      return {
+        type,
+        displayName: config.label,
+        cssClass: type.toLowerCase(),
+        icon: config.icon,
+        color: config.color
+      };
+    });
+  };
+
+  // 缩放控制函数
+  const handleZoomIn = () => {
+    if (svgRef.current) {
+      d3.select(svgRef.current).transition().call(
+        d3.zoom().scaleBy, 1.2
+      );
+    }
+  };
+
+  const handleZoomOut = () => {
+    if (svgRef.current) {
+      d3.select(svgRef.current).transition().call(
+        d3.zoom().scaleBy, 0.8
+      );
+    }
+  };
+
+  const handleZoomReset = () => {
+    if (svgRef.current) {
+      d3.select(svgRef.current).transition().call(
+        d3.zoom().transform, d3.zoomIdentity
+      );
+    }
   };
 
   return (
@@ -415,25 +328,26 @@ const KnowledgeGraph = ({ documentId, textContent, graphData, width = 800, heigh
       
       <div className="graph-legend">
         {getActualEntityTypes().map(entityType => (
-          <div key={entityType.type} className="legend-item">
-            <span className={`legend-color ${entityType.cssClass}`}></span>
+          <div key={entityType.type} className="legend-item" title={entityType.displayName}>
+            <span className="legend-icon">{entityType.icon}</span>
+            <span className={`legend-color ${entityType.cssClass}`} style={{ background: entityType.color }}></span>
             <span>{entityType.displayName}</span>
           </div>
         ))}
       </div>
 
-      <svg
-        ref={svgRef}
-        width={dimensions.width}
-        height={dimensions.height}
-        className="knowledge-graph-svg"
-        style={{ 
-          minWidth: '400px', 
-          minHeight: '400px',
-          width: responsive ? '100%' : undefined,
-          height: responsive ? '100%' : undefined
-        }}
-      />
+      <div className="knowledge-graph-content" ref={graphContentRef} style={{
+        minWidth: '400px',
+        minHeight: '600px',
+        width: responsive ? '100%' : dimensions.width,
+        height: responsive ? '100%' : dimensions.height
+      }}>
+        <SimpleKnowledgeGraph 
+          data={dataToRender} 
+          width={dimensions.width} 
+          height={dimensions.height} 
+        />
+      </div>
     </div>
   );
 };

@@ -134,7 +134,7 @@ class EntityExtractionRequest(BaseModel):
     threshold: Optional[float] = 0.7  # 置信度阈值
     use_llm: Optional[bool] = True  # 是否使用LLM提取
     model_id: Optional[str] = None  # 模型ID
-    model_config_data: Optional[Dict[str, Any]] = None  # 模型配置
+    model_configuration: Optional[Dict[str, Any]] = None  # 模型配置
 
     class Config:
         extra = "ignore"  # 忽略额外的字段，提高兼容性
@@ -291,6 +291,7 @@ async def extract_entities(
             relationships = knowledge_graph_service.get_document_relationships(db, request.document_id)
 
             logger.info(f"[extract_entities] 返回结果: entities={len(entities)}, relationships={len(relationships)}")
+            logger.info(f"[extract_entities] 前5个实体: {entities[:5]}")
 
             return {
                 "entities": entities,

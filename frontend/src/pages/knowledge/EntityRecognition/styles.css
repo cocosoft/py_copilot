@@ -81,6 +81,9 @@
   padding: 16px 24px;
   background: #ffffff;
   border-bottom: 1px solid #f0f0f0;
+  min-height: 80px;
+  max-height: 120px;
+  overflow: hidden;
 }
 
 .stat-card {
@@ -125,9 +128,11 @@
 /* ==================== 文档选择区域 ==================== */
 
 .document-selection {
-  padding: 16px 24px;
+  padding: 12px 16px;
   background: #ffffff;
   border-bottom: 1px solid #f0f0f0;
+  max-height: 240px;
+  overflow-y: auto;
 }
 
 .document-selection h4 {
@@ -241,8 +246,8 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 16px;
-  max-height: 120px;
+  margin-bottom: 12px;
+  max-height: 80px;
   overflow-y: auto;
 }
 
@@ -296,11 +301,12 @@
 
 /* 提取进度显示 */
 .extraction-progress {
-  margin-top: 16px;
-  padding: 12px 16px;
+  margin-top: 12px;
+  padding: 8px 12px;
   background: #f6ffed;
   border: 1px solid #b7eb8f;
-  border-radius: 8px;
+  border-radius: 6px;
+  font-size: 12px;
 }
 
 .progress-bar {
@@ -347,10 +353,11 @@
 .filter-bar {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 12px 24px;
+  gap: 12px;
+  padding: 8px 16px;
   background: #ffffff;
   border-bottom: 1px solid #f0f0f0;
+  flex-wrap: wrap;
 }
 
 .search-box {
@@ -408,10 +415,11 @@
 .batch-actions-bar {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 12px 24px;
+  gap: 12px;
+  padding: 8px 16px;
   background: #ffffff;
   border-bottom: 1px solid #f0f0f0;
+  flex-wrap: wrap;
 }
 
 .batch-checkbox {
@@ -439,7 +447,8 @@
 .entities-list-container {
   flex: 1;
   overflow: hidden;
-  padding: 16px 24px;
+  padding: 12px 16px;
+  min-height: 300px;
 }
 
 /* ==================== 实体项 ==================== */
@@ -447,12 +456,12 @@
 .entity-item {
   display: flex;
   align-items: flex-start;
-  gap: 16px;
-  padding: 16px;
+  gap: 12px;
+  padding: 12px;
   background: #ffffff;
-  border-radius: 8px;
+  border-radius: 6px;
   border: 1px solid #f0f0f0;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   transition: all 0.2s ease;
 }
 
@@ -727,12 +736,29 @@
   .stats-cards {
     grid-template-columns: repeat(3, 1fr);
     padding: 12px 16px;
+    gap: 8px;
+  }
+
+  .stat-value {
+    font-size: 20px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+  }
+
+  .document-selection {
+    max-height: 200px;
+  }
+
+  .document-list {
+    max-height: 60px;
   }
 
   .filter-bar {
     flex-direction: column;
     align-items: stretch;
-    padding: 12px 16px;
+    padding: 8px 16px;
   }
 
   .search-box {
@@ -747,9 +773,15 @@
     flex: 1;
   }
 
+  .batch-actions-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .entity-item {
     flex-direction: column;
     gap: 12px;
+    padding: 10px;
   }
 
   .entity-actions {
@@ -764,5 +796,53 @@
   .edit-input,
   .edit-select {
     width: 100%;
+  }
+
+  .entities-list-container {
+    padding: 8px 16px;
+  }
+}
+
+/* 针对更小屏幕的优化 */
+@media (max-width: 480px) {
+  .stats-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .selection-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .header-actions {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .model-info {
+    width: 100%;
+    text-align: center;
+  }
+
+  .document-list-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .doc-search {
+    max-width: none;
+  }
+
+  .selection-actions {
+    justify-content: space-between;
+  }
+
+  .entity-meta {
+    flex-direction: column;
+    gap: 4px;
   }
 }

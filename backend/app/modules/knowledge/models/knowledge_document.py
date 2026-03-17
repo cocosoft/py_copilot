@@ -103,6 +103,9 @@ class DocumentEntity(Base):
     confidence = Column(Float, nullable=False, default=0.0)  # 识别置信度
     created_at = Column(DateTime, nullable=False, default=func.now())  # 创建时间
     
+    # 实体确认状态：pending(待确认), confirmed(已确认), rejected(已拒绝), modified(已修改)
+    status = Column(String(20), nullable=False, default='pending', index=True)
+    
     # 层级关联：关联到KB级实体
     kb_entity_id = Column(Integer, ForeignKey("kb_entities.id"), nullable=True, index=True)
     # 层级关联：关联到全局级实体

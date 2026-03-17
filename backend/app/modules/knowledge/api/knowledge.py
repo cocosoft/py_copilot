@@ -3,6 +3,7 @@ import logging
 
 from fastapi import APIRouter, UploadFile, File, HTTPException, Query, Depends, BackgroundTasks
 from fastapi.responses import FileResponse
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
@@ -1637,6 +1638,42 @@ async def get_unprocessed_documents(
         raise HTTPException(status_code=500, detail=f"获取未处理文档列表失败: {str(e)}")
 
 
+def _get_processing_status_sync(knowledge_base_id: int, db: Session):
+    """
+    同步获取处理状态的辅助函数
+    
+    在线程池中执行数据库查询，避免阻塞事件循环
+    """
+    # 检查知识库是否存在
+    knowledge_base = knowledge_service.get_knowledge_base(knowledge_base_id, db)
+    if not knowledge_base:
+        raise HTTPException(status_code=404, detail="知识库不存在")
+
+    # 获取知识库的文档统计
+    total_docs = db.query(KnowledgeDocumentModel).filter(
+        KnowledgeDocumentModel.knowledge_base_id == knowledge_base_id
+    ).count()
+
+    vectorized_docs = db.query(KnowledgeDocumentModel).filter(
+        KnowledgeDocumentModel.knowledge_base_id == knowledge_base_id,
+        KnowledgeDocumentModel.is_vectorized == 1
+    ).count()
+
+    unprocessed_docs = db.query(KnowledgeDocumentModel).filter(
+        KnowledgeDocumentModel.knowledge_base_id == knowledge_base_id,
+        (KnowledgeDocumentModel.is_vectorized == 0) |
+        (KnowledgeDocumentModel.content == "") |
+        (KnowledgeDocumentModel.content.is_(None))
+    ).count()
+
+    return {
+        "knowledge_base": knowledge_base,
+        "total_docs": total_docs,
+        "vectorized_docs": vectorized_docs,
+        "unprocessed_docs": unprocessed_docs
+    }
+
+
 @router.get("/knowledge-bases/{knowledge_base_id}/processing-status")
 async def get_processing_status(
     knowledge_base_id: int,
@@ -1659,40 +1696,21 @@ async def get_processing_status(
         处理状态信息
     """
     try:
-        # 检查知识库是否存在
-        knowledge_base = knowledge_service.get_knowledge_base(knowledge_base_id, db)
-        if not knowledge_base:
-            raise HTTPException(status_code=404, detail="知识库不存在")
-
-        # 获取队列状态
+        # 获取队列状态（非阻塞操作）
         queue_status = document_processing_queue.get_queue_status()
 
-        # 获取知识库的文档统计
-        total_docs = db.query(KnowledgeDocumentModel).filter(
-            KnowledgeDocumentModel.knowledge_base_id == knowledge_base_id
-        ).count()
-
-        vectorized_docs = db.query(KnowledgeDocumentModel).filter(
-            KnowledgeDocumentModel.knowledge_base_id == knowledge_base_id,
-            KnowledgeDocumentModel.is_vectorized == 1
-        ).count()
-
-        unprocessed_docs = db.query(KnowledgeDocumentModel).filter(
-            KnowledgeDocumentModel.knowledge_base_id == knowledge_base_id,
-            (KnowledgeDocumentModel.is_vectorized == 0) |
-            (KnowledgeDocumentModel.content == "") |
-            (KnowledgeDocumentModel.content.is_(None))
-        ).count()
+        # 在线程池中执行数据库查询，避免阻塞事件循环
+        result = await run_in_threadpool(_get_processing_status_sync, knowledge_base_id, db)
 
         return {
             "success": True,
             "knowledge_base_id": knowledge_base_id,
-            "knowledge_base_name": knowledge_base.name,
+            "knowledge_base_name": result["knowledge_base"].name,
             "statistics": {
-                "total_documents": total_docs,
-                "vectorized_documents": vectorized_docs,
-                "unprocessed_documents": unprocessed_docs,
-                "vectorization_rate": round(vectorized_docs / total_docs * 100, 2) if total_docs > 0 else 0
+                "total_documents": result["total_docs"],
+                "vectorized_documents": result["vectorized_docs"],
+                "unprocessed_documents": result["unprocessed_docs"],
+                "vectorization_rate": round(result["vectorized_docs"] / result["total_docs"] * 100, 2) if result["total_docs"] > 0 else 0
             },
             "queue_status": {
                 "queue_size": queue_status["queue_size"],

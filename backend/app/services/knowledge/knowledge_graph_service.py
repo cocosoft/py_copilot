@@ -79,19 +79,32 @@ class KnowledgeGraphService:
             else:
                 logger.info(f"[实体提取] 文档 {document.id} 使用已提供的实体: {len(entities)} 个实体, {len(relationships)} 个关系")
 
-            # 存储实体到数据库
+            # 存储实体到数据库，避免重复
             stored_entities = []
+            # 检查是否已经存在相同的实体
+            existing_entities = db.query(DocumentEntity).filter(
+                DocumentEntity.document_id == document.id
+            ).all()
+            # 创建现有实体的映射，键为 (实体文本, 实体类型)
+            existing_entity_map = {(e.entity_text, e.entity_type): e for e in existing_entities}
+            
             for entity_info in entities:
-                entity = DocumentEntity(
-                    document_id=document.id,
-                    entity_text=entity_info['text'],
-                    entity_type=entity_info['type'],
-                    start_pos=entity_info['start_pos'],
-                    end_pos=entity_info['end_pos'],
-                    confidence=entity_info.get('confidence', 0.7)
-                )
-                db.add(entity)
-                stored_entities.append(entity)
+                entity_key = (entity_info['text'], entity_info['type'])
+                # 只有当该实体不存在时才添加
+                if entity_key not in existing_entity_map:
+                    entity = DocumentEntity(
+                        document_id=document.id,
+                        entity_text=entity_info['text'],
+                        entity_type=entity_info['type'],
+                        start_pos=entity_info['start_pos'],
+                        end_pos=entity_info['end_pos'],
+                        confidence=entity_info.get('confidence', 0.7)
+                    )
+                    db.add(entity)
+                    stored_entities.append(entity)
+                else:
+                    # 如果实体已存在，添加到存储列表中（不重复添加到数据库）
+                    stored_entities.append(existing_entity_map[entity_key])
             
             db.flush()  # 刷新以获取实体ID
             
@@ -155,6 +168,9 @@ class KnowledgeGraphService:
                     entity_map[key] = entity
             entities = list(entity_map.values())
         
+        logger.info(f"[get_document_entities] 提取到 {len(entities)} 个实体")
+        if entities:
+            logger.info(f"[get_document_entities] 前5个实体: {entities[:5]}")
         return [
             {
                 "id": entity.id,

@@ -380,7 +380,7 @@ export const getProcessingQueueStatus = async () => {
  * @param {string[]} params.entity_types - 实体类型列表
  * @param {number} params.threshold - 置信度阈值
  * @param {number} params.model_id - 模型ID
- * @param {Object} params.model_config - 模型配置
+ * @param {Object} params.model_configuration - 模型配置
  */
 export const extractEntities = async (params) => {
     // 兼容旧版调用方式（直接传入字符串）
@@ -388,10 +388,14 @@ export const extractEntities = async (params) => {
         ? { text: params }
         : params;
     
+    console.log('提取实体请求参数:', requestData);
+    
     const response = await request('/v1/knowledge-graph/extract-entities', {
         method: 'POST',
         data: requestData
     });
+    
+    console.log('提取实体响应:', response);
     return response;
 };
 
@@ -494,6 +498,61 @@ export const getDocumentEntities = async (documentId) => {
  */
 export const getKnowledgeBaseEntities = async (knowledgeBaseId) => {
   const response = await request(`/v1/knowledge-graph/knowledge-bases/${knowledgeBaseId}/entities`, {
+    method: 'GET'
+  });
+  return response;
+};
+
+/**
+ * 批量更新实体状态
+ *
+ * @param {number[]} entityIds - 实体ID数组
+ * @param {string} status - 目标状态 (pending, confirmed, rejected, modified)
+ * @returns {Promise<Object>} 更新结果
+ */
+export const batchUpdateEntityStatus = async (entityIds, status) => {
+  const response = await request('/v1/entity-maintenance/batch-update-status', {
+    method: 'POST',
+    data: {
+      entity_ids: entityIds,
+      status: status
+    }
+  });
+  return response;
+};
+
+/**
+ * 更新单个实体状态
+ *
+ * @param {number} entityId - 实体ID
+ * @param {string} status - 目标状态 (pending, confirmed, rejected, modified)
+ * @returns {Promise<Object>} 更新结果
+ */
+export const updateEntityStatus = async (entityId, status) => {
+  const response = await request(`/v1/entity-maintenance/document-entity/${entityId}/status`, {
+    method: 'PUT',
+    data: { status }
+  });
+  return response;
+};
+
+/**
+ * 从实体维护API获取文档实体列表
+ *
+ * @param {number} documentId - 文档ID
+ * @param {Object} options - 查询选项
+ * @param {string} options.entityType - 实体类型过滤
+ * @param {number} options.page - 页码
+ * @param {number} options.pageSize - 每页数量
+ * @returns {Promise<Object>} 实体列表
+ */
+export const getDocumentEntitiesFromMaintenance = async (documentId, options = {}) => {
+  const { entityType, page = 1, pageSize = 200 } = options;
+  let url = `/v1/entity-maintenance/document-entities/${documentId}?page=${page}&page_size=${pageSize}`;
+  if (entityType) {
+    url += `&entity_type=${encodeURIComponent(entityType)}`;
+  }
+  const response = await request(url, {
     method: 'GET'
   });
   return response;

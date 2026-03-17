@@ -52,6 +52,12 @@ class EntityCreateRequest(BaseModel):
     confidence: float = 1.0
 
 
+class EntityStatusUpdateRequest(BaseModel):
+    """实体状态更新请求"""
+    entity_ids: List[int]
+    status: str  # 'pending', 'confirmed', 'rejected', 'modified'
+
+
 # ============ 实体查询接口 ============
 
 @router.get("/document-entities/{document_id}")
@@ -59,7 +65,7 @@ def get_document_entities(
     document_id: int,
     entity_type: Optional[str] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=1000),
     db: Session = Depends(get_db)
 ):
     """
@@ -91,6 +97,7 @@ def get_document_entities(
                 "start_pos": e.start_pos,
                 "end_pos": e.end_pos,
                 "confidence": e.confidence,
+                "status": e.status,
                 "kb_entity_id": e.kb_entity_id,
                 "global_entity_id": e.global_entity_id
             }
@@ -192,6 +199,7 @@ def get_entity_detail(
             "start_pos": entity.start_pos,
             "end_pos": entity.end_pos,
             "confidence": entity.confidence,
+            "status": entity.status,
             "document_id": entity.document_id,
             "document_title": document.title if document else None,
             "kb_entity_id": entity.kb_entity_id,
@@ -552,3 +560,122 @@ def get_entity_statistics(
             entity_type: count for entity_type, count in type_stats
         }
     }
+
+
+@router.post("/batch-update-status")
+def batch_update_entity_status(
+    request: EntityStatusUpdateRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    批量更新文档实体状态
+
+    用于实体识别页面的批量确认、批量拒绝等操作
+
+    Args:
+        request: 包含实体ID列表和目标状态
+
+    Returns:
+        更新结果统计
+    """
+    try:
+        # 验证状态值
+        valid_statuses = ['pending', 'confirmed', 'rejected', 'modified']
+        if request.status not in valid_statuses:
+            raise HTTPException(
+                status_code=400,
+                detail=f"无效的状态值 '{request.status}'，有效值为: {', '.join(valid_statuses)}"
+            )
+
+        if not request.entity_ids:
+            return {
+                "success": True,
+                "updated_count": 0,
+                "message": "没有需要更新的实体"
+            }
+
+        # 查询存在的实体
+        existing_entities = db.query(DocumentEntity).filter(
+            DocumentEntity.id.in_(request.entity_ids)
+        ).all()
+
+        existing_ids = {e.id for e in existing_entities}
+        not_found_ids = set(request.entity_ids) - existing_ids
+
+        # 更新实体状态
+        updated_count = db.query(DocumentEntity).filter(
+            DocumentEntity.id.in_(request.entity_ids)
+        ).update({
+            DocumentEntity.status: request.status
+        }, synchronize_session=False)
+
+        db.commit()
+
+        result = {
+            "success": True,
+            "updated_count": updated_count,
+            "requested_count": len(request.entity_ids),
+            "status": request.status
+        }
+
+        if not_found_ids:
+            result["not_found_ids"] = list(not_found_ids)
+            result["warning"] = f"{len(not_found_ids)} 个实体未找到"
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"批量更新实体状态失败: {str(e)}")
+
+
+@router.put("/document-entity/{entity_id}/status")
+def update_entity_status(
+    entity_id: int,
+    status: str,
+    db: Session = Depends(get_db)
+):
+    """
+    更新单个文档实体状态
+
+    Args:
+        entity_id: 实体ID
+        status: 目标状态 (pending, confirmed, rejected, modified)
+
+    Returns:
+        更新结果
+    """
+    try:
+        # 验证状态值
+        valid_statuses = ['pending', 'confirmed', 'rejected', 'modified']
+        if status not in valid_statuses:
+            raise HTTPException(
+                status_code=400,
+                detail=f"无效的状态值 '{status}'，有效值为: {', '.join(valid_statuses)}"
+            )
+
+        entity = db.query(DocumentEntity).filter(DocumentEntity.id == entity_id).first()
+        if not entity:
+            raise HTTPException(status_code=404, detail="实体不存在")
+
+        entity.status = status
+        db.commit()
+
+        return {
+            "success": True,
+            "message": "实体状态已更新",
+            "entity": {
+                "id": entity.id,
+                "text": entity.entity_text,
+                "type": entity.entity_type,
+                "status": entity.status
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"更新实体状态失败: {str(e)}")
