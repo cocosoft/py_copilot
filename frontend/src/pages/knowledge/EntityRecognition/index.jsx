@@ -96,6 +96,11 @@ const EntityRecognition = () => {
   // 配置弹窗状态
   const [configModalVisible, setConfigModalVisible] = useState(false);
 
+  // 监听 configModalVisible 状态变化
+  useEffect(() => {
+    console.log('configModalVisible 状态变化:', configModalVisible);
+  }, [configModalVisible]);
+
   // 文档搜索状态
   const [docSearchQuery, setDocSearchQuery] = useState('');
 
@@ -793,7 +798,12 @@ const EntityRecognition = () => {
               variant="ghost"
               size="small"
               icon={<FiSettings />}
-              onClick={() => setConfigModalVisible(true)}
+              onClick={() => {
+                console.log('实体配置按钮被点击');
+                console.log('当前 configModalVisible 状态:', configModalVisible);
+                setConfigModalVisible(true);
+                console.log('设置后 configModalVisible 状态:', true);
+              }}
               className="config-btn"
             >
               实体配置
@@ -985,7 +995,7 @@ const EntityRecognition = () => {
 
       {/* 实体配置弹窗 */}
       <EntityConfigModal
-        visible={configModalVisible}
+        isOpen={configModalVisible}
         onClose={() => setConfigModalVisible(false)}
         knowledgeBaseId={currentKnowledgeBase?.id}
       />

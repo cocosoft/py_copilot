@@ -34,8 +34,15 @@ const DEFAULT_COLORS = [
 /**
  * 实体配置弹窗组件
  */
-const EntityConfigModal = ({ visible, onClose, knowledgeBaseId }) => {
-  const [activeTab, setActiveTab] = useState('types');
+const EntityConfigModal = ({ isOpen, onClose, knowledgeBaseId }) => {
+  console.log('EntityConfigModal 组件渲染, isOpen:', isOpen, 'knowledgeBaseId:', knowledgeBaseId);
+  
+  // 监听 isOpen 属性变化
+  React.useEffect(() => {
+    console.log('EntityConfigModal isOpen 属性变化:', isOpen);
+  }, [isOpen]);
+    
+    const [activeTab, setActiveTab] = useState('types');
   const [loading, setLoading] = useState(false);
 
   // 实体类型状态
@@ -63,13 +70,16 @@ const EntityConfigModal = ({ visible, onClose, knowledgeBaseId }) => {
    * 加载实体类型列表
    */
   const loadEntityTypes = useCallback(async () => {
+    console.log('开始加载实体类型');
     setLoading(true);
     try {
       const response = await entityConfigApi.getEntityTypes();
-      const types = Object.entries(response.entity_types || {}).map(([key, value]) => ({
+      console.log('API 响应:', response);
+      const types = Object.entries(response.data.entity_types || {}).map(([key, value]) => ({
         key,
         ...value,
       }));
+      console.log('处理后的实体类型:', types);
       setEntityTypes(types);
       
       if (types.length > 0 && !selectedEntityType) {
@@ -77,11 +87,12 @@ const EntityConfigModal = ({ visible, onClose, knowledgeBaseId }) => {
         setSelectedDictType(types[0].key);
       }
     } catch (error) {
+      console.error('加载实体类型失败:', error);
       message.error('加载实体类型失败');
     } finally {
       setLoading(false);
     }
-  }, [selectedEntityType]);
+  }, []);
 
   /**
    * 加载提取规则
@@ -92,7 +103,7 @@ const EntityConfigModal = ({ visible, onClose, knowledgeBaseId }) => {
     setLoading(true);
     try {
       const response = await entityConfigApi.getExtractionRules(entityType);
-      setExtractionRules(response.rules || []);
+      setExtractionRules(response.data.rules || []);
     } catch (error) {
       message.error('加载提取规则失败');
     } finally {
@@ -109,7 +120,7 @@ const EntityConfigModal = ({ visible, onClose, knowledgeBaseId }) => {
     setLoading(true);
     try {
       const response = await entityConfigApi.getDictionary(entityType);
-      setDictionary(response.dictionary || []);
+      setDictionaryTerms(response.data.terms || []);
     } catch (error) {
       message.error('加载词典失败');
     } finally {
@@ -121,10 +132,10 @@ const EntityConfigModal = ({ visible, onClose, knowledgeBaseId }) => {
    * 初始化加载
    */
   useEffect(() => {
-    if (visible) {
+    if (isOpen) {
       loadEntityTypes();
     }
-  }, [visible, loadEntityTypes]);
+  }, [isOpen, loadEntityTypes]);
 
   /**
    * 切换实体类型时加载规则和词典
@@ -265,7 +276,7 @@ const EntityConfigModal = ({ visible, onClose, knowledgeBaseId }) => {
     setTesting(true);
     try {
       const response = await entityConfigApi.testEntityExtraction(testText);
-      setTestResults(response);
+      setTestResults(response.data);
     } catch (error) {
       message.error('测试失败');
     } finally {
@@ -654,12 +665,23 @@ const EntityConfigModal = ({ visible, onClose, knowledgeBaseId }) => {
 
   return (
     <Modal
-      isOpen={visible}
+      isOpen={isOpen}
       onClose={onClose}
       title="实体识别配置"
       size="large"
     >
       <div className="entity-config-modal">
+        {/* 提示信息 */}
+        <div className="config-header" style={{ backgroundColor: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: '4px', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px' }}>
+            <span style={{ fontSize: '16px' }}>💡</span>
+            <div>
+              <p style={{ margin: 0, fontSize: '14px', color: '#262626' }}>配置说明</p>
+              <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#595959' }}>所有配置会实时保存，无需手动点击保存按钮</p>
+            </div>
+          </div>
+        </div>
+        
         {/* Tab 导航 */}
         <div className="config-tabs">
           {TABS.map(tab => (

@@ -5,7 +5,7 @@ import { request } from '../apiUtils';
  */
 
 // API基础路径
-const BASE_PATH = '/v1/knowledge/entity-config';
+const BASE_PATH = '/v1/entity-config';
 
 // 获取所有实体类型配置
 export const getEntityTypes = async () => {
@@ -67,17 +67,15 @@ export const testEntityExtraction = async (text) => {
 
 // 导出配置
 export const exportConfig = async (exportPath) => {
-  return request(`${BASE_PATH}/export-config`, { 
-    method: 'POST', 
-    data: { export_path: exportPath } 
+  return request(`${BASE_PATH}/export-config?export_path=${encodeURIComponent(exportPath)}`, { 
+    method: 'POST'
   });
 };
 
 // 导入配置
 export const importConfig = async (importPath) => {
-  return request(`${BASE_PATH}/import-config`, { 
-    method: 'POST', 
-    data: { import_path: importPath } 
+  return request(`${BASE_PATH}/import-config?import_path=${encodeURIComponent(importPath)}`, { 
+    method: 'POST'
   });
 };
 

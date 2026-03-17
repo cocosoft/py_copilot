@@ -100,13 +100,35 @@ const Modal = ({
             animate="visible"
             exit="exit"
             onClick={handleOverlayClick}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.7)', // 更暗的背景
+              zIndex: 9999, // 更高的z-index
+            }}
           />
 
           {/* Modal */}
-          <div className="flex min-h-full items-center justify-center p-4">
+          <div 
+            className="flex min-h-full items-center justify-center p-4"
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 10000, // 更高的z-index
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
             <motion.div
               className={classNames(
-                'relative w-full bg-white rounded-xl shadow-2xl',
+                'relative w-full rounded-xl shadow-2xl',
                 sizeClasses[size],
                 className
               )}
@@ -114,11 +136,19 @@ const Modal = ({
               initial="hidden"
               animate="visible"
               exit="exit"
+              style={{
+                position: 'relative',
+                zIndex: 10001, // 更高的z-index
+                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)', // 更明显的阴影
+                animation: 'modal-appear 0.3s ease-out', // 添加动画
+                backgroundColor: '#ffffff', // 确保背景为白色
+                border: '1px solid #e8e8e8', // 添加边框
+              }}
               {...props}
             >
               {/* Header */}
               {(title || showCloseButton) && (
-                <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between p-6 border-b border-gray-200" style={{ backgroundColor: '#ffffff' }}>
                   {title && (
                     <h2 className="text-xl font-semibold text-gray-900">
                       {title}
@@ -126,37 +156,25 @@ const Modal = ({
                   )}
                   {showCloseButton && (
                     <Button
-                      variant="ghost"
+                      variant="danger"
                       size="small"
                       onClick={onClose}
                       className="ml-4"
                     >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M6 18L18 6M6 6l12 12"
-                        />
-                      </svg>
+                      关闭
                     </Button>
                   )}
                 </div>
               )}
 
               {/* Content */}
-              <div className="p-6">
+              <div className="p-6" style={{ backgroundColor: '#ffffff' }}>
                 {children}
               </div>
 
               {/* Footer */}
               {footer && (
-                <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+                <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200" style={{ backgroundColor: '#ffffff' }}>
                   {footer}
                 </div>
               )}
