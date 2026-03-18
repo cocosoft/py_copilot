@@ -70,7 +70,7 @@ class ChromaService:
     def _check_health(self) -> bool:
         """检查ChromaDB服务是否可用"""
         try:
-            response = self.session.get(f"{self.server_url}/health", timeout=10)
+            response = self.session.get(f"{self.server_url}/health", timeout=30)
             if response.status_code == 200:
                 data = response.json()
                 self.available = data.get("client_initialized", False)

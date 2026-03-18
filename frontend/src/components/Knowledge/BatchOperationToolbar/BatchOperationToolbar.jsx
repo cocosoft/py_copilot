@@ -19,15 +19,15 @@ import './BatchOperationToolbar.css';
  *
  * @param {Object} props - 组件属性
  * @param {Function} props.onBatchVectorizeStart - 批量向量化开始回调，接收文档ID数组
+ * @param {Function} props.onRefresh - 刷新文档列表回调
  */
-const BatchOperationToolbar = ({ onBatchVectorizeStart }) => {
+const BatchOperationToolbar = ({ onBatchVectorizeStart, onRefresh }) => {
   const {
     documents,
     selectedDocuments,
     toggleDocumentSelection,
     setSelectedDocuments,
     isProcessing,
-    fetchDocuments,
     currentKnowledgeBase,
   } = useKnowledgeStore();
 
@@ -103,36 +103,37 @@ const BatchOperationToolbar = ({ onBatchVectorizeStart }) => {
     }
 
     setIsVectorizing(true);
-    try {
-      // 获取选中文档
-      const selectedDocs = documents.filter(doc =>
-        selectedDocuments.some(id => String(id) === String(doc.id))
-      );
+    
+    // 获取选中文档
+    const selectedDocs = documents.filter(doc =>
+      selectedDocuments.some(id => String(id) === String(doc.id))
+    );
 
-      // 依次处理每个文档
+    // 先显示进度面板，让用户立即看到反馈
+    if (onBatchVectorizeStart) {
+      console.log('[BatchVectorize] 立即显示进度面板:', selectedDocs);
+      onBatchVectorizeStart(selectedDocs);
+    }
+
+    // 清空选择
+    setSelectedDocuments([]);
+
+    // 异步处理文档，不阻塞UI
+    (async () => {
       let successCount = 0;
       let errorCount = 0;
-      const successfullyStartedDocs = [];
 
       for (const doc of selectedDocs) {
         try {
           const docId = doc.uuid || doc.id;
           console.log('[BatchVectorize] 启动文档处理:', docId);
-          console.log('[BatchVectorize] 调用processDocument API...');
           const result = await processDocument(docId);
           console.log('[BatchVectorize] 文档处理启动结果:', result);
           successCount++;
-          successfullyStartedDocs.push(doc);
         } catch (error) {
           console.error('[BatchVectorize] 向量化失败:', doc.id, error);
           errorCount++;
         }
-      }
-
-      // 只有在API调用成功后才显示进度面板
-      if (successfullyStartedDocs.length > 0 && onBatchVectorizeStart) {
-        console.log('[BatchVectorize] 调用父组件回调，显示进度面板:', successfullyStartedDocs);
-        onBatchVectorizeStart(successfullyStartedDocs);
       }
 
       if (successCount > 0) {
@@ -142,18 +143,13 @@ const BatchOperationToolbar = ({ onBatchVectorizeStart }) => {
         showWarning(`${errorCount} 个文档向量化失败`);
       }
 
-      // 清空选择
-      setSelectedDocuments([]);
-
       // 刷新文档列表
-      if (currentKnowledgeBase) {
-        fetchDocuments(currentKnowledgeBase.id);
+      if (onRefresh) {
+        onRefresh();
       }
-    } catch (error) {
-      showError('批量向量化失败：' + error.message);
-    } finally {
+      
       setIsVectorizing(false);
-    }
+    })();
   };
 
   /**
@@ -192,8 +188,8 @@ const BatchOperationToolbar = ({ onBatchVectorizeStart }) => {
       setSelectedDocuments([]);
 
       // 刷新文档列表
-      if (currentKnowledgeBase) {
-        fetchDocuments(currentKnowledgeBase.id);
+      if (onRefresh) {
+        onRefresh();
       }
     } catch (error) {
       showError('批量删除失败：' + error.message);

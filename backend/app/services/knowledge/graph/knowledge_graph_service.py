@@ -31,21 +31,47 @@ class KnowledgeGraphService:
             self._text_processor = AdvancedTextProcessor(None, None)
         return self._text_processor
 
-    def _get_text_processor(self, db: Session = None, knowledge_base_id: int = None):
+    def _get_text_processor(self, db: Session = None, knowledge_base_id: int = None, model_id: str = None):
         """获取文本处理器，如果没有db则使用默认处理器
         
         Args:
             db: 数据库会话
             knowledge_base_id: 知识库ID，用于加载知识库级提取策略配置
+            model_id: 指定的模型ID（可选，可以是整数ID的字符串形式或模型字符串ID）
         """
         if db:
-            return AdvancedTextProcessor(db, knowledge_base_id)
+            text_processor = AdvancedTextProcessor(db, knowledge_base_id)
+            # 如果指定了模型ID，设置到提取器中
+            if model_id:
+                # 尝试将model_id转换为模型字符串ID
+                # model_id可能是整数ID的字符串形式（如"45"）或模型字符串ID（如"deepseek-r1:1.5b"）
+                actual_model_id = model_id
+                try:
+                    # 尝试解析为整数
+                    model_int_id = int(model_id)
+                    # 如果是整数，需要从数据库获取模型字符串ID
+                    from app.services.knowledge.extraction.llm_extractor import _get_model_string_id_from_db
+                    actual_model_id = _get_model_string_id_from_db(model_int_id, db)
+                    if actual_model_id:
+                        logger.info(f"[_get_text_processor] 将模型整数ID {model_id} 转换为字符串ID: {actual_model_id}")
+                    else:
+                        logger.warning(f"[_get_text_processor] 无法将模型整数ID {model_id} 转换为字符串ID，使用原始值")
+                        actual_model_id = model_id
+                except ValueError:
+                    # 不是整数，直接使用原始值
+                    logger.info(f"[_get_text_processor] 使用模型字符串ID: {model_id}")
+                    actual_model_id = model_id
+                
+                text_processor.llm_extractor.specified_model_id = actual_model_id
+                logger.info(f"[_get_text_processor] 设置指定模型ID: {actual_model_id}")
+            return text_processor
         return self.text_processor
     
     def extract_and_store_entities(self, db: Session, document: KnowledgeDocument,
                                    entities: List[Dict[str, Any]] = None,
                                    relationships: List[Dict[str, Any]] = None,
-                                   knowledge_base_id: int = None) -> Dict[str, Any]:
+                                   knowledge_base_id: int = None,
+                                   model_id: str = None) -> Dict[str, Any]:
         """从文档中提取实体并存储到数据库
 
         Args:
@@ -54,8 +80,9 @@ class KnowledgeGraphService:
             entities: 已提取的实体列表（可选，如果提供则不再重新提取）
             relationships: 已提取的关系列表（可选，如果提供则不再重新提取）
             knowledge_base_id: 知识库ID，用于加载知识库级提取策略配置
+            model_id: 指定的模型ID（可选，如果提供则优先使用）
         """
-        logger.info(f"[实体提取] 开始处理文档 {document.id}, knowledge_base_id={knowledge_base_id}")
+        logger.info(f"[实体提取] 开始处理文档 {document.id}, knowledge_base_id={knowledge_base_id}, model_id={model_id}")
 
         try:
             if not document.content:
@@ -67,9 +94,9 @@ class KnowledgeGraphService:
             # 如果没有提供实体和关系，则进行提取
             if entities is None or relationships is None:
                 logger.info(f"[实体提取] 文档 {document.id} 未提供实体，开始提取...")
-                # 使用带有db和knowledge_base_id的text_processor来获取正确的模型配置
-                text_processor = self._get_text_processor(db, knowledge_base_id)
-                logger.info(f"[实体提取] 文档 {document.id} 使用 TextProcessor, knowledge_base_id={knowledge_base_id}")
+                # 使用带有db、knowledge_base_id和model_id的text_processor来获取正确的模型配置
+                text_processor = self._get_text_processor(db, knowledge_base_id, model_id)
+                logger.info(f"[实体提取] 文档 {document.id} 使用 TextProcessor, knowledge_base_id={knowledge_base_id}, model_id={model_id}")
 
                 entities, relationships = text_processor.extract_entities_relationships_sync(document.content)
                 logger.info(f"[实体提取] 文档 {document.id} 提取完成: {len(entities)} 个实体, {len(relationships)} 个关系")

@@ -149,6 +149,7 @@ class DocumentProgressMessage(MessageSchema):
     progress_percent: int
     step_name: str
     message: str
+    document_name: Optional[str] = None  # 文档名称
     details: Optional[Dict[str, Any]] = None
 
 
@@ -757,7 +758,8 @@ class MessageHandler:
                                  f"文档进度取消订阅消息格式无效: {e}")
 
     async def broadcast_document_progress(self, document_id: int, status: str, progress_percent: int,
-                                         step_name: str, message: str, details: Optional[Dict[str, Any]] = None):
+                                         step_name: str, message: str, document_name: str = None,
+                                         details: Optional[Dict[str, Any]] = None):
         """广播文档处理进度消息
 
         Args:
@@ -766,6 +768,7 @@ class MessageHandler:
             progress_percent: 进度百分比
             step_name: 步骤名称
             message: 进度消息
+            document_name: 文档名称
             details: 详细信息
         """
         # 获取订阅了该文档的连接
@@ -783,6 +786,7 @@ class MessageHandler:
             progress_percent=progress_percent,
             step_name=step_name,
             message=message,
+            document_name=document_name or f"文档 {document_id}",
             details=details,
             timestamp=datetime.now().isoformat()
         )

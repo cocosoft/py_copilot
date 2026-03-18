@@ -409,7 +409,7 @@ async def get_document_detail(
             knowledge_base_id=document.knowledge_base_id,
             file_path=document.file_path,
             file_type=document.file_type,
-            content=document.content,
+            content=None,  # 不返回完整内容，避免大数据传输
             document_metadata=document.document_metadata,
             created_at=document.created_at,
             updated_at=document.updated_at,

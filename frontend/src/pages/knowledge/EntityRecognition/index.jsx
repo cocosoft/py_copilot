@@ -284,7 +284,7 @@ const EntityRecognition = () => {
     try {
       if (!currentKnowledgeBase) {
         setDefaultModel(null);
-        return;
+        return null;
       }
 
       const kbId = currentKnowledgeBase.id;
@@ -314,10 +314,12 @@ const EntityRecognition = () => {
       if (!response) {
         message.warning({ content: '未配置知识库场景的默认模型，将使用系统默认配置' });
       }
+      return response;
     } catch (error) {
       console.error('获取默认模型失败:', error);
       message.warning({ content: '获取默认模型失败，将使用系统默认配置' });
       setDefaultModel(null);
+      return null;
     } finally {
       setLoadingModel(false);
     }
@@ -441,6 +443,9 @@ const EntityRecognition = () => {
       setExtractStage('完成');
       setExtractProgress(100);
       message.success({ content: `成功从 ${selectedDocuments.length} 个文档中提取 ${totalExtractedEntities} 个实体` });
+
+      // 重新加载知识库实体列表，确保显示最新数据
+      await loadKnowledgeBaseEntities();
     } catch (error) {
       setExtractStage('提取失败');
       message.error({ content: '实体提取失败：' + error.message });
@@ -449,7 +454,7 @@ const EntityRecognition = () => {
       setExtractStage('');
       setProcessedDocs(0);
     }
-  }, [currentKnowledgeBase, selectedDocuments, documents, defaultModel, loadDefaultModel]);
+  }, [currentKnowledgeBase, selectedDocuments, documents, defaultModel, loadDefaultModel, loadKnowledgeBaseEntities]);
 
   /**
    * 应用筛选
@@ -850,14 +855,25 @@ const EntityRecognition = () => {
         
         <div className="document-list">
           {filteredDocuments.map(doc => (
-            <label key={doc.id} className="document-checkbox">
+            <label key={doc.id} className={`document-checkbox ${!doc.is_vectorized ? 'not-processed' : ''}`}>
               <input
                 type="checkbox"
                 checked={selectedDocuments.includes(doc.id)}
                 onChange={() => toggleDocumentSelection(doc.id)}
+                disabled={!doc.is_vectorized}
               />
               <span className="document-name">{doc.title}</span>
               <span className="document-type">{doc.file_type}</span>
+              {!doc.is_vectorized && (
+                <span className="document-status warning" title="文档尚未处理，请先在文档管理页面处理文档">
+                  未处理
+                </span>
+              )}
+              {doc.is_vectorized && (
+                <span className="document-status success">
+                  已处理
+                </span>
+              )}
             </label>
           ))}
           {filteredDocuments.length === 0 && documents.length > 0 && (
@@ -867,15 +883,22 @@ const EntityRecognition = () => {
             <div className="no-documents">暂无文档，请先上传文档到知识库</div>
           )}
         </div>
-        <Button
-          variant="primary"
-          icon={<FiCpu />}
-          onClick={handleExtractEntities}
-          loading={extracting}
-          disabled={extracting || selectedDocuments.length === 0 || loadingModel}
-        >
-          {extracting ? `提取中 ${extractProgress}%` : '开始实体提取'}
-        </Button>
+        <div className="extraction-actions">
+          <Button
+            variant="primary"
+            icon={<FiCpu />}
+            onClick={handleExtractEntities}
+            loading={extracting}
+            disabled={extracting || selectedDocuments.length === 0 || loadingModel}
+          >
+            {extracting ? `提取中 ${extractProgress}%` : '开始实体提取'}
+          </Button>
+          {selectedDocuments.length > 0 && (
+            <span className="selected-count">
+              已选择 {selectedDocuments.length} 个文档
+            </span>
+          )}
+        </div>
 
         {/* 提取进度显示 */}
         {extracting && (

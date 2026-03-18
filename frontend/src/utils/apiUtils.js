@@ -240,8 +240,10 @@ export const request = async (endpoint, options = {}) => {
       return text;
     }
   } catch (error) {
-    // 调试日志
-    console.error(`[API Error] ${options.method || 'GET'} ${url} - error:`, error);
+    // 调试日志 - 对于 AbortError（用户主动取消的请求）不打印错误日志
+    if (error.name !== 'AbortError') {
+      console.error(`[API Error] ${options.method || 'GET'} ${url} - error:`, error);
+    }
 
     if (error.name === 'AbortError') {
       if (!timeoutId) {

@@ -230,6 +230,28 @@
   font-weight: 500;
 }
 
+/* 全选复选框 */
+.select-all-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+  color: #595959;
+  font-size: 13px;
+}
+
+.select-all-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #1890ff;
+}
+
+.select-all-checkbox:hover {
+  color: #1890ff;
+}
+
 /* ==================== 批量操作工具栏占位 ==================== */
 
 .document-management .batch-operation-toolbar {

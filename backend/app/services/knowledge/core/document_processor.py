@@ -46,7 +46,8 @@ class DocumentProcessor:
         self.alignment_service = None
 
     def process_document(self, file_path: str, file_type: str, document_id: int,
-                        knowledge_base_id: Optional[int] = None, db: Session = None) -> Dict[str, Any]:
+                        knowledge_base_id: Optional[int] = None, db: Session = None,
+                        document_name: str = None) -> Dict[str, Any]:
         """完整文档处理流程 - 集成图谱化操作和进度反馈
         
         处理流程：
@@ -61,7 +62,13 @@ class DocumentProcessor:
 
         # 初始化进度追踪
         doc_id_str = str(document_id)
-        processing_progress_service.start_processing(doc_id_str, total_steps=7)
+        
+        # 如果没有提供文档名称，从文件路径中提取
+        if not document_name:
+            import os
+            document_name = os.path.basename(file_path)
+        
+        processing_progress_service.start_processing(doc_id_str, total_steps=7, document_name=document_name)
 
         try:
             # 1. 解析文档

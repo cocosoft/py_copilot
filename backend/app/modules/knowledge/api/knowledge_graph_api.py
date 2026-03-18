@@ -268,16 +268,35 @@ async def extract_entities(
                 raise HTTPException(status_code=404, detail="文档不存在")
 
             logger.info(f"[extract_entities] 文档信息: id={document.id}, title={document.title}, "
-                       f"content_length={len(document.content) if document.content else 0}")
+                       f"content_length={len(document.content) if document.content else 0}, "
+                       f"is_vectorized={document.is_vectorized}")
+
+            # 检查文档是否已向量化（即是否已处理）
+            if not document.is_vectorized:
+                logger.warning(f"[extract_entities] 文档尚未处理: document_id={request.document_id}")
+                raise HTTPException(status_code=400, detail="文档尚未处理，请先在文档管理页面处理文档后再进行实体识别")
+
+            # 检查文档是否有内容
+            if not document.content or not document.content.strip():
+                logger.warning(f"[extract_entities] 文档内容为空: document_id={request.document_id}")
+                raise HTTPException(status_code=400, detail="文档内容为空，无法提取实体。请重新处理文档或上传包含文本内容的文档")
 
             # 确定知识库ID
             kb_id = request.knowledge_base_id or document.knowledge_base_id
             logger.info(f"[extract_entities] 使用知识库ID: {kb_id}")
 
-            # 提取实体和关系并存储
-            result = knowledge_graph_service.extract_and_store_entities(
-                db, document, knowledge_base_id=kb_id
-            )
+            # 如果前端传递了模型配置，优先使用
+            if request.model_id:
+                logger.info(f"[extract_entities] 使用前端传递的模型: {request.model_id}")
+                # 传递模型配置给提取服务
+                result = knowledge_graph_service.extract_and_store_entities(
+                    db, document, knowledge_base_id=kb_id, model_id=request.model_id
+                )
+            else:
+                # 提取实体和关系并存储
+                result = knowledge_graph_service.extract_and_store_entities(
+                    db, document, knowledge_base_id=kb_id
+                )
 
             if not result["success"]:
                 logger.error(f"[extract_entities] 实体提取失败: {result.get('error', '未知错误')}")

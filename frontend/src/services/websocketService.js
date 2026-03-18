@@ -214,7 +214,13 @@ class WebSocketService {
         });
       } else {
         // 忽略系统消息类型的警告
-        const systemMessageTypes = ['connection_established', 'pong', 'heartbeat'];
+        const systemMessageTypes = [
+          'connection_established', 
+          'pong', 
+          'heartbeat',
+          'document_progress_subscribe_ack',
+          'document_progress_unsubscribe_ack'
+        ];
         if (!systemMessageTypes.includes(message.type)) {
           console.warn(`未找到消息类型 '${message.type}' 的处理器`);
         }

@@ -76,7 +76,8 @@ class AdaptiveDocumentProcessor:
         file_type: str,
         document_id: int,
         knowledge_base_id: Optional[int] = None,
-        db: Session = None
+        db: Session = None,
+        document_name: str = None
     ) -> Dict[str, Any]:
         """
         异步文档处理流程 - 使用自适应批次处理优化向量化
@@ -87,12 +88,19 @@ class AdaptiveDocumentProcessor:
             document_id: 文档ID
             knowledge_base_id: 知识库ID
             db: 数据库会话
+            document_name: 文档名称
             
         Returns:
             处理结果
         """
         doc_id_str = str(document_id)
-        processing_progress_service.start_processing(doc_id_str, total_steps=6)
+        
+        # 如果没有提供文档名称，从文件路径中提取
+        if not document_name:
+            import os
+            document_name = os.path.basename(file_path)
+        
+        processing_progress_service.start_processing(doc_id_str, total_steps=6, document_name=document_name)
 
         try:
             # 1. 解析文档
@@ -359,7 +367,8 @@ class AdaptiveDocumentProcessor:
         file_type: str,
         document_id: int,
         knowledge_base_id: Optional[int] = None,
-        db: Session = None
+        db: Session = None,
+        document_name: str = None
     ) -> Dict[str, Any]:
         """
         流式文档处理 - 适用于超大文件
@@ -372,12 +381,19 @@ class AdaptiveDocumentProcessor:
             document_id: 文档ID
             knowledge_base_id: 知识库ID
             db: 数据库会话
+            document_name: 文档名称
             
         Returns:
             处理结果
         """
         doc_id_str = str(document_id)
-        processing_progress_service.start_processing(doc_id_str, total_steps=4)
+        
+        # 如果没有提供文档名称，从文件路径中提取
+        if not document_name:
+            import os
+            document_name = os.path.basename(file_path)
+        
+        processing_progress_service.start_processing(doc_id_str, total_steps=4, document_name=document_name)
 
         try:
             # 1. 解析文档

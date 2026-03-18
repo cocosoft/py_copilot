@@ -44,6 +44,7 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 3000,
+      host: '127.0.0.1',  // 强制使用 IPv4，避免 IPv6 连接问题
       proxy: {
         '/api': {
             target: apiBaseUrl,

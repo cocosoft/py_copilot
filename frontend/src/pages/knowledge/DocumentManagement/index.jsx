@@ -133,6 +133,8 @@ const DocumentManagement = () => {
     setDocumentFilters,
     addSearchHistory,
     setCurrentKnowledgeBase,
+    selectAllDocuments,
+    clearSelection,
   } = useKnowledgeStore();
 
   // 本地状态
@@ -559,11 +561,13 @@ const DocumentManagement = () => {
 
     // 注册文档进度消息处理器
     const handleDocumentProgress = (message) => {
-
-      if (message.document_id) {
+      // 确保 document_id 是整数类型，与后端保持一致
+      const docId = parseInt(message.document_id, 10);
+      
+      if (docId) {
         setProcessingProgress(prev => {
           const newProgress = new Map(prev);
-          newProgress.set(message.document_id, {
+          newProgress.set(docId, {
             status: message.status || 'processing',
             step_name: message.step_name || '处理中...',
             progress_percentage: message.progress_percent || message.progress_percentage || 0,
@@ -573,15 +577,14 @@ const DocumentManagement = () => {
           return newProgress;
         });
 
-        // 更新文档状态
+        // 更新文档状态 - 始终更新名称
         setProcessingDocuments(prev => {
           const newDocs = new Map(prev);
-          if (!newDocs.has(message.document_id)) {
-            newDocs.set(message.document_id, {
-              id: message.document_id,
-              name: message.document_name || `文档 ${message.document_id}`
-            });
-          }
+          const existingDoc = newDocs.get(docId);
+          newDocs.set(docId, {
+            id: docId,
+            name: message.document_name || (existingDoc?.name) || `文档 ${docId}`
+          });
           return newDocs;
         });
 
@@ -966,28 +969,6 @@ const DocumentManagement = () => {
       <div className="document-management-header">
         <div className="header-left">
           <UploadButton onUpload={handleUpload} />
-          
-          {/* 批量处理按钮 */}
-          {unprocessedCount > 0 && (
-            <button
-              className="batch-process-button"
-              onClick={handleBatchProcess}
-              disabled={batchProcessing}
-              title={`批量处理 ${unprocessedCount} 个未处理文档`}
-            >
-              {batchProcessing ? (
-                <>
-                  <FiLoader size={16} className="spinning" />
-                  <span>处理中...</span>
-                </>
-              ) : (
-                <>
-                  <FiPlayCircle size={16} />
-                  <span>批量处理 ({unprocessedCount})</span>
-                </>
-              )}
-            </button>
-          )}
         </div>
         
         <div className="header-right">
@@ -1062,7 +1043,9 @@ const DocumentManagement = () => {
             // 添加到处理列表
             const docIds = [];
             selectedDocs.forEach(doc => {
-              const docId = doc.uuid || doc.id;
+              // 确保使用整数ID，与后端WebSocket消息保持一致
+              const docId = parseInt(doc.id, 10);
+              if (!docId) return; // 跳过无效ID
               docIds.push(docId);
 
               // 添加到处理文档列表
@@ -1094,6 +1077,7 @@ const DocumentManagement = () => {
             // 显示进度面板
             setShowProgressPanel(true);
           }}
+          onRefresh={fetchDocuments}
         />
       )}
 
@@ -1177,8 +1161,22 @@ const DocumentManagement = () => {
         </div>
       )}
 
-      {/* 统计信息 */}
+      {/* 统计信息和全选 */}
       <div className="document-management-stats">
+        <label className="select-all-checkbox">
+          <input
+            type="checkbox"
+            checked={documents.length > 0 && selectedDocuments.length === documents.length}
+            onChange={(e) => {
+              if (e.target.checked) {
+                selectAllDocuments(true);
+              } else {
+                clearSelection();
+              }
+            }}
+          />
+          <span>全选</span>
+        </label>
         <span>共 {documentsTotal} 个文档</span>
         {selectedDocuments.length > 0 && (
           <span className="selected-count">已选择 {selectedDocuments.length} 个</span>
@@ -1193,6 +1191,7 @@ const DocumentManagement = () => {
       {/* 文档列表 */}
       <div className={`document-list-container ${viewMode === VIEW_MODES.GRID ? 'grid-view' : 'list-view'}`}>
         <VirtualListEnhanced
+          key={`doc-list-${currentKnowledgeBase?.id || 'empty'}`}
           items={documents}
           renderItem={renderDocument}
           estimateSize={viewMode === VIEW_MODES.GRID ? 200 : 80}

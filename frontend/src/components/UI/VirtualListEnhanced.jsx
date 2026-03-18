@@ -108,6 +108,20 @@ const VirtualListEnhanced = ({
     }
   }, [virtualItems]);
 
+  /**
+   * 当 items 完全替换时（如切换知识库），重置滚动位置到顶部
+   * 解决切换知识库时文档列表不显示的问题
+   */
+  useEffect(() => {
+    if (parentRef.current) {
+      parentRef.current.scrollTop = 0;
+    }
+    // 重置加载更多标记
+    endReachedCalledRef.current = false;
+    // 清理测量缓存
+    measureElementsRef.current.clear();
+  }, [items.length === 0 ? 'empty' : items[0]?.id]);
+
   // 渲染空状态
   if (items.length === 0 && !loading) {
     return (
@@ -138,23 +152,29 @@ const VirtualListEnhanced = ({
           position: 'relative',
         }}
       >
-        {virtualItems.map((virtualItem) => (
-          <div
-            key={virtualItem.key}
-            ref={createMeasureRef(virtualItem.index)}
-            data-index={virtualItem.index}
-            className="virtual-list-item"
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              transform: `translateY(${virtualItem.start}px)`,
-            }}
-          >
-            {renderItem(items[virtualItem.index], virtualItem.index)}
-          </div>
-        ))}
+        {virtualItems.map((virtualItem) => {
+          const item = items[virtualItem.index];
+          // 使用 item.id 作为 key，确保列表项正确更新
+          const itemKey = item?.id !== undefined ? `item-${item.id}` : virtualItem.key;
+          
+          return (
+            <div
+              key={itemKey}
+              ref={createMeasureRef(virtualItem.index)}
+              data-index={virtualItem.index}
+              className="virtual-list-item"
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                transform: `translateY(${virtualItem.start}px)`,
+              }}
+            >
+              {renderItem(item, virtualItem.index)}
+            </div>
+          );
+        })}
       </div>
 
       {/* 加载更多指示器 */}

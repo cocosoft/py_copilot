@@ -8,10 +8,13 @@ import io
 import os
 import json
 import time
+import logging
 from pathlib import Path
 from typing import Optional, Dict, List, Any
 from dataclasses import dataclass
 from enum import Enum
+
+logger = logging.getLogger(__name__)
 
 
 class FileType(Enum):
@@ -195,8 +198,46 @@ class DocumentParser:
             raise ValueError(f"PDF解析失败: {str(e)}")
     
     @staticmethod
-    def parse_docx(file_path: str) -> str:
-        """解析Word文档"""
+    def parse_doc(file_path: str) -> str:
+        """
+        解析旧版Word文档（.doc格式）
+        使用win32com库（仅Windows）或转换为docx格式
+        """
+        import platform
+        import tempfile
+        import shutil
+        
+        suffix = Path(file_path).suffix.lower()
+        
+        # 如果是.docx格式，直接使用python-docx
+        if suffix == '.docx':
+            return DocumentParser._parse_docx_native(file_path)
+        
+        # 对于.doc格式，尝试不同的方法
+        if platform.system() == 'Windows':
+            # Windows系统使用win32com
+            try:
+                return DocumentParser._parse_doc_win32com(file_path)
+            except Exception as e:
+                logger.warning(f"win32com解析.doc文件失败: {e}，尝试其他方法")
+        
+        # 尝试使用antiword（如果安装了）
+        try:
+            return DocumentParser._parse_doc_antiword(file_path)
+        except Exception as e:
+            logger.warning(f"antiword解析.doc文件失败: {e}")
+        
+        # 最后尝试用python-docx（可能失败）
+        try:
+            return DocumentParser._parse_docx_native(file_path)
+        except Exception as e:
+            raise ValueError(f"无法解析.doc文件，请将文件转换为.docx格式或安装antiword工具。错误: {str(e)}")
+    
+    @staticmethod
+    def _parse_docx_native(file_path: str) -> str:
+        """
+        使用python-docx解析.docx文件
+        """
         start_time = time.time()
         
         try:
@@ -236,13 +277,110 @@ class DocumentParser:
             processing_time = time.time() - start_time
             
             if not text.strip():
-                return f"Word文档解析完成，但未提取到文本内容。处理时间: {processing_time:.2f}秒"
+                raise ValueError("文档内容为空")
             
+            logger.info(f"Word文档解析完成: {file_path}, 耗时: {processing_time:.2f}秒")
             return text
             
         except Exception as e:
-            processing_time = time.time() - start_time
             raise ValueError(f"Word文档解析失败: {str(e)}")
+    
+    @staticmethod
+    def _parse_doc_win32com(file_path: str) -> str:
+        """
+        使用win32com解析.doc文件（仅Windows）
+        """
+        import win32com.client
+        import pythoncom
+        
+        # 初始化COM
+        pythoncom.CoInitialize()
+        
+        word = None
+        doc = None
+        try:
+            # 获取绝对路径
+            abs_path = os.path.abspath(file_path)
+            
+            # 创建Word应用实例
+            word = win32com.client.Dispatch("Word.Application")
+            word.Visible = False
+            
+            # 打开文档
+            doc = word.Documents.Open(abs_path, ReadOnly=True)
+            
+            # 提取文本
+            text = doc.Content.Text
+            
+            # 提取文档属性
+            try:
+                title = doc.BuiltInDocumentProperties("Title").Value or "无标题"
+                author = doc.BuiltInDocumentProperties("Author").Value or "未知作者"
+                created = doc.BuiltInDocumentProperties("Creation Date").Value
+                created_str = created.strftime('%Y-%m-%d %H:%M:%S') if created else "未知时间"
+                
+                header = f"=== 文档信息 ===\n"
+                header += f"标题: {title}\n"
+                header += f"作者: {author}\n"
+                header += f"创建时间: {created_str}\n\n"
+                
+                text = header + text
+            except:
+                pass
+            
+            logger.info(f"使用win32com成功解析.doc文件: {file_path}")
+            return text
+            
+        finally:
+            # 清理资源
+            if doc:
+                try:
+                    doc.Close(False)
+                except:
+                    pass
+            if word:
+                try:
+                    word.Quit()
+                except:
+                    pass
+            pythoncom.CoUninitialize()
+    
+    @staticmethod
+    def _parse_doc_antiword(file_path: str) -> str:
+        """
+        使用antiword命令行工具解析.doc文件
+        """
+        import subprocess
+        
+        try:
+            # 尝试使用antiword
+            result = subprocess.run(
+                ['antiword', file_path],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            
+            if result.returncode == 0:
+                logger.info(f"使用antiword成功解析.doc文件: {file_path}")
+                return result.stdout
+            else:
+                raise ValueError(f"antiword返回错误: {result.stderr}")
+                
+        except FileNotFoundError:
+            raise ValueError("antiword未安装，请安装antiword或使用.docx格式")
+        except subprocess.TimeoutExpired:
+            raise ValueError("antiword处理超时")
+    
+    @staticmethod
+    def parse_docx(file_path: str) -> str:
+        """解析Word文档（兼容.doc和.docx格式）"""
+        suffix = Path(file_path).suffix.lower()
+        
+        if suffix == '.doc':
+            return DocumentParser.parse_doc(file_path)
+        else:
+            return DocumentParser._parse_docx_native(file_path)
     
     @staticmethod
     def parse_txt(file_path: str) -> str:

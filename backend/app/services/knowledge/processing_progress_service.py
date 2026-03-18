@@ -42,16 +42,18 @@ class ProcessingProgressService:
 
         logger.info("文档处理进度追踪服务初始化完成")
 
-    def start_processing(self, document_id: str, total_steps: int = 6) -> None:
+    def start_processing(self, document_id: str, total_steps: int = 6, document_name: str = None) -> None:
         """
         开始处理文档，初始化进度
 
         @param document_id: 文档ID
         @param total_steps: 总处理步骤数
+        @param document_name: 文档名称
         """
         with self._lock:
             self._progress_map[document_id] = {
                 "document_id": document_id,
+                "document_name": document_name or f"文档 {document_id}",
                 "status": "processing",
                 "current_step": 0,
                 "total_steps": total_steps,
@@ -62,7 +64,7 @@ class ProcessingProgressService:
                 "message": "开始处理文档",
                 "details": {}
             }
-        logger.info(f"文档处理进度初始化: {document_id}")
+        logger.info(f"文档处理进度初始化: {document_id} - {document_name}")
 
     def _broadcast_progress_via_websocket(self, document_id: str, progress: Dict[str, Any]):
         """
@@ -81,6 +83,9 @@ class ProcessingProgressService:
                 logger.debug(f"文档 {document_id} 没有WebSocket订阅者，跳过广播")
                 return
 
+            # 获取文档名称
+            document_name = progress.get("document_name", f"文档 {document_id}")
+
             # 获取当前事件循环
             try:
                 loop = asyncio.get_running_loop()
@@ -91,6 +96,7 @@ class ProcessingProgressService:
                     progress_percent=progress["progress_percent"],
                     step_name=progress["step_name"],
                     message=progress["message"],
+                    document_name=document_name,
                     details=progress.get("details")
                 ))
                 logger.debug(f"已广播文档 {document_id} 进度到 {subscriber_count} 个订阅者")
@@ -109,6 +115,7 @@ class ProcessingProgressService:
                             progress_percent=progress["progress_percent"],
                             step_name=progress["step_name"],
                             message=progress["message"],
+                            document_name=document_name,
                             details=progress.get("details")
                         ))
                         loop.close()

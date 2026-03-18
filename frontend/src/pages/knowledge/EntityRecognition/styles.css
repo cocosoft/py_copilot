@@ -266,10 +266,25 @@
   background: #e8e8e8;
 }
 
+.document-checkbox.not-processed {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #fff7e6;
+  border: 1px dashed #ffa940;
+}
+
+.document-checkbox.not-processed:hover {
+  background: #fff7e6;
+}
+
 .document-checkbox input[type="checkbox"] {
   width: 16px;
   height: 16px;
   cursor: pointer;
+}
+
+.document-checkbox.not-processed input[type="checkbox"] {
+  cursor: not-allowed;
 }
 
 .document-name {
@@ -288,6 +303,37 @@
   padding: 2px 6px;
   background: #e8e8e8;
   border-radius: 4px;
+}
+
+.document-status {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: auto;
+}
+
+.document-status.warning {
+  color: #d46b08;
+  background: #fff7e6;
+  border: 1px solid #ffd591;
+}
+
+.document-status.success {
+  color: #389e0d;
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+}
+
+.extraction-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.selected-count {
+  font-size: 13px;
+  color: #8c8c8c;
 }
 
 .no-results,

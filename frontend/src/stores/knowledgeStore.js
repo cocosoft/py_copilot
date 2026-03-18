@@ -171,9 +171,20 @@ const useKnowledgeStore = create(
 
           /**
            * 设置当前知识库
+           * 切换知识库时清除文档列表和选中状态
            */
           setCurrentKnowledgeBase: (knowledgeBase) => {
             set((state) => {
+              // 如果是不同的知识库，清除相关数据
+              if (!knowledgeBase || state.currentKnowledgeBase?.id !== knowledgeBase?.id) {
+                state.documents = [];
+                state.documentsTotal = 0;
+                state.selectedDocuments = [];
+                state.chunks = [];
+                state.chunksTotal = 0;
+                state.entities = [];
+                state.relationships = [];
+              }
               state.currentKnowledgeBase = knowledgeBase;
             });
           },

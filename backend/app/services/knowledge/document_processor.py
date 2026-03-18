@@ -33,7 +33,7 @@ class DocumentProcessor:
 
     def process_document(self, file_path: str, file_type: str, document_id: int,
                         knowledge_base_id: Optional[int] = None, db: Session = None,
-                        document_uuid: Optional[str] = None) -> Dict[str, Any]:
+                        document_uuid: Optional[str] = None, document_name: str = None) -> Dict[str, Any]:
         """完整文档处理流程 - 集成图谱化操作和进度反馈
 
         Args:
@@ -43,11 +43,18 @@ class DocumentProcessor:
             knowledge_base_id: 知识库ID
             db: 数据库会话
             document_uuid: 文档UUID（用于向量存储）
+            document_name: 文档名称
         """
 
         # 使用uuid作为进度追踪ID（如果提供）
         doc_id_str = document_uuid if document_uuid else str(document_id)
-        processing_progress_service.start_processing(doc_id_str, total_steps=6)
+        
+        # 如果没有提供文档名称，从文件路径中提取
+        if not document_name:
+            import os
+            document_name = os.path.basename(file_path)
+        
+        processing_progress_service.start_processing(doc_id_str, total_steps=6, document_name=document_name)
 
         try:
             # 1. 解析文档
@@ -204,6 +211,34 @@ class DocumentProcessor:
                     import time
                     time.sleep(0.5)  # 短暂暂停，让系统有时间处理其他请求
 
+            # 保存片段到数据库 DocumentChunk 表
+            if db:
+                try:
+                    from app.modules.knowledge.models.knowledge_document import DocumentChunk
+                    
+                    # 先删除旧的片段（如果有）
+                    db.query(DocumentChunk).filter(DocumentChunk.document_id == document_id).delete()
+                    
+                    # 保存新的片段
+                    total_chunks = len(chunks)
+                    for i, chunk_text in enumerate(chunks):
+                        doc_chunk = DocumentChunk(
+                            document_id=document_id,
+                            chunk_text=chunk_text,
+                            chunk_index=i,
+                            total_chunks=total_chunks,
+                            chunk_metadata={
+                                "vector_id": f"{document_id}_chunk_{i}"
+                            }
+                        )
+                        db.add(doc_chunk)
+                    
+                    db.commit()
+                    logger.info(f"成功保存 {total_chunks} 个片段到数据库")
+                except Exception as db_error:
+                    logger.error(f"保存片段到数据库失败: {db_error}")
+                    db.rollback()
+            
             # 计算向量化成功率
             vectorization_rate = success_count / len(chunks) if chunks else 0
             logger.info(f"向量化处理完成，成功率: {vectorization_rate:.2%} ({success_count}/{len(chunks)})")

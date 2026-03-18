@@ -5,7 +5,7 @@ from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from fastapi import UploadFile, HTTPException
 
-from app.modules.knowledge.models.knowledge_document import KnowledgeBase, KnowledgeDocument, KnowledgeTag, document_tag_association
+from app.modules.knowledge.models.knowledge_document import KnowledgeBase, KnowledgeDocument, KnowledgeTag, document_tag_association, DocumentChunk
 from app.services.knowledge.core.document_parser import DocumentParser
 from app.services.knowledge.core.advanced_text_processor import AdvancedTextProcessor
 from app.services.knowledge.retrieval.retrieval_service import RetrievalService
@@ -253,13 +253,15 @@ class KnowledgeService:
                     from app.services.knowledge.core.document_processor import DocumentProcessor
                     document_processor = DocumentProcessor()
 
-                    # 处理文档
-                    processing_result = document_processor.process_document(
+                    # 处理文档 - 使用线程池执行，避免阻塞事件循环
+                    processing_result = await asyncio.to_thread(
+                        document_processor.process_document,
                         document.file_path,
                         document.file_type,
                         document.id,
                         document.knowledge_base_id,
-                        db
+                        db,
+                        document.title  # document_name
                     )
 
                     if processing_result.get("success"):
@@ -379,7 +381,8 @@ class KnowledgeService:
                 document.file_type,
                 document.id,
                 document.knowledge_base_id,  # 传递knowledge_base_id
-                db
+                db,
+                document.title  # document_name
             )
 
             if processing_result.get("success"):
@@ -625,7 +628,7 @@ class KnowledgeService:
 
         try:
             # 初始化进度服务
-            processing_progress_service.start_processing(doc_id_str, total_steps=5)
+            processing_progress_service.start_processing(doc_id_str, total_steps=5, document_name=document.title)
             processing_progress_service.update_progress(
                 doc_id_str, 1, "准备处理",
                 f"开始处理文档: {document.title}",
@@ -1199,7 +1202,29 @@ class KnowledgeService:
             if not document:
                 raise HTTPException(status_code=404, detail="文档不存在")
             
-            # 获取向量片段
+            # 优先从数据库查询片段（DocumentChunk表）
+            try:
+                db_chunks = db.query(DocumentChunk).filter(
+                    DocumentChunk.document_id == document_id
+                ).order_by(DocumentChunk.chunk_index).all()
+                
+                if db_chunks:
+                    # 格式化数据库中的片段数据
+                    formatted_chunks = []
+                    for chunk in db_chunks:
+                        formatted_chunks.append({
+                            'id': str(chunk.id),
+                            'title': f'片段 {chunk.chunk_index + 1}',
+                            'content': chunk.chunk_text,
+                            'chunk_index': chunk.chunk_index,
+                            'total_chunks': chunk.total_chunks
+                        })
+                    logger.info(f"从数据库获取到 {len(formatted_chunks)} 个片段")
+                    return formatted_chunks
+            except Exception as e:
+                logger.warning(f"从数据库获取片段失败: {str(e)}")
+            
+            # 如果数据库中没有，尝试从向量服务获取
             try:
                 chunks = self.retrieval_service.get_document_chunks(document_id)
                 return chunks

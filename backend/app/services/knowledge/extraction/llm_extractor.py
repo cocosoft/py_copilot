@@ -211,6 +211,7 @@ class LLMEntityExtractor:
         """
         self.db = db
         self.knowledge_base_id = knowledge_base_id
+        self.specified_model_id = None  # 外部指定的模型ID（优先级最高）
         self.llm_service = LLMService()
 
         # 初始化配置管理器（支持知识库级配置）
@@ -263,18 +264,25 @@ class LLMEntityExtractor:
         """
         获取用于实体提取的模型
 
-        按照分层场景优先级获取模型：
-        1. 遍历场景层级（从具体到通用）
-        2. 如果所有场景都未配置，使用全局默认模型
-        3. 如果全局也未配置，使用LLM服务默认模型
+        按照以下优先级获取模型：
+        1. 外部指定的模型ID（specified_model_id，优先级最高）
+        2. 遍历场景层级（从具体到通用）
+        3. 如果所有场景都未配置，使用全局默认模型
+        4. 如果全局也未配置，使用LLM服务默认模型
 
         Returns:
             模型ID或None（使用LLM服务默认模型）
         """
         logger.info(f"[_get_model_for_extraction] 开始获取模型, knowledge_base_id={self.knowledge_base_id}")
         logger.info(f"[_get_model_for_extraction] 场景层级: {self.scene_hierarchy}")
+        logger.info(f"[_get_model_for_extraction] 外部指定模型ID: {self.specified_model_id}")
 
-        # 1. 按优先级遍历场景层级
+        # 1. 优先使用外部指定的模型ID
+        if self.specified_model_id:
+            logger.info(f"[_get_model_for_extraction] 使用外部指定的模型: {self.specified_model_id}")
+            return self.specified_model_id
+
+        # 2. 按优先级遍历场景层级
         for scene in self.scene_hierarchy:
             logger.info(f"[_get_model_for_extraction] 尝试场景: {scene}")
             model_id = self._get_scene_model_from_cache_or_db(scene)
@@ -284,7 +292,7 @@ class LLMEntityExtractor:
             else:
                 logger.info(f"[_get_model_for_extraction] 场景 '{scene}' 未配置模型，尝试下一个场景")
 
-        # 2. 如果所有场景都未配置，使用全局默认模型
+        # 3. 如果所有场景都未配置，使用全局默认模型
         logger.info("[_get_model_for_extraction] 所有场景都未配置模型，尝试使用全局默认模型")
         global_models = DefaultModelCacheService.get_cached_global_default_models()
         logger.info(f"[_get_model_for_extraction] 全局默认模型: {global_models}")
@@ -504,6 +512,8 @@ class LLMEntityExtractor:
         
         return prompt
     
+    MAX_TEXT_LENGTH = 80000
+    
     async def extract_entities(self, text: str) -> List[Dict[str, Any]]:
         """
         从文本中提取实体
@@ -519,6 +529,10 @@ class LLMEntityExtractor:
         if not text or not text.strip():
             logger.warning("[LLMExtractor] 文本为空，返回空列表")
             return []
+
+        if len(text) > self.MAX_TEXT_LENGTH:
+            logger.info(f"[LLMExtractor] 文本过长({len(text)}字符)，启用分段处理")
+            return await self._extract_entities_from_long_text(text)
 
         try:
             # 获取模型
@@ -610,6 +624,164 @@ class LLMEntityExtractor:
         except Exception as e:
             logger.error(f"[LLMExtractor] 实体提取失败: {e}", exc_info=True)
             return []
+    
+    async def _extract_entities_from_long_text(self, text: str) -> List[Dict[str, Any]]:
+        """
+        对长文本进行分段实体提取
+
+        将长文本分割成多个较小的片段，分别提取实体，然后合并去重
+
+        Args:
+            text: 输入长文本
+
+        Returns:
+            合并后的实体列表
+        """
+        logger.info(f"[LLMExtractor] 开始分段处理长文本, 总长度={len(text)}")
+        
+        chunk_size = self.MAX_TEXT_LENGTH
+        chunks = []
+        
+        for i in range(0, len(text), chunk_size):
+            chunk = text[i:i + chunk_size]
+            chunks.append({
+                'text': chunk,
+                'start_offset': i,
+                'index': len(chunks)
+            })
+        
+        logger.info(f"[LLMExtractor] 文本已分割为 {len(chunks)} 个片段")
+        
+        all_entities = []
+        
+        for chunk_info in chunks:
+            chunk_text = chunk_info['text']
+            chunk_index = chunk_info['index']
+            start_offset = chunk_info['start_offset']
+            
+            logger.info(f"[LLMExtractor] 处理片段 {chunk_index + 1}/{len(chunks)}, 长度={len(chunk_text)}")
+            
+            try:
+                entities = await self._extract_entities_single_chunk(chunk_text)
+                
+                for entity in entities:
+                    entity['start_pos'] = entity.get('start_pos', 0) + start_offset
+                    entity['end_pos'] = entity.get('end_pos', 0) + start_offset
+                    entity['chunk_index'] = chunk_index
+                
+                all_entities.extend(entities)
+                logger.info(f"[LLMExtractor] 片段 {chunk_index + 1} 提取到 {len(entities)} 个实体")
+                
+            except Exception as e:
+                logger.error(f"[LLMExtractor] 片段 {chunk_index + 1} 提取失败: {e}")
+                continue
+        
+        merged_entities = self._merge_and_deduplicate_entities(all_entities)
+        
+        logger.info(f"[LLMExtractor] 分段处理完成: 原始实体数={len(all_entities)}, 合并后={len(merged_entities)}")
+        
+        return merged_entities
+    
+    async def _extract_entities_single_chunk(self, text: str) -> List[Dict[str, Any]]:
+        """
+        从单个文本片段中提取实体（内部方法，不进行分段检测）
+
+        Args:
+            text: 输入文本片段
+
+        Returns:
+            实体列表
+        """
+        if not text or not text.strip():
+            return []
+
+        try:
+            model_name = self._get_model_for_extraction()
+            prompt = self._build_entity_extraction_prompt(text)
+            messages = [{"role": "user", "content": prompt}]
+            
+            response = self.llm_service.chat_completion(
+                messages=messages,
+                model_name=model_name,
+                max_tokens=2000,
+                temperature=0.3,
+                db=self.db
+            )
+
+            if not response.get('success'):
+                logger.error(f"[LLMExtractor] LLM调用失败: {response.get('error')}")
+                return []
+
+            content = response.get('generated_text', '')
+            if not content:
+                return []
+
+            json_start = content.find('{')
+            json_end = content.rfind('}')
+
+            if json_start == -1 or json_end == -1:
+                return []
+
+            json_str = content[json_start:json_end + 1]
+
+            try:
+                result = json.loads(json_str)
+            except json.JSONDecodeError:
+                json_str = self._fix_json(json_str)
+                try:
+                    result = json.loads(json_str)
+                except json.JSONDecodeError:
+                    return []
+
+            entities = result.get('entities', [])
+            for entity in entities:
+                entity['source'] = 'llm'
+
+            return entities
+
+        except Exception as e:
+            logger.error(f"[LLMExtractor] 单片段实体提取失败: {e}")
+            return []
+    
+    def _merge_and_deduplicate_entities(self, entities: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        合并并去重实体列表
+
+        Args:
+            entities: 原始实体列表（可能包含重复）
+
+        Returns:
+            去重后的实体列表
+        """
+        if not entities:
+            return []
+        
+        entity_map = {}
+        
+        for entity in entities:
+            text = entity.get('text', '').strip()
+            entity_type = entity.get('type', 'UNKNOWN')
+            
+            if not text:
+                continue
+            
+            key = (text, entity_type)
+            
+            if key not in entity_map:
+                entity_map[key] = entity
+            else:
+                existing = entity_map[key]
+                existing_confidence = existing.get('confidence', 0.5)
+                new_confidence = entity.get('confidence', 0.5)
+                
+                if new_confidence > existing_confidence:
+                    entity_map[key] = entity
+        
+        merged = list(entity_map.values())
+        
+        merged.sort(key=lambda x: x.get('start_pos', 0))
+        
+        return merged
     
     async def extract_relationships(self, text: str, entities: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
