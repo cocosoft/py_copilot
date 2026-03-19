@@ -6,9 +6,9 @@
 
 import React, { useEffect, useCallback, useState, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiGrid, FiList, FiFilter, FiUpload, FiSearch, FiDownload, FiTrash2, FiFile, FiPlayCircle, FiLoader } from 'react-icons/fi';
+import { FiGrid, FiList, FiFilter, FiUpload, FiSearch, FiDownload, FiTrash2, FiFile, FiPlayCircle, FiLoader, FiZap } from 'react-icons/fi';
 import useKnowledgeStore from '../../../stores/knowledgeStore';
-import BatchOperationToolbar from '../../../components/Knowledge/BatchOperationToolbar/BatchOperationToolbar';
+import { EnhancedBatchOperations } from '../../../components/Knowledge/EnhancedBatchOperations';
 import ProcessingDocumentsPanel from '../../../components/Knowledge/ProcessingDocumentsPanel';
 import { VirtualListEnhanced } from '../../../components/UI';
 import DocumentCard from '../../../components/Knowledge/DocumentCard';
@@ -28,7 +28,8 @@ import {
   getProcessingStatus,
   getDocumentProcessingProgress,
   searchDocuments,
-  getKnowledgeBases
+  getKnowledgeBases,
+  getDocumentEntities
 } from '../../../utils/api/knowledgeApi';
 import websocketService from '../../../services/websocketService';
 import './styles.css';
@@ -142,6 +143,18 @@ const DocumentManagement = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState('createdAt-desc');
   const [filterStatus, setFilterStatus] = useState('all');
+  
+  // 向量化配置状态
+  const [vectorizationConfig, setVectorizationConfig] = useState({
+    chunkSize: 500,
+    chunkOverlap: 50,
+    embeddingModel: 'default',
+    batchSize: 10,
+    autoProcess: false
+  });
+  
+  // 向量化设置模态框
+  const [showVectorizationConfig, setShowVectorizationConfig] = useState(false);
 
   // 文档详情状态
   const [selectedDocument, setSelectedDocument] = useState(null);
@@ -354,8 +367,11 @@ const DocumentManagement = () => {
     if (!currentKnowledgeBase) return;
 
     try {
+      console.log('[fetchProcessingStatus] 正在获取处理状态...');
       const response = await getProcessingStatus(currentKnowledgeBase.id);
+      
       if (response.success) {
+        console.log('[fetchProcessingStatus] 处理状态:', response);
         setProcessingStatus(response);
 
         // 更新正在处理的文档Map
@@ -381,23 +397,51 @@ const DocumentManagement = () => {
         setProcessingDocuments(newProcessingDocs);
         setProcessingProgress(newProcessingProgress);
 
+        // 计算实际处理中的文档数量
+        const actualProcessingCount = response.processing_documents?.length || 0;
+        
         // 如果有正在处理的文档，显示进度面板并获取详细进度
-        const hasProcessing = response.queue_status.processing_count > 0 ||
+        const hasProcessing = actualProcessingCount > 0 ||
+                             response.queue_status.processing_count > 0 ||
                              response.queue_status.queue_size > 0;
         if (hasProcessing) {
+          console.log('[fetchProcessingStatus] 有处理任务，显示进度面板');
           setShowProgressPanel(true);
 
           // 获取每个处理中文档的详细进度
-          response.processing_documents?.forEach(doc => {
-            fetchDocumentProgressDetail(doc.document_id);
-          });
+          if (response.processing_documents && response.processing_documents.length > 0) {
+            response.processing_documents.forEach(doc => {
+              fetchDocumentProgressDetail(doc.document_id);
+            });
+          }
+        } else {
+          console.log('[fetchProcessingStatus] 无处理任务，隐藏进度面板');
+          setShowProgressPanel(false);
+        }
+        
+        // 修正queue_status数据，确保与processing_documents一致
+        if (actualProcessingCount > 0 && 
+            (response.queue_status.processing_count === 0 && response.queue_status.queue_size === 0)) {
+          // 如果processing_documents有数据但queue_status显示为0，修正queue_status
+          const correctedStatus = {
+            ...response,
+            queue_status: {
+              ...response.queue_status,
+              processing_count: actualProcessingCount,
+              queue_size: 0
+            }
+          };
+          setProcessingStatus(correctedStatus);
+          console.log('[fetchProcessingStatus] 修正队列状态:', correctedStatus.queue_status);
         }
 
         // 更新未处理数量
         setUnprocessedCount(response.statistics.unprocessed_documents);
+      } else {
+        console.warn('[fetchProcessingStatus] 获取处理状态失败:', response);
       }
     } catch (error) {
-      console.error('获取处理状态失败:', error);
+      console.error('[fetchProcessingStatus] 获取处理状态失败:', error);
       // 只在开发环境显示详细错误，生产环境显示友好提示
       if (import.meta.env.DEV) {
         message.error({ content: `获取处理状态失败: ${error.message}` });
@@ -412,7 +456,9 @@ const DocumentManagement = () => {
    */
   const fetchDocumentProgressDetail = useCallback(async (documentId) => {
     try {
+      console.log(`[fetchDocumentProgressDetail] 获取文档 ${documentId} 进度...`);
       const progress = await getDocumentProcessingProgress(documentId);
+      console.log(`[fetchDocumentProgressDetail] 文档 ${documentId} 进度:`, progress);
 
       setProcessingProgress(prev => {
         const newProgress = new Map(prev);
@@ -429,10 +475,8 @@ const DocumentManagement = () => {
       });
     } catch (error) {
       console.error(`[fetchDocumentProgressDetail] 获取文档 ${documentId} 进度失败:`, error);
-      // 只在开发环境显示详细错误，生产环境显示友好提示
-      if (import.meta.env.DEV) {
-        message.error({ content: `获取文档进度失败: ${error.message}` });
-      }
+      // 获取进度失败时，保持现有进度信息，不更新
+      // 这样可以避免单个文档获取失败影响其他文档的进度显示
     }
   }, []);
 
@@ -465,55 +509,112 @@ const DocumentManagement = () => {
   useEffect(() => {
     if (!currentKnowledgeBase) return;
 
-    // 轮询间隔时间（毫秒）- 进一步增加到15秒，减少后端压力
-    const POLLING_INTERVAL = 15000;
+    console.log('[轮询处理状态] 初始化轮询逻辑');
+
+    // 轮询间隔时间（毫秒）
+    const POLLING_INTERVALS = {
+      IDLE: 60000,        // 无处理任务时：60秒
+      NORMAL: 20000,      // 有处理任务时：20秒
+      ACTIVE: 5000,       // 处理任务接近完成时：5秒
+    };
     // 错误重试延迟（毫秒）
-    const ERROR_RETRY_DELAY = 25000;
+    const ERROR_RETRY_DELAY = 30000;
+    // 最大连续错误次数
+    const MAX_CONSECUTIVE_ERRORS = 5;
     
     let intervalId = null;
     let lastErrorTime = 0;
     let isProcessing = false;
+    let consecutiveErrors = 0;
+    let currentPollingInterval = POLLING_INTERVALS.NORMAL;
 
     // 安全的获取处理状态函数
     const safeFetchProcessingStatus = async () => {
       // 检查是否在错误重试期间
       if (lastErrorTime > 0 && (Date.now() - lastErrorTime) < ERROR_RETRY_DELAY) {
+        console.log('[轮询处理状态] 在错误重试期间，跳过本次轮询');
         return;
       }
 
       // 避免并发请求
       if (isProcessing) {
+        console.log('[轮询处理状态] 正在处理中，跳过本次轮询');
         return;
       }
 
-      // 只在用户活动或有处理任务时轮询
+      // 根据处理状态动态调整轮询间隔
       if (!userActive && processingStatus?.queue_status?.processing_count === 0 && processingStatus?.queue_status?.queue_size === 0) {
+        // 用户不活动且无处理任务时，延长轮询间隔
+        console.log('[轮询处理状态] 用户不活动且无处理任务，延长轮询间隔');
+        currentPollingInterval = POLLING_INTERVALS.IDLE;
+        return;
+      } else if (processingStatus?.queue_status?.processing_count > 0 || processingStatus?.queue_status?.queue_size > 0) {
+        // 有处理任务时，根据任务数量动态调整轮询间隔
+        const totalTasks = (processingStatus.queue_status.processing_count || 0) + (processingStatus.queue_status.queue_size || 0);
+        if (totalTasks <= 2) {
+          // 处理任务接近完成时，使用快速轮询间隔
+          console.log('[轮询处理状态] 处理任务接近完成，使用快速轮询间隔');
+          currentPollingInterval = POLLING_INTERVALS.ACTIVE;
+        } else {
+          // 正常处理任务时，使用正常轮询间隔
+          console.log('[轮询处理状态] 正常处理任务，使用正常轮询间隔');
+          currentPollingInterval = POLLING_INTERVALS.NORMAL;
+        }
+      }
+
+      // 检查连续错误次数，超过阈值时暂停轮询
+      if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+        console.warn('[轮询处理状态] 连续错误次数超过阈值，暂停轮询');
         return;
       }
 
       isProcessing = true;
       try {
+        console.log('[轮询处理状态] 执行轮询');
         await fetchProcessingStatus();
-        // 重置错误时间
+        // 重置错误时间和连续错误计数
         lastErrorTime = 0;
+        consecutiveErrors = 0;
       } catch (error) {
-        console.error('轮询处理状态失败:', error);
-        // 记录错误时间
+        console.error('[轮询处理状态] 轮询失败:', error);
+        // 记录错误时间和增加连续错误计数
         lastErrorTime = Date.now();
+        consecutiveErrors++;
+        
+        // 连续错误时增加轮询间隔
+        if (consecutiveErrors > 0) {
+          currentPollingInterval = POLLING_INTERVALS.NORMAL * (1 + consecutiveErrors * 0.5);
+          console.log(`[轮询处理状态] 连续错误${consecutiveErrors}次，调整轮询间隔为${currentPollingInterval}ms`);
+        }
       } finally {
         isProcessing = false;
       }
     };
 
-    // 立即获取一次
+    // 立即获取一次处理状态（组件初始化时）
+    console.log('[轮询处理状态] 立即获取处理状态');
     safeFetchProcessingStatus();
 
-    // 定时轮询
-    intervalId = setInterval(() => {
-      safeFetchProcessingStatus();
-    }, POLLING_INTERVAL);
+    // 定时轮询 - 使用动态间隔
+    const startPolling = () => {
+      console.log(`[轮询处理状态] 启动轮询，间隔: ${currentPollingInterval}ms`);
+      intervalId = setInterval(() => {
+        safeFetchProcessingStatus();
+        // 清除当前定时器并使用新的间隔时间重新设置
+        if (intervalId) {
+          clearInterval(intervalId);
+          startPolling();
+        }
+      }, currentPollingInterval);
+    };
+
+    // 延迟启动轮询，避免与WebSocket连接冲突
+    setTimeout(() => {
+      startPolling();
+    }, 2000);
 
     return () => {
+      console.log('[轮询处理状态] 清理轮询');
       if (intervalId) {
         clearInterval(intervalId);
       }
@@ -525,8 +626,9 @@ const DocumentManagement = () => {
     if (!currentKnowledgeBase) return;
 
     let reconnectAttempts = 0;
-    const MAX_RECONNECT_ATTEMPTS = 5;
-    const RECONNECT_DELAY = 5000;
+    const MAX_RECONNECT_ATTEMPTS = 10;
+    const RECONNECT_DELAY = 3000;
+    let isMounted = true;
 
     // 连接 WebSocket
     const connectWebSocket = async () => {
@@ -537,27 +639,52 @@ const DocumentManagement = () => {
       }
 
       try {
+        console.log('[WebSocket] 正在连接...');
         await websocketService.connect();
+        
+        if (!isMounted) return;
+        
+        console.log('[WebSocket] 连接成功');
         // 重置重连计数器
         reconnectAttempts = 0;
         
-        // 连接成功后，重新订阅所有处理中文档
-        const processingDocIds = Array.from(processingDocuments.keys());
-        if (processingDocIds.length > 0) {
-          websocketService.subscribeToDocumentProgress(processingDocIds);
+        // 连接成功后，立即获取处理状态并订阅所有处理中文档
+        try {
+          await fetchProcessingStatus();
+          
+          // 获取处理状态后，重新订阅所有处理中文档
+          const processingDocIds = Array.from(processingDocuments.keys());
+          console.log('[WebSocket] 订阅处理中文档:', processingDocIds);
+          
+          if (processingDocIds.length > 0) {
+            websocketService.subscribeToDocumentProgress(processingDocIds);
+          }
+        } catch (error) {
+          console.error('[WebSocket] 获取处理状态失败:', error);
         }
       } catch (error) {
+        if (!isMounted) return;
+        
         console.error('[WebSocket] 连接失败:', error);
         reconnectAttempts++;
         // 连接失败后，延迟重试，每次增加延迟时间
         const delay = RECONNECT_DELAY * reconnectAttempts;
+        console.log(`[WebSocket] ${delay}ms后重连... (尝试 ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
+        
         setTimeout(() => {
-          connectWebSocket();
+          if (isMounted) {
+            connectWebSocket();
+          }
         }, delay);
       }
     };
 
-    connectWebSocket();
+    // 延迟连接，避免与轮询冲突
+    setTimeout(() => {
+      if (isMounted) {
+        connectWebSocket();
+      }
+    }, 1000);
 
     // 注册文档进度消息处理器
     const handleDocumentProgress = (message) => {
@@ -603,9 +730,11 @@ const DocumentManagement = () => {
     websocketService.on('document_progress', handleDocumentProgress);
 
     return () => {
+      isMounted = false;
+      console.log('[WebSocket] 清理连接');
       websocketService.off('document_progress');
     };
-  }, [currentKnowledgeBase, processingDocuments]);
+  }, [currentKnowledgeBase, fetchProcessingStatus]);
 
   /**
    * 处理批量处理
@@ -899,6 +1028,16 @@ const DocumentManagement = () => {
       message.error({ content: '向量化失败：' + error.message });
     }
   }, [selectedDocument, fetchDocumentDetail, fetchDocuments, fetchProcessingStatus]);
+  
+  /**
+   * 保存向量化配置
+   */
+  const handleSaveVectorizationConfig = () => {
+    // 这里可以添加保存配置到后端的逻辑
+    console.log('保存向量化配置:', vectorizationConfig);
+    message.success({ content: '向量化配置已保存' });
+    setShowVectorizationConfig(false);
+  };
 
   /**
    * 渲染文档项 - 使用稳定引用避免不必要的重渲染
@@ -1016,6 +1155,18 @@ const DocumentManagement = () => {
             </select>
           </div>
           
+          {/* 向量化设置 */}
+          <div className="header-vectorization">
+            <button 
+              className="vectorization-settings-btn"
+              onClick={() => setShowVectorizationConfig(true)}
+              title="向量化设置"
+            >
+              <FiZap size={18} />
+              <span>向量化设置</span>
+            </button>
+          </div>
+          
           {/* 视图切换 */}
           <div className="header-view-toggle">
             <button 
@@ -1036,10 +1187,10 @@ const DocumentManagement = () => {
         </div>
       </div>
 
-      {/* 批量操作工具栏 */}
+      {/* 增强版批量操作工具栏 */}
       {selectedDocuments.length > 0 && (
-        <BatchOperationToolbar
-          onBatchVectorizeStart={(selectedDocs) => {
+        <EnhancedBatchOperations
+          onBatchProcessStart={(selectedDocs) => {
             // 添加到处理列表
             const docIds = [];
             selectedDocs.forEach(doc => {
@@ -1195,7 +1346,7 @@ const DocumentManagement = () => {
           items={documents}
           renderItem={renderDocument}
           estimateSize={viewMode === VIEW_MODES.GRID ? 200 : 80}
-          overscan={10}
+          overscan={viewMode === VIEW_MODES.GRID ? 5 : 8}
           onEndReached={handleLoadMore}
           hasMore={documents.length < documentsTotal}
           loading={documentsLoading}
@@ -1208,6 +1359,101 @@ const DocumentManagement = () => {
           }
         />
       </div>
+
+      {/* 向量化设置模态框 */}
+      {showVectorizationConfig && (
+        <div className="modal-overlay" onClick={() => setShowVectorizationConfig(false)}>
+          <div className="modal-content modal-large" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>向量化设置</h3>
+              <button className="close-btn" onClick={() => setShowVectorizationConfig(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <div className="config-section">
+                <h4>分块配置</h4>
+                <div className="config-form">
+                  <div className="form-group">
+                    <label>分块大小</label>
+                    <input 
+                      type="number" 
+                      value={vectorizationConfig.chunkSize}
+                      onChange={(e) => setVectorizationConfig({...vectorizationConfig, chunkSize: Number(e.target.value)})}
+                      min={100}
+                      max={2000}
+                    />
+                    <span className="help-text">每个文本块的最大字符数</span>
+                  </div>
+                  <div className="form-group">
+                    <label>分块重叠</label>
+                    <input 
+                      type="number" 
+                      value={vectorizationConfig.chunkOverlap}
+                      onChange={(e) => setVectorizationConfig({...vectorizationConfig, chunkOverlap: Number(e.target.value)})}
+                      min={0}
+                      max={500}
+                    />
+                    <span className="help-text">相邻文本块之间的重叠字符数</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="config-section">
+                <h4>模型配置</h4>
+                <div className="config-form">
+                  <div className="form-group">
+                    <label>嵌入模型</label>
+                    <select 
+                      value={vectorizationConfig.embeddingModel}
+                      onChange={(e) => setVectorizationConfig({...vectorizationConfig, embeddingModel: e.target.value})}
+                    >
+                      <option value="default">默认模型</option>
+                      <option value="text-embedding-3-small">Text Embedding 3 Small</option>
+                      <option value="text-embedding-3-large">Text Embedding 3 Large</option>
+                    </select>
+                    <span className="help-text">用于生成向量嵌入的模型</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="config-section">
+                <h4>批处理配置</h4>
+                <div className="config-form">
+                  <div className="form-group">
+                    <label>批处理大小</label>
+                    <input 
+                      type="number" 
+                      value={vectorizationConfig.batchSize}
+                      onChange={(e) => setVectorizationConfig({...vectorizationConfig, batchSize: Number(e.target.value)})}
+                      min={1}
+                      max={50}
+                    />
+                    <span className="help-text">同时处理的文档数量</span>
+                  </div>
+                  <div className="form-group checkbox">
+                    <label>
+                      <input 
+                        type="checkbox" 
+                        checked={vectorizationConfig.autoProcess}
+                        onChange={(e) => setVectorizationConfig({...vectorizationConfig, autoProcess: e.target.checked})}
+                      />
+                      自动处理新上传的文档
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="config-actions">
+                <button className="btn btn-secondary" onClick={() => setShowVectorizationConfig(false)}>
+                  取消
+                </button>
+                <button className="btn btn-primary" onClick={handleSaveVectorizationConfig}>
+                  保存
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 文档详情面板 */}
       {documentId && (
@@ -1253,6 +1499,18 @@ const DocumentManagement = () => {
                     onClick={() => setActiveTab('info')}
                   >
                     基本信息
+                  </button>
+                  <button
+                    className={`detail-tab ${activeTab === 'preview' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('preview')}
+                  >
+                    文档预览
+                  </button>
+                  <button
+                    className={`detail-tab ${activeTab === 'tags' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('tags')}
+                  >
+                    标签管理
                   </button>
                   {selectedDocument.is_vectorized && (
                     <button
@@ -1313,6 +1571,143 @@ const DocumentManagement = () => {
                           <FiTrash2 size={16} />
                           删除文档
                         </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTab === 'preview' && (
+                    <div className="preview-content">
+                      <div className="preview-header">
+                        <h4>文档预览</h4>
+                        <p className="preview-hint">支持 PDF、Word、Excel 等常见文件类型的预览</p>
+                      </div>
+                      <div className="preview-container">
+                        {(() => {
+                          const fileType = selectedDocument.file_type?.toLowerCase() || '';
+                          const docId = selectedDocument.uuid || selectedDocument.id;
+                          
+                          if (fileType === 'pdf') {
+                            return (
+                              <div className="pdf-preview">
+                                <iframe 
+                                  src={`/api/documents/${docId}/preview`} 
+                                  title="PDF 预览"
+                                  className="preview-iframe"
+                                  frameBorder="0"
+                                />
+                              </div>
+                            );
+                          } else if (['doc', 'docx', 'xls', 'xlsx'].includes(fileType)) {
+                            return (
+                              <div className="office-preview">
+                                <iframe 
+                                  src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(window.location.origin + `/api/documents/${docId}/download`)}`} 
+                                  title="Office 文档预览"
+                                  className="preview-iframe"
+                                  frameBorder="0"
+                                />
+                              </div>
+                            );
+                          } else if (['txt', 'md'].includes(fileType)) {
+                            return (
+                              <div className="text-preview">
+                                <pre className="text-content">加载中...</pre>
+                              </div>
+                            );
+                          } else if (['jpg', 'jpeg', 'png', 'gif'].includes(fileType)) {
+                            return (
+                              <div className="image-preview">
+                                <img 
+                                  src={`/api/documents/${docId}/download`} 
+                                  alt={selectedDocument.title}
+                                  className="preview-image"
+                                />
+                              </div>
+                            );
+                          } else {
+                            return (
+                              <div className="unsupported-preview">
+                                <div className="preview-icon">📄</div>
+                                <h5>不支持的文件类型</h5>
+                                <p>该文件类型无法在线预览，请下载查看</p>
+                                <button
+                                  className="action-btn primary"
+                                  onClick={handleDownloadDocument}
+                                >
+                                  <FiDownload size={16} />
+                                  下载文档
+                                </button>
+                              </div>
+                            );
+                          }
+                        })()}
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTab === 'tags' && (
+                    <div className="tags-content">
+                      <div className="tags-header">
+                        <h4>标签管理</h4>
+                        <p className="tags-hint">为文档添加标签，便于分类和检索</p>
+                      </div>
+                      <div className="tags-management">
+                        <div className="tags-input-section">
+                          <div className="tags-input-container">
+                            <input
+                              type="text"
+                              placeholder="输入标签名称，按回车添加"
+                              className="tags-input"
+                              onKeyPress={(e) => {
+                                if (e.key === 'Enter' && e.target.value.trim()) {
+                                  const newTag = e.target.value.trim();
+                                  setSelectedDocument(prev => ({
+                                    ...prev,
+                                    tags: [...(prev.tags || []), newTag]
+                                  }));
+                                  e.target.value = '';
+                                }
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div className="tags-list-section">
+                          <h5>当前标签</h5>
+                          <div className="tags-list">
+                            {(selectedDocument.tags || []).map((tag, index) => (
+                              <div key={index} className="tag-item">
+                                <span className="tag-name">{tag}</span>
+                                <button
+                                  className="tag-remove"
+                                  onClick={() => {
+                                    setSelectedDocument(prev => ({
+                                      ...prev,
+                                      tags: prev.tags.filter((_, i) => i !== index)
+                                    }));
+                                  }}
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                            {(!selectedDocument.tags || selectedDocument.tags.length === 0) && (
+                              <div className="empty-tags">
+                                <p>暂无标签，点击上方输入框添加</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="tags-actions">
+                          <button
+                            className="action-btn primary"
+                            onClick={() => {
+                              message.success({ content: '标签已保存' });
+                              // 这里可以添加保存标签的 API 调用
+                            }}
+                          >
+                            保存标签
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}

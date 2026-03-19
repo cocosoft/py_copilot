@@ -1,0 +1,44 @@
+{
+  "tests": [
+    {
+      "name": "知识库管理功能",
+      "status": "passed"
+    },
+    {
+      "name": "文档管理功能",
+      "status": "passed"
+    },
+    {
+      "name": "知识图谱功能",
+      "status": "passed"
+    },
+    {
+      "name": "实体管理功能",
+      "status": "passed"
+    },
+    {
+      "name": "搜索功能",
+      "status": "failed",
+      "error": "Page.press: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"input[type=\\\"search\\\"]\")\n"
+    },
+    {
+      "name": "批量操作功能",
+      "status": "passed"
+    },
+    {
+      "name": "处理状态功能",
+      "status": "passed"
+    }
+  ],
+  "summary": {
+    "total": 7,
+    "passed": 6,
+    "failed": 1,
+    "errors": [
+      {
+        "test": "搜索功能",
+        "error": "Page.press: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"input[type=\\\"search\\\"]\")\n"
+      }
+    ]
+  }
+}

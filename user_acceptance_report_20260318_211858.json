@@ -1,0 +1,54 @@
+{
+  "test_date": "2026-03-18T21:18:41.643674",
+  "test_duration": 16.390987,
+  "results": [
+    {
+      "test_id": "backend_health",
+      "test_name": "后端服务健康状态",
+      "success": true,
+      "timestamp": "2026-03-18T21:18:43.689155"
+    },
+    {
+      "test_id": "frontend_availability",
+      "test_name": "前端服务可用性",
+      "success": true,
+      "timestamp": "2026-03-18T21:18:45.734575"
+    },
+    {
+      "test_id": "chroma_service",
+      "test_name": "ChromaDB服务",
+      "success": true,
+      "timestamp": "2026-03-18T21:18:49.812261"
+    },
+    {
+      "test_id": "knowledge_base_api",
+      "test_name": "知识库API",
+      "success": false,
+      "timestamp": "2026-03-18T21:18:51.883466"
+    },
+    {
+      "test_id": "document_processing",
+      "test_name": "文档处理功能",
+      "success": false,
+      "timestamp": "2026-03-18T21:18:53.934217"
+    },
+    {
+      "test_id": "entity_recognition",
+      "test_name": "实体识别功能",
+      "success": true,
+      "timestamp": "2026-03-18T21:18:55.983296"
+    },
+    {
+      "test_id": "vectorization",
+      "test_name": "向量化功能",
+      "success": false,
+      "timestamp": "2026-03-18T21:18:58.034661"
+    }
+  ],
+  "summary": {
+    "total_tests": 7,
+    "passed_tests": 4,
+    "failed_tests": 3,
+    "success_rate": 57.14285714285714
+  }
+}

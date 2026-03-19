@@ -2,7 +2,7 @@
  * 知识图谱页面样式
  */
 
-.knowledge-graph {
+.knowledge-graph-page {
   display: flex;
   flex-direction: column;
   height: 100%;

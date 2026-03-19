@@ -121,6 +121,7 @@ function MainApp() {
       <ErrorNotification />
       <Notification />
       <ApiKeyUpdater />
+      
       {/* 添加独立的顶部标题栏 */}
       <header className="app-header">
         <div className="app-header-left">

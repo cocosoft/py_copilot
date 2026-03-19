@@ -1,0 +1,241 @@
+/* 统一模态框组件样式 */
+
+.ucl-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: ucl-fade-in 0.2s ease-out;
+}
+
+.ucl-modal-overlay--center {
+  align-items: center;
+  justify-content: center;
+}
+
+.ucl-modal-overlay--top {
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 20px;
+}
+
+.ucl-modal-overlay--bottom {
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 20px;
+}
+
+.ucl-modal {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  animation: ucl-slide-in 0.3s ease-out;
+  outline: none;
+}
+
+/* 模态框尺寸 */
+.ucl-modal--small {
+  width: 400px;
+  max-width: 90vw;
+}
+
+.ucl-modal--medium {
+  width: 600px;
+  max-width: 90vw;
+}
+
+.ucl-modal--large {
+  width: 800px;
+  max-width: 90vw;
+}
+
+.ucl-modal--fullscreen {
+  width: 95vw;
+  height: 95vh;
+  max-width: none;
+  max-height: none;
+}
+
+/* 头部样式 */
+.ucl-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 0 24px;
+  border-bottom: 1px solid var(--ucl-color-gray-200);
+  min-height: 60px;
+}
+
+.ucl-modal__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ucl-color-gray-900);
+  line-height: 1.4;
+}
+
+.ucl-modal__close-button {
+  background: none;
+  border: none;
+  padding: 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--ucl-color-gray-500);
+  transition: all 0.2s ease-in-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ucl-modal__close-button:hover {
+  background-color: var(--ucl-color-gray-100);
+  color: var(--ucl-color-gray-700);
+}
+
+.ucl-modal__close-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* 内容样式 */
+.ucl-modal__content {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+  max-height: calc(90vh - 120px);
+}
+
+/* 底部样式 */
+.ucl-modal__footer {
+  padding: 0 24px 20px 24px;
+  border-top: 1px solid var(--ucl-color-gray-200);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  min-height: 60px;
+}
+
+/* 动画效果 */
+@keyframes ucl-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ucl-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 顶部位置动画 */
+.ucl-modal-overlay--top .ucl-modal {
+  animation: ucl-slide-down 0.3s ease-out;
+}
+
+@keyframes ucl-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-40px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 底部位置动画 */
+.ucl-modal-overlay--bottom .ucl-modal {
+  animation: ucl-slide-up 0.3s ease-out;
+}
+
+@keyframes ucl-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .ucl-modal--small,
+  .ucl-modal--medium,
+  .ucl-modal--large {
+    width: 95vw;
+    max-width: 95vw;
+  }
+  
+  .ucl-modal__header {
+    padding: 16px 20px 0 20px;
+  }
+  
+  .ucl-modal__content {
+    padding: 20px;
+  }
+  
+  .ucl-modal__footer {
+    padding: 0 20px 16px 20px;
+  }
+  
+  .ucl-modal-overlay--top {
+    padding-top: 10px;
+  }
+  
+  .ucl-modal-overlay--bottom {
+    padding-bottom: 10px;
+  }
+}
+
+/* 无障碍访问 */
+.ucl-modal:focus-visible {
+  outline: 2px solid var(--ucl-color-primary-500);
+  outline-offset: 2px;
+}
+
+/* 暗色主题支持 */
+@media (prefers-color-scheme: dark) {
+  .ucl-modal {
+    background-color: var(--ucl-color-gray-900);
+    color: var(--ucl-color-gray-100);
+  }
+  
+  .ucl-modal__title {
+    color: var(--ucl-color-gray-100);
+  }
+  
+  .ucl-modal__header,
+  .ucl-modal__footer {
+    border-color: var(--ucl-color-gray-700);
+  }
+  
+  .ucl-modal__close-button {
+    color: var(--ucl-color-gray-400);
+  }
+  
+  .ucl-modal__close-button:hover {
+    background-color: var(--ucl-color-gray-800);
+    color: var(--ucl-color-gray-200);
+  }
+}

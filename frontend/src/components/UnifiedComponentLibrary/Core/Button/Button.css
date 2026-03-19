@@ -1,0 +1,190 @@
+/* 统一按钮组件样式 */
+
+.ucl-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  position: relative;
+  user-select: none;
+  white-space: nowrap;
+  outline: none;
+  font-family: inherit;
+  line-height: 1;
+}
+
+/* 按钮变体样式 */
+.ucl-button--primary {
+  background-color: var(--ucl-color-primary-500);
+  border-color: var(--ucl-color-primary-500);
+  color: white;
+}
+
+.ucl-button--primary:hover:not(.ucl-button--disabled) {
+  background-color: var(--ucl-color-primary-600);
+  border-color: var(--ucl-color-primary-600);
+}
+
+.ucl-button--secondary {
+  background-color: var(--ucl-color-gray-100);
+  border-color: var(--ucl-color-gray-300);
+  color: var(--ucl-color-gray-700);
+}
+
+.ucl-button--secondary:hover:not(.ucl-button--disabled) {
+  background-color: var(--ucl-color-gray-200);
+  border-color: var(--ucl-color-gray-400);
+}
+
+.ucl-button--success {
+  background-color: var(--ucl-color-success-500);
+  border-color: var(--ucl-color-success-500);
+  color: white;
+}
+
+.ucl-button--success:hover:not(.ucl-button--disabled) {
+  background-color: var(--ucl-color-success-600);
+  border-color: var(--ucl-color-success-600);
+}
+
+.ucl-button--warning {
+  background-color: var(--ucl-color-warning-500);
+  border-color: var(--ucl-color-warning-500);
+  color: white;
+}
+
+.ucl-button--warning:hover:not(.ucl-button--disabled) {
+  background-color: var(--ucl-color-warning-600);
+  border-color: var(--ucl-color-warning-600);
+}
+
+.ucl-button--danger {
+  background-color: var(--ucl-color-danger-500);
+  border-color: var(--ucl-color-danger-500);
+  color: white;
+}
+
+.ucl-button--danger:hover:not(.ucl-button--disabled) {
+  background-color: var(--ucl-color-danger-600);
+  border-color: var(--ucl-color-danger-600);
+}
+
+.ucl-button--outline {
+  background-color: transparent;
+  border-color: var(--ucl-color-gray-300);
+  color: var(--ucl-color-gray-700);
+}
+
+.ucl-button--outline:hover:not(.ucl-button--disabled) {
+  background-color: var(--ucl-color-gray-50);
+  border-color: var(--ucl-color-gray-400);
+}
+
+.ucl-button--ghost {
+  background-color: transparent;
+  border-color: transparent;
+  color: var(--ucl-color-gray-700);
+}
+
+.ucl-button--ghost:hover:not(.ucl-button--disabled) {
+  background-color: var(--ucl-color-gray-100);
+}
+
+/* 按钮大小样式 */
+.ucl-button--small {
+  padding: 6px 12px;
+  font-size: 12px;
+  min-height: 28px;
+}
+
+.ucl-button--medium {
+  padding: 8px 16px;
+  font-size: 14px;
+  min-height: 36px;
+}
+
+.ucl-button--large {
+  padding: 12px 20px;
+  font-size: 16px;
+  min-height: 44px;
+}
+
+/* 禁用状态 */
+.ucl-button--disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* 加载状态 */
+.ucl-button--loading {
+  pointer-events: none;
+}
+
+.ucl-button__loading-spinner {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 8px;
+  animation: ucl-spin 1s linear infinite;
+}
+
+.ucl-button__loading-spinner svg {
+  width: 16px;
+  height: 16px;
+}
+
+@keyframes ucl-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 图标样式 */
+.ucl-button__icon {
+  display: inline-flex;
+  align-items: center;
+  font-size: 16px;
+}
+
+.ucl-button__icon--left {
+  margin-right: 8px;
+}
+
+.ucl-button__icon--right {
+  margin-left: 8px;
+}
+
+/* 按钮内容 */
+.ucl-button__content {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* 焦点状态 */
+.ucl-button:focus-visible {
+  outline: 2px solid var(--ucl-color-primary-500);
+  outline-offset: 2px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .ucl-button--medium {
+    padding: 6px 12px;
+    font-size: 13px;
+    min-height: 32px;
+  }
+  
+  .ucl-button--large {
+    padding: 8px 16px;
+    font-size: 14px;
+    min-height: 36px;
+  }
+}

@@ -886,6 +886,15 @@ const useKnowledgeStore = create(
           },
 
           /**
+           * 删除单条搜索历史
+           */
+          removeSearchHistory: (query) => {
+            set((state) => {
+              state.searchHistory = state.searchHistory.filter((h) => h !== query);
+            });
+          },
+
+          /**
            * 设置搜索建议
            */
           setSearchSuggestions: (suggestions) => {

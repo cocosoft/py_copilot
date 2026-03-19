@@ -1,0 +1,521 @@
+{
+  "report_date": "2026-03-18T21:21:26.818830",
+  "feedback_data": [
+    {
+      "feedback_id": "test_knowledge_base_api",
+      "type": "bug",
+      "severity": "medium",
+      "category": "system_test",
+      "title": "知识库API测试失败",
+      "description": "知识库API测试未能通过，可能存在功能问题",
+      "status": "open",
+      "priority": "medium",
+      "created_at": "2026-03-18T21:21:20.436136",
+      "source": "automated_test"
+    },
+    {
+      "feedback_id": "test_document_processing",
+      "type": "bug",
+      "severity": "medium",
+      "category": "system_test",
+      "title": "文档处理功能测试失败",
+      "description": "文档处理功能测试未能通过，可能存在功能问题",
+      "status": "open",
+      "priority": "medium",
+      "created_at": "2026-03-18T21:21:20.436136",
+      "source": "automated_test"
+    },
+    {
+      "feedback_id": "test_vectorization",
+      "type": "bug",
+      "severity": "medium",
+      "category": "system_test",
+      "title": "向量化功能测试失败",
+      "description": "向量化功能测试未能通过，可能存在功能问题",
+      "status": "open",
+      "priority": "medium",
+      "created_at": "2026-03-18T21:21:20.436136",
+      "source": "automated_test"
+    },
+    {
+      "feedback_id": "service_chromadb",
+      "type": "system",
+      "severity": "medium",
+      "category": "service_status",
+      "title": "chromadb服务状态异常",
+      "description": "chromadb服务当前状态为: unhealthy，可能影响系统正常运行",
+      "status": "open",
+      "priority": "medium",
+      "created_at": "2026-03-18T21:21:26.816513",
+      "source": "system_analysis"
+    },
+    {
+      "feedback_id": "feature_向量化",
+      "type": "feature",
+      "severity": "medium",
+      "category": "feature_completeness",
+      "title": "功能模块缺失: 向量化",
+      "description": "向量化功能模块可能未实现，影响系统完整性",
+      "status": "open",
+      "priority": "medium",
+      "created_at": "2026-03-18T21:21:26.817623",
+      "source": "feature_analysis"
+    },
+    {
+      "feedback_id": "feature_实体关系",
+      "type": "feature",
+      "severity": "medium",
+      "category": "feature_completeness",
+      "title": "功能模块缺失: 实体关系",
+      "description": "实体关系功能模块可能未实现，影响系统完整性",
+      "status": "open",
+      "priority": "medium",
+      "created_at": "2026-03-18T21:21:26.818219",
+      "source": "feature_analysis"
+    },
+    {
+      "feedback_id": "feature_重排序",
+      "type": "feature",
+      "severity": "medium",
+      "category": "feature_completeness",
+      "title": "功能模块缺失: 重排序",
+      "description": "重排序功能模块可能未实现，影响系统完整性",
+      "status": "open",
+      "priority": "medium",
+      "created_at": "2026-03-18T21:21:26.818830",
+      "source": "feature_analysis"
+    },
+    {
+      "feedback_id": "feature_设置",
+      "type": "feature",
+      "severity": "medium",
+      "category": "feature_completeness",
+      "title": "功能模块缺失: 设置",
+      "description": "设置功能模块可能未实现，影响系统完整性",
+      "status": "open",
+      "priority": "medium",
+      "created_at": "2026-03-18T21:21:26.818830",
+      "source": "feature_analysis"
+    }
+  ],
+  "analysis": {
+    "summary": {
+      "total_feedback": 8,
+      "by_type": {
+        "bug": 3,
+        "system": 1,
+        "feature": 4
+      },
+      "by_severity": {
+        "medium": 8
+      },
+      "by_category": {
+        "system_test": 3,
+        "service_status": 1,
+        "feature_completeness": 4
+      }
+    },
+    "detailed_analysis": {
+      "by_type": {
+        "bug": [
+          {
+            "feedback_id": "test_knowledge_base_api",
+            "type": "bug",
+            "severity": "medium",
+            "category": "system_test",
+            "title": "知识库API测试失败",
+            "description": "知识库API测试未能通过，可能存在功能问题",
+            "status": "open",
+            "priority": "medium",
+            "created_at": "2026-03-18T21:21:20.436136",
+            "source": "automated_test"
+          },
+          {
+            "feedback_id": "test_document_processing",
+            "type": "bug",
+            "severity": "medium",
+            "category": "system_test",
+            "title": "文档处理功能测试失败",
+            "description": "文档处理功能测试未能通过，可能存在功能问题",
+            "status": "open",
+            "priority": "medium",
+            "created_at": "2026-03-18T21:21:20.436136",
+            "source": "automated_test"
+          },
+          {
+            "feedback_id": "test_vectorization",
+            "type": "bug",
+            "severity": "medium",
+            "category": "system_test",
+            "title": "向量化功能测试失败",
+            "description": "向量化功能测试未能通过，可能存在功能问题",
+            "status": "open",
+            "priority": "medium",
+            "created_at": "2026-03-18T21:21:20.436136",
+            "source": "automated_test"
+          }
+        ],
+        "system": [
+          {
+            "feedback_id": "service_chromadb",
+            "type": "system",
+            "severity": "medium",
+            "category": "service_status",
+            "title": "chromadb服务状态异常",
+            "description": "chromadb服务当前状态为: unhealthy，可能影响系统正常运行",
+            "status": "open",
+            "priority": "medium",
+            "created_at": "2026-03-18T21:21:26.816513",
+            "source": "system_analysis"
+          }
+        ],
+        "feature": [
+          {
+            "feedback_id": "feature_向量化",
+            "type": "feature",
+            "severity": "medium",
+            "category": "feature_completeness",
+            "title": "功能模块缺失: 向量化",
+            "description": "向量化功能模块可能未实现，影响系统完整性",
+            "status": "open",
+            "priority": "medium",
+            "created_at": "2026-03-18T21:21:26.817623",
+            "source": "feature_analysis"
+          },
+          {
+            "feedback_id": "feature_实体关系",
+            "type": "feature",
+            "severity": "medium",
+            "category": "feature_completeness",
+            "title": "功能模块缺失: 实体关系",
+            "description": "实体关系功能模块可能未实现，影响系统完整性",
+            "status": "open",
+            "priority": "medium",
+            "created_at": "2026-03-18T21:21:26.818219",
+            "source": "feature_analysis"
+          },
+          {
+            "feedback_id": "feature_重排序",
+            "type": "feature",
+            "severity": "medium",
+            "category": "feature_completeness",
+            "title": "功能模块缺失: 重排序",
+            "description": "重排序功能模块可能未实现，影响系统完整性",
+            "status": "open",
+            "priority": "medium",
+            "created_at": "2026-03-18T21:21:26.818830",
+            "source": "feature_analysis"
+          },
+          {
+            "feedback_id": "feature_设置",
+            "type": "feature",
+            "severity": "medium",
+            "category": "feature_completeness",
+            "title": "功能模块缺失: 设置",
+            "description": "设置功能模块可能未实现，影响系统完整性",
+            "status": "open",
+            "priority": "medium",
+            "created_at": "2026-03-18T21:21:26.818830",
+            "source": "feature_analysis"
+          }
+        ]
+      },
+      "by_severity": {
+        "medium": [
+          {
+            "feedback_id": "test_knowledge_base_api",
+            "type": "bug",
+            "severity": "medium",
+            "category": "system_test",
+            "title": "知识库API测试失败",
+            "description": "知识库API测试未能通过，可能存在功能问题",
+            "status": "open",
+            "priority": "medium",
+            "created_at": "2026-03-18T21:21:20.436136",
+            "source": "automated_test"
+          },
+          {
+            "feedback_id": "test_document_processing",
+            "type": "bug",
+            "severity": "medium",
+            "category": "system_test",
+            "title": "文档处理功能测试失败",
+            "description": "文档处理功能测试未能通过，可能存在功能问题",
+            "status": "open",
+            "priority": "medium",
+            "created_at": "2026-03-18T21:21:20.436136",
+            "source": "automated_test"
+          },
+          {
+            "feedback_id": "test_vectorization",
+            "type": "bug",
+            "severity": "medium",
+            "category": "system_test",
+            "title": "向量化功能测试失败",
+            "description": "向量化功能测试未能通过，可能存在功能问题",
+            "status": "open",
+            "priority": "medium",
+            "created_at": "2026-03-18T21:21:20.436136",
+            "source": "automated_test"
+          },
+          {
+            "feedback_id": "service_chromadb",
+            "type": "system",
+            "severity": "medium",
+            "category": "service_status",
+            "title": "chromadb服务状态异常",
+            "description": "chromadb服务当前状态为: unhealthy，可能影响系统正常运行",
+            "status": "open",
+            "priority": "medium",
+            "created_at": "2026-03-18T21:21:26.816513",
+            "source": "system_analysis"
+          },
+          {
+            "feedback_id": "feature_向量化",
+            "type": "feature",
+            "severity": "medium",
+            "category": "feature_completeness",
+            "title": "功能模块缺失: 向量化",
+            "description": "向量化功能模块可能未实现，影响系统完整性",
+            "status": "open",
+            "priority": "medium",
+            "created_at": "2026-03-18T21:21:26.817623",
+            "source": "feature_analysis"
+          },
+          {
+            "feedback_id": "feature_实体关系",
+            "type": "feature",
+            "severity": "medium",
+            "category": "feature_completeness",
+            "title": "功能模块缺失: 实体关系",
+            "description": "实体关系功能模块可能未实现，影响系统完整性",
+            "status": "open",
+            "priority": "medium",
+            "created_at": "2026-03-18T21:21:26.818219",
+            "source": "feature_analysis"
+          },
+          {
+            "feedback_id": "feature_重排序",
+            "type": "feature",
+            "severity": "medium",
+            "category": "feature_completeness",
+            "title": "功能模块缺失: 重排序",
+            "description": "重排序功能模块可能未实现，影响系统完整性",
+            "status": "open",
+            "priority": "medium",
+            "created_at": "2026-03-18T21:21:26.818830",
+            "source": "feature_analysis"
+          },
+          {
+            "feedback_id": "feature_设置",
+            "type": "feature",
+            "severity": "medium",
+            "category": "feature_completeness",
+            "title": "功能模块缺失: 设置",
+            "description": "设置功能模块可能未实现，影响系统完整性",
+            "status": "open",
+            "priority": "medium",
+            "created_at": "2026-03-18T21:21:26.818830",
+            "source": "feature_analysis"
+          }
+        ]
+      },
+      "by_category": {
+        "system_test": [
+          {
+            "feedback_id": "test_knowledge_base_api",
+            "type": "bug",
+            "severity": "medium",
+            "category": "system_test",
+            "title": "知识库API测试失败",
+            "description": "知识库API测试未能通过，可能存在功能问题",
+            "status": "open",
+            "priority": "medium",
+            "created_at": "2026-03-18T21:21:20.436136",
+            "source": "automated_test"
+          },
+          {
+            "feedback_id": "test_document_processing",
+            "type": "bug",
+            "severity": "medium",
+            "category": "system_test",
+            "title": "文档处理功能测试失败",
+            "description": "文档处理功能测试未能通过，可能存在功能问题",
+            "status": "open",
+            "priority": "medium",
+            "created_at": "2026-03-18T21:21:20.436136",
+            "source": "automated_test"
+          },
+          {
+            "feedback_id": "test_vectorization",
+            "type": "bug",
+            "severity": "medium",
+            "category": "system_test",
+            "title": "向量化功能测试失败",
+            "description": "向量化功能测试未能通过，可能存在功能问题",
+            "status": "open",
+            "priority": "medium",
+            "created_at": "2026-03-18T21:21:20.436136",
+            "source": "automated_test"
+          }
+        ],
+        "service_status": [
+          {
+            "feedback_id": "service_chromadb",
+            "type": "system",
+            "severity": "medium",
+            "category": "service_status",
+            "title": "chromadb服务状态异常",
+            "description": "chromadb服务当前状态为: unhealthy，可能影响系统正常运行",
+            "status": "open",
+            "priority": "medium",
+            "created_at": "2026-03-18T21:21:26.816513",
+            "source": "system_analysis"
+          }
+        ],
+        "feature_completeness": [
+          {
+            "feedback_id": "feature_向量化",
+            "type": "feature",
+            "severity": "medium",
+            "category": "feature_completeness",
+            "title": "功能模块缺失: 向量化",
+            "description": "向量化功能模块可能未实现，影响系统完整性",
+            "status": "open",
+            "priority": "medium",
+            "created_at": "2026-03-18T21:21:26.817623",
+            "source": "feature_analysis"
+          },
+          {
+            "feedback_id": "feature_实体关系",
+            "type": "feature",
+            "severity": "medium",
+            "category": "feature_completeness",
+            "title": "功能模块缺失: 实体关系",
+            "description": "实体关系功能模块可能未实现，影响系统完整性",
+            "status": "open",
+            "priority": "medium",
+            "created_at": "2026-03-18T21:21:26.818219",
+            "source": "feature_analysis"
+          },
+          {
+            "feedback_id": "feature_重排序",
+            "type": "feature",
+            "severity": "medium",
+            "category": "feature_completeness",
+            "title": "功能模块缺失: 重排序",
+            "description": "重排序功能模块可能未实现，影响系统完整性",
+            "status": "open",
+            "priority": "medium",
+            "created_at": "2026-03-18T21:21:26.818830",
+            "source": "feature_analysis"
+          },
+          {
+            "feedback_id": "feature_设置",
+            "type": "feature",
+            "severity": "medium",
+            "category": "feature_completeness",
+            "title": "功能模块缺失: 设置",
+            "description": "设置功能模块可能未实现，影响系统完整性",
+            "status": "open",
+            "priority": "medium",
+            "created_at": "2026-03-18T21:21:26.818830",
+            "source": "feature_analysis"
+          }
+        ]
+      }
+    },
+    "recommendations": [
+      {
+        "id": "rec_test_knowledge_base_api",
+        "title": "修复知识库API测试失败",
+        "description": "知识库API测试未能通过，可能存在功能问题",
+        "priority": "medium",
+        "estimated_effort": "medium",
+        "status": "recommended",
+        "related_feedback": "test_knowledge_base_api"
+      },
+      {
+        "id": "rec_test_document_processing",
+        "title": "修复文档处理功能测试失败",
+        "description": "文档处理功能测试未能通过，可能存在功能问题",
+        "priority": "medium",
+        "estimated_effort": "medium",
+        "status": "recommended",
+        "related_feedback": "test_document_processing"
+      },
+      {
+        "id": "rec_test_vectorization",
+        "title": "修复向量化功能测试失败",
+        "description": "向量化功能测试未能通过，可能存在功能问题",
+        "priority": "medium",
+        "estimated_effort": "medium",
+        "status": "recommended",
+        "related_feedback": "test_vectorization"
+      },
+      {
+        "id": "rec_feature_向量化",
+        "title": "实现功能模块缺失: 向量化",
+        "description": "向量化功能模块可能未实现，影响系统完整性",
+        "priority": "medium",
+        "estimated_effort": "medium",
+        "status": "recommended",
+        "related_feedback": "feature_向量化"
+      },
+      {
+        "id": "rec_feature_实体关系",
+        "title": "实现功能模块缺失: 实体关系",
+        "description": "实体关系功能模块可能未实现，影响系统完整性",
+        "priority": "medium",
+        "estimated_effort": "medium",
+        "status": "recommended",
+        "related_feedback": "feature_实体关系"
+      },
+      {
+        "id": "rec_feature_重排序",
+        "title": "实现功能模块缺失: 重排序",
+        "description": "重排序功能模块可能未实现，影响系统完整性",
+        "priority": "medium",
+        "estimated_effort": "medium",
+        "status": "recommended",
+        "related_feedback": "feature_重排序"
+      },
+      {
+        "id": "rec_feature_设置",
+        "title": "实现功能模块缺失: 设置",
+        "description": "设置功能模块可能未实现，影响系统完整性",
+        "priority": "medium",
+        "estimated_effort": "medium",
+        "status": "recommended",
+        "related_feedback": "feature_设置"
+      },
+      {
+        "id": "rec_system_monitoring",
+        "title": "建立系统监控机制",
+        "description": "实现服务状态监控，及时发现和处理服务异常",
+        "priority": "high",
+        "estimated_effort": "medium",
+        "status": "recommended",
+        "related_feedback": "system_analysis"
+      },
+      {
+        "id": "rec_user_testing",
+        "title": "开展用户测试",
+        "description": "组织真实用户测试，收集实际使用场景的反馈",
+        "priority": "medium",
+        "estimated_effort": "high",
+        "status": "recommended",
+        "related_feedback": "ux_analysis"
+      },
+      {
+        "id": "rec_documentation",
+        "title": "完善系统文档",
+        "description": "编写详细的系统文档，包括功能说明、API文档和使用指南",
+        "priority": "medium",
+        "estimated_effort": "medium",
+        "status": "recommended",
+        "related_feedback": "system_analysis"
+      }
+    ]
+  }
+}

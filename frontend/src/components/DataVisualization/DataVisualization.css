@@ -1,0 +1,95 @@
+.data-visualization {
+  width: 100%;
+  margin: 20px 0;
+  padding: 20px;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.data-visualization.error {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+  color: #f5222d;
+}
+
+.error-message {
+  font-size: 16px;
+  text-align: center;
+}
+
+.chart-svg {
+  width: 100%;
+  height: auto;
+}
+
+.chart-title {
+  font-size: 18px;
+  font-weight: 600;
+  fill: #262626;
+  margin-bottom: 10px;
+}
+
+.bar {
+  transition: fill 0.3s ease;
+}
+
+.dot {
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.arc path {
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.tooltip {
+  font-size: 12px;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 4px 8px;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  pointer-events: none;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .data-visualization {
+    padding: 10px;
+    margin: 10px 0;
+  }
+
+  .chart-title {
+    font-size: 16px;
+  }
+
+  .tooltip {
+    font-size: 11px;
+  }
+}
+
+/* 深色模式支持 */
+@media (prefers-color-scheme: dark) {
+  .data-visualization {
+    background: #1f1f1f;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+
+  .chart-title {
+    fill: #ffffff;
+  }
+
+  .error-message {
+    color: #ff4d4f;
+  }
+
+  .tooltip {
+    background: rgba(0, 0, 0, 0.9);
+    color: #ffffff;
+  }
+}

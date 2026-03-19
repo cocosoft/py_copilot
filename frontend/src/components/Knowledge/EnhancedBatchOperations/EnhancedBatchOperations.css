@@ -1,0 +1,437 @@
+/**
+ * 增强版批量操作组件样式
+ */
+
+.enhanced-batch-operations {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border-top: 2px solid #1890ff;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  animation: slideUp 0.3s ease-out;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 24px;
+  gap: 16px;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.batch-operations-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.batch-operations-center {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  justify-content: center;
+}
+
+.batch-operations-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 全选按钮样式 */
+.batch-select-all-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: #f5f5f5;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 13px;
+  color: #262626;
+  font-weight: 500;
+}
+
+.batch-select-all-btn:hover {
+  background: #e8e8e8;
+  border-color: #bfbfbf;
+}
+
+.batch-checkbox-icon {
+  font-size: 16px;
+  color: #8c8c8c;
+}
+
+.batch-checkbox-icon.checked {
+  color: #1890ff;
+}
+
+.batch-checkbox-indeterminate {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.batch-checkbox-line {
+  position: absolute;
+  width: 10px;
+  height: 2px;
+  background: #1890ff;
+  border-radius: 1px;
+}
+
+.batch-select-text {
+  color: #262626;
+  font-weight: 500;
+}
+
+/* 按钮样式 */
+.enhanced-batch-operations button {
+  min-width: 80px;
+  font-size: 13px;
+  padding: 6px 12px;
+}
+
+.enhanced-batch-operations button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 模态框样式 */
+.batch-tag-modal,
+.batch-export-modal,
+.batch-entity-status-modal {
+  padding: 16px;
+}
+
+.batch-tag-modal p,
+.batch-export-modal p,
+.batch-entity-status-modal p {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  color: #595959;
+}
+
+/* 标签选择样式 */
+.tag-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tag-input {
+  padding: 8px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.tag-input:focus {
+  outline: none;
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.selected-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 32px;
+  padding: 8px;
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+}
+
+.selected-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: #e6f7ff;
+  border: 1px solid #91d5ff;
+  border-radius: 12px;
+  font-size: 12px;
+  color: #1890ff;
+}
+
+.selected-tag button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: #1890ff;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  border-radius: 50%;
+}
+
+.selected-tag button:hover {
+  background: rgba(24, 144, 255, 0.1);
+}
+
+/* 导出格式选择样式 */
+.export-format-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.export-format-selection label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.export-format-selection label:hover {
+  background: #f0f0f0;
+  border-color: #d9d9d9;
+}
+
+.export-format-selection label input[type="radio"] {
+  margin: 0;
+}
+
+.export-format-selection label span {
+  font-size: 14px;
+  color: #262626;
+}
+
+/* 实体状态选择样式 */
+.entity-status-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.entity-status-selection label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.entity-status-selection label:hover {
+  background: #f0f0f0;
+  border-color: #d9d9d9;
+}
+
+.entity-status-selection label input[type="radio"] {
+  margin: 0;
+}
+
+.status-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #262626;
+  font-weight: 500;
+}
+
+.status-option.confirmed {
+  color: #52c41a;
+}
+
+.status-option.rejected {
+  color: #ff4d4f;
+}
+
+.status-option.pending {
+  color: #faad14;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .enhanced-batch-operations {
+    flex-direction: column;
+    padding: 12px 16px;
+    gap: 12px;
+  }
+
+  .batch-operations-left,
+  .batch-operations-center,
+  .batch-operations-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .batch-operations-center {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .enhanced-batch-operations button {
+    min-width: 70px;
+    font-size: 12px;
+    padding: 5px 8px;
+  }
+}
+
+/* 滚动条样式 */
+.batch-tag-modal::-webkit-scrollbar,
+.batch-export-modal::-webkit-scrollbar,
+.batch-entity-status-modal::-webkit-scrollbar {
+  width: 6px;
+}
+
+.batch-tag-modal::-webkit-scrollbar-track,
+.batch-export-modal::-webkit-scrollbar-track,
+.batch-entity-status-modal::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.batch-tag-modal::-webkit-scrollbar-thumb,
+.batch-export-modal::-webkit-scrollbar-thumb,
+.batch-entity-status-modal::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.batch-tag-modal::-webkit-scrollbar-thumb:hover,
+.batch-export-modal::-webkit-scrollbar-thumb:hover,
+.batch-entity-status-modal::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 加载状态样式 */
+.enhanced-batch-operations button.loading {
+  position: relative;
+  pointer-events: none;
+}
+
+.enhanced-batch-operations button.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border: 2px solid #f3f3f3;
+  border-top-color: #1890ff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 按钮组样式 */
+.batch-operations-center {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.batch-operations-center > button {
+  flex-shrink: 0;
+}
+
+/* 图标样式 */
+.enhanced-batch-operations button svg {
+  font-size: 14px;
+}
+
+/* 工具提示样式 */
+.enhanced-batch-operations button[title]:hover::before {
+  content: attr(title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  background: #262626;
+  color: #ffffff;
+  font-size: 12px;
+  border-radius: 4px;
+  white-space: nowrap;
+  margin-bottom: 4px;
+  z-index: 1001;
+}
+
+/* 禁用状态样式 */
+.enhanced-batch-operations button:disabled {
+  background: #f5f5f5;
+  border-color: #d9d9d9;
+  color: #bfbfbf;
+  cursor: not-allowed;
+}
+
+.enhanced-batch-operations button:disabled:hover {
+  background: #f5f5f5;
+  border-color: #d9d9d9;
+  color: #bfbfbf;
+}
+
+/* 成功状态样式 */
+.enhanced-batch-operations button.success {
+  background: #52c41a;
+  border-color: #52c41a;
+  color: #ffffff;
+}
+
+.enhanced-batch-operations button.success:hover {
+  background: #73d13d;
+  border-color: #73d13d;
+}
+
+/* 错误状态样式 */
+.enhanced-batch-operations button.error {
+  background: #ff4d4f;
+  border-color: #ff4d4f;
+  color: #ffffff;
+}
+
+.enhanced-batch-operations button.error:hover {
+  background: #ff7875;
+  border-color: #ff7875;
+}
+
+/* 警告状态样式 */
+.enhanced-batch-operations button.warning {
+  background: #faad14;
+  border-color: #faad14;
+  color: #ffffff;
+}
+
+.enhanced-batch-operations button.warning:hover {
+  background: #ffc53d;
+  border-color: #ffc53d;
+}

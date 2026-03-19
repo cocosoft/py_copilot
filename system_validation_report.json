@@ -1,0 +1,86 @@
+{
+  "validation_summary": {
+    "total_validations": 6,
+    "passed_validations": 5,
+    "failed_validations": 1,
+    "warning_validations": 0,
+    "success_rate": 83.33333333333334,
+    "start_time": "2026-03-18T16:50:12.532950",
+    "end_time": "2026-03-18T16:50:12.560717",
+    "duration_seconds": 0.027767
+  },
+  "validation_details": {
+    "backend_services": {
+      "status": "FAIL",
+      "message": "后端服务完整性验证失败: No module named 'app'"
+    },
+    "frontend_components": {
+      "status": "PASS",
+      "message": "前端组件完整性验证通过",
+      "details": {
+        "total_files": 11,
+        "files": [
+          "index.js",
+          "Core/Button/index.jsx",
+          "Core/Button/Button.css",
+          "Core/Modal/index.jsx",
+          "Core/Modal/Modal.css",
+          "Core/Loading/index.jsx",
+          "Core/Loading/Loading.css",
+          "Core/ErrorBoundary/index.jsx",
+          "Core/ErrorBoundary/ErrorBoundary.css",
+          "README.md",
+          "COMPONENT_USAGE.md"
+        ]
+      }
+    },
+    "documentation": {
+      "status": "PASS",
+      "message": "文档完整性验证通过",
+      "details": {
+        "total_docs": 5,
+        "docs": [
+          "知识库系统优化实施方案.md",
+          "backend/integration_test_plan.md",
+          "backend/integration_test.py",
+          "frontend/src/components/UnifiedComponentLibrary/README.md",
+          "frontend/src/components/UnifiedComponentLibrary/COMPONENT_USAGE.md"
+        ]
+      }
+    },
+    "test_coverage": {
+      "status": "PASS",
+      "message": "测试覆盖率验证通过",
+      "details": {
+        "total_tests": 5,
+        "tests": [
+          "backend/integration_test.py",
+          "backend/test_unified_processor.py",
+          "backend/test_unified_vectorization.py",
+          "frontend/src/components/UnifiedComponentLibrary/test-components.jsx",
+          "frontend/src/components/UnifiedComponentLibrary/integration-test.jsx"
+        ]
+      }
+    },
+    "performance_improvements": {
+      "status": "PASS",
+      "message": "性能改进验证通过 (平均处理时间: 0.000秒)",
+      "details": {
+        "total_time": 0.0010547637939453125,
+        "average_time": 0.00010547637939453124,
+        "iterations": 10
+      }
+    },
+    "code_quality": {
+      "status": "PASS",
+      "message": "代码质量验证通过",
+      "details": {
+        "total_files": 4,
+        "files_analyzed": 4,
+        "avg_lines_per_file": 196.5,
+        "has_comments": true,
+        "has_docstrings": true
+      }
+    }
+  }
+}

@@ -6,7 +6,7 @@ import logging
 import asyncio
 from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor
 import time
 
@@ -170,7 +170,7 @@ class BatchEntityExtractor:
         
         # 检查缓存
         if use_cache:
-            cached = await self.cache.get_cached_result(text, use_redis=False)
+            cached = await self.cache.get_cached_result(text, use_redis=True)
             if cached:
                 logger.debug(f"文本 {index} 缓存命中")
                 return cached[0], cached[1], True
@@ -192,13 +192,15 @@ class BatchDocumentProcessor:
     def __init__(self, max_workers: int = 3):
         """
         初始化批量文档处理器
-        
+
         Args:
             max_workers: 最大并发工作线程数
         """
         self.max_workers = max_workers
         from app.services.knowledge.core.document_processor import DocumentProcessor
         self.document_processor = DocumentProcessor()
+        from app.core.cache import cache_service
+        self.cache_service = cache_service
         
     async def process_documents_batch(
         self,
@@ -281,11 +283,11 @@ class BatchDocumentProcessor:
     ) -> Dict[str, Any]:
         """
         处理单个文档
-        
+
         Args:
             document: 文档信息
             index: 文档索引
-            
+
         Returns:
             处理结果
         """
@@ -293,7 +295,18 @@ class BatchDocumentProcessor:
         file_type = document.get("file_type")
         document_id = document.get("document_id")
         knowledge_base_id = document.get("knowledge_base_id")
-        
+
+        # 生成缓存键
+        cache_key = f"document_processing:{document_id}:{file_path}"
+
+        # 尝试从缓存获取
+        cached_result = await self.cache_service.get(cache_key)
+        if cached_result:
+            logger.debug(f"文档 {document_id} 缓存命中")
+            cached_result["index"] = index
+            cached_result["document_id"] = document_id
+            return cached_result
+
         try:
             # 使用线程池运行同步的文档处理
             loop = asyncio.get_event_loop()
@@ -306,19 +319,24 @@ class BatchDocumentProcessor:
                     knowledge_base_id=knowledge_base_id
                 )
             )
-            
+
             result["index"] = index
             result["document_id"] = document_id
+
+            # 缓存处理结果
+            await self.cache_service.set(cache_key, result, timeout=timedelta(hours=24))
+
             return result
-            
+
         except Exception as e:
             logger.error(f"文档 {document_id} 处理失败: {e}")
-            return {
+            error_result = {
                 "index": index,
                 "document_id": document_id,
                 "success": False,
                 "error": str(e)
             }
+            return error_result
 
 
 class BatchKnowledgeGraphBuilder:
@@ -330,7 +348,7 @@ class BatchKnowledgeGraphBuilder:
     def __init__(self, max_workers: int = 5, knowledge_base_id: int = None):
         """
         初始化批量知识图谱构建器
-        
+
         Args:
             max_workers: 最大并发工作线程数
             knowledge_base_id: 知识库ID，用于加载知识库级提取策略配置
@@ -339,6 +357,8 @@ class BatchKnowledgeGraphBuilder:
         self.knowledge_base_id = knowledge_base_id
         from app.services.knowledge.graph.knowledge_graph_service import KnowledgeGraphService
         self.kg_service = KnowledgeGraphService()
+        from app.core.cache import cache_service
+        self.cache_service = cache_service
         
     async def build_graphs_batch(
         self,
@@ -433,6 +453,17 @@ class BatchKnowledgeGraphBuilder:
         Returns:
             构建结果
         """
+        # 生成缓存键
+        cache_key = f"knowledge_graph:{document_id}:{self.knowledge_base_id or 'default'}"
+
+        # 尝试从缓存获取
+        cached_result = await self.cache_service.get(cache_key)
+        if cached_result:
+            logger.debug(f"文档 {document_id} 知识图谱缓存命中")
+            cached_result["index"] = index
+            cached_result["document_id"] = document_id
+            return cached_result
+
         # 每个任务创建独立的数据库连接，避免并发冲突
         from app.core.database import SessionLocal
         local_db = None
@@ -471,18 +502,15 @@ class BatchKnowledgeGraphBuilder:
 
             if "error" in graph_data:
                 logger.error(f"[批量构建] 文档 {document_id} 构建失败: {graph_data['error']}")
-                return {
+                error_result = {
                     "index": index,
                     "document_id": document_id,
                     "success": False,
                     "error": graph_data["error"]
                 }
+                return error_result
 
-            logger.info(f"[批量构建] 文档 {document_id} 构建成功: "
-                       f"{len(graph_data.get('nodes', []))} 个节点, "
-                       f"{len(graph_data.get('edges', []))} 条边")
-
-            return {
+            result = {
                 "index": index,
                 "document_id": document_id,
                 "success": True,
@@ -490,6 +518,15 @@ class BatchKnowledgeGraphBuilder:
                 "edge_count": len(graph_data.get("edges", [])),
                 "graph_data": graph_data
             }
+
+            # 缓存构建结果
+            await self.cache_service.set(cache_key, result, timeout=timedelta(hours=48))
+
+            logger.info(f"[批量构建] 文档 {document_id} 构建成功: "
+                       f"{len(graph_data.get('nodes', []))} 个节点, "
+                       f"{len(graph_data.get('edges', []))} 条边")
+
+            return result
 
         except Exception as e:
             logger.error(f"[批量构建] 文档 {document_id} 图谱构建异常: {e}", exc_info=True)

@@ -10,7 +10,7 @@ const Image = lazy(() => import('../pages/Image'));
 const Video = lazy(() => import('../pages/Video'));
 const Voice = lazy(() => import('../pages/Voice'));
 const Translate = lazy(() => import('../pages/Translate'));
-const Knowledge = lazy(() => import('../pages/Knowledge'));
+const Knowledge = lazy(() => import('../pages/knowledge/legacy/Knowledge'));
 const Workflow = lazy(() => import('../pages/Workflow'));
 const Tool = lazy(() => import('../pages/Tool'));
 const Task = lazy(() => import('../pages/Task'));
@@ -22,8 +22,8 @@ const CapabilityCenter = lazy(() => import('../pages/CapabilityCenter'));
 const DevCenter = lazy(() => import('../pages/DevCenter'));
 
 // 增强版知识库相关页面（向量化管理模块优化）
-const EnhancedKnowledge = lazy(() => import('../pages/knowledge/EnhancedKnowledge'));
-const EnhancedVectorization = lazy(() => import('../pages/knowledge/EnhancedVectorization'));
+const EnhancedKnowledge = lazy(() => import('../pages/knowledge/legacy/EnhancedKnowledge'));
+const EnhancedVectorization = lazy(() => import('../pages/knowledge/legacy/EnhancedVectorization'));
 
 /**
  * 重定向组件：将旧路由重定向到能力中心
@@ -69,12 +69,12 @@ const AppRoutes = () => {
           ))}
         </Route>
         
-        {/* 旧版知识库页面 - 保持兼容 */}
-        <Route path="knowledge-old" element={<Knowledge />} />
+        {/* 旧版知识库页面 - 重定向到新版 */}
+        <Route path="knowledge-old" element={<Navigate to="knowledge/documents" replace />} />
         
-        {/* 增强版知识库页面（向量化管理模块优化） */}
-        <Route path="knowledge/enhanced" element={<EnhancedKnowledge />} />
-        <Route path="knowledge/vectorization" element={<EnhancedVectorization />} />
+        {/* 增强版知识库页面 - 重定向到新版 */}
+        <Route path="knowledge/enhanced" element={<Navigate to="knowledge/documents" replace />} />
+        <Route path="knowledge/vectorization" element={<Navigate to="knowledge/documents" replace />} />
         <Route path="workflow" element={<Workflow />} />
 
         {/* 废弃路由重定向 - 请使用能力中心 */}

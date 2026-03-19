@@ -55,20 +55,24 @@ class DatabaseConnectionPool:
             
             # 只有当不是使用NullPool时，才添加连接池参数
             if poolclass != NullPool:
-                pool_size = 10
-                max_overflow = 20
+                pool_size = 20  # 增加连接池大小
+                max_overflow = 30  # 增加最大溢出连接数
                 
                 # 从库可以配置更大的连接池，因为只读操作通常更轻量
                 if self.pool_type == "slave":
-                    pool_size = 15
-                    max_overflow = 30
+                    pool_size = 25
+                    max_overflow = 40
                 
                 engine_kwargs.update({
                     "pool_pre_ping": True,  # 连接前检查连接是否有效
                     "pool_size": pool_size,  # 连接池大小
                     "max_overflow": max_overflow,  # 最大溢出连接数
-                    "pool_recycle": 3600,  # 连接回收时间（秒），1小时
-                    "pool_timeout": 30,  # 获取连接超时时间（秒）
+                    "pool_recycle": 1800,  # 连接回收时间（秒），30分钟，减少连接失效问题
+                    "pool_timeout": 10,  # 获取连接超时时间（秒），减少等待时间
+                    "pool_use_lifo": True,  # 使用LIFO策略，提高连接利用率
+                    "execution_options": {
+                        "isolation_level": "READ COMMITTED"  # 设置事务隔离级别
+                    }
                 })
             else:
                 # NullPool不需要连接池参数，但仍然需要pool_pre_ping

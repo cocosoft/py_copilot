@@ -13,7 +13,12 @@ from typing import Dict, List, Optional, Any, Callable
 from dataclasses import dataclass
 from enum import Enum
 import tracemalloc
-import line_profiler
+
+# 尝试导入line_profiler，如果不可用则忽略
+try:
+    import line_profiler
+except ImportError:
+    line_profiler = None
 
 logger = logging.getLogger(__name__)
 

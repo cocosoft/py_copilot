@@ -113,8 +113,13 @@ const VirtualListEnhanced = ({
    * 解决切换知识库时文档列表不显示的问题
    */
   useEffect(() => {
+    // 使用 requestAnimationFrame 延迟滚动操作，避免在 React 渲染过程中执行
     if (parentRef.current) {
-      parentRef.current.scrollTop = 0;
+      requestAnimationFrame(() => {
+        if (parentRef.current) {
+          parentRef.current.scrollTop = 0;
+        }
+      });
     }
     // 重置加载更多标记
     endReachedCalledRef.current = false;

@@ -1,0 +1,99 @@
+{
+  "test_date": "2026-03-18T21:12:06.569604",
+  "test_duration": 48.29036,
+  "results": [
+    {
+      "test_name": "document_processing",
+      "execution_time": 1.0025622844696045,
+      "system_before": {
+        "cpu_percent": 25.1,
+        "memory_percent": 55.1,
+        "memory_used_mb": 17911.921875,
+        "disk_percent": 29.4,
+        "disk_used_gb": 108.61165618896484
+      },
+      "system_after": {
+        "cpu_percent": 13.7,
+        "memory_percent": 53.8,
+        "memory_used_mb": 17481.69140625,
+        "disk_percent": 29.4,
+        "disk_used_gb": 108.61165618896484
+      },
+      "success": true,
+      "output_length": 1
+    },
+    {
+      "test_name": "vectorization",
+      "execution_time": 1.0030043125152588,
+      "system_before": {
+        "cpu_percent": 18.8,
+        "memory_percent": 57.8,
+        "memory_used_mb": 18764.2890625,
+        "disk_percent": 29.4,
+        "disk_used_gb": 108.61190414428711
+      },
+      "system_after": {
+        "cpu_percent": 20.6,
+        "memory_percent": 57.7,
+        "memory_used_mb": 18755.1328125,
+        "disk_percent": 29.4,
+        "disk_used_gb": 108.61190414428711
+      },
+      "success": true,
+      "vector_count": 100
+    },
+    {
+      "test_name": "entity_recognition",
+      "execution_time": 1.0060467720031738,
+      "system_before": {
+        "cpu_percent": 19.1,
+        "memory_percent": 57.7,
+        "memory_used_mb": 18745.44921875,
+        "disk_percent": 29.4,
+        "disk_used_gb": 108.61190414428711
+      },
+      "system_after": {
+        "cpu_percent": 29.5,
+        "memory_percent": 57.7,
+        "memory_used_mb": 18746.640625,
+        "disk_percent": 29.4,
+        "disk_used_gb": 108.61190414428711
+      },
+      "success": true,
+      "entity_count": 0
+    },
+    {
+      "test_name": "service_registry",
+      "execution_time": 1.049513578414917,
+      "system_before": {
+        "cpu_percent": 20.1,
+        "memory_percent": 57.7,
+        "memory_used_mb": 18743.7890625,
+        "disk_percent": 29.4,
+        "disk_used_gb": 108.61190414428711
+      },
+      "system_after": {
+        "cpu_percent": 17.8,
+        "memory_percent": 57.7,
+        "memory_used_mb": 18750.3828125,
+        "disk_percent": 29.4,
+        "disk_used_gb": 108.6119499206543
+      },
+      "success": true,
+      "operations_count": 200
+    }
+  ],
+  "summary": {
+    "total_tests": 4,
+    "passed_tests": 4,
+    "failed_tests": 0,
+    "avg_execution_time": 1.0152817368507385,
+    "system_resource_changes": {
+      "cpu_percent": -0.3750000000000009,
+      "memory_percent": -0.34999999999999964,
+      "memory_used_mb": -107.900390625,
+      "disk_percent": 0.0,
+      "disk_used_gb": 1.1444091796875e-05
+    }
+  }
+}

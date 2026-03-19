@@ -1,0 +1,269 @@
+/* 统一错误边界组件样式 */
+
+.ucl-error-boundary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  padding: 40px 20px;
+  background-color: var(--ucl-color-gray-50);
+  border: 1px solid var(--ucl-color-gray-200);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.ucl-error-boundary__content {
+  max-width: 500px;
+  width: 100%;
+}
+
+.ucl-error-boundary__icon {
+  margin-bottom: 20px;
+  color: var(--ucl-color-warning-500);
+}
+
+.ucl-error-boundary__icon svg {
+  width: 48px;
+  height: 48px;
+}
+
+.ucl-error-boundary__title {
+  margin: 0 0 12px 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--ucl-color-gray-900);
+  line-height: 1.4;
+}
+
+.ucl-error-boundary__message {
+  margin: 0 0 24px 0;
+  font-size: 16px;
+  color: var(--ucl-color-gray-600);
+  line-height: 1.5;
+}
+
+.ucl-error-boundary__details {
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.ucl-error-boundary__details summary {
+  cursor: pointer;
+  padding: 8px 12px;
+  background-color: var(--ucl-color-gray-100);
+  border-radius: 4px;
+  font-weight: 500;
+  color: var(--ucl-color-gray-700);
+  border: 1px solid var(--ucl-color-gray-200);
+  transition: all 0.2s ease-in-out;
+}
+
+.ucl-error-boundary__details summary:hover {
+  background-color: var(--ucl-color-gray-200);
+}
+
+.ucl-error-boundary__error-info {
+  margin-top: 12px;
+  padding: 16px;
+  background-color: var(--ucl-color-gray-50);
+  border: 1px solid var(--ucl-color-gray-200);
+  border-radius: 4px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.ucl-error-boundary__error-info strong {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--ucl-color-gray-700);
+}
+
+.ucl-error-boundary__error-info pre {
+  margin: 0 0 16px 0;
+  padding: 12px;
+  background-color: var(--ucl-color-gray-100);
+  border-radius: 4px;
+  overflow-x: auto;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 12px;
+  color: var(--ucl-color-gray-800);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.ucl-error-boundary__error-info pre:last-child {
+  margin-bottom: 0;
+}
+
+.ucl-error-boundary__actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.ucl-error-boundary__retry-button {
+  padding: 10px 20px;
+  background-color: var(--ucl-color-primary-500);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.ucl-error-boundary__retry-button:hover {
+  background-color: var(--ucl-color-primary-600);
+}
+
+.ucl-error-boundary__reload-button {
+  padding: 10px 20px;
+  background-color: var(--ucl-color-gray-100);
+  color: var(--ucl-color-gray-700);
+  border: 1px solid var(--ucl-color-gray-300);
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.ucl-error-boundary__reload-button:hover {
+  background-color: var(--ucl-color-gray-200);
+}
+
+/* 紧凑模式 */
+.ucl-error-boundary--compact {
+  min-height: 120px;
+  padding: 20px;
+}
+
+.ucl-error-boundary--compact .ucl-error-boundary__icon {
+  margin-bottom: 12px;
+}
+
+.ucl-error-boundary--compact .ucl-error-boundary__icon svg {
+  width: 32px;
+  height: 32px;
+}
+
+.ucl-error-boundary--compact .ucl-error-boundary__title {
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+
+.ucl-error-boundary--compact .ucl-error-boundary__message {
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+/* 全屏模式 */
+.ucl-error-boundary--fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  background-color: white;
+  border: none;
+  border-radius: 0;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .ucl-error-boundary {
+    padding: 20px 16px;
+    min-height: 150px;
+  }
+  
+  .ucl-error-boundary__title {
+    font-size: 18px;
+  }
+  
+  .ucl-error-boundary__message {
+    font-size: 14px;
+  }
+  
+  .ucl-error-boundary__actions {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .ucl-error-boundary__retry-button,
+  .ucl-error-boundary__reload-button {
+    width: 100%;
+    max-width: 200px;
+  }
+}
+
+/* 暗色主题支持 */
+@media (prefers-color-scheme: dark) {
+  .ucl-error-boundary {
+    background-color: var(--ucl-color-gray-900);
+    border-color: var(--ucl-color-gray-700);
+  }
+  
+  .ucl-error-boundary__title {
+    color: var(--ucl-color-gray-100);
+  }
+  
+  .ucl-error-boundary__message {
+    color: var(--ucl-color-gray-300);
+  }
+  
+  .ucl-error-boundary__details summary {
+    background-color: var(--ucl-color-gray-800);
+    border-color: var(--ucl-color-gray-600);
+    color: var(--ucl-color-gray-300);
+  }
+  
+  .ucl-error-boundary__details summary:hover {
+    background-color: var(--ucl-color-gray-700);
+  }
+  
+  .ucl-error-boundary__error-info {
+    background-color: var(--ucl-color-gray-800);
+    border-color: var(--ucl-color-gray-600);
+  }
+  
+  .ucl-error-boundary__error-info pre {
+    background-color: var(--ucl-color-gray-700);
+    color: var(--ucl-color-gray-200);
+  }
+  
+  .ucl-error-boundary__reload-button {
+    background-color: var(--ucl-color-gray-800);
+    color: var(--ucl-color-gray-300);
+    border-color: var(--ucl-color-gray-600);
+  }
+  
+  .ucl-error-boundary__reload-button:hover {
+    background-color: var(--ucl-color-gray-700);
+  }
+  
+  .ucl-error-boundary--fullscreen {
+    background-color: var(--ucl-color-gray-900);
+  }
+}
+
+/* 无障碍访问 */
+.ucl-error-boundary__retry-button:focus-visible,
+.ucl-error-boundary__reload-button:focus-visible {
+  outline: 2px solid var(--ucl-color-primary-500);
+  outline-offset: 2px;
+}
+
+.ucl-error-boundary__details summary:focus-visible {
+  outline: 2px solid var(--ucl-color-primary-500);
+  outline-offset: 2px;
+}
+
+/* 打印样式 */
+@media print {
+  .ucl-error-boundary {
+    display: none !important;
+  }
+}

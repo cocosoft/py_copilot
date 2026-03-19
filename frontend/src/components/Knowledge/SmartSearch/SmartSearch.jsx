@@ -28,7 +28,11 @@ const SmartSearch = () => {
     documentFilters,
     addSearchHistory,
     clearSearchHistory,
+    removeSearchHistory,
     setDocumentFilters,
+    getCachedSearchResults,
+    setSearchResults,
+    setSearchQuery,
   } = useKnowledgeStore();
 
   // 文件类型选项
@@ -49,7 +53,7 @@ const SmartSearch = () => {
     { value: 'file_size', label: '文件大小' },
   ];
 
-  // 防抖搜索
+  // 防抖搜索 - 优化为 300ms（根据实际网络情况可调整）
   const debouncedQuery = useDebounce(query, 300);
 
   // 监听外部点击关闭下拉框
@@ -73,9 +77,17 @@ const SmartSearch = () => {
     if (query.trim()) {
       addSearchHistory(query.trim());
       setDocumentFilters({ ...documentFilters, search: query.trim() });
+      setSearchQuery(query.trim());
+      
+      // 检查搜索结果缓存
+      const cachedResults = getCachedSearchResults(query.trim());
+      if (cachedResults) {
+        setSearchResults(cachedResults);
+      }
+      
       setIsFocused(false);
     }
-  }, [query, documentFilters, addSearchHistory, setDocumentFilters]);
+  }, [query, documentFilters, addSearchHistory, setDocumentFilters, setSearchQuery, getCachedSearchResults, setSearchResults]);
 
   // 键盘事件处理
   const handleKeyDown = (e) => {
@@ -155,8 +167,7 @@ const SmartSearch = () => {
   // 删除单条历史记录
   const handleRemoveHistory = (e, history) => {
     e.stopPropagation();
-    // TODO: 实现删除单条历史记录
-    console.log('删除历史:', history);
+    removeSearchHistory(history);
   };
 
   const hasActiveFilters = Object.keys(documentFilters).some(
@@ -177,6 +188,7 @@ const SmartSearch = () => {
             onKeyDown={handleKeyDown}
             placeholder="搜索文档、标签或内容..."
             className="smart-search-input"
+            data-testid="search-input"
           />
           {query && (
             <button className="smart-search-clear" onClick={handleClear}>

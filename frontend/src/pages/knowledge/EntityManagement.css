@@ -1,0 +1,105 @@
+/**
+ * 实体管理页面样式
+ */
+
+.entity-management {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #f5f5f5;
+  overflow: hidden;
+}
+
+.entity-management-header {
+  padding: 20px 24px;
+  background: #ffffff;
+  border-bottom: 1px solid #f0f0f0;
+  flex-shrink: 0;
+}
+
+.entity-management-header h2 {
+  margin: 0 0 8px 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.entity-management-header p {
+  margin: 0;
+  font-size: 14px;
+  color: #8c8c8c;
+}
+
+/* 标签页导航 */
+.entity-management-tabs {
+  display: flex;
+  background: #ffffff;
+  margin: 16px 24px 0 24px;
+  border-radius: 8px 8px 0 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  flex-shrink: 0;
+}
+
+.tab-button {
+  flex: 1;
+  padding: 16px 24px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-size: 16px;
+  font-weight: 500;
+  color: #595959;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.tab-button:hover {
+  color: #1890ff;
+  background: #f0f9ff;
+}
+
+.tab-button.active {
+  color: #1890ff;
+  border-bottom-color: #1890ff;
+  background: #ffffff;
+}
+
+/* 标签页内容 */
+.entity-management-content {
+  flex: 1;
+  overflow: hidden;
+  background: #ffffff;
+  margin: 0 24px 16px 24px;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.entity-management-content > div {
+  height: 100%;
+  overflow: auto;
+}
+
+/* 响应式适配 */
+@media (max-width: 768px) {
+  .entity-management-header {
+    padding: 16px 16px;
+  }
+  
+  .entity-management-header h2 {
+    font-size: 18px;
+  }
+  
+  .entity-management-tabs {
+    margin: 12px 16px 0 16px;
+  }
+  
+  .tab-button {
+    padding: 14px 16px;
+    font-size: 14px;
+  }
+  
+  .entity-management-content {
+    margin: 0 16px 12px 16px;
+  }
+}

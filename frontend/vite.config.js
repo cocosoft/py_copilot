@@ -1,5 +1,7 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
+import { visualizer } from 'rollup-plugin-visualizer'
+import { resolve } from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -10,41 +12,147 @@ export default defineConfig(({ mode }) => {
     const apiBaseUrl = 'http://localhost:8000'
   
   return {
-    plugins: [react()],
+    plugins: [
+      react({
+        // 启用Fast Refresh
+        fastRefresh: true,
+        // 优化Babel配置
+        babel: {
+          // 启用自动运行时
+          plugins: ['@babel/plugin-transform-runtime']
+        }
+      }),
+      // 构建分析工具
+      visualizer({
+        open: false,
+        filename: 'dist/stats.html',
+        gzipSize: true,
+        brotliSize: true
+      })
+    ],
+    resolve: {
+      // 别名配置
+      alias: {
+        '@': resolve(__dirname, 'src'),
+        '@components': resolve(__dirname, 'src/components'),
+        '@pages': resolve(__dirname, 'src/pages'),
+        '@services': resolve(__dirname, 'src/services'),
+        '@utils': resolve(__dirname, 'src/utils'),
+        '@stores': resolve(__dirname, 'src/stores'),
+        '@hooks': resolve(__dirname, 'src/hooks'),
+        '@assets': resolve(__dirname, 'src/assets'),
+        '@contexts': resolve(__dirname, 'src/contexts')
+      }
+    },
     build: {
-      rollupOptions: {
-        output: {
-          manualChunks: {
-            // React核心库
-            'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-            // UI库
-            'ui-vendor': ['framer-motion', 'reactflow'],
-            // 工具库
-            'utils-vendor': ['axios', 'classnames'],
-            // 图表和可视化
-            'charts-vendor': ['d3'],
-            // PDF处理
-            'pdf-vendor': ['pdfjs-dist'],
-            // Markdown渲染
-            'markdown-vendor': [
-              'react-markdown',
-              'remark-gfm',
-              'remark-math',
-              'rehype-katex',
-              'react-syntax-highlighter'
-            ],
-            // 状态管理
-            'state-vendor': ['zustand', '@tanstack/react-query'],
-            // 虚拟滚动
-            'virtual-vendor': ['@tanstack/react-virtual'],
-          }
+      // 构建优化
+      minify: 'terser',
+      terserOptions: {
+        compress: {
+          drop_console: mode === 'production',
+          drop_debugger: mode === 'production'
         }
       },
-      chunkSizeWarningLimit: 1000
+      // 启用CSS代码分割
+      cssCodeSplit: true,
+      // 生成sourcemap
+      sourcemap: mode !== 'production',
+      // 预加载
+      preload: true,
+      // 输出目录
+      outDir: 'dist',
+      // 静态资源目录
+      assetsDir: 'assets',
+      // 资产文件名哈希
+      assetsInlineLimit: 4096, // 4kb以下内联
+      // 分块策略
+      rollupOptions: {
+        output: {
+          // 哈希命名
+          entryFileNames: 'assets/js/[name].[hash].js',
+          chunkFileNames: 'assets/js/[name].[hash].js',
+          assetFileNames: 'assets/[ext]/[name].[hash].[ext]',
+          // 代码分割策略
+          manualChunks: (id) => {
+            // 第三方依赖
+            if (id.includes('node_modules')) {
+              if (id.includes('react') || id.includes('react-dom')) {
+                return 'react-vendor';
+              } else if (id.includes('framer-motion') || id.includes('reactflow')) {
+                return 'ui-vendor';
+              } else if (id.includes('axios') || id.includes('classnames')) {
+                return 'utils-vendor';
+              } else if (id.includes('d3')) {
+                return 'charts-vendor';
+              } else if (id.includes('pdfjs-dist')) {
+                return 'pdf-vendor';
+              } else if (id.includes('react-markdown') || id.includes('remark') || id.includes('rehype')) {
+                return 'markdown-vendor';
+              } else if (id.includes('zustand') || id.includes('@tanstack')) {
+                return 'state-vendor';
+              } else if (id.includes('i18next')) {
+                return 'i18n-vendor';
+              } else if (id.includes('react-icons')) {
+                return 'icons-vendor';
+              }
+            }
+          }
+        },
+        // 优化
+        plugins: [
+          // 树摇
+          {
+            name: 'tree-shaking',
+            transform(code, id) {
+              // 移除未使用的代码
+              return code;
+            }
+          }
+        ]
+      },
+      chunkSizeWarningLimit: 1000,
+      // 启用持久化缓存
+      cacheDir: 'node_modules/.vite'
     },
     server: {
       port: 3000,
       host: '127.0.0.1',  // 强制使用 IPv4，避免 IPv6 连接问题
+      // 开发服务器优化
+      hmr: {
+        // 启用热模块替换
+        enabled: true,
+        // 热更新路径
+        path: '/__hmr',
+        // 延迟时间
+        timeout: 30000
+      },
+      // 文件监听
+      watch: {
+        // 监听文件变化
+        usePolling: true,
+        // 忽略的文件
+        ignored: ['node_modules', 'dist', '*.log'],
+        // 防抖时间
+        interval: 100,
+        // 深度
+        depth: 5
+      },
+      // 优化
+      optimizeDeps: {
+        // 预构建依赖
+        include: [
+          'react',
+          'react-dom',
+          'react-router-dom',
+          'axios',
+          'zustand',
+          'classnames'
+        ],
+        // 禁用依赖扫描
+        disabled: false
+      },
+      // 预加载
+      preTransformRequests: true,
       proxy: {
         '/api': {
             target: apiBaseUrl,

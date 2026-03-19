@@ -1,0 +1,47 @@
+{
+  "test_summary": {
+    "total_tests": 7,
+    "passed_tests": 7,
+    "failed_tests": 0,
+    "warning_tests": 0,
+    "success_rate": 100.0,
+    "start_time": "2026-03-18T16:38:06.846329",
+    "end_time": "2026-03-18T16:41:01.639143",
+    "duration_seconds": 174.792814
+  },
+  "test_details": {
+    "component_imports": {
+      "status": "PASS",
+      "message": "所有组件导入成功"
+    },
+    "document_processor_init": {
+      "status": "PASS",
+      "message": "文档处理器初始化成功"
+    },
+    "vectorization_service_init": {
+      "status": "PASS",
+      "message": "向量化服务初始化成功"
+    },
+    "document_processing_flow": {
+      "status": "PASS",
+      "message": "文档处理流程测试成功，生成 1 个分块"
+    },
+    "vectorization_flow": {
+      "status": "PASS",
+      "message": "向量化流程接口测试成功"
+    },
+    "integration_scenario": {
+      "status": "PASS",
+      "message": "集成场景测试成功，处理 1 个分块"
+    },
+    "performance": {
+      "status": "PASS",
+      "message": "性能良好，平均处理时间: 0.000秒",
+      "metrics": {
+        "total_time": 0.0010547637939453125,
+        "average_time": 0.00010547637939453124,
+        "iterations": 10
+      }
+    }
+  }
+}

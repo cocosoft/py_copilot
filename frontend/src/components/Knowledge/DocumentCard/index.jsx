@@ -6,6 +6,7 @@
 
 import React from 'react';
 import { FiFileText, FiImage, FiMusic, FiVideo, FiFile, FiMoreVertical } from 'react-icons/fi';
+import useKnowledgeStore from '../../../stores/knowledgeStore';
 import './styles.css';
 
 /**
@@ -133,10 +134,27 @@ const DocumentCard = ({
   onClick,
   viewMode = 'list'
 }) => {
+  const { documentFilters } = useKnowledgeStore();
+  const searchQuery = documentFilters?.search?.trim() || '';
+  
   const fileType = document.fileType?.toLowerCase() || 'unknown';
   const FileIcon = fileTypeIcons[fileType] || FiFile;
   const fileColor = fileTypeColors[fileType] || '#8c8c8c';
   const status = statusConfig[document.vectorizationStatus] || statusConfig.pending;
+
+  /**
+   * 高亮搜索关键词
+   */
+  const highlightSearchQuery = (text) => {
+    if (!searchQuery) return text;
+    
+    const regex = new RegExp(`(${searchQuery})`, 'gi');
+    return text.split(regex).map((part, index) => 
+      regex.test(part) ? 
+        <span key={index} className="document-card__title-highlight">{part}</span> : 
+        part
+    );
+  };
 
   /**
    * 处理复选框点击
@@ -182,7 +200,7 @@ const DocumentCard = ({
 
         <div className="document-card__content">
           <h4 className="document-card__title" title={document.title}>
-            {document.title}
+            {highlightSearchQuery(document.title)}
           </h4>
           <p className="document-card__meta">
             {formatFileSize(document.size)} · {formatDate(document.createdAt)}
@@ -235,7 +253,7 @@ const DocumentCard = ({
 
       <div className="document-card__content">
         <h4 className="document-card__title" title={document.title}>
-          {document.title}
+          {highlightSearchQuery(document.title)}
         </h4>
         <p className="document-card__meta">
           {formatFileSize(document.size)} · {formatDate(document.createdAt)}

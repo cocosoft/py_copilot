@@ -1,0 +1,271 @@
+/* 统一加载组件样式 */
+
+.ucl-loading {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+/* 加载器大小 */
+.ucl-loading--small {
+  gap: 8px;
+}
+
+.ucl-loading--medium {
+  gap: 12px;
+}
+
+.ucl-loading--large {
+  gap: 16px;
+}
+
+/* 加载器类型样式 */
+
+/* 旋转加载器 */
+.ucl-loading__spinner {
+  animation: ucl-spin 1s linear infinite;
+}
+
+.ucl-loading__spinner svg {
+  width: 24px;
+  height: 24px;
+}
+
+.ucl-loading--small .ucl-loading__spinner svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ucl-loading--large .ucl-loading__spinner svg {
+  width: 32px;
+  height: 32px;
+}
+
+/* 点状加载器 */
+.ucl-loading__dots {
+  display: flex;
+  gap: 4px;
+}
+
+.ucl-loading__dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: currentColor;
+  animation: ucl-bounce 1.4s ease-in-out infinite both;
+}
+
+.ucl-loading__dots span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.ucl-loading__dots span:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+.ucl-loading--small .ucl-loading__dots span {
+  width: 6px;
+  height: 6px;
+}
+
+.ucl-loading--large .ucl-loading__dots span {
+  width: 10px;
+  height: 10px;
+}
+
+/* 进度条加载器 */
+.ucl-loading__progress {
+  width: 200px;
+  height: 4px;
+  background-color: var(--ucl-color-gray-200);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.ucl-loading__progress-bar {
+  height: 100%;
+  background-color: var(--ucl-color-primary-500);
+  border-radius: 2px;
+  transition: width 0.3s ease-in-out;
+}
+
+.ucl-loading--small .ucl-loading__progress {
+  width: 120px;
+  height: 3px;
+}
+
+.ucl-loading--large .ucl-loading__progress {
+  width: 300px;
+  height: 6px;
+}
+
+/* 骨架屏加载器 */
+.ucl-loading__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 200px;
+}
+
+.ucl-loading__skeleton-line {
+  height: 12px;
+  background-color: var(--ucl-color-gray-200);
+  border-radius: 4px;
+  animation: ucl-pulse 1.5s ease-in-out infinite;
+}
+
+.ucl-loading__skeleton-line:nth-child(2) {
+  width: 80%;
+}
+
+.ucl-loading__skeleton-line:nth-child(3) {
+  width: 60%;
+}
+
+.ucl-loading--small .ucl-loading__skeleton {
+  width: 120px;
+}
+
+.ucl-loading--small .ucl-loading__skeleton-line {
+  height: 8px;
+}
+
+.ucl-loading--large .ucl-loading__skeleton {
+  width: 300px;
+}
+
+.ucl-loading--large .ucl-loading__skeleton-line {
+  height: 16px;
+}
+
+/* 文本样式 */
+.ucl-loading__text {
+  font-size: 14px;
+  color: var(--ucl-color-gray-600);
+  text-align: center;
+  line-height: 1.4;
+}
+
+.ucl-loading--small .ucl-loading__text {
+  font-size: 12px;
+}
+
+.ucl-loading--large .ucl-loading__text {
+  font-size: 16px;
+}
+
+.ucl-loading__progress-text {
+  font-size: 12px;
+  color: var(--ucl-color-gray-500);
+  font-weight: 500;
+}
+
+/* 遮罩层样式 */
+.ucl-loading--overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.8);
+  z-index: 10;
+}
+
+.ucl-loading--fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.95);
+  z-index: 1000;
+}
+
+/* 容器样式 */
+.ucl-loading-container {
+  position: relative;
+}
+
+/* 动画定义 */
+@keyframes ucl-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ucl-bounce {
+  0%, 80%, 100% {
+    transform: scale(0);
+  }
+  40% {
+    transform: scale(1);
+  }
+}
+
+@keyframes ucl-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .ucl-loading__progress {
+    width: 150px;
+  }
+  
+  .ucl-loading__skeleton {
+    width: 150px;
+  }
+  
+  .ucl-loading--fullscreen {
+    background-color: rgba(255, 255, 255, 0.98);
+  }
+}
+
+/* 暗色主题支持 */
+@media (prefers-color-scheme: dark) {
+  .ucl-loading--overlay {
+    background-color: rgba(0, 0, 0, 0.7);
+  }
+  
+  .ucl-loading--fullscreen {
+    background-color: rgba(0, 0, 0, 0.9);
+  }
+  
+  .ucl-loading__text {
+    color: var(--ucl-color-gray-300);
+  }
+  
+  .ucl-loading__progress {
+    background-color: var(--ucl-color-gray-700);
+  }
+  
+  .ucl-loading__skeleton-line {
+    background-color: var(--ucl-color-gray-700);
+  }
+  
+  .ucl-loading__progress-text {
+    color: var(--ucl-color-gray-400);
+  }
+}
+
+/* 无障碍访问 */
+.ucl-loading[aria-live="polite"] {
+  /* 确保屏幕阅读器能够正确读取加载状态 */
+}
+
+/* 打印样式 */
+@media print {
+  .ucl-loading {
+    display: none !important;
+  }
+}

@@ -100,12 +100,38 @@ def safe_bytes_encoder(o):
 
 ENCODERS_BY_TYPE[bytes] = safe_bytes_encoder
 
+# 导入响应压缩中间件
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+
 # 创建FastAPI应用实例
 app = FastAPI(
     title=API_TITLE,
     version=API_VERSION,
     docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/api/openapi.json",
     redirect_slashes=False,  # Disable automatic trailing slash redirects to avoid CORS issues
+    # 性能优化配置
+    # 注意：使用 JSONResponse 作为默认响应类，以正确序列化 Python 对象为 JSON
+    default_response_class=JSONResponse,
+    # 禁用自动生成的客户端代码
+    generate_unique_id_function=lambda route: route.name,
+    # 限制请求体大小
+    max_request_size=60 * 1024 * 1024,  # 60MB
+)
+
+# 添加响应压缩中间件
+app.add_middleware(
+    GZipMiddleware,
+    minimum_size=1024,  # 1KB以上才压缩
+    compresslevel=5  # 压缩级别，1-9，5是平衡
+)
+
+# 添加可信主机中间件
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=["*"]  # 允许所有主机，生产环境应该设置具体的域名
 )
 
 # 配置CORS（必须在其他中间件之前添加）
@@ -293,6 +319,15 @@ async def startup_event():
         logger.info("文档处理队列已启动")
     except Exception as e:
         logger.error(f"启动文档处理队列失败: {e}")
+    
+    # 启动内存优化服务
+    try:
+        from app.services.memory_optimizer import start_memory_monitoring, memory_monitoring_task
+        start_memory_monitoring()
+        asyncio.create_task(memory_monitoring_task())
+        logger.info("内存优化服务已启动")
+    except Exception as e:
+        logger.error(f"启动内存优化服务失败: {e}")
 
 # 应用关闭事件
 @app.on_event("shutdown")
@@ -330,6 +365,14 @@ async def shutdown_event():
         logger.info("文档处理队列已关闭")
     except Exception as e:
         logger.error(f"关闭文档处理队列失败: {e}")
+    
+    # 关闭内存优化服务
+    try:
+        from app.services.memory_optimizer import stop_memory_monitoring
+        stop_memory_monitoring()
+        logger.info("内存优化服务已关闭")
+    except Exception as e:
+        logger.error(f"关闭内存优化服务失败: {e}")
 
 def get_monitoring_service():
     """获取监控服务实例（简化版，避免数据库依赖）"""
@@ -344,11 +387,24 @@ def get_monitoring_service():
 monitoring_service = get_monitoring_service()
 app.add_middleware(PerformanceMiddleware, monitoring_service=monitoring_service)
 
-# 请求日志中间件（增强版，包含性能监控）
+# 导入缓存相关模块
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.redis import RedisBackend
+from fastapi_cache.decorator import cache
+from app.core.redis import get_redis
+
+# 初始化缓存
+@app.on_event("startup")
+async def startup_cache():
+    """初始化缓存"""
+    redis = get_redis()
+    FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache")
+
+# 轻量级请求日志中间件（仅记录错误）
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     """
-    记录所有HTTP请求的中间件
+    轻量级请求日志中间件，仅记录错误
     
     Args:
         request: 请求对象
@@ -357,48 +413,15 @@ async def log_requests(request: Request, call_next):
     Returns:
         响应对象
     """
-    # 请求开始时间
-    start_time = time.time()
-    
-    # 记录请求信息
-    logger.info(
-        f"请求开始 - 路径: {request.url.path}, 方法: {request.method}, "
-        f"客户端: {request.client.host if request.client else '未知'}"
-    )
-    
     try:
         # 处理请求
         response = await call_next(request)
-        
-        # 计算响应时间
-        process_time = time.time() - start_time
-        
-        # 记录响应信息
-        logger.info(
-            f"请求结束 - 路径: {request.url.path}, 方法: {request.method}, "
-            f"状态码: {response.status_code}, 响应时间: {process_time:.4f}秒"
-        )
-        
         return response
-    except UnicodeDecodeError as e:
-        # 专门处理UnicodeDecodeError异常
-        process_time = time.time() - start_time
-        logger.error(
-            f"请求错误 - 路径: {request.url.path}, 方法: {request.method}, "
-            f"UnicodeDecodeError: {str(e)}, 响应时间: {process_time:.4f}秒"
-        )
-        return JSONResponse(
-            status_code=400,
-            content={"detail": "Bad request. There was an error processing your request."},
-        )
     except Exception as e:
-        # 计算响应时间
-        process_time = time.time() - start_time
-        
-        # 记录错误信息
+        # 仅记录错误信息
         logger.error(
             f"请求错误 - 路径: {request.url.path}, 方法: {request.method}, "
-            f"错误: {str(e)}, 响应时间: {process_time:.4f}秒"
+            f"错误: {str(e)}"
         )
         raise
 

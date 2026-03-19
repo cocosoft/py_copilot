@@ -77,8 +77,11 @@ class ProcessingProgressService:
             # 导入WebSocket消息处理器
             from app.websocket.message_handler import message_handler
 
+            # 转换document_id为整数类型，确保与订阅时的类型匹配
+            doc_id_int = int(document_id)
+            
             # 检查是否有订阅者，避免不必要的广播
-            subscriber_count = len(message_handler.document_progress_subscriptions.get(int(document_id), set()))
+            subscriber_count = len(message_handler.document_progress_subscriptions.get(doc_id_int, set()))
             if subscriber_count == 0:
                 logger.debug(f"文档 {document_id} 没有WebSocket订阅者，跳过广播")
                 return
@@ -91,7 +94,7 @@ class ProcessingProgressService:
                 loop = asyncio.get_running_loop()
                 # 在主进程中，使用asyncio创建任务
                 asyncio.create_task(message_handler.broadcast_document_progress(
-                    document_id=int(document_id),
+                    document_id=doc_id_int,
                     status=progress["status"],
                     progress_percent=progress["progress_percent"],
                     step_name=progress["step_name"],
@@ -110,7 +113,7 @@ class ProcessingProgressService:
                         asyncio.set_event_loop(loop)
                         # 运行异步广播
                         loop.run_until_complete(message_handler.broadcast_document_progress(
-                            document_id=int(document_id),
+                            document_id=doc_id_int,
                             status=progress["status"],
                             progress_percent=progress["progress_percent"],
                             step_name=progress["step_name"],

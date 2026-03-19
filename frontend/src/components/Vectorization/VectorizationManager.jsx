@@ -11,6 +11,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   vectorizeDocument,
+  vectorizeDocumentAsync,
   getDocumentChunks,
   getDocumentProcessingProgress,
   getProcessingQueueStatus,
@@ -272,17 +273,12 @@ const VectorizationManager = () => {
       // 立即开始追踪处理进度
       startProcessingTracking(documentId, doc.title);
 
-      // 调用向量化API
-      const result = await vectorizeDocument(documentId);
+      // 调用异步处理API，立即返回
+      const result = await processDocument(documentId);
       
-      // 检查返回状态
-      if (result.is_vectorized) {
-        // 文档已经向量化
-        await loadDocuments();
-      } else if (result.status !== 'processing' && result.status !== 'queued') {
-        // 其他情况
-        await loadDocuments();
-      }
+      console.log('处理任务已启动:', result);
+      
+      // 不需要等待API响应，通过WebSocket监听进度
     } catch (error) {
       console.error('向量化失败:', error);
       // 显示错误信息

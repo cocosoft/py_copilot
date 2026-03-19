@@ -379,3 +379,189 @@ async def cleanup_old_alerts(days: int = Query(7, ge=1, le=30, description="清�
     except Exception as e:
         logger.error(f"清理旧告警失败: {e}")
         raise HTTPException(status_code=500, detail=f"清理旧告警失败: {str(e)}")
+
+
+# ============== 内存优化API端点 ==============
+
+class MemoryStatusResponse(BaseModel):
+    """内存状态响应模型"""
+    process_memory_mb: float = Field(..., description="进程内存使用量(MB)")
+    system_memory_percent: float = Field(..., description="系统内存使用率(%)")
+    available_memory_mb: float = Field(..., description="可用内存(MB)")
+    total_memory_mb: float = Field(..., description="总内存(MB)")
+    memory_growth_rate: float = Field(..., description="内存增长率(KB/s)")
+    is_monitoring: bool = Field(..., description="是否正在监控")
+    timestamp: str = Field(..., description="时间戳")
+
+
+class MemoryReportResponse(BaseModel):
+    """内存报告响应模型"""
+    status: Dict[str, Any] = Field(..., description="内存状态")
+    leak_detection: Dict[str, Any] = Field(..., description="泄漏检测结果")
+    optimization_history: List[Dict[str, Any]] = Field(..., description="优化历史")
+    timestamp: str = Field(..., description="时间戳")
+
+
+class MemoryOptimizationResponse(BaseModel):
+    """内存优化响应模型"""
+    success: bool = Field(..., description="是否成功")
+    timestamp: str = Field(..., description="时间戳")
+    duration: float = Field(..., description="优化耗时(秒)")
+    memory_before: int = Field(..., description="优化前内存(bytes)")
+    memory_after: int = Field(..., description="优化后内存(bytes)")
+    freed_memory: int = Field(..., description="释放内存(bytes)")
+    freed_memory_mb: float = Field(..., description="释放内存(MB)")
+
+
+class TopMemoryConsumer(BaseModel):
+    """内存消耗对象模型"""
+    rank: int = Field(..., description="排名")
+    size_bytes: int = Field(..., description="大小(bytes)")
+    size_mb: float = Field(..., description="大小(MB)")
+    count: int = Field(..., description="对象数量")
+    type_name: str = Field(..., description="类型名称")
+
+
+@router.get("/memory/status", response_model=MemoryStatusResponse)
+async def get_memory_status():
+    """
+    获取内存状态
+    
+    返回当前进程和系统的内存使用情况
+    """
+    try:
+        from app.services.memory_optimizer import get_memory_status
+        
+        status = get_memory_status()
+        
+        return MemoryStatusResponse(
+            process_memory_mb=status['process_memory_mb'],
+            system_memory_percent=status['system_memory_percent'],
+            available_memory_mb=status['available_memory_mb'],
+            total_memory_mb=status['total_memory_mb'],
+            memory_growth_rate=status['memory_growth_rate'],
+            is_monitoring=status['is_monitoring'],
+            timestamp=status['timestamp']
+        )
+        
+    except Exception as e:
+        logger.error(f"获取内存状态失败: {e}")
+        raise HTTPException(status_code=500, detail=f"获取内存状态失败: {str(e)}")
+
+
+@router.get("/memory/report", response_model=MemoryReportResponse)
+async def get_memory_report():
+    """
+    获取内存报告
+    
+    返回详细的内存分析报告，包括泄漏检测和优化历史
+    """
+    try:
+        from app.services.memory_optimizer import get_memory_report
+        
+        report = get_memory_report()
+        
+        return MemoryReportResponse(
+            status=report['status'],
+            leak_detection=report['leak_detection'],
+            optimization_history=report['optimization_history'],
+            timestamp=report['timestamp']
+        )
+        
+    except Exception as e:
+        logger.error(f"获取内存报告失败: {e}")
+        raise HTTPException(status_code=500, detail=f"获取内存报告失败: {str(e)}")
+
+
+@router.post("/memory/optimize", response_model=MemoryOptimizationResponse)
+async def optimize_memory():
+    """
+    手动触发内存优化
+    
+    执行垃圾回收和内存优化操作
+    """
+    try:
+        from app.services.memory_optimizer import optimize_memory
+        
+        result = optimize_memory()
+        
+        return MemoryOptimizationResponse(
+            success=True,
+            timestamp=result['timestamp'],
+            duration=result['duration'],
+            memory_before=result['memory_before'],
+            memory_after=result['memory_after'],
+            freed_memory=result['freed_memory'],
+            freed_memory_mb=result['freed_memory'] / 1024 / 1024
+        )
+        
+    except Exception as e:
+        logger.error(f"内存优化失败: {e}")
+        raise HTTPException(status_code=500, detail=f"内存优化失败: {str(e)}")
+
+
+@router.get("/memory/top-consumers", response_model=List[TopMemoryConsumer])
+async def get_top_memory_consumers(
+    limit: int = Query(10, ge=1, le=50, description="返回数量限制")
+):
+    """
+    获取内存消耗最多的对象
+    
+    返回内存占用最大的对象类型列表
+    """
+    try:
+        from app.services.memory_optimizer import get_top_memory_consumers
+        
+        consumers = get_top_memory_consumers(limit)
+        
+        return [
+            TopMemoryConsumer(
+                rank=i + 1,
+                size_bytes=c['size'],
+                size_mb=c['size'] / 1024 / 1024,
+                count=c['count'],
+                type_name=c['name']
+            )
+            for i, c in enumerate(consumers)
+        ]
+        
+    except Exception as e:
+        logger.error(f"获取内存消耗对象失败: {e}")
+        raise HTTPException(status_code=500, detail=f"获取内存消耗对象失败: {str(e)}")
+
+
+@router.post("/memory/auto-optimize")
+async def auto_optimize_memory(
+    threshold: float = Query(70.0, ge=50.0, le=95.0, description="内存使用率阈值")
+):
+    """
+    自动优化内存
+    
+    当内存使用率超过阈值时自动执行优化
+    """
+    try:
+        from app.services.memory_optimizer import auto_optimize_memory
+        
+        result = auto_optimize_memory(threshold)
+        
+        if result is None:
+            return {
+                "success": True,
+                "message": f"内存使用率未超过阈值({threshold}%)，无需优化",
+                "optimized": False
+            }
+        
+        return {
+            "success": True,
+            "message": "内存优化完成",
+            "optimized": True,
+            "result": {
+                "timestamp": result['timestamp'],
+                "duration": result['duration'],
+                "freed_memory_mb": result['freed_memory'] / 1024 / 1024
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"自动内存优化失败: {e}")
+        raise HTTPException(status_code=500, detail=f"自动内存优化失败: {str(e)}")

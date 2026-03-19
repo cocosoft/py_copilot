@@ -1,0 +1,120 @@
+{
+  "timestamp": "2026-03-18T08:46:35.146Z",
+  "testResults": {
+    "coreFiles": {
+      "status": "PASS",
+      "message": "所有核心文件存在",
+      "details": {
+        "existingFiles": [
+          "index.js",
+          "Core/Button/index.jsx",
+          "Core/Button/Button.css",
+          "Core/Modal/index.jsx",
+          "Core/Modal/Modal.css",
+          "Core/Loading/index.jsx",
+          "Core/Loading/Loading.css",
+          "Core/ErrorBoundary/index.jsx",
+          "Core/ErrorBoundary/ErrorBoundary.css"
+        ],
+        "missingFiles": []
+      }
+    },
+    "componentExports": {
+      "status": "FAIL",
+      "message": "部分组件导出缺失",
+      "details": {
+        "Button": true,
+        "Modal": true,
+        "Loading": true,
+        "ErrorBoundary": true,
+        "designTokens": false
+      }
+    },
+    "componentContent": {
+      "status": "PASS",
+      "message": "所有组件文件内容有效",
+      "details": {
+        "Button": {
+          "exists": true,
+          "hasReactImport": true,
+          "hasExport": true,
+          "hasComponent": true,
+          "fileSize": 2431
+        },
+        "Modal": {
+          "exists": true,
+          "hasReactImport": true,
+          "hasExport": true,
+          "hasComponent": true,
+          "fileSize": 3710
+        },
+        "Loading": {
+          "exists": true,
+          "hasReactImport": true,
+          "hasExport": true,
+          "hasComponent": true,
+          "fileSize": 3243
+        },
+        "ErrorBoundary": {
+          "exists": true,
+          "hasReactImport": true,
+          "hasExport": true,
+          "hasComponent": true,
+          "fileSize": 4360
+        }
+      }
+    },
+    "styleFiles": {
+      "status": "PASS",
+      "message": "所有样式文件有效",
+      "details": {
+        "Core/Button/Button.css": {
+          "exists": true,
+          "hasCSS": true,
+          "fileSize": 3765,
+          "lineCount": 190
+        },
+        "Core/Modal/Modal.css": {
+          "exists": true,
+          "hasCSS": true,
+          "fileSize": 4089,
+          "lineCount": 241
+        },
+        "Core/Loading/Loading.css": {
+          "exists": true,
+          "hasCSS": true,
+          "fileSize": 4245,
+          "lineCount": 271
+        },
+        "Core/ErrorBoundary/ErrorBoundary.css": {
+          "exists": true,
+          "hasCSS": true,
+          "fileSize": 5652,
+          "lineCount": 269
+        }
+      }
+    },
+    "documentation": {
+      "status": "PASS",
+      "message": "所有文档文件有效",
+      "details": {
+        "README.md": {
+          "exists": true,
+          "hasContent": true,
+          "fileSize": 2351
+        },
+        "COMPONENT_USAGE.md": {
+          "exists": true,
+          "hasContent": true,
+          "fileSize": 8889
+        }
+      }
+    }
+  },
+  "summary": {
+    "totalTests": 5,
+    "passedTests": 4,
+    "failedTests": 1,
+    "successRate": 80
+  }
+}
