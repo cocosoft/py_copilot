@@ -182,8 +182,10 @@ class UnifiedTransactionService:
                     # 更新片段的向量ID
                     chunk.vector_id = vector_id
                 
-                # 4. 更新文档向量状态
-                document.is_vectorized = 1
+                # 4. 更新文档处理状态
+                doc_metadata = document.document_metadata or {}
+                doc_metadata['processing_status'] = 'completed'
+                document.document_metadata = doc_metadata
                 
                 # 5. 提交事务
                 success = await txn.commit()
@@ -382,7 +384,10 @@ class UnifiedTransactionService:
                             )
                             chunk.vector_id = vector_id
                         
-                        document.is_vectorized = 1
+                        # 更新文档处理状态
+                        doc_metadata = document.document_metadata or {}
+                        doc_metadata['processing_status'] = 'completed'
+                        document.document_metadata = doc_metadata
                         success_count += 1
                         
                     except Exception as e:

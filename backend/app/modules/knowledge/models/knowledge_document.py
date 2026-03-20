@@ -54,7 +54,8 @@ class KnowledgeDocument(Base):
     created_at = Column(DateTime, nullable=False, default=func.now())
     updated_at = Column(DateTime, nullable=True, onupdate=func.now())
     vector_id = Column(String(100), nullable=True)  # 向量ID，使用uuid格式
-    is_vectorized = Column(Integer, nullable=False, default=0)  # 0: 未向量化, 1: 已向量化
+    # is_vectorized 字段已移除，使用 document_metadata['processing_status'] 替代
+    # 状态值：idle=待处理, pending=待处理, queued=排队中, processing=处理中, completed=已完成, failed=失败
     version = Column(Integer, default=1)  # 文档版本
     is_current = Column(Boolean, nullable=False, default=True)  # 是否为当前版本 (True: 是, False: 历史版本)
     file_hash = Column(String(64), nullable=True, index=True)  # 文件SHA256哈希值，用于去重检测

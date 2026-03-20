@@ -167,12 +167,19 @@ async def search(collection_name: str, request: SearchRequest):
             collection_name,
             embedding_function=embedding_function
         )
-        
-        results = collection.query(
-            query_texts=[request.query],
-            n_results=request.top_k,
-            where=request.filters
-        )
+
+        where_clause = None
+        if request.filters and len(request.filters) > 0:
+            where_clause = request.filters
+
+        query_params = {
+            "query_texts": [request.query],
+            "n_results": request.top_k
+        }
+        if where_clause:
+            query_params["where"] = where_clause
+
+        results = collection.query(**query_params)
         
         # 格式化结果
         formatted_results = []

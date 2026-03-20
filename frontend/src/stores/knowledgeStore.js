@@ -197,7 +197,7 @@ const useKnowledgeStore = create(
            */
           setDocuments: (documents, total, append = false) => {
             set((state) => {
-              if (append && state.documentsPage > 1) {
+              if (append) {
                 // 追加模式：合并现有数据和新数据
                 const existingIds = new Set(state.documents.map(d => d.id));
                 const newDocuments = documents.filter(d => !existingIds.has(d.id));

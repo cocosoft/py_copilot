@@ -23,6 +23,9 @@ from typing import List, Dict, Any, Optional
 # 内存中的任务状态存储
 _batch_build_tasks: Dict[str, Dict[str, Any]] = {}
 
+# 内存中的实体提取任务状态存储
+_entity_extraction_tasks: Dict[str, Dict[str, Any]] = {}
+
 
 def _update_batch_progress(batch_id: str, current: int, total: int, message: str = ""):
     """
@@ -42,6 +45,95 @@ def _update_batch_progress(batch_id: str, current: int, total: int, message: str
             "current_message": message,
             "updated_at": datetime.now().isoformat()
         })
+
+
+def _update_entity_extraction_progress(task_id: str, current: int, total: int, 
+                                        message: str = "", document_name: str = ""):
+    """
+    更新实体提取任务进度
+    
+    Args:
+        task_id: 任务ID
+        current: 当前完成数量
+        total: 总数量
+        message: 进度消息
+        document_name: 当前处理的文档名称
+    """
+    if task_id in _entity_extraction_tasks:
+        progress = (current / total * 100) if total > 0 else 0
+        _entity_extraction_tasks[task_id].update({
+            "progress": round(progress, 2),
+            "completed_documents": current,
+            "current_message": message,
+            "current_document": document_name,
+            "updated_at": datetime.now().isoformat()
+        })
+        
+        # 通过WebSocket广播进度
+        _broadcast_entity_extraction_progress(task_id)
+
+
+def _broadcast_entity_extraction_progress(task_id: str):
+    """
+    通过WebSocket广播实体提取进度
+    
+    Args:
+        task_id: 任务ID
+    """
+    if task_id not in _entity_extraction_tasks:
+        return
+        
+    task = _entity_extraction_tasks[task_id]
+    try:
+        from app.websocket.message_handler import message_handler
+        import asyncio
+        
+        # 获取知识库ID作为订阅组
+        knowledge_base_id = task.get("knowledge_base_id")
+        if knowledge_base_id:
+            # 广播到知识库进度组
+            progress_msg = {
+                "type": "entity_extraction_progress",
+                "task_id": task_id,
+                "knowledge_base_id": knowledge_base_id,
+                "status": task.get("status", "processing"),
+                "progress": task.get("progress", 0),
+                "completed_documents": task.get("completed_documents", 0),
+                "total_documents": task.get("total_documents", 0),
+                "current_document": task.get("current_document", ""),
+                "message": task.get("current_message", ""),
+                "total_entities": task.get("total_entities", 0),
+                "updated_at": task.get("updated_at", "")
+            }
+            
+            # 尝试在当前事件循环中广播
+            try:
+                loop = asyncio.get_running_loop()
+                asyncio.create_task(
+                    message_handler.connection_manager.send_to_group(
+                        f"kb_{knowledge_base_id}_entity_extraction",
+                        progress_msg
+                    )
+                )
+            except RuntimeError:
+                # 没有运行的事件循环，启动新线程
+                import threading
+                def run_broadcast():
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    loop.run_until_complete(
+                        message_handler.connection_manager.send_to_group(
+                            f"kb_{knowledge_base_id}_entity_extraction",
+                            progress_msg
+                        )
+                    )
+                    loop.close()
+                    
+                thread = threading.Thread(target=run_broadcast, daemon=True)
+                thread.start()
+                
+    except Exception as e:
+        logger.debug(f"广播实体提取进度失败: {e}")
 
 
 async def _run_batch_build_task(
@@ -121,6 +213,126 @@ async def _run_batch_build_task(
             "error": str(e),
             "completed_at": datetime.now().isoformat()
         })
+    finally:
+        if db:
+            db.close()
+
+
+async def _run_entity_extraction_task(
+    task_id: str,
+    document_ids: List[int],
+    knowledge_base_id: int,
+    model_id: str = None,
+    entity_types: List[str] = None
+):
+    """
+    后台执行实体提取任务
+
+    Args:
+        task_id: 任务ID
+        document_ids: 文档ID列表
+        knowledge_base_id: 知识库ID
+        model_id: 模型ID（可选）
+        entity_types: 实体类型列表（可选）
+    """
+    logger.info(f"[后台任务] 开始执行实体提取任务: task_id={task_id}, "
+               f"document_ids={document_ids}, knowledge_base_id={knowledge_base_id}")
+
+    from app.core.database import SessionLocal
+
+    db = None
+    total_entities = 0
+    total_relationships = 0
+    failed_documents = []
+    
+    try:
+        db = SessionLocal()
+        
+        # 更新任务状态为处理中
+        _entity_extraction_tasks[task_id].update({
+            "status": "processing",
+            "started_at": datetime.now().isoformat(),
+            "total_documents": len(document_ids)
+        })
+        _broadcast_entity_extraction_progress(task_id)
+        
+        # 逐个处理文档
+        for i, doc_id in enumerate(document_ids):
+            try:
+                # 获取文档
+                document = db.query(KnowledgeDocument).filter(
+                    KnowledgeDocument.id == doc_id
+                ).first()
+                
+                if not document:
+                    failed_documents.append({"document_id": doc_id, "error": "文档不存在"})
+                    continue
+                
+                # 更新进度
+                _update_entity_extraction_progress(
+                    task_id, i, len(document_ids),
+                    f"正在处理文档 {i+1}/{len(document_ids)}",
+                    document.title or f"文档{doc_id}"
+                )
+                
+                # 检查文档是否已处理（使用 processing_status = 'completed' 判断）
+                doc_metadata = document.document_metadata or {}
+                if doc_metadata.get('processing_status') != 'completed':
+                    logger.warning(f"文档 {doc_id} 尚未处理，跳过实体提取")
+                    failed_documents.append({"document_id": doc_id, "error": "文档尚未处理"})
+                    continue
+                
+                # 检查文档内容
+                if not document.content or not document.content.strip():
+                    logger.warning(f"文档 {doc_id} 内容为空，跳过实体提取")
+                    failed_documents.append({"document_id": doc_id, "error": "文档内容为空"})
+                    continue
+                
+                # 执行实体提取
+                result = knowledge_graph_service.extract_and_store_entities(
+                    db, document, 
+                    knowledge_base_id=knowledge_base_id,
+                    model_id=model_id
+                )
+                
+                if result.get("success"):
+                    total_entities += result.get("entities_count", 0)
+                    total_relationships += result.get("relationships_count", 0)
+                    logger.info(f"文档 {doc_id} 实体提取成功: {result.get('entities_count', 0)} 个实体")
+                else:
+                    failed_documents.append({
+                        "document_id": doc_id, 
+                        "error": result.get("error", "未知错误")
+                    })
+                    
+            except Exception as e:
+                logger.error(f"处理文档 {doc_id} 失败: {e}")
+                failed_documents.append({"document_id": doc_id, "error": str(e)})
+        
+        # 更新任务状态为完成
+        _entity_extraction_tasks[task_id].update({
+            "status": "completed",
+            "progress": 100.0,
+            "completed_documents": len(document_ids) - len(failed_documents),
+            "failed_documents": len(failed_documents),
+            "total_entities": total_entities,
+            "total_relationships": total_relationships,
+            "failed_details": failed_documents,
+            "completed_at": datetime.now().isoformat()
+        })
+        _broadcast_entity_extraction_progress(task_id)
+        
+        logger.info(f"[后台任务] 实体提取任务完成: task_id={task_id}, "
+                   f"total_entities={total_entities}, failed={len(failed_documents)}")
+        
+    except Exception as e:
+        logger.error(f"[后台任务] 实体提取任务失败: {e}")
+        _entity_extraction_tasks[task_id].update({
+            "status": "failed",
+            "error": str(e),
+            "completed_at": datetime.now().isoformat()
+        })
+        _broadcast_entity_extraction_progress(task_id)
     finally:
         if db:
             db.close()
@@ -207,6 +419,44 @@ class DocumentSemanticsResponse(BaseModel):
     semantic_richness: float
 
 
+class AsyncEntityExtractionRequest(BaseModel):
+    """异步实体提取请求"""
+    document_ids: List[int]  # 文档ID列表
+    knowledge_base_id: int  # 知识库ID
+    model_id: Optional[str] = None  # 模型ID（可选）
+    entity_types: Optional[List[str]] = None  # 实体类型列表（可选）
+
+    class Config:
+        extra = "ignore"
+
+
+class AsyncEntityExtractionResponse(BaseModel):
+    """异步实体提取响应"""
+    success: bool
+    task_id: str
+    status: str
+    message: str
+    total_documents: int
+
+
+class EntityExtractionTaskStatus(BaseModel):
+    """实体提取任务状态"""
+    task_id: str
+    status: str  # pending, processing, completed, failed
+    progress: float
+    total_documents: int
+    completed_documents: int
+    failed_documents: int
+    total_entities: int
+    total_relationships: int
+    current_document: Optional[str] = None
+    current_message: Optional[str] = None
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
+    error: Optional[str] = None
+    failed_details: Optional[List[Dict[str, Any]]] = None
+
+
 class BatchGraphBuildRequest(BaseModel):
     """批量构建知识图谱请求"""
     document_ids: Optional[List[int]] = None
@@ -267,12 +517,13 @@ async def extract_entities(
                 logger.warning(f"[extract_entities] 文档不存在: document_id={request.document_id}")
                 raise HTTPException(status_code=404, detail="文档不存在")
 
+            doc_metadata = document.document_metadata or {}
             logger.info(f"[extract_entities] 文档信息: id={document.id}, title={document.title}, "
                        f"content_length={len(document.content) if document.content else 0}, "
-                       f"is_vectorized={document.is_vectorized}")
+                       f"processing_status={doc_metadata.get('processing_status', 'unknown')}")
 
             # 检查文档是否已向量化（即是否已处理）
-            if not document.is_vectorized:
+            if doc_metadata.get('processing_status') != 'completed':
                 logger.warning(f"[extract_entities] 文档尚未处理: document_id={request.document_id}")
                 raise HTTPException(status_code=400, detail="文档尚未处理，请先在文档管理页面处理文档后再进行实体识别")
 
@@ -376,6 +627,191 @@ async def extract_entities(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"实体提取失败: {str(e)}")
+
+
+@router.post("/extract-entities-async", response_model=AsyncEntityExtractionResponse)
+async def extract_entities_async(
+    request: AsyncEntityExtractionRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """
+    异步批量提取实体
+    
+    启动后台任务进行实体提取，立即返回任务ID，
+    前端可通过WebSocket订阅进度或轮询查询任务状态
+    
+    Args:
+        request: 异步实体提取请求
+        background_tasks: FastAPI后台任务
+        db: 数据库会话
+        
+    Returns:
+        任务信息，包含task_id用于查询进度
+    """
+    try:
+        logger.info(f"[extract_entities_async] 收到异步实体提取请求: "
+                   f"document_ids={request.document_ids}, knowledge_base_id={request.knowledge_base_id}")
+        
+        # 验证文档ID列表
+        if not request.document_ids:
+            raise HTTPException(status_code=400, detail="文档ID列表不能为空")
+        
+        # 验证知识库是否存在
+        from app.modules.knowledge.models.knowledge_document import KnowledgeBase
+        kb = db.query(KnowledgeBase).filter(KnowledgeBase.id == request.knowledge_base_id).first()
+        if not kb:
+            raise HTTPException(status_code=404, detail="知识库不存在")
+        
+        # 生成任务ID
+        task_id = str(uuid.uuid4())
+        
+        # 初始化任务状态
+        _entity_extraction_tasks[task_id] = {
+            "task_id": task_id,
+            "status": "pending",
+            "progress": 0.0,
+            "total_documents": len(request.document_ids),
+            "completed_documents": 0,
+            "failed_documents": 0,
+            "total_entities": 0,
+            "total_relationships": 0,
+            "knowledge_base_id": request.knowledge_base_id,
+            "created_at": datetime.now().isoformat()
+        }
+        
+        # 启动后台任务
+        background_tasks.add_task(
+            _run_entity_extraction_task,
+            task_id=task_id,
+            document_ids=request.document_ids,
+            knowledge_base_id=request.knowledge_base_id,
+            model_id=request.model_id,
+            entity_types=request.entity_types
+        )
+        
+        logger.info(f"[extract_entities_async] 已启动后台任务: task_id={task_id}")
+        
+        return {
+            "success": True,
+            "task_id": task_id,
+            "status": "pending",
+            "message": f"已启动实体提取任务，共 {len(request.document_ids)} 个文档",
+            "total_documents": len(request.document_ids)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[extract_entities_async] 启动任务失败: {e}")
+        raise HTTPException(status_code=500, detail=f"启动实体提取任务失败: {str(e)}")
+
+
+@router.get("/extract-entities-status/{task_id}", response_model=EntityExtractionTaskStatus)
+async def get_entity_extraction_status(task_id: str):
+    """
+    获取实体提取任务状态
+    
+    Args:
+        task_id: 任务ID
+        
+    Returns:
+        任务状态信息
+    """
+    if task_id not in _entity_extraction_tasks:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    
+    task = _entity_extraction_tasks[task_id]
+    
+    return EntityExtractionTaskStatus(
+        task_id=task["task_id"],
+        status=task.get("status", "pending"),
+        progress=task.get("progress", 0.0),
+        total_documents=task.get("total_documents", 0),
+        completed_documents=task.get("completed_documents", 0),
+        failed_documents=task.get("failed_documents", 0),
+        total_entities=task.get("total_entities", 0),
+        total_relationships=task.get("total_relationships", 0),
+        current_document=task.get("current_document"),
+        current_message=task.get("current_message"),
+        started_at=task.get("started_at"),
+        completed_at=task.get("completed_at"),
+        error=task.get("error"),
+        failed_details=task.get("failed_details")
+    )
+
+
+@router.post("/subscribe-entity-extraction/{knowledge_base_id}")
+async def subscribe_entity_extraction_progress(
+    knowledge_base_id: int,
+    connection_id: str = Query(..., description="WebSocket连接ID"),
+    db: Session = Depends(get_db)
+):
+    """
+    订阅知识库的实体提取进度
+    
+    将WebSocket连接加入到知识库的实体提取进度广播组
+    
+    Args:
+        knowledge_base_id: 知识库ID
+        connection_id: WebSocket连接ID
+        db: 数据库会话
+        
+    Returns:
+        订阅结果
+    """
+    try:
+        from app.websocket.connection_manager import connection_manager
+        
+        # 加入知识库的实体提取进度组
+        group_name = f"kb_{knowledge_base_id}_entity_extraction"
+        await connection_manager.join_group(connection_id, group_name)
+        
+        logger.info(f"连接 {connection_id} 已订阅知识库 {knowledge_base_id} 的实体提取进度")
+        
+        return {
+            "success": True,
+            "message": f"已订阅知识库 {knowledge_base_id} 的实体提取进度",
+            "group_name": group_name
+        }
+        
+    except Exception as e:
+        logger.error(f"订阅实体提取进度失败: {e}")
+        raise HTTPException(status_code=500, detail=f"订阅失败: {str(e)}")
+
+
+@router.post("/unsubscribe-entity-extraction/{knowledge_base_id}")
+async def unsubscribe_entity_extraction_progress(
+    knowledge_base_id: int,
+    connection_id: str = Query(..., description="WebSocket连接ID")
+):
+    """
+    取消订阅知识库的实体提取进度
+    
+    Args:
+        knowledge_base_id: 知识库ID
+        connection_id: WebSocket连接ID
+        
+    Returns:
+        取消订阅结果
+    """
+    try:
+        from app.websocket.connection_manager import connection_manager
+        
+        # 离开知识库的实体提取进度组
+        group_name = f"kb_{knowledge_base_id}_entity_extraction"
+        await connection_manager.leave_group(connection_id, group_name)
+        
+        logger.info(f"连接 {connection_id} 已取消订阅知识库 {knowledge_base_id} 的实体提取进度")
+        
+        return {
+            "success": True,
+            "message": f"已取消订阅知识库 {knowledge_base_id} 的实体提取进度"
+        }
+        
+    except Exception as e:
+        logger.error(f"取消订阅实体提取进度失败: {e}")
+        raise HTTPException(status_code=500, detail=f"取消订阅失败: {str(e)}")
 
 
 @router.get("/documents/{document_id}/entities")
@@ -598,8 +1034,9 @@ async def build_knowledge_graph(
             if not document:
                 raise HTTPException(status_code=404, detail="文档不存在")
 
-            # 检查文档是否已向量化
-            if not document.is_vectorized:
+            # 检查文档是否已向量化（使用 processing_status = 'completed' 判断）
+            doc_metadata = document.document_metadata or {}
+            if doc_metadata.get('processing_status') != 'completed':
                 raise HTTPException(status_code=400, detail="文档尚未向量化，请先处理文档")
 
             # 检查文档是否有内容
@@ -654,8 +1091,9 @@ async def get_document_graph(
         if not document:
             raise HTTPException(status_code=404, detail="文档不存在")
 
-        # 检查文档是否已向量化
-        if not document.is_vectorized:
+        # 检查文档是否已向量化（使用 processing_status = 'completed' 判断）
+        doc_metadata = document.document_metadata or {}
+        if doc_metadata.get('processing_status') != 'completed':
             raise HTTPException(status_code=400, detail="文档尚未向量化，请先处理文档")
 
         # 检查文档是否有内容
@@ -1635,11 +2073,13 @@ async def clear_knowledge_graph_data(
                 ))
                 deleted_counts['document_entities'] = result.rowcount
                 
-                # 重置文档状态
-                db.execute(text(
-                    f"UPDATE knowledge_documents SET is_vectorized = 0 WHERE id = {request.document_id}"
-                ))
-                deleted_counts['documents_reset'] = 1
+                # 重置文档状态（使用ORM更新JSON字段）
+                doc = db.query(KnowledgeDocument).filter(KnowledgeDocument.id == request.document_id).first()
+                if doc:
+                    metadata = doc.document_metadata or {}
+                    metadata['processing_status'] = 'idle'
+                    doc.document_metadata = metadata
+                    deleted_counts['documents_reset'] = 1
                 
             elif request.knowledge_base_id:
                 # 获取该知识库下的所有文档ID
@@ -1660,11 +2100,15 @@ async def clear_knowledge_graph_data(
                     ))
                     deleted_counts['document_entities'] = result.rowcount
                 
-                # 重置文档状态
-                result = db.execute(text(
-                    f"UPDATE knowledge_documents SET is_vectorized = 0 WHERE knowledge_base_id = {request.knowledge_base_id}"
-                ))
-                deleted_counts['documents_reset'] = result.rowcount
+                # 重置文档状态（使用ORM更新JSON字段）
+                docs = db.query(KnowledgeDocument).filter(
+                    KnowledgeDocument.knowledge_base_id == request.knowledge_base_id
+                ).all()
+                for doc in docs:
+                    metadata = doc.document_metadata or {}
+                    metadata['processing_status'] = 'idle'
+                    doc.document_metadata = metadata
+                deleted_counts['documents_reset'] = len(docs)
                 
             else:
                 result = db.execute(text("DELETE FROM entity_relationships"))
@@ -1673,11 +2117,14 @@ async def clear_knowledge_graph_data(
                 result = db.execute(text("DELETE FROM document_entities"))
                 deleted_counts['document_entities'] = result.rowcount
                 
-                # 重置所有文档状态
-                result = db.execute(text(
-                    "UPDATE knowledge_documents SET is_vectorized = 0 WHERE is_vectorized = 1"
-                ))
-                deleted_counts['documents_reset'] = result.rowcount
+                # 重置所有文档状态（使用ORM更新JSON字段）
+                docs = db.query(KnowledgeDocument).all()
+                for doc in docs:
+                    metadata = doc.document_metadata or {}
+                    if metadata.get('processing_status') == 'completed':
+                        metadata['processing_status'] = 'idle'
+                        doc.document_metadata = metadata
+                deleted_counts['documents_reset'] = len(docs)
         
         db.commit()
         

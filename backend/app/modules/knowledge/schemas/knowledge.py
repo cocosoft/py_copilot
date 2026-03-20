@@ -46,7 +46,7 @@ class KnowledgeDocument(KnowledgeDocumentBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
     vector_id: Optional[str] = None
-    is_vectorized: int
+    # is_vectorized 已移除，使用 document_metadata['processing_status'] 替代
     file_hash: Optional[str] = None  # 文件内容哈希，用于去重
 
     class Config:

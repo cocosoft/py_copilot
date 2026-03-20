@@ -4,8 +4,8 @@
  * 提供实体提取、确认、编辑功能，支持从文档中自动识别实体
  */
 
-import React, { useEffect, useCallback, useState, useMemo } from 'react';
-import { FiCpu, FiCheck, FiX, FiEdit2, FiTrash2, FiRefreshCw, FiFilter, FiSearch, FiBox, FiSettings, FiFolder } from 'react-icons/fi';
+import { useEffect, useCallback, useState, useMemo, useRef } from 'react';
+import { FiCpu, FiCheck, FiX, FiEdit2, FiTrash2, FiSearch, FiBox, FiSettings, FiFolder } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import useKnowledgeStore from '../../../stores/knowledgeStore';
 import { Button } from '../../../components/UI';
@@ -13,15 +13,14 @@ import { VirtualListEnhanced } from '../../../components/UI';
 import Modal from '../../../components/UI/Modal';
 import { message } from '../../../components/UI/Message/Message';
 import EntityConfigModal from '../../../components/Knowledge/EntityConfigModal';
+import websocketService from '../../../services/websocketService';
 import {
   listDocuments,
-  extractEntities,
-  getDocument,
-  getDocumentChunks,
-  getKnowledgeBaseEntities,
+  extractEntitiesAsync,
+  getEntityExtractionStatus,
+  getDocumentEntitiesFromMaintenance,
   batchUpdateEntityStatus,
-  updateEntityStatus,
-  getDocumentEntitiesFromMaintenance
+  updateEntityStatus
 } from '../../../utils/api/knowledgeApi';
 import defaultModelApi from '../../../utils/api/defaultModelApi';
 import './styles.css';
@@ -62,11 +61,18 @@ const EntityRecognition = () => {
   const [selectedDocuments, setSelectedDocuments] = useState([]);
   const [entities, setEntities] = useState([]);
   const [filteredEntities, setFilteredEntities] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [extractProgress, setExtractProgress] = useState(0);
   const [extractStage, setExtractStage] = useState('');
   const [processedDocs, setProcessedDocs] = useState(0);
+
+  // 异步任务状态
+  const [currentTaskId, setCurrentTaskId] = useState(null);
+  const [taskStatus, setTaskStatus] = useState(null);
+  const [totalEntities, setTotalEntities] = useState(0);
+  const [currentDocument, setCurrentDocument] = useState('');
+  const websocketConnected = useRef(false);
+  const progressUnsubscribe = useRef(null);
 
   // 默认模型状态
   const [defaultModel, setDefaultModel] = useState(null);
@@ -326,7 +332,7 @@ const EntityRecognition = () => {
   }, [currentKnowledgeBase]);
 
   /**
-   * 执行实体提取 - 逐个文档处理并保存到数据库
+   * 执行实体提取 - 使用异步API和WebSocket进度监听
    */
   const handleExtractEntities = useCallback(async () => {
     if (!currentKnowledgeBase) {
@@ -343,118 +349,172 @@ const EntityRecognition = () => {
     setExtractProgress(0);
     setExtractStage('准备中...');
     setProcessedDocs(0);
+    setTotalEntities(0);
+    setCurrentDocument('');
 
     try {
       // 获取默认模型配置
       setExtractStage('获取模型配置...');
       const currentDefaultModel = defaultModel || await loadDefaultModel();
 
-      let totalExtractedEntities = 0;
-      const allExtractedEntities = [];
-
-      // 逐个文档处理
-      for (let i = 0; i < selectedDocuments.length; i++) {
-        const docId = selectedDocuments[i];
-        try {
-          // 获取文档详情以获取文档名称
-          const docDetail = await getDocument(docId);
-          
-          setExtractStage(`处理文档 ${i + 1}/${selectedDocuments.length}: ${docDetail.title}`);
-
-          // 构建实体提取参数 - 使用 document_id 参数（这样会自动保存到数据库）
-          const extractParams = {
-            document_id: docId,
-            entity_types: ENTITY_TYPES.map(t => t.value),
-            threshold: 0.7,
-            use_llm: true,
-            knowledge_base_id: currentKnowledgeBase.id,
-          };
-
-          // 如果有默认模型配置，添加到参数中
-          if (currentDefaultModel && currentDefaultModel.model_id) {
-            extractParams.model_id = currentDefaultModel.model_id.toString();
-            extractParams.model_configuration = {
-              temperature: currentDefaultModel.temperature || 0.3,
-              max_tokens: currentDefaultModel.max_tokens || 2000,
-            };
-          }
-
-          // 调用实体提取 API
-          const response = await extractEntities(extractParams);
-
-          // 处理提取结果
-          console.log('API 响应:', response);
-          console.log('API 响应实体:', response.entities);
-          const documentEntities = (response.entities || []).map((entity, index) => ({
-            id: `entity-${Date.now()}-${i}-${index}`,
-            name: entity.name || entity.text,
-            type: entity.type || 'concept',
-            description: entity.description || '',
-            documentId: docId,
-            documentName: docDetail.title || '未命名文档',
-            confidence: entity.confidence || entity.score || 0.8,
-            status: 'pending',
-            occurrences: entity.occurrences || 1,
-            source: 'llm',
-            modelUsed: currentDefaultModel?.model_name || '默认模型',
-          }));
-          console.log('处理后的实体:', documentEntities);
-
-          totalExtractedEntities += documentEntities.length;
-          allExtractedEntities.push(...documentEntities);
-
-        } catch (error) {
-          console.error(`处理文档 ${docId} 失败:`, error);
-          message.warning({ content: `文档 ${docId} 处理失败: ${error.message}` });
-        }
-
-        setProcessedDocs(i + 1);
-        setExtractProgress(Math.round(((i + 1) / selectedDocuments.length) * 100));
+      // 连接WebSocket
+      setExtractStage('连接进度服务...');
+      try {
+        await websocketService.connect();
+        websocketConnected.current = true;
+        console.log('[实体提取] WebSocket连接成功');
+      } catch (wsError) {
+        console.warn('[实体提取] WebSocket连接失败，将使用轮询模式:', wsError);
+        websocketConnected.current = false;
       }
 
-      // 将所有提取的实体添加到前端状态，去重并保留已确认的实体
-      setEntities(prev => {
-        // 创建一个映射，键为实体文本和类型的组合，值为实体对象
-        const entityMap = new Map();
-        
-        // 先添加现有实体，已确认的实体优先级更高
-        prev.forEach(entity => {
-          const key = `${entity.name}-${entity.type}-${entity.documentId}`;
-          // 只保留已确认的实体或不在新提取列表中的实体
-          if (entity.status === 'confirmed' || !allExtractedEntities.some(e => 
-            e.name === entity.name && e.type === entity.type && e.documentId === entity.documentId
-          )) {
-            entityMap.set(key, entity);
-          }
-        });
-        
-        // 添加新提取的实体，跳过已确认的实体
-        allExtractedEntities.forEach(entity => {
-          const key = `${entity.name}-${entity.type}-${entity.documentId}`;
-          // 只有当该实体尚未被确认时才添加
-          if (!entityMap.has(key)) {
-            entityMap.set(key, entity);
-          }
-        });
-        
-        // 转换回数组
-        return Array.from(entityMap.values());
-      });
-      setExtractStage('完成');
-      setExtractProgress(100);
-      message.success({ content: `成功从 ${selectedDocuments.length} 个文档中提取 ${totalExtractedEntities} 个实体` });
+      // 注册WebSocket进度监听
+      if (websocketConnected.current) {
+        progressUnsubscribe.current = websocketService.on('entity_extraction_progress', (data) => {
+          console.log('[实体提取] 收到进度更新:', data);
+          if (data && data.task_id === currentTaskId) {
+            setExtractProgress(data.progress || 0);
+            setExtractStage(data.message || '');
+            setCurrentDocument(data.current_document || '');
+            setProcessedDocs(data.completed_documents || 0);
+            setTotalEntities(data.total_entities || 0);
+            setTaskStatus(data.status);
 
-      // 重新加载知识库实体列表，确保显示最新数据
-      await loadKnowledgeBaseEntities();
+            // 任务完成
+            if (data.status === 'completed') {
+              message.success({ 
+                content: `实体提取完成，共提取 ${data.total_entities} 个实体` 
+              });
+            } else if (data.status === 'failed') {
+              message.error({ content: `实体提取失败: ${data.error || '未知错误'}` });
+            }
+          }
+        });
+      }
+
+      // 构建异步提取参数
+      const extractParams = {
+        document_ids: selectedDocuments,
+        knowledge_base_id: currentKnowledgeBase.id,
+      };
+
+      // 如果有默认模型配置，添加到参数中
+      if (currentDefaultModel && currentDefaultModel.model_id) {
+        extractParams.model_id = currentDefaultModel.model_id.toString();
+      }
+
+      setExtractStage('启动异步任务...');
+
+      // 调用异步实体提取 API
+      const response = await extractEntitiesAsync(extractParams);
+      console.log('[实体提取] 异步任务响应:', response);
+
+      if (response.success && response.task_id) {
+        setCurrentTaskId(response.task_id);
+        setExtractStage(response.message || '任务已启动');
+        
+        message.info({ 
+          content: `已启动实体提取任务，共 ${response.total_documents} 个文档` 
+        });
+
+        // 如果WebSocket未连接，使用轮询模式
+        if (!websocketConnected.current) {
+          setExtractStage('使用轮询模式监控进度...');
+          await pollTaskStatus(response.task_id);
+        }
+      } else {
+        throw new Error(response.message || '启动任务失败');
+      }
+
     } catch (error) {
+      console.error('[实体提取] 任务失败:', error);
       setExtractStage('提取失败');
       message.error({ content: '实体提取失败：' + error.message });
-    } finally {
       setExtracting(false);
-      setExtractStage('');
-      setProcessedDocs(0);
     }
-  }, [currentKnowledgeBase, selectedDocuments, documents, defaultModel, loadDefaultModel, loadKnowledgeBaseEntities]);
+  }, [currentKnowledgeBase, selectedDocuments, defaultModel, loadDefaultModel, currentTaskId]);
+
+  /**
+   * 轮询任务状态（WebSocket不可用时的备用方案）
+   */
+  const pollTaskStatus = useCallback(async (taskId) => {
+    const maxPolls = 600; // 最多轮询10分钟（每秒一次）
+    let pollCount = 0;
+
+    const poll = async () => {
+      try {
+        const status = await getEntityExtractionStatus(taskId);
+        console.log('[实体提取] 轮询状态:', status);
+
+        setExtractProgress(status.progress || 0);
+        setExtractStage(status.current_message || '');
+        setCurrentDocument(status.current_document || '');
+        setProcessedDocs(status.completed_documents || 0);
+        setTotalEntities(status.total_entities || 0);
+        setTaskStatus(status.status);
+
+        if (status.status === 'completed') {
+          message.success({ 
+            content: `实体提取完成，共提取 ${status.total_entities} 个实体` 
+          });
+          setExtracting(false);
+          setExtractStage('完成');
+          setExtractProgress(100);
+          // 重新加载实体列表
+          await loadKnowledgeBaseEntities();
+          return;
+        }
+
+        if (status.status === 'failed') {
+          message.error({ content: `实体提取失败: ${status.error || '未知错误'}` });
+          setExtracting(false);
+          setExtractStage('提取失败');
+          return;
+        }
+
+        // 继续轮询
+        pollCount++;
+        if (pollCount < maxPolls && status.status === 'processing') {
+          setTimeout(poll, 1000);
+        } else if (pollCount >= maxPolls) {
+          message.warning({ content: '任务轮询超时，请刷新页面查看最新状态' });
+          setExtracting(false);
+        }
+      } catch (error) {
+        console.error('[实体提取] 轮询失败:', error);
+        pollCount++;
+        if (pollCount < maxPolls) {
+          setTimeout(poll, 2000); // 出错后延迟2秒重试
+        } else {
+          message.error({ content: '获取任务状态失败' });
+          setExtracting(false);
+        }
+      }
+    };
+
+    await poll();
+  }, [loadKnowledgeBaseEntities]);
+
+  /**
+   * 清理WebSocket监听
+   */
+  useEffect(() => {
+    return () => {
+      if (progressUnsubscribe.current) {
+        progressUnsubscribe.current();
+        progressUnsubscribe.current = null;
+      }
+    };
+  }, []);
+
+  /**
+   * 任务完成后重新加载实体
+   */
+  useEffect(() => {
+    if (taskStatus === 'completed' && !extracting) {
+      loadKnowledgeBaseEntities();
+    }
+  }, [taskStatus, extracting, loadKnowledgeBaseEntities]);
 
   /**
    * 应用筛选
@@ -903,6 +963,14 @@ const EntityRecognition = () => {
         {/* 提取进度显示 */}
         {extracting && (
           <div className="extraction-progress">
+            <div className="progress-header">
+              <span className="progress-title">实体提取进度</span>
+              <span className={`task-status ${taskStatus || 'processing'}`}>
+                {taskStatus === 'completed' ? '已完成' : 
+                 taskStatus === 'failed' ? '失败' : 
+                 taskStatus === 'pending' ? '等待中' : '处理中'}
+              </span>
+            </div>
             <div className="progress-bar">
               <div
                 className="progress-fill"
@@ -911,11 +979,32 @@ const EntityRecognition = () => {
             </div>
             <div className="progress-info">
               <span className="progress-stage">{extractStage}</span>
-              <span className="progress-percent">{extractProgress}%</span>
+              <span className="progress-percent">{extractProgress.toFixed(1)}%</span>
             </div>
-            {processedDocs > 0 && selectedDocuments.length > 1 && (
-              <div className="progress-details">
-                <span>已处理文档: {processedDocs} / {selectedDocuments.length}</span>
+            <div className="progress-details">
+              {currentDocument && (
+                <div className="progress-item">
+                  <span className="progress-label">当前文档:</span>
+                  <span className="progress-value">{currentDocument}</span>
+                </div>
+              )}
+              {processedDocs > 0 && selectedDocuments.length > 0 && (
+                <div className="progress-item">
+                  <span className="progress-label">文档进度:</span>
+                  <span className="progress-value">{processedDocs} / {selectedDocuments.length}</span>
+                </div>
+              )}
+              {totalEntities > 0 && (
+                <div className="progress-item">
+                  <span className="progress-label">已提取实体:</span>
+                  <span className="progress-value">{totalEntities} 个</span>
+                </div>
+              )}
+            </div>
+            {currentTaskId && (
+              <div className="task-id-info">
+                <span className="task-id-label">任务ID:</span>
+                <span className="task-id-value">{currentTaskId.substring(0, 8)}...</span>
               </div>
             )}
           </div>

@@ -1700,3 +1700,137 @@
     justify-content: center;
   }
 }
+
+/* ==================== 文档加载进度显示 ==================== */
+
+.document-load-progress {
+  margin: 0 24px 16px 24px;
+  background: #ffffff;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  animation: slideDown 0.3s ease-out;
+}
+
+.load-progress-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.load-progress-header .spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.load-progress-bar-container {
+  position: relative;
+  height: 20px;
+  background: #f5f5f5;
+  margin: 0 16px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.load-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #1890ff 0%, #52c41a 100%);
+  border-radius: 10px;
+  transition: width 0.5s ease;
+}
+
+.load-progress-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px 16px 16px;
+  gap: 12px;
+}
+
+.load-progress-percent {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1890ff;
+}
+
+.load-progress-message {
+  font-size: 13px;
+  color: #8c8c8c;
+  flex: 1;
+  text-align: right;
+}
+
+/* 批量处理按钮 */
+.header-batch-process {
+  flex-shrink: 0;
+}
+
+.batch-process-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(82, 196, 26, 0.3);
+}
+
+.batch-process-btn:hover {
+  background: linear-gradient(135deg, #73d13d 0%, #52c41a 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(82, 196, 26, 0.4);
+}
+
+.batch-process-btn:active {
+  transform: translateY(0);
+}
+
+/* 响应式适配 - 文档加载进度 */
+@media (max-width: 768px) {
+  .document-load-progress {
+    margin: 0 16px 12px 16px;
+  }
+
+  .load-progress-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .load-progress-message {
+    text-align: left;
+  }
+
+  .batch-process-btn {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+
+  .batch-process-btn span {
+    display: none;
+  }
+
+  .batch-process-btn {
+    width: auto;
+  }
+}

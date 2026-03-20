@@ -1,5 +1,5 @@
 """数据库连接配置"""
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import QueuePool
@@ -79,20 +79,59 @@ class DatabaseConnectionPool:
                 engine_kwargs["pool_pre_ping"] = True
             
             self.engine = create_engine(**engine_kwargs)
-            
+
+            # 如果是 SQLite，启用 WAL 模式以提高并发性能
+            if "sqlite" in self.database_url:
+                self._enable_wal_mode()
+
             # 创建会话工厂
             self.session_factory = sessionmaker(
                 autocommit=False,
                 autoflush=False,
                 bind=self.engine
             )
-            
+
             logger.info(f"数据库连接池初始化成功 - URL: {self.database_url} ({self.pool_type})")
-            
+
         except Exception as e:
             logger.error(f"数据库连接池初始化失败 ({self.pool_type}): {str(e)}")
             raise
-    
+
+    def _enable_wal_mode(self):
+        """
+        启用 SQLite 的 WAL（Write-Ahead Logging）模式
+
+        WAL 模式的优点：
+        - 读操作不会阻塞写操作
+        - 写操作不会阻塞读操作
+        - 并发性能显著提高
+        - 数据安全性更好
+        """
+        try:
+            with self.engine.connect() as conn:
+                # 启用 WAL 模式
+                conn.execute(text("PRAGMA journal_mode=WAL"))
+                # 设置同步模式为 NORMAL（平衡性能和安全性）
+                conn.execute(text("PRAGMA synchronous=NORMAL"))
+                # 增加缓存大小以提高性能
+                conn.execute(text("PRAGMA cache_size=-64000"))  # 64MB 缓存
+                # 启用内存映射 I/O
+                conn.execute(text("PRAGMA mmap_size=268435456"))  # 256MB
+                # 设置临时存储为内存
+                conn.execute(text("PRAGMA temp_store=MEMORY"))
+
+                # 验证 WAL 模式是否启用成功
+                result = conn.execute(text("PRAGMA journal_mode"))
+                journal_mode = result.scalar()
+
+                if journal_mode == "wal":
+                    logger.info(f"[SQLite] WAL 模式启用成功 ({self.pool_type})")
+                else:
+                    logger.warning(f"[SQLite] WAL 模式启用失败，当前模式: {journal_mode}")
+
+        except Exception as e:
+            logger.error(f"[SQLite] 启用 WAL 模式失败 ({self.pool_type}): {str(e)}")
+
     def get_session(self) -> sessionmaker:
         """获取会话工厂"""
         return self.session_factory

@@ -167,12 +167,19 @@ class KnowledgeService:
             import hashlib
             file_hash = hashlib.md5(content).hexdigest()
 
-            # 检查是否存在相同哈希的文件（去重）
-            existing_doc = db.query(KnowledgeDocument).filter(
+            # 检查是否存在相同哈希的文件（去重）- 使用 processing_status = 'completed' 判断
+            # 注意：SQLite不支持.astext，需要在Python中过滤
+            existing_docs = db.query(KnowledgeDocument).filter(
                 KnowledgeDocument.file_hash == file_hash,
-                KnowledgeDocument.knowledge_base_id == knowledge_base_id,
-                KnowledgeDocument.is_vectorized == 1
-            ).first()
+                KnowledgeDocument.knowledge_base_id == knowledge_base_id
+            ).all()
+            
+            existing_doc = None
+            for doc in existing_docs:
+                metadata = doc.document_metadata or {}
+                if metadata.get('processing_status') == 'completed':
+                    existing_doc = doc
+                    break
 
             if existing_doc:
                 logger.info(f"检测到重复文件: {file.filename} (与文档 {existing_doc.id} 相同)")
@@ -267,7 +274,7 @@ class KnowledgeService:
                     if processing_result.get("success"):
                         # 更新文档内容
                         document.content = processing_result.get("text", "")
-                        document.is_vectorized = 1  # 标记为已向量化
+                        # is_vectorized 已通过 property 自动处理，无需单独设置
                         document.vector_id = document.uuid  # 使用uuid作为向量ID
                         document.document_metadata["chunks_count"] = len(processing_result.get("chunks", []))
                         document.document_metadata["entities_count"] = len(processing_result.get("entities", []))
@@ -471,23 +478,44 @@ class KnowledgeService:
         
         return text_results
     
-    def list_documents(self, db: Session, skip: int = 0, limit: int = 10, knowledge_base_id: Optional[int] = None, is_vectorized: Optional[int] = None) -> List[KnowledgeDocument]:
-        """获取知识库文档列表"""
+    def list_documents(self, db: Session, skip: int = 0, limit: int = 10, knowledge_base_id: Optional[int] = None, processing_status: Optional[str] = None) -> List[KnowledgeDocument]:
+        """获取知识库文档列表 - 使用 processing_status 单字段筛选"""
         query = db.query(KnowledgeDocument)
         if knowledge_base_id is not None:
             query = query.filter(KnowledgeDocument.knowledge_base_id == knowledge_base_id)
-        if is_vectorized is not None:
-            query = query.filter(KnowledgeDocument.is_vectorized == is_vectorized)
-        return query.offset(skip).limit(limit).all()
+        
+        # 先获取所有文档，然后在Python中按processing_status过滤（SQLite不支持.astext）
+        docs = query.all()
+        
+        if processing_status is not None:
+            filtered_docs = []
+            for doc in docs:
+                metadata = doc.document_metadata or {}
+                if metadata.get('processing_status') == processing_status:
+                    filtered_docs.append(doc)
+            docs = filtered_docs
+        
+        # 应用分页
+        return docs[skip:skip + limit]
 
-    def get_document_count(self, db: Session, knowledge_base_id: Optional[int] = None, is_vectorized: Optional[int] = None) -> int:
-        """获取文档总数"""
+    def get_document_count(self, db: Session, knowledge_base_id: Optional[int] = None, processing_status: Optional[str] = None) -> int:
+        """获取文档总数 - 使用 processing_status 单字段筛选"""
         query = db.query(KnowledgeDocument)
         if knowledge_base_id is not None:
             query = query.filter(KnowledgeDocument.knowledge_base_id == knowledge_base_id)
-        if is_vectorized is not None:
-            query = query.filter(KnowledgeDocument.is_vectorized == is_vectorized)
-        return query.count()
+        
+        # 先获取所有文档，然后在Python中按processing_status过滤（SQLite不支持.astext）
+        docs = query.all()
+        
+        if processing_status is not None:
+            count = 0
+            for doc in docs:
+                metadata = doc.document_metadata or {}
+                if metadata.get('processing_status') == processing_status:
+                    count += 1
+            return count
+        else:
+            return len(docs)
     
     def delete_document(self, db: Session, document_id: int) -> bool:
         """删除文档"""
@@ -816,7 +844,10 @@ class KnowledgeService:
 
             # 更新文档信息
             document.vector_id = document.uuid  # 使用uuid作为向量ID
-            document.is_vectorized = 1
+            # is_vectorized 已通过 property 自动处理，设置 processing_status = 'completed' 即可
+            if document.document_metadata is None:
+                document.document_metadata = {}
+            document.document_metadata["processing_status"] = "completed"
             db.commit()
             print(f"文档向量化成功: {document.title} (ID: {document_id}, UUID: {document.uuid})")
 

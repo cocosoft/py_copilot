@@ -160,7 +160,7 @@ class UnifiedModelMigration:
                         source_type="document",
                         source_id=str(doc.id),
                         source_location=doc.file_path,
-                        status=KnowledgeUnitStatus.ACTIVE if doc.is_vectorized else KnowledgeUnitStatus.PENDING
+                        status=KnowledgeUnitStatus.ACTIVE if (doc.document_metadata or {}).get('processing_status') == 'completed' else KnowledgeUnitStatus.PENDING
                     )
                     
                     # 如果有向量ID，记录

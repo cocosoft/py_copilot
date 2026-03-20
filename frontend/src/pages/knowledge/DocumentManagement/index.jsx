@@ -4,9 +4,9 @@
  * 知识库文档管理主页面，整合所有新组件
  */
 
-import React, { useEffect, useCallback, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useCallback, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiGrid, FiList, FiFilter, FiUpload, FiSearch, FiDownload, FiTrash2, FiFile, FiPlayCircle, FiLoader, FiZap } from 'react-icons/fi';
+import { FiGrid, FiList, FiFilter, FiDownload, FiTrash2, FiFile, FiLoader, FiZap } from 'react-icons/fi';
 import useKnowledgeStore from '../../../stores/knowledgeStore';
 import { EnhancedBatchOperations } from '../../../components/Knowledge/EnhancedBatchOperations';
 import ProcessingDocumentsPanel from '../../../components/Knowledge/ProcessingDocumentsPanel';
@@ -16,7 +16,8 @@ import UploadButton from '../../../components/Knowledge/UploadButton';
 import SmartSearch from '../../../components/Knowledge/SmartSearch/SmartSearch';
 import { message } from '../../../components/UI/Message/Message';
 import {
-  listDocuments,
+  loadDocumentsAsync,
+  getDocumentLoadStatus,
   uploadDocument,
   getDocument,
   deleteDocument,
@@ -29,7 +30,7 @@ import {
   getDocumentProcessingProgress,
   searchDocuments,
   getKnowledgeBases,
-  getDocumentEntities
+  listDocuments
 } from '../../../utils/api/knowledgeApi';
 import websocketService from '../../../services/websocketService';
 import './styles.css';
@@ -108,6 +109,8 @@ const MemoDocumentCard = React.memo(({
   );
 });
 
+MemoDocumentCard.displayName = 'MemoDocumentCard';
+
 /**
  * 文档管理页面
  */
@@ -129,7 +132,6 @@ const DocumentManagement = () => {
     setDocumentsLoading,
     setDocumentsError,
     toggleDocumentSelection,
-    setSelectedDocuments,
     setDocumentsPage,
     setDocumentFilters,
     addSearchHistory,
@@ -167,7 +169,7 @@ const DocumentManagement = () => {
   const abortControllersRef = useRef(new Map());
 
   // 批量处理状态
-  const [batchProcessing, setBatchProcessing] = useState(false);
+  const [, setBatchProcessing] = useState(false);
   const [unprocessedCount, setUnprocessedCount] = useState(0);
   const [showBatchProcessModal, setShowBatchProcessModal] = useState(false);
   const [batchProcessResult, setBatchProcessResult] = useState(null);
@@ -175,23 +177,33 @@ const DocumentManagement = () => {
   // 实时处理进度状态
   const [processingStatus, setProcessingStatus] = useState(null);
   const [showProgressPanel, setShowProgressPanel] = useState(false);
+  
+  // 异步文档加载状态
+  const loadTaskId = useRef(null);
+  const [, setLoadTaskStatus] = useState(null);
+  const [loadProgress, setLoadProgress] = useState(0);
+  const [loadMessage, setLoadMessage] = useState('');
+  const websocketConnected = useRef(false);
+  const loadProgressUnsubscribe = useRef(null);
   const [processingDocuments, setProcessingDocuments] = useState(new Map());
   const [processingProgress, setProcessingProgress] = useState(new Map());
 
   /**
    * 获取向量状态
+   * 使用 processing_status 单字段判断文档状态
    */
   const getVectorizationStatus = (doc) => {
-    if (doc.is_vectorized) return 'vectorized';
     const status = doc.document_metadata?.processing_status;
+    // 根据 processing_status 判断状态
+    if (status === 'completed') return 'vectorized';
     if (status === 'failed') return 'error';
     if (status === 'processing' || status === 'queued') return 'processing';
-    if (status === 'idle') return 'pending';
+    if (status === 'idle' || status === 'pending' || !status) return 'pending';
     return 'pending';
   };
 
   /**
-   * 获取文档列表
+   * 获取文档列表 - 使用异步API
    */
   const fetchDocuments = useCallback(async () => {
     if (!currentKnowledgeBase) {
@@ -200,15 +212,16 @@ const DocumentManagement = () => {
 
     setDocumentsLoading(true);
     setDocumentsError(null);
+    setLoadProgress(0);
+    setLoadMessage('准备加载文档...');
 
     try {
-      let documents = [];
-      let total = 0;
       // 检查是否有搜索关键词
       const searchQuery = documentFilters?.search?.trim();
 
       if (searchQuery) {
-        // 使用搜索API
+        // 搜索模式：使用同步搜索API
+        setLoadMessage('搜索文档...');
         const searchResponse = await searchDocuments(
           searchQuery,
           documentsPageSize,
@@ -217,70 +230,147 @@ const DocumentManagement = () => {
           sortBy.split('-')[1] || 'desc'
         );
 
-
         // 搜索API可能直接返回数组或包含results的对象
         const searchResults = Array.isArray(searchResponse) ? searchResponse : (searchResponse.results || []);
         // 转换搜索结果
-        documents = searchResults.map(result => ({
+        const documents = searchResults.map(result => ({
           id: String(result.id || result.document_id),
           title: result.title,
           fileType: result.file_type || 'unknown',
           size: result.metadata?.file_size || 0,
           createdAt: result.created_at || result.metadata?.created_at,
-          vectorizationStatus: result.is_vectorized ? 'vectorized' : (result.metadata?.processing_status || 'pending'),
+          // 使用 processing_status 判断状态，completed 表示已向量化
+          vectorizationStatus: result.metadata?.processing_status === 'completed' ? 'vectorized' : (result.metadata?.processing_status || 'pending'),
           score: result.score,
         }));
-        total = Array.isArray(searchResponse) ? searchResults.length : (searchResponse.total || documents.length);
+        const total = Array.isArray(searchResponse) ? searchResults.length : (searchResponse.total || documents.length);
+        
+        setDocuments(documents, total, documentsPage > 1);
+        setLoadProgress(100);
+        setLoadMessage('搜索完成');
       } else {
-        // 调用普通列表API
+        // 普通列表模式：使用异步API
         const skip = (documentsPage - 1) * documentsPageSize;
-        const isVectorized = filterStatus === 'all' ? null : filterStatus === 'vectorized';
-        const response = await listDocuments(
-          skip,
-          documentsPageSize,
-          currentKnowledgeBase.id,
-          isVectorized
-        );
+        // 使用 processing_status 单字段进行筛选
+        const processingStatusMap = {
+          'all': null,
+          'vectorized': 'completed',
+          'pending': 'pending',
+          'processing': 'processing',
+          'error': 'failed'
+        };
+        const processingStatus = processingStatusMap[filterStatus] || null;
+        
+        // 连接WebSocket
+        setLoadMessage('连接进度服务...');
+        try {
+          await websocketService.connect();
+          websocketConnected.current = true;
+        } catch (wsError) {
+          console.warn('[文档加载] WebSocket连接失败，将使用轮询模式:', wsError);
+          websocketConnected.current = false;
+        }
+
+        // 注册WebSocket进度监听
+        if (websocketConnected.current) {
+          loadProgressUnsubscribe.current = websocketService.on('document_load_progress', (data) => {
+            if (data && data.task_id === loadTaskId.current) {
+              setLoadProgress(data.progress || 0);
+              setLoadMessage(data.current_message || '');
+              setLoadTaskStatus(data.status);
+
+              // 任务完成
+              if (data.status === 'completed') {
+              } else if (data.status === 'failed') {
+                message.error({ content: `文档加载失败: ${data.error || '未知错误'}` });
+              }
+            }
+          });
+        }
+
+        // 调用异步加载API
+        setLoadMessage('启动异步加载任务...');
+        try {
+          const response = await loadDocumentsAsync({
+            knowledge_base_id: currentKnowledgeBase.id,
+            skip: skip,
+            limit: documentsPageSize,
+            // 使用 processing_status 单字段进行筛选，不再传递 is_vectorized
+            processing_status: processingStatus,
+            sort_by: sortBy.split('-')[0] || 'created_at',
+            sort_order: sortBy.split('-')[1] || 'desc'
+          });
 
 
-        // 转换后端数据为前端格式
-        documents = (response.documents || []).map(doc => ({
-          id: String(doc.id),
-          title: doc.title,
-          fileType: doc.file_type || 'unknown',
-          size: doc.document_metadata?.file_size || 0,
-          createdAt: doc.created_at,
-          vectorizationStatus: getVectorizationStatus(doc),
-        }));
-        total = response.total || documents.length;
-      }
-
-      // 客户端排序（仅当不是搜索模式时）
-      if (!searchQuery) {
-        documents = [...documents].sort((a, b) => {
-          const [field, order] = sortBy.split('-');
-          const multiplier = order === 'desc' ? -1 : 1;
-
-          if (field === 'createdAt') {
-            return multiplier * (new Date(a.createdAt) - new Date(b.createdAt));
+          if (response.success && response.task_id) {
+            loadTaskId.current = response.task_id;
+            setLoadMessage(response.message || '任务已启动');
+            
+            // 如果WebSocket未连接，使用轮询模式
+            if (!websocketConnected.current) {
+              setLoadMessage('使用轮询模式监控进度...');
+              await pollLoadTaskStatus(response.task_id);
+            } else {
+              // WebSocket模式：等待任务完成
+              await waitForLoadTaskComplete(response.task_id);
+            }
+          } else {
+            throw new Error(response.message || '启动任务失败');
           }
-          if (field === 'title') {
-            return multiplier * a.title.localeCompare(b.title);
-          }
-          if (field === 'size') {
-            return multiplier * (a.size - b.size);
-          }
-          return 0;
-        });
+        } catch (asyncError) {
+          console.error('[文档加载] 异步加载失败，使用同步API:', asyncError);
+          setLoadMessage('使用同步模式加载文档...');
+          // 使用同步API加载文档列表
+          try {
+            const response = await listDocuments(
+              skip,
+              documentsPageSize,
+              currentKnowledgeBase?.id,
+              isVectorized,
+              processingStatus
+            );
+            
+            // 处理listDocuments的返回格式
+            const documentsData = Array.isArray(response) ? response : (response.documents || response.items || []);
+            const total = response.total || documentsData.length;
+            
+            // 转换文档数据
+            const documents = documentsData.map(doc => ({
+              id: String(doc.id),
+              title: doc.title,
+              fileType: doc.file_type || 'unknown',
+              size: doc.document_metadata?.file_size || 0,
+              createdAt: doc.created_at,
+              vectorizationStatus: getVectorizationStatus(doc),
+            }));
+            
+            // 客户端排序
+            const sortedDocuments = [...documents].sort((a, b) => {
+              const [field, order] = sortBy.split('-');
+              const multiplier = order === 'desc' ? -1 : 1;
 
-        // 过滤处理状态
-        if (filterStatus !== 'all' && filterStatus !== 'vectorized') {
-          documents = documents.filter(d => d.vectorizationStatus === filterStatus);
+              if (field === 'createdAt') {
+                return multiplier * (new Date(a.createdAt) - new Date(b.createdAt));
+              }
+              if (field === 'title') {
+                return multiplier * a.title.localeCompare(b.title);
+              }
+              if (field === 'size') {
+                return multiplier * (a.size - b.size);
+              }
+              return 0;
+            });
+
+            // 后端已经根据processing_status筛选，前端不需要再次过滤
+            setDocuments(sortedDocuments, total, documentsPage > 1);
+            setLoadProgress(100);
+            setLoadMessage('加载完成');
+          } catch (syncError) {
+            console.error('[文档加载] 同步API加载失败:', syncError);
+            throw new Error('加载文档失败，请刷新页面重试');
+          }
         }
       }
-
-      // 使用追加模式当页码大于1时
-      setDocuments(documents, total, documentsPage > 1);
     } catch (error) {
       console.error('[fetchDocuments] 获取文档列表失败:', error);
       setDocumentsError(error.message);
@@ -300,10 +390,296 @@ const DocumentManagement = () => {
     setDocumentsError,
   ]);
 
+  /**
+   * 轮询加载任务状态（WebSocket不可用时的备用方案）
+   */
+  const pollLoadTaskStatus = useCallback(async (taskId) => {
+    const maxPolls = 60; // 最多轮询60次（每秒一次）
+    let pollCount = 0;
+
+    const poll = async () => {
+      try {
+        const status = await getDocumentLoadStatus(taskId);
+
+        setLoadProgress(status.progress || 0);
+        setLoadMessage(status.current_message || '');
+        setLoadTaskStatus(status.status);
+
+        if (status.status === 'completed' && status.documents) {
+          // 转换文档数据
+          const documents = status.documents.map(doc => ({
+            id: String(doc.id),
+            title: doc.title,
+            fileType: doc.file_type || 'unknown',
+            size: doc.document_metadata?.file_size || 0,
+            createdAt: doc.created_at,
+            vectorizationStatus: getVectorizationStatus(doc),
+          }));
+          
+          // 客户端排序
+          const sortedDocuments = [...documents].sort((a, b) => {
+            const [field, order] = sortBy.split('-');
+            const multiplier = order === 'desc' ? -1 : 1;
+
+            if (field === 'createdAt') {
+              return multiplier * (new Date(a.createdAt) - new Date(b.createdAt));
+            }
+            if (field === 'title') {
+              return multiplier * a.title.localeCompare(b.title);
+            }
+            if (field === 'size') {
+              return multiplier * (a.size - b.size);
+            }
+            return 0;
+          });
+
+          // 异步加载任务已经根据processing_status筛选，前端不需要再次过滤
+          setDocuments(sortedDocuments, status.total || documents.length, documentsPage > 1);
+          setLoadProgress(100);
+          setLoadMessage('加载完成');
+          return;
+        }
+
+        if (status.status === 'failed') {
+          message.error({ content: `文档加载失败: ${status.error || '未知错误'}` });
+          return;
+        }
+
+        // 继续轮询
+        pollCount++;
+        if (pollCount < maxPolls && status.status === 'loading') {
+          setTimeout(poll, 1000);
+        } else if (pollCount >= maxPolls) {
+          message.warning({ content: '任务轮询超时，请刷新页面查看最新状态' });
+        }
+      } catch (error) {
+        console.error('[文档加载] 轮询失败:', error);
+        // 检查是否是404错误（任务不存在）
+        if (error.message && error.message.includes('404') || error.message && error.message.includes('任务不存在')) {
+          console.info('[文档加载] 任务不存在，使用同步API加载文档');
+          setLoadMessage('使用备用方法加载文档...');
+          // 使用同步API加载文档列表
+          try {
+            const skip = (documentsPage - 1) * documentsPageSize;
+            const isVectorized = (filterStatus === 'all' || filterStatus === 'vectorized') ? 
+                (filterStatus === 'vectorized' ? 1 : null) : null;
+            const processingStatusMap = {
+              'pending': 'pending',
+              'processing': 'processing',
+              'error': 'failed'
+            };
+            const processingStatus = processingStatusMap[filterStatus] || null;
+            
+            const response = await listDocuments(
+              skip,
+              documentsPageSize,
+              currentKnowledgeBase?.id,
+              isVectorized,
+              processingStatus
+            );
+            
+            // 处理listDocuments的返回格式
+            const documentsData = Array.isArray(response) ? response : (response.documents || response.items || []);
+            const total = response.total || documentsData.length;
+            
+            // 转换文档数据
+            const documents = documentsData.map(doc => ({
+              id: String(doc.id),
+              title: doc.title,
+              fileType: doc.file_type || 'unknown',
+              size: doc.document_metadata?.file_size || 0,
+              createdAt: doc.created_at,
+              vectorizationStatus: getVectorizationStatus(doc),
+            }));
+            
+            // 客户端排序
+            const sortedDocuments = [...documents].sort((a, b) => {
+              const [field, order] = sortBy.split('-');
+              const multiplier = order === 'desc' ? -1 : 1;
+
+              if (field === 'createdAt') {
+                return multiplier * (new Date(a.createdAt) - new Date(b.createdAt));
+              }
+              if (field === 'title') {
+                return multiplier * a.title.localeCompare(b.title);
+              }
+              if (field === 'size') {
+                return multiplier * (a.size - b.size);
+              }
+              return 0;
+            });
+
+            // 后端已经根据processing_status筛选，前端不需要再次过滤
+            setDocuments(sortedDocuments, total, documentsPage > 1);
+            setLoadProgress(100);
+            setLoadMessage('加载完成');
+          } catch (syncError) {
+            console.error('[文档加载] 同步API加载失败:', syncError);
+            message.error({ content: '加载文档失败，请刷新页面重试' });
+          }
+          return;
+        }
+        // 其他错误继续重试
+        pollCount++;
+        if (pollCount < maxPolls) {
+          setTimeout(poll, 2000); // 出错后延迟2秒重试
+        } else {
+          message.error({ content: '获取任务状态失败' });
+        }
+      }
+    };
+
+    await poll();
+  }, [setDocuments, sortBy, filterStatus, documentsPage, currentKnowledgeBase, documentsPageSize]);
+
+  /**
+   * 轮询加载任务状态（WebSocket不可用时的备用方案）
+   */
+  const waitForLoadTaskComplete = useCallback(async (taskId) => {
+    const maxWait = 60000; // 最多等待60秒
+    const startTime = Date.now();
+    
+    const checkComplete = async () => {
+      try {
+        const status = await getDocumentLoadStatus(taskId);
+        
+        if (status.status === 'completed' && status.documents) {
+          // 转换文档数据
+          const documents = status.documents.map(doc => ({
+            id: String(doc.id),
+            title: doc.title,
+            fileType: doc.file_type || 'unknown',
+            size: doc.document_metadata?.file_size || 0,
+            createdAt: doc.created_at,
+            vectorizationStatus: getVectorizationStatus(doc),
+          }));
+          
+          // 客户端排序
+          const sortedDocuments = [...documents].sort((a, b) => {
+            const [field, order] = sortBy.split('-');
+            const multiplier = order === 'desc' ? -1 : 1;
+
+            if (field === 'createdAt') {
+              return multiplier * (new Date(a.createdAt) - new Date(b.createdAt));
+            }
+            if (field === 'title') {
+              return multiplier * a.title.localeCompare(b.title);
+            }
+            if (field === 'size') {
+              return multiplier * (a.size - b.size);
+            }
+            return 0;
+          });
+
+          // 异步加载任务已经根据processing_status筛选，前端不需要再次过滤
+          setDocuments(sortedDocuments, status.total || documents.length, documentsPage > 1);
+          setLoadProgress(100);
+          setLoadMessage('加载完成');
+          return;
+        }
+
+        if (status.status === 'failed') {
+          message.error({ content: `文档加载失败: ${status.error || '未知错误'}` });
+          return;
+        }
+
+        // 继续等待
+        if (Date.now() - startTime < maxWait && status.status === 'loading') {
+          setTimeout(checkComplete, 500);
+        } else if (Date.now() - startTime >= maxWait) {
+          message.warning({ content: '任务等待超时，请刷新页面查看最新状态' });
+        }
+      } catch (error) {
+        console.error('[文档加载] 检查完成状态失败:', error);
+        // 检查是否是404错误（任务不存在）
+        if (error.message && error.message.includes('404') || error.message && error.message.includes('任务不存在')) {
+          console.info('[文档加载] 任务不存在，使用同步API加载文档');
+          setLoadMessage('使用备用方法加载文档...');
+          // 使用同步API加载文档列表
+          try {
+            const skip = (documentsPage - 1) * documentsPageSize;
+            const isVectorized = (filterStatus === 'all' || filterStatus === 'vectorized') ? 
+                (filterStatus === 'vectorized' ? 1 : null) : null;
+            const processingStatusMap = {
+              'pending': 'pending',
+              'processing': 'processing',
+              'error': 'failed'
+            };
+            const processingStatus = processingStatusMap[filterStatus] || null;
+            
+            const response = await listDocuments(
+              skip,
+              documentsPageSize,
+              currentKnowledgeBase?.id,
+              isVectorized,
+              processingStatus
+            );
+            
+            // 处理listDocuments的返回格式
+            const documentsData = Array.isArray(response) ? response : (response.documents || response.items || []);
+            const total = response.total || documentsData.length;
+            
+            // 转换文档数据
+            const documents = documentsData.map(doc => ({
+              id: String(doc.id),
+              title: doc.title,
+              fileType: doc.file_type || 'unknown',
+              size: doc.document_metadata?.file_size || 0,
+              createdAt: doc.created_at,
+              vectorizationStatus: getVectorizationStatus(doc),
+            }));
+            
+            // 客户端排序
+            const sortedDocuments = [...documents].sort((a, b) => {
+              const [field, order] = sortBy.split('-');
+              const multiplier = order === 'desc' ? -1 : 1;
+
+              if (field === 'createdAt') {
+                return multiplier * (new Date(a.createdAt) - new Date(b.createdAt));
+              }
+              if (field === 'title') {
+                return multiplier * a.title.localeCompare(b.title);
+              }
+              if (field === 'size') {
+                return multiplier * (a.size - b.size);
+              }
+              return 0;
+            });
+
+            // 后端已经根据processing_status筛选，前端不需要再次过滤
+            setDocuments(sortedDocuments, total, documentsPage > 1);
+            setLoadProgress(100);
+            setLoadMessage('加载完成');
+          } catch (syncError) {
+            console.error('[文档加载] 同步API加载失败:', syncError);
+            message.error({ content: '加载文档失败，请刷新页面重试' });
+          }
+          return;
+        }
+        // 其他错误继续重试，但增加延迟
+        setTimeout(checkComplete, 2000);
+      }
+    };
+
+    await checkComplete();
+  }, [setDocuments, sortBy, filterStatus, documentsPage, currentKnowledgeBase, documentsPageSize]);
+
+  /**
+   * 等待加载任务完成（WebSocket模式）
+   */
+  useEffect(() => {
+    return () => {
+      if (loadProgressUnsubscribe.current) {
+        loadProgressUnsubscribe.current();
+        loadProgressUnsubscribe.current = null;
+      }
+    };
+  }, []);
+
   // 初始加载和筛选变化时重新获取
   useEffect(() => {
     fetchDocuments();
-  }, [fetchDocuments]);
+  }, [fetchDocuments, currentKnowledgeBase]);
 
   /**
    * 获取未处理文档数量
@@ -367,11 +743,9 @@ const DocumentManagement = () => {
     if (!currentKnowledgeBase) return;
 
     try {
-      console.log('[fetchProcessingStatus] 正在获取处理状态...');
       const response = await getProcessingStatus(currentKnowledgeBase.id);
       
       if (response.success) {
-        console.log('[fetchProcessingStatus] 处理状态:', response);
         setProcessingStatus(response);
 
         // 更新正在处理的文档Map
@@ -405,7 +779,6 @@ const DocumentManagement = () => {
                              response.queue_status.processing_count > 0 ||
                              response.queue_status.queue_size > 0;
         if (hasProcessing) {
-          console.log('[fetchProcessingStatus] 有处理任务，显示进度面板');
           setShowProgressPanel(true);
 
           // 获取每个处理中文档的详细进度
@@ -415,8 +788,10 @@ const DocumentManagement = () => {
             });
           }
         } else {
-          console.log('[fetchProcessingStatus] 无处理任务，隐藏进度面板');
           setShowProgressPanel(false);
+          // 清空处理文档和进度列表
+          setProcessingDocuments(new Map());
+          setProcessingProgress(new Map());
         }
         
         // 修正queue_status数据，确保与processing_documents一致
@@ -432,7 +807,6 @@ const DocumentManagement = () => {
             }
           };
           setProcessingStatus(correctedStatus);
-          console.log('[fetchProcessingStatus] 修正队列状态:', correctedStatus.queue_status);
         }
 
         // 更新未处理数量
@@ -456,9 +830,7 @@ const DocumentManagement = () => {
    */
   const fetchDocumentProgressDetail = useCallback(async (documentId) => {
     try {
-      console.log(`[fetchDocumentProgressDetail] 获取文档 ${documentId} 进度...`);
       const progress = await getDocumentProcessingProgress(documentId);
-      console.log(`[fetchDocumentProgressDetail] 文档 ${documentId} 进度:`, progress);
 
       setProcessingProgress(prev => {
         const newProgress = new Map(prev);
@@ -509,8 +881,6 @@ const DocumentManagement = () => {
   useEffect(() => {
     if (!currentKnowledgeBase) return;
 
-    console.log('[轮询处理状态] 初始化轮询逻辑');
-
     // 轮询间隔时间（毫秒）
     const POLLING_INTERVALS = {
       IDLE: 60000,        // 无处理任务时：60秒
@@ -527,39 +897,47 @@ const DocumentManagement = () => {
     let isProcessing = false;
     let consecutiveErrors = 0;
     let currentPollingInterval = POLLING_INTERVALS.NORMAL;
+    let isMounted = true;
 
     // 安全的获取处理状态函数
     const safeFetchProcessingStatus = async () => {
+      // 检查组件是否已卸载
+      if (!isMounted) return;
+
       // 检查是否在错误重试期间
       if (lastErrorTime > 0 && (Date.now() - lastErrorTime) < ERROR_RETRY_DELAY) {
-        console.log('[轮询处理状态] 在错误重试期间，跳过本次轮询');
         return;
       }
 
       // 避免并发请求
       if (isProcessing) {
-        console.log('[轮询处理状态] 正在处理中，跳过本次轮询');
         return;
       }
 
-      // 根据处理状态动态调整轮询间隔
-      if (!userActive && processingStatus?.queue_status?.processing_count === 0 && processingStatus?.queue_status?.queue_size === 0) {
+      // 检查是否有处理任务或进度面板是否显示
+      const hasProcessingTasks = processingStatus?.queue_status?.processing_count > 0 || 
+                              processingStatus?.queue_status?.queue_size > 0 ||
+                              processingDocuments.size > 0;
+
+      // 根据处理状态和用户活动动态调整轮询间隔
+      if (!userActive && !hasProcessingTasks) {
         // 用户不活动且无处理任务时，延长轮询间隔
-        console.log('[轮询处理状态] 用户不活动且无处理任务，延长轮询间隔');
         currentPollingInterval = POLLING_INTERVALS.IDLE;
-        return;
-      } else if (processingStatus?.queue_status?.processing_count > 0 || processingStatus?.queue_status?.queue_size > 0) {
+      } else if (hasProcessingTasks) {
         // 有处理任务时，根据任务数量动态调整轮询间隔
-        const totalTasks = (processingStatus.queue_status.processing_count || 0) + (processingStatus.queue_status.queue_size || 0);
+        const totalTasks = (processingStatus?.queue_status?.processing_count || 0) + 
+                          (processingStatus?.queue_status?.queue_size || 0) +
+                          processingDocuments.size;
         if (totalTasks <= 2) {
           // 处理任务接近完成时，使用快速轮询间隔
-          console.log('[轮询处理状态] 处理任务接近完成，使用快速轮询间隔');
           currentPollingInterval = POLLING_INTERVALS.ACTIVE;
         } else {
           // 正常处理任务时，使用正常轮询间隔
-          console.log('[轮询处理状态] 正常处理任务，使用正常轮询间隔');
           currentPollingInterval = POLLING_INTERVALS.NORMAL;
         }
+      } else {
+        // 无处理任务但用户活动时，使用正常轮询间隔
+        currentPollingInterval = POLLING_INTERVALS.NORMAL;
       }
 
       // 检查连续错误次数，超过阈值时暂停轮询
@@ -570,7 +948,6 @@ const DocumentManagement = () => {
 
       isProcessing = true;
       try {
-        console.log('[轮询处理状态] 执行轮询');
         await fetchProcessingStatus();
         // 重置错误时间和连续错误计数
         lastErrorTime = 0;
@@ -584,7 +961,6 @@ const DocumentManagement = () => {
         // 连续错误时增加轮询间隔
         if (consecutiveErrors > 0) {
           currentPollingInterval = POLLING_INTERVALS.NORMAL * (1 + consecutiveErrors * 0.5);
-          console.log(`[轮询处理状态] 连续错误${consecutiveErrors}次，调整轮询间隔为${currentPollingInterval}ms`);
         }
       } finally {
         isProcessing = false;
@@ -592,16 +968,16 @@ const DocumentManagement = () => {
     };
 
     // 立即获取一次处理状态（组件初始化时）
-    console.log('[轮询处理状态] 立即获取处理状态');
     safeFetchProcessingStatus();
 
     // 定时轮询 - 使用动态间隔
     const startPolling = () => {
-      console.log(`[轮询处理状态] 启动轮询，间隔: ${currentPollingInterval}ms`);
+      if (!isMounted) return;
+
       intervalId = setInterval(() => {
         safeFetchProcessingStatus();
         // 清除当前定时器并使用新的间隔时间重新设置
-        if (intervalId) {
+        if (intervalId && isMounted) {
           clearInterval(intervalId);
           startPolling();
         }
@@ -610,16 +986,18 @@ const DocumentManagement = () => {
 
     // 延迟启动轮询，避免与WebSocket连接冲突
     setTimeout(() => {
-      startPolling();
+      if (isMounted) {
+        startPolling();
+      }
     }, 2000);
 
     return () => {
-      console.log('[轮询处理状态] 清理轮询');
+      isMounted = false;
       if (intervalId) {
         clearInterval(intervalId);
       }
     };
-  }, [currentKnowledgeBase, fetchProcessingStatus, userActive, processingStatus]);
+  }, [currentKnowledgeBase, fetchProcessingStatus, userActive, processingStatus, processingDocuments.size]);
 
   // WebSocket 连接和进度监听
   useEffect(() => {
@@ -639,12 +1017,10 @@ const DocumentManagement = () => {
       }
 
       try {
-        console.log('[WebSocket] 正在连接...');
         await websocketService.connect();
         
         if (!isMounted) return;
         
-        console.log('[WebSocket] 连接成功');
         // 重置重连计数器
         reconnectAttempts = 0;
         
@@ -654,7 +1030,6 @@ const DocumentManagement = () => {
           
           // 获取处理状态后，重新订阅所有处理中文档
           const processingDocIds = Array.from(processingDocuments.keys());
-          console.log('[WebSocket] 订阅处理中文档:', processingDocIds);
           
           if (processingDocIds.length > 0) {
             websocketService.subscribeToDocumentProgress(processingDocIds);
@@ -669,7 +1044,6 @@ const DocumentManagement = () => {
         reconnectAttempts++;
         // 连接失败后，延迟重试，每次增加延迟时间
         const delay = RECONNECT_DELAY * reconnectAttempts;
-        console.log(`[WebSocket] ${delay}ms后重连... (尝试 ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
         
         setTimeout(() => {
           if (isMounted) {
@@ -718,10 +1092,24 @@ const DocumentManagement = () => {
         // 显示进度面板
         setShowProgressPanel(true);
 
-        // 如果处理完成，取消订阅
+        // 如果处理完成，取消订阅并清理状态
         if (message.status === 'completed' || message.status === 'failed') {
           setTimeout(() => {
             websocketService.unsubscribeFromDocumentProgress(message.document_id);
+            // 从处理文档列表中移除
+            setProcessingDocuments(prev => {
+              const newDocs = new Map(prev);
+              newDocs.delete(docId);
+              return newDocs;
+            });
+            // 从进度列表中移除
+            setProcessingProgress(prev => {
+              const newProgress = new Map(prev);
+              newProgress.delete(docId);
+              return newProgress;
+            });
+            // 检查是否还有处理中的文档
+            fetchProcessingStatus();
           }, 2000);
         }
       }
@@ -731,7 +1119,6 @@ const DocumentManagement = () => {
 
     return () => {
       isMounted = false;
-      console.log('[WebSocket] 清理连接');
       websocketService.off('document_progress');
     };
   }, [currentKnowledgeBase, fetchProcessingStatus]);
@@ -913,6 +1300,40 @@ const DocumentManagement = () => {
     }
   }, [cancelPreviousRequest]);
 
+  /**
+   * 获取文档内容（用于文本文件预览）
+   */
+  const fetchDocumentContent = useCallback(async (docId) => {
+    if (!docId) return;
+
+    // 取消之前的请求
+    cancelPreviousRequest('documentContent');
+
+    // 创建新的控制器
+    const controller = new AbortController();
+    abortControllersRef.current.set('documentContent', controller);
+
+    try {
+      const response = await fetch(`/api/knowledge/documents/${docId}/preview`, {
+        signal: controller.signal
+      });
+      
+      if (!response.ok) {
+        throw new Error('获取文档内容失败');
+      }
+      
+      const content = await response.text();
+      return content;
+    } catch (error) {
+      if (error.name !== 'AbortError') {
+        console.error('[fetchDocumentContent] 获取文档内容失败:', error);
+      }
+      return null;
+    } finally {
+      cancelPreviousRequest('documentContent');
+    }
+  }, [cancelPreviousRequest]);
+
   // 当 documentId 变化时，获取文档详情
   useEffect(() => {
     if (documentId) {
@@ -1034,7 +1455,6 @@ const DocumentManagement = () => {
    */
   const handleSaveVectorizationConfig = () => {
     // 这里可以添加保存配置到后端的逻辑
-    console.log('保存向量化配置:', vectorizationConfig);
     message.success({ content: '向量化配置已保存' });
     setShowVectorizationConfig(false);
   };
@@ -1042,7 +1462,7 @@ const DocumentManagement = () => {
   /**
    * 渲染文档项 - 使用稳定引用避免不必要的重渲染
    */
-  const renderDocument = useCallback((doc, index) => (
+  const renderDocument = useCallback((doc) => (
     <MemoDocumentCard
       document={doc}
       selectedDocuments={selectedDocuments}
@@ -1064,30 +1484,34 @@ const DocumentManagement = () => {
   /**
    * 切换视图模式
    */
-  const toggleViewMode = () => {
+  const toggleViewMode = useCallback(() => {
     setViewMode(prev => prev === VIEW_MODES.LIST ? VIEW_MODES.GRID : VIEW_MODES.LIST);
-  };
+  }, []);
 
   /**
    * 处理排序变更
    */
-  const handleSortChange = (e) => {
+  const handleSortChange = useCallback((e) => {
     setSortBy(e.target.value);
     // 重置页码和列表
     setDocumentsPage(1);
     setDocuments([], 0);
-  };
+    // 立即重新获取文档
+    fetchDocuments();
+  }, [setSortBy, setDocumentsPage, setDocuments, fetchDocuments]);
 
   /**
    * 处理过滤变更
    */
-  const handleFilterChange = (status) => {
+  const handleFilterChange = useCallback((status) => {
     setFilterStatus(status);
     setShowFilters(false);
     // 重置页码和列表
     setDocumentsPage(1);
     setDocuments([], 0);
-  };
+    // 立即重新获取文档
+    fetchDocuments();
+  }, [setFilterStatus, setShowFilters, setDocumentsPage, setDocuments, fetchDocuments]);
 
   if (documentsError) {
     return (
@@ -1167,21 +1591,28 @@ const DocumentManagement = () => {
             </button>
           </div>
           
+          {/* 批量处理按钮 */}
+          {unprocessedCount > 0 && (
+            <div className="header-batch-process">
+              <button 
+                className="batch-process-btn"
+                onClick={handleBatchProcess}
+                title={`批量处理 ${unprocessedCount} 个未处理文档`}
+              >
+                <FiZap size={18} />
+                <span>批量处理 ({unprocessedCount})</span>
+              </button>
+            </div>
+          )}
+          
           {/* 视图切换 */}
           <div className="header-view-toggle">
             <button 
               className={viewMode === VIEW_MODES.LIST ? 'active' : ''}
-              onClick={() => setViewMode(VIEW_MODES.LIST)}
-              title="列表视图"
+              onClick={toggleViewMode}
+              title={viewMode === VIEW_MODES.LIST ? '切换到网格视图' : '切换到列表视图'}
             >
-              <FiList size={18} />
-            </button>
-            <button 
-              className={viewMode === VIEW_MODES.GRID ? 'active' : ''}
-              onClick={() => setViewMode(VIEW_MODES.GRID)}
-              title="网格视图"
-            >
-              <FiGrid size={18} />
+              {viewMode === VIEW_MODES.LIST ? <FiGrid size={18} /> : <FiList size={18} />}
             </button>
           </div>
         </div>
@@ -1339,6 +1770,26 @@ const DocumentManagement = () => {
         )}
       </div>
 
+      {/* 文档加载进度显示 */}
+      {documentsLoading && loadProgress > 0 && (
+        <div className="document-load-progress">
+          <div className="load-progress-header">
+            <FiLoader size={16} className="spinning" />
+            <span>正在加载文档...</span>
+          </div>
+          <div className="load-progress-bar-container">
+            <div
+              className="load-progress-bar"
+              style={{ width: `${loadProgress}%` }}
+            />
+          </div>
+          <div className="load-progress-info">
+            <span className="load-progress-percent">{loadProgress.toFixed(1)}%</span>
+            {loadMessage && <span className="load-progress-message">{loadMessage}</span>}
+          </div>
+        </div>
+      )}
+
       {/* 文档列表 */}
       <div className={`document-list-container ${viewMode === VIEW_MODES.GRID ? 'grid-view' : 'list-view'}`}>
         <VirtualListEnhanced
@@ -1354,7 +1805,7 @@ const DocumentManagement = () => {
             <div className="empty-state">
               <div className="empty-icon">📁</div>
               <h3>暂无文档</h3>
-              <p>点击上方"上传文档"按钮添加文档</p>
+              <p>点击上方&quot;上传文档&quot;按钮添加文档</p>
             </div>
           }
         />
@@ -1486,8 +1937,8 @@ const DocumentManagement = () => {
                     <span className="detail-meta-item">
                       创建时间: {new Date(selectedDocument.created_at).toLocaleString('zh-CN')}
                     </span>
-                    <span className={`detail-meta-item status-${selectedDocument.is_vectorized ? 'vectorized' : 'pending'}`}>
-                      状态: {selectedDocument.is_vectorized ? '已向量化' : '未向量化'}
+                    <span className={`detail-meta-item status-${selectedDocument.document_metadata?.processing_status === 'completed' ? 'vectorized' : 'pending'}`}>
+                      状态: {selectedDocument.document_metadata?.processing_status === 'completed' ? '已向量化' : '未向量化'}
                     </span>
                   </div>
                 </div>
@@ -1512,7 +1963,7 @@ const DocumentManagement = () => {
                   >
                     标签管理
                   </button>
-                  {selectedDocument.is_vectorized && (
+                  {selectedDocument.document_metadata?.processing_status === 'completed' && (
                     <button
                       className={`detail-tab ${activeTab === 'chunks' ? 'active' : ''}`}
                       onClick={() => setActiveTab('chunks')}
@@ -1556,7 +2007,7 @@ const DocumentManagement = () => {
                           <FiDownload size={16} />
                           下载文档
                         </button>
-                        {!selectedDocument.is_vectorized && (
+                        {selectedDocument.document_metadata?.processing_status !== 'completed' && (
                           <button
                             className="action-btn secondary"
                             onClick={handleVectorizeDocument}
@@ -1590,7 +2041,7 @@ const DocumentManagement = () => {
                             return (
                               <div className="pdf-preview">
                                 <iframe 
-                                  src={`/api/documents/${docId}/preview`} 
+                                  src={`/api/knowledge/documents/${docId}/preview`} 
                                   title="PDF 预览"
                                   className="preview-iframe"
                                   frameBorder="0"
@@ -1601,7 +2052,7 @@ const DocumentManagement = () => {
                             return (
                               <div className="office-preview">
                                 <iframe 
-                                  src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(window.location.origin + `/api/documents/${docId}/download`)}`} 
+                                  src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(window.location.origin + `/api/knowledge/documents/${docId}/download`)}`} 
                                   title="Office 文档预览"
                                   className="preview-iframe"
                                   frameBorder="0"
@@ -1609,16 +2060,27 @@ const DocumentManagement = () => {
                               </div>
                             );
                           } else if (['txt', 'md'].includes(fileType)) {
+                            const [content, setContent] = React.useState('加载中...');
+                            
+                            React.useEffect(() => {
+                              const loadContent = async () => {
+                                const textContent = await fetchDocumentContent(docId);
+                                setContent(textContent || '无法加载文件内容');
+                              };
+                              
+                              loadContent();
+                            }, [docId, fetchDocumentContent]);
+                            
                             return (
                               <div className="text-preview">
-                                <pre className="text-content">加载中...</pre>
+                                <pre className="text-content">{content}</pre>
                               </div>
                             );
                           } else if (['jpg', 'jpeg', 'png', 'gif'].includes(fileType)) {
                             return (
                               <div className="image-preview">
                                 <img 
-                                  src={`/api/documents/${docId}/download`} 
+                                  src={`/api/knowledge/documents/${docId}/download`} 
                                   alt={selectedDocument.title}
                                   className="preview-image"
                                 />
@@ -1738,7 +2200,7 @@ const DocumentManagement = () => {
                       ) : (
                         <div className="empty-chunks">
                           <p>暂无向量片段</p>
-                          {selectedDocument.is_vectorized && (
+                          {selectedDocument.document_metadata?.processing_status === 'completed' && (
                             <p className="empty-hint">文档已向量化，但未能获取到片段数据</p>
                           )}
                         </div>

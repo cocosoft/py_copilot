@@ -84,16 +84,73 @@ export const searchDocuments = async (query, limit = 10, knowledgeBaseId = null,
     return response.results;
 };
 
-export const listDocuments = async (skip = 0, limit = 10, knowledgeBaseId = null, isVectorized = null) => {
+export const listDocuments = async (skip = 0, limit = 10, knowledgeBaseId = null, isVectorized = null, processingStatus = null) => {
     const params = { skip, limit, knowledge_base_id: knowledgeBaseId };
-    if (isVectorized !== null) {
-        params.is_vectorized = isVectorized ? 1 : 0;
+    // 使用 processing_status 单字段进行筛选，isVectorized 参数已废弃
+    if (processingStatus !== null) {
+        params.processing_status = processingStatus;
     }
     const response = await request('/v1/knowledge/documents', {
         method: 'GET',
         params
     });
     
+    return response;
+};
+
+/**
+ * 异步加载文档列表
+ *
+ * 启动后台任务进行文档加载，立即返回任务ID，
+ * 前端可通过WebSocket订阅进度或轮询查询任务状态
+ *
+ * @param {Object} params - 请求参数
+ * @param {number} params.knowledge_base_id - 知识库ID
+ * @param {number} [params.skip=0] - 跳过的文档数
+ * @param {number} [params.limit=100] - 返回的文档数限制
+ * @param {string} [params.processing_status] - 处理状态筛选: completed=已向量化, idle=待处理, processing=处理中, failed=失败
+ * @param {string} [params.sort_by='created_at'] - 排序字段
+ * @param {string} [params.sort_order='desc'] - 排序方向
+ * @returns {Promise<Object>} 任务信息，包含task_id用于查询进度
+ */
+export const loadDocumentsAsync = async (params) => {
+
+    const response = await request('/v1/knowledge/documents/load-async', {
+        method: 'POST',
+        data: params,
+        timeout: 120000
+    });
+
+    return response;
+};
+
+/**
+ * 获取文档加载任务状态
+ *
+ * @param {string} taskId - 任务ID
+ * @returns {Promise<Object>} 任务状态信息
+ */
+export const getDocumentLoadStatus = async (taskId) => {
+    const response = await request(`/v1/knowledge/documents/load-status/${taskId}`, {
+        method: 'GET',
+        timeout: 10000
+    });
+    return response;
+};
+
+/**
+ * 订阅知识库的文档加载进度
+ *
+ * @param {number} knowledgeBaseId - 知识库ID
+ * @param {string} connectionId - WebSocket连接ID
+ * @returns {Promise<Object>} 订阅结果
+ */
+export const subscribeDocumentLoadProgress = async (knowledgeBaseId, connectionId) => {
+    const response = await request(`/v1/knowledge/documents/subscribe-load/${knowledgeBaseId}`, {
+        method: 'POST',
+        params: { connection_id: connectionId },
+        timeout: 10000
+    });
     return response;
 };
 
@@ -220,14 +277,12 @@ export const searchDocumentsByTag = async (tagId, knowledgeBaseId = null) => {
  * @returns {Promise<Object>} 处理启动结果
  */
 export const processDocument = async (documentId) => {
-    console.log(`[knowledgeApi.processDocument] 开始调用API，文档ID: ${documentId}`);
     const response = await requestWithRetry(`/v1/knowledge/documents/${documentId}/process`, {
         method: 'POST',
         timeout: 300000,  // 300秒超时（5分钟），后端响应可能较慢
         maxRetries: 2,     // 最多重试2次
         initialDelay: 2000  // 初始重试延迟2秒
     });
-    console.log(`[knowledgeApi.processDocument] API响应:`, response);
     return response;
 };
 
@@ -388,14 +443,84 @@ export const extractEntities = async (params) => {
         ? { text: params }
         : params;
     
-    console.log('提取实体请求参数:', requestData);
     
     const response = await request('/v1/knowledge-graph/extract-entities', {
         method: 'POST',
         data: requestData
     });
     
-    console.log('提取实体响应:', response);
+    return response;
+};
+
+/**
+ * 异步批量提取实体
+ *
+ * 启动后台任务进行实体提取，立即返回任务ID，
+ * 前端可通过WebSocket订阅进度或轮询查询任务状态
+ *
+ * @param {Object} params - 请求参数
+ * @param {number[]} params.document_ids - 文档ID列表
+ * @param {number} params.knowledge_base_id - 知识库ID
+ * @param {string} [params.model_id] - 模型ID（可选）
+ * @param {string[]} [params.entity_types] - 实体类型列表（可选）
+ * @returns {Promise<Object>} 任务信息，包含task_id用于查询进度
+ */
+export const extractEntitiesAsync = async (params) => {
+    console.log('异步提取实体请求参数:', params);
+
+    const response = await request('/v1/knowledge-graph/extract-entities-async', {
+        method: 'POST',
+        data: params,
+        timeout: 30000
+    });
+
+    console.log('异步提取实体响应:', response);
+    return response;
+};
+
+/**
+ * 获取实体提取任务状态
+ *
+ * @param {string} taskId - 任务ID
+ * @returns {Promise<Object>} 任务状态信息
+ */
+export const getEntityExtractionStatus = async (taskId) => {
+    const response = await request(`/v1/knowledge-graph/extract-entities-status/${taskId}`, {
+        method: 'GET',
+        timeout: 10000
+    });
+    return response;
+};
+
+/**
+ * 订阅知识库的实体提取进度
+ *
+ * @param {number} knowledgeBaseId - 知识库ID
+ * @param {string} connectionId - WebSocket连接ID
+ * @returns {Promise<Object>} 订阅结果
+ */
+export const subscribeEntityExtractionProgress = async (knowledgeBaseId, connectionId) => {
+    const response = await request(`/v1/knowledge-graph/subscribe-entity-extraction/${knowledgeBaseId}`, {
+        method: 'POST',
+        params: { connection_id: connectionId },
+        timeout: 10000
+    });
+    return response;
+};
+
+/**
+ * 取消订阅知识库的实体提取进度
+ *
+ * @param {number} knowledgeBaseId - 知识库ID
+ * @param {string} connectionId - WebSocket连接ID
+ * @returns {Promise<Object>} 取消订阅结果
+ */
+export const unsubscribeEntityExtractionProgress = async (knowledgeBaseId, connectionId) => {
+    const response = await request(`/v1/knowledge-graph/unsubscribe-entity-extraction/${knowledgeBaseId}`, {
+        method: 'POST',
+        params: { connection_id: connectionId },
+        timeout: 10000
+    });
     return response;
 };
 
