@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { FiSearch, FiArrowUpDown, FiFilter, FiClock, FiBookmark, FiX } from 'react-icons/fi';
+import { FiSearch, FiArrowDown, FiArrowUp, FiFilter, FiClock, FiBookmark, FiX } from 'react-icons/fi';
 import useKnowledgeStore from '../../stores/knowledgeStore';
 import { Button } from '../../components/UI';
 import { message } from '../../components/UI/Message/Message';
@@ -219,7 +219,7 @@ const Reranking = () => {
             <h4>重排序设置</h4>
             <Button
               variant="primary"
-              icon={<FiArrowUpDown />}
+              icon={<FiArrowUp />}
               onClick={handleRerank}
             >
               应用重排序

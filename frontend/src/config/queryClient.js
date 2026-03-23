@@ -82,7 +82,7 @@ export const queryKeys = {
   translationFeedback: ['translation', 'feedback'],
   translationMemory: ['translation', 'memory'],
   terminology: ['translation', 'terminology'],
-  knowledgeBases: ['translation', 'knowledge-bases'],
+  translationKnowledgeBases: ['translation', 'knowledge-bases'],
   memoryContext: ['translation', 'memory-context'],
   defaultTranslationModel: ['translation', 'default-model'],
   modelCapabilities: ['translation', 'capabilities'],

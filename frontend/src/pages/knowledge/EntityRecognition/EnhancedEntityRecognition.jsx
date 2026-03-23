@@ -98,6 +98,15 @@ const EnhancedEntityRecognition = () => {
   const [extractStatus, setExtractStatus] = useState('');
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [extractTaskId, setExtractTaskId] = useState(null);
+  
+  // 提取配置状态
+  const [extractConfig, setExtractConfig] = useState({
+    extractEntities: true,
+    extractRelationships: true,
+    processingMode: 'quality', // 'standard' | 'quality' | 'speed'
+    threshold: 0.7
+  });
+  const [showConfigPanel, setShowConfigPanel] = useState(false);
 
   /**
    * 获取文档列表
@@ -157,13 +166,25 @@ const EnhancedEntityRecognition = () => {
     setShowProgressModal(true);
     
     try {
-      // 调用实体提取 API
+      // 根据处理模式调整参数
+      const modeConfig = {
+        standard: { chunkSize: 1024, overlapSize: 128 },
+        quality: { chunkSize: 512, overlapSize: 64 },
+        speed: { chunkSize: 2048, overlapSize: 256 }
+      };
+      const currentModeConfig = modeConfig[extractConfig.processingMode] || modeConfig.quality;
+      
+      // 调用实体提取 API，传入配置参数
       const response = await extractEntities({
         text: selectedDocument.content || '',
         entity_types: ENHANCED_ENTITY_TYPES.map(type => type.value),
-        threshold: 0.7,
+        threshold: extractConfig.threshold,
         document_id: selectedDocument.id,
-        knowledge_base_id: currentKnowledgeBase.id
+        knowledge_base_id: currentKnowledgeBase.id,
+        extract_relationships: extractConfig.extractRelationships,
+        chunk_size: currentModeConfig.chunkSize,
+        overlap_size: currentModeConfig.overlapSize,
+        processing_mode: extractConfig.processingMode
       });
       
       // 获取任务ID（如果后端返回）
@@ -213,7 +234,7 @@ const EnhancedEntityRecognition = () => {
       message.error({ content: `实体提取失败: ${error.message}` });
       setShowProgressModal(false);
     }
-  }, [currentKnowledgeBase, selectedDocument, fetchEntities]);
+  }, [currentKnowledgeBase, selectedDocument, fetchEntities, extractConfig]);
 
   /**
    * 更新实体状态
@@ -469,16 +490,117 @@ const EnhancedEntityRecognition = () => {
             />
           </div>
           
+          {/* 配置面板切换按钮 */}
+          <Button 
+            variant={showConfigPanel ? 'primary' : 'outline'}
+            icon={FiSettings}
+            onClick={() => setShowConfigPanel(!showConfigPanel)}
+            title="提取配置"
+          >
+            配置
+          </Button>
+          
           <Button 
             variant="primary"
             icon={FiCpu}
             onClick={handleExtractEntities}
             loading={loading}
           >
-            提取实体
+            {extractConfig.extractRelationships ? '提取实体和关系' : '提取实体'}
           </Button>
         </div>
       </div>
+      
+      {/* 提取配置面板 */}
+      {showConfigPanel && (
+        <div className="extract-config-panel">
+          <div className="config-section">
+            <h4>处理模式</h4>
+            <div className="mode-selector">
+              <label className={`mode-option ${extractConfig.processingMode === 'speed' ? 'active' : ''}`}>
+                <input
+                  type="radio"
+                  name="processingMode"
+                  value="speed"
+                  checked={extractConfig.processingMode === 'speed'}
+                  onChange={(e) => setExtractConfig(prev => ({ 
+                    ...prev, 
+                    processingMode: e.target.value,
+                    extractRelationships: false
+                  }))}
+                />
+                <span className="mode-name">速度模式</span>
+                <span className="mode-desc">快速处理，不提取关系</span>
+              </label>
+              <label className={`mode-option ${extractConfig.processingMode === 'standard' ? 'active' : ''}`}>
+                <input
+                  type="radio"
+                  name="processingMode"
+                  value="standard"
+                  checked={extractConfig.processingMode === 'standard'}
+                  onChange={(e) => setExtractConfig(prev => ({ 
+                    ...prev, 
+                    processingMode: e.target.value,
+                    extractRelationships: false
+                  }))}
+                />
+                <span className="mode-name">标准模式</span>
+                <span className="mode-desc">平衡速度和质量</span>
+              </label>
+              <label className={`mode-option ${extractConfig.processingMode === 'quality' ? 'active' : ''}`}>
+                <input
+                  type="radio"
+                  name="processingMode"
+                  value="quality"
+                  checked={extractConfig.processingMode === 'quality'}
+                  onChange={(e) => setExtractConfig(prev => ({ 
+                    ...prev, 
+                    processingMode: e.target.value,
+                    extractRelationships: true
+                  }))}
+                />
+                <span className="mode-name">质量模式</span>
+                <span className="mode-desc">高质量提取，包含关系</span>
+              </label>
+            </div>
+          </div>
+          
+          <div className="config-section">
+            <h4>提取选项</h4>
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={extractConfig.extractEntities}
+                onChange={(e) => setExtractConfig(prev => ({ ...prev, extractEntities: e.target.checked }))}
+              />
+              <span>提取实体</span>
+            </label>
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={extractConfig.extractRelationships}
+                onChange={(e) => setExtractConfig(prev => ({ ...prev, extractRelationships: e.target.checked }))}
+              />
+              <span>提取关系</span>
+            </label>
+          </div>
+          
+          <div className="config-section">
+            <h4>置信度阈值</h4>
+            <div className="threshold-control">
+              <input
+                type="range"
+                min="0.1"
+                max="1.0"
+                step="0.1"
+                value={extractConfig.threshold}
+                onChange={(e) => setExtractConfig(prev => ({ ...prev, threshold: parseFloat(e.target.value) }))}
+              />
+              <span className="threshold-value">{(extractConfig.threshold * 100).toFixed(0)}%</span>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className={`entity-list ${viewMode}`}>
         {filteredEntities.map(entity => {

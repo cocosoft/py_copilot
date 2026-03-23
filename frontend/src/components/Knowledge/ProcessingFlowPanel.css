@@ -1,0 +1,208 @@
+/**
+ * 处理流程面板样式
+ */
+
+.processing-flow-panel {
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+}
+
+.panel-title {
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 16px;
+  color: #333;
+}
+
+.no-document {
+  text-align: center;
+  padding: 40px 0;
+  color: #666;
+}
+
+.flow-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.step-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid #e8e8e8;
+  background: #fafafa;
+}
+
+.step-card.completed {
+  border-color: #52c41a;
+  background: #f6ffed;
+}
+
+.step-card.processing {
+  border-color: #1890ff;
+  background: #e6f7ff;
+}
+
+.step-card.failed {
+  border-color: #ff4d4f;
+  background: #fff2f0;
+}
+
+.step-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-icon {
+  flex-shrink: 0;
+}
+
+.status-icon.completed {
+  color: #52c41a;
+}
+
+.status-icon.processing {
+  color: #1890ff;
+  animation: spin 1s linear infinite;
+}
+
+.status-icon.failed {
+  color: #ff4d4f;
+}
+
+.status-icon.pending {
+  color: #d9d9d9;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.step-title {
+  font-weight: 500;
+  font-size: 14px;
+  color: #333;
+}
+
+.step-description {
+  font-size: 12px;
+  color: #666;
+  margin-left: 24px;
+}
+
+.step-status-text {
+  font-size: 12px;
+  color: #52c41a;
+  margin-left: 24px;
+  font-weight: 500;
+}
+
+.step-connector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  position: relative;
+}
+
+.connector-line {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 80%;
+  height: 2px;
+  background: #e8e8e8;
+  transform: translate(-50%, -50%);
+}
+
+.connector-line.active {
+  background: #52c41a;
+}
+
+.connector-arrow {
+  position: relative;
+  z-index: 1;
+  color: #999;
+  font-size: 12px;
+  background: white;
+  padding: 0 8px;
+}
+
+.connector-line.active + .connector-arrow {
+  color: #52c41a;
+}
+
+.status-summary {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.summary-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.summary-label {
+  color: #666;
+}
+
+.summary-value {
+  font-weight: 500;
+  color: #333;
+}
+
+.summary-value.idle {
+  color: #999;
+}
+
+.summary-value.processing {
+  color: #1890ff;
+}
+
+.summary-value.completed,
+.summary-value.chunked,
+.summary-value.entity_extracted,
+.summary-value.vectorized,
+.summary-value.graph_built {
+  color: #52c41a;
+}
+
+.summary-value.failed,
+.summary-value.text_extraction_failed,
+.summary-value.chunking_failed,
+.summary-value.entity_extraction_failed,
+.summary-value.vectorization_failed,
+.summary-value.graph_building_failed {
+  color: #ff4d4f;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .processing-flow-panel {
+    padding: 12px;
+  }
+  
+  .step-card {
+    padding: 10px;
+  }
+  
+  .status-summary {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}

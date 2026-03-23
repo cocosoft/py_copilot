@@ -196,8 +196,34 @@ class DocumentParser:
     
     @staticmethod
     def parse_docx(file_path: str) -> str:
-        """解析Word文档"""
+        """解析Word文档
+        
+        支持标准.docx格式，包含健壮的错误处理：
+        1. 首先尝试使用python-docx库解析
+        2. 如果失败，尝试使用zipfile提取文本内容
+        3. 如果仍然失败，检查是否是伪装成docx的文本文件
+        4. 如果所有方法都失败，返回错误信息
+        
+        Args:
+            file_path: Word文档路径
+            
+        Returns:
+            文档内容字符串
+            
+        Raises:
+            ValueError: 当文档无法解析时抛出
+        """
+        import os
         start_time = time.time()
+        
+        # 首先检查文件是否存在
+        if not os.path.exists(file_path):
+            raise ValueError(f"文件不存在: {file_path}")
+        
+        # 检查文件大小
+        file_size = os.path.getsize(file_path)
+        if file_size == 0:
+            raise ValueError("文件为空")
         
         try:
             doc = docx.Document(file_path)
@@ -241,22 +267,163 @@ class DocumentParser:
             return text
             
         except Exception as e:
-            processing_time = time.time() - start_time
-            raise ValueError(f"Word文档解析失败: {str(e)}")
+            # 如果python-docx失败，尝试使用zipfile提取
+            try:
+                return DocumentParser._extract_docx_text_fallback(file_path)
+            except Exception as fallback_error:
+                # 如果zipfile也失败，检查是否是伪装成docx的文本文件
+                try:
+                    return DocumentParser._parse_fake_docx_as_txt(file_path)
+                except Exception as txt_error:
+                    processing_time = time.time() - start_time
+                    raise ValueError(f"Word文档解析失败: {str(e)}。备用方案也失败: {str(fallback_error)}")
+    
+    @staticmethod
+    def _extract_docx_text_fallback(file_path: str) -> str:
+        """备用方案：使用zipfile和XML解析提取docx文本
+        
+        当python-docx无法解析时使用此方法
+        
+        Args:
+            file_path: Word文档路径
+            
+        Returns:
+            文档内容字符串
+        """
+        import zipfile
+        import xml.etree.ElementTree as ET
+        import re
+        
+        text = ""
+        
+        with zipfile.ZipFile(file_path, 'r') as zip_file:
+            # 读取document.xml
+            if 'word/document.xml' in zip_file.namelist():
+                xml_content = zip_file.read('word/document.xml')
+                
+                # 解析XML
+                root = ET.fromstring(xml_content)
+                
+                # 提取所有文本节点
+                # docx的XML命名空间
+                namespaces = {
+                    'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+                }
+                
+                # 提取所有<w:t>标签的文本
+                for elem in root.iter():
+                    if elem.text:
+                        text += elem.text
+                    if elem.tail:
+                        text += elem.tail
+                
+                # 清理XML标签
+                text = re.sub(r'<[^>]+>', '', text)
+                text = re.sub(r'\n\s*\n', '\n\n', text)
+                
+        if not text.strip():
+            raise ValueError("无法从文档中提取文本内容")
+            
+        return text
+    
+    @staticmethod
+    def _parse_fake_docx_as_txt(file_path: str) -> str:
+        """解析伪装成docx的文本文件
+        
+        有些文件虽然扩展名是.docx，但实际上是文本文件（通常是GBK编码）。
+        这个方法尝试用文本文件的方式读取这些文件。
+        
+        Args:
+            file_path: 文件路径（扩展名为.docx但实际是文本文件）
+            
+        Returns:
+            文件内容字符串
+            
+        Raises:
+            ValueError: 当文件无法作为文本文件解析时抛出
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        logger.warning(f"文件 {os.path.basename(file_path)} 不是标准docx格式，尝试作为文本文件解析")
+        
+        # 使用与parse_txt相同的逻辑，但添加警告信息
+        encodings = ['utf-8', 'gbk', 'gb18030', 'gb2312', 'latin-1']
+        
+        # 首先尝试正常解码
+        for encoding in encodings:
+            try:
+                with open(file_path, 'r', encoding=encoding) as file:
+                    content = file.read()
+                    logger.info(f"成功将 {os.path.basename(file_path)} 作为{encoding}编码的文本文件解析")
+                    return content
+            except UnicodeDecodeError:
+                continue
+            except Exception as e:
+                raise ValueError(f"伪装docx文件解析失败: {str(e)}")
+        
+        # 如果所有编码都失败，使用errors='replace'模式
+        try:
+            with open(file_path, 'r', encoding='gbk', errors='replace') as file:
+                content = file.read()
+                logger.warning(f"文件 {os.path.basename(file_path)} 包含无法解码的字符，已使用替换模式")
+                return content
+        except Exception as e:
+            raise ValueError(f"伪装docx文件解析失败: {str(e)}")
     
     @staticmethod
     def parse_txt(file_path: str) -> str:
-        """解析文本文件"""
-        try:
-            with open(file_path, 'r', encoding='utf-8') as file:
-                return file.read()
-        except UnicodeDecodeError:
-            # 尝试其他编码
+        """解析文本文件
+        
+        支持多种编码格式，自动检测并处理编码错误：
+        1. 首先尝试UTF-8编码
+        2. 如果失败，尝试GBK编码
+        3. 如果仍然失败，使用GB18030编码（GBK的超集，支持更多字符）
+        4. 最后使用errors='replace'参数，将无法解码的字符替换为�
+        
+        Args:
+            file_path: 文本文件路径
+            
+        Returns:
+            文件内容字符串
+            
+        Raises:
+            ValueError: 当所有编码方式都失败时抛出
+        """
+        encodings = ['utf-8', 'gbk', 'gb18030', 'gb2312', 'latin-1']
+        
+        # 首先尝试正常解码
+        for encoding in encodings:
             try:
-                with open(file_path, 'r', encoding='gbk') as file:
+                with open(file_path, 'r', encoding=encoding) as file:
                     return file.read()
+            except UnicodeDecodeError:
+                continue
             except Exception as e:
                 raise ValueError(f"文本文件解析失败: {str(e)}")
+        
+        # 如果所有编码都失败，使用errors='replace'模式
+        # 这样可以将无法解码的字符替换为�，而不是抛出异常
+        try:
+            # 优先尝试GBK + replace（因为中文文本通常是GBK编码）
+            with open(file_path, 'r', encoding='gbk', errors='replace') as file:
+                content = file.read()
+                # 记录警告日志
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"文件 {os.path.basename(file_path)} 包含无法解码的字符，已使用替换模式")
+                return content
+        except Exception as e:
+            # 最后尝试UTF-8 + replace
+            try:
+                with open(file_path, 'r', encoding='utf-8', errors='replace') as file:
+                    content = file.read()
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(f"文件 {os.path.basename(file_path)} 包含无法解码的字符，已使用替换模式")
+                    return content
+            except Exception as e2:
+                raise ValueError(f"文本文件解析失败: {str(e2)}")
     
     @staticmethod
     def parse_excel(file_path: str) -> str:

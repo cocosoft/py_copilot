@@ -96,6 +96,50 @@
   color: #595959;
 }
 
+/* ==================== 操作按钮 ==================== */
+
+.document-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.document-card__action-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: #f5f5f5;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #595959;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.document-card__action-btn:hover {
+  background: #e6f7ff;
+  border-color: #1890ff;
+  color: #1890ff;
+}
+
+.document-card__action-btn.processing-flow-btn {
+  background: #f6ffed;
+  border-color: #b7eb8f;
+  color: #52c41a;
+}
+
+.document-card__action-btn.processing-flow-btn:hover {
+  background: #d9f7be;
+  border-color: #52c41a;
+}
+
+.document-card--list .document-card__action-btn.processing-flow-btn {
+  margin-right: 8px;
+}
+
 /* ==================== 列表视图 ==================== */
 
 .document-card--list {

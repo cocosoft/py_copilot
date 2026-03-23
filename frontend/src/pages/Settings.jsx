@@ -4,7 +4,7 @@ import { request, requestWithRetry } from '../utils/apiUtils';
 import * as d3 from 'd3';
 import './settings.css';
 import IntegratedModelManagement from '../components/ModelManagement/IntegratedModelManagement';
-import Knowledge from './Knowledge';
+import Knowledge from './knowledge/legacy/Knowledge';
 import Workflow from './Workflow';
 import ModelSelectDropdown from '../components/ModelManagement/ModelSelectDropdown';
 import SettingsManager from '../components/SettingsManagement/SettingsManager';

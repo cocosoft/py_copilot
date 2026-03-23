@@ -1,6 +1,39 @@
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any, Union
 from datetime import datetime
+from enum import Enum
+
+
+# Document Processing Status Enum
+class DocumentProcessingStatus(str, Enum):
+    """文档处理状态枚举"""
+    # 核心状态
+    IDLE = "idle"  # 待处理
+    PROCESSING = "processing"  # 处理中
+    TEXT_EXTRACTED = "text_extracted"  # 文本提取完成
+    CHUNKED = "chunked"  # 切片完成
+    ENTITY_EXTRACTED = "entity_extracted"  # 实体提取完成
+    VECTORIZED = "vectorized"  # 向量化完成
+    GRAPH_BUILT = "graph_built"  # 知识图谱构建完成
+    COMPLETED = "completed"  # 处理完成
+    FAILED = "failed"  # 处理失败
+    
+    # 失败状态细分
+    TEXT_EXTRACTION_FAILED = "text_extraction_failed"  # 文本提取失败
+    CHUNKING_FAILED = "chunking_failed"  # 切片失败
+    ENTITY_EXTRACTION_FAILED = "entity_extraction_failed"  # 实体提取失败
+    VECTORIZATION_FAILED = "vectorization_failed"  # 向量化失败
+    GRAPH_BUILDING_FAILED = "graph_building_failed"  # 知识图谱构建失败
+
+
+# Document Processing Stage Enum
+class ProcessingStage(str, Enum):
+    """处理阶段枚举"""
+    TEXT_EXTRACTED = "text_extracted"
+    CHUNKED = "chunked"
+    ENTITY_EXTRACTED = "entity_extracted"
+    VECTORIZED = "vectorized"
+    GRAPH_BUILT = "graph_built"
 
 # Knowledge Base Schemas
 class KnowledgeBaseBase(BaseModel):
@@ -178,6 +211,49 @@ class SearchAnalysisResponse(BaseModel):
     query: str
     analysis: SearchAnalysis
     recommendations: List[str]
+
+# Document Processing Status Schemas
+class DocumentProcessingStages(BaseModel):
+    """文档处理阶段状态"""
+    text_extracted: bool = False
+    chunked: bool = False
+    entity_extracted: bool = False
+    vectorized: bool = False
+    graph_built: bool = False
+
+
+class DocumentProcessingTimestamps(BaseModel):
+    """文档处理时间戳"""
+    uploaded_at: Optional[datetime] = None
+    text_extracted_at: Optional[datetime] = None
+    chunked_at: Optional[datetime] = None
+    entity_extracted_at: Optional[datetime] = None
+    vectorized_at: Optional[datetime] = None
+    graph_built_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    failed_at: Optional[datetime] = None
+
+
+class DocumentProcessingStats(BaseModel):
+    """文档处理统计信息"""
+    chunks_count: Optional[int] = 0
+    entities_count: Optional[int] = 0
+    relationships_count: Optional[int] = 0
+    vectorization_rate: Optional[float] = 0.0
+    graph_nodes: Optional[int] = 0
+    graph_edges: Optional[int] = 0
+
+
+class DocumentProcessingStatusResponse(BaseModel):
+    """文档处理状态响应"""
+    document_id: int
+    processing_status: DocumentProcessingStatus
+    stages: DocumentProcessingStages
+    timestamps: Optional[DocumentProcessingTimestamps] = None
+    stats: Optional[DocumentProcessingStats] = None
+    error_info: Optional[str] = None
+    message: Optional[str] = None
+
 
 # Knowledge Document Chunk Schemas
 class KnowledgeDocumentChunk(BaseModel):

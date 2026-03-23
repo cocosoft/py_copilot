@@ -6,13 +6,19 @@ import os
 
 # 必须在任何其他导入之前设置环境变量
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-os.environ['OMP_NUM_THREADS'] = '1'
-os.environ['MKL_NUM_THREADS'] = '1'
-os.environ['OPENBLAS_NUM_THREADS'] = '1'
-os.environ['TORCH_NUM_THREADS'] = '1'
+# 根据CPU核心数设置线程数，提升并行处理能力
+import multiprocessing
+cpu_count = multiprocessing.cpu_count()
+# 使用CPU核心数的一半，避免占用过多资源
+thread_count = max(2, cpu_count // 2)
+os.environ['OMP_NUM_THREADS'] = str(thread_count)
+os.environ['MKL_NUM_THREADS'] = str(thread_count)
+os.environ['OPENBLAS_NUM_THREADS'] = str(thread_count)
+os.environ['TORCH_NUM_THREADS'] = str(thread_count)
 os.environ['CUDA_VISIBLE_DEVICES'] = ''
 os.environ['HF_HUB_OFFLINE'] = '1'
 os.environ['TRANSFORMERS_OFFLINE'] = '1'
+print(f"[ChromaDB] 使用 {thread_count} 线程进行并行处理")
 
 import chromadb
 from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
@@ -85,11 +91,13 @@ async def startup_event():
         logger.info(f"加载Embedding模型: {model_path}")
         
         if os.path.exists(model_path):
+            # 使用优化的Embedding配置，提升批处理性能
             embedding_function = SentenceTransformerEmbeddingFunction(
                 model_name=model_path,
-                device="cpu"
+                device="cpu",
+                normalize_embeddings=True
             )
-            logger.info("Embedding模型加载成功")
+            logger.info("Embedding模型加载成功（已启用归一化优化）")
         else:
             logger.warning("Embedding模型未找到")
             embedding_function = None

@@ -140,7 +140,13 @@ const EnhancedBatchOperations = ({ onRefresh, onBatchProcessStart }) => {
 
       for (const doc of selectedDocs) {
         try {
-          const docId = doc.uuid || doc.id;
+          // 使用整数ID，与后端WebSocket消息保持一致
+          const docId = parseInt(doc.id, 10);
+          if (!docId) {
+            console.error('[BatchVectorize] 无效的文档ID:', doc.id);
+            errorCount++;
+            continue;
+          }
           console.log('[BatchVectorize] 启动文档处理:', docId);
           const result = await processDocument(docId);
           console.log('[BatchVectorize] 文档处理启动结果:', result);
@@ -244,7 +250,13 @@ const EnhancedBatchOperations = ({ onRefresh, onBatchProcessStart }) => {
 
       for (const doc of selectedDocs) {
         try {
-          const docId = doc.uuid || doc.id;
+          // 使用整数ID，与后端WebSocket消息保持一致
+          const docId = parseInt(doc.id, 10);
+          if (!docId) {
+            console.error('[BatchBuildGraph] 无效的文档ID:', doc.id);
+            errorCount++;
+            continue;
+          }
           console.log('[BatchBuildGraph] 启动知识图谱构建:', docId);
           const result = await buildKnowledgeGraph(docId, currentKnowledgeBase.id);
           console.log('[BatchBuildGraph] 知识图谱构建启动结果:', result);
@@ -348,6 +360,7 @@ const EnhancedBatchOperations = ({ onRefresh, onBatchProcessStart }) => {
       );
 
       // 准备导出数据
+      // 使用 processing_status 替代已废弃的 is_vectorized
       const exportData = {
         documents: selectedDocs.map(doc => ({
           id: doc.id,
@@ -355,7 +368,7 @@ const EnhancedBatchOperations = ({ onRefresh, onBatchProcessStart }) => {
           file_type: doc.file_type,
           file_size: doc.file_size,
           created_at: doc.created_at,
-          is_vectorized: doc.is_vectorized,
+          processing_status: doc.document_metadata?.processing_status || 'unknown',
           tags: doc.tags || []
         })),
         export_time: new Date().toISOString(),
@@ -371,15 +384,16 @@ const EnhancedBatchOperations = ({ onRefresh, onBatchProcessStart }) => {
         filename = `documents_export_${new Date().getTime()}.json`;
       } else if (exportFormat === 'csv') {
         // 简单的CSV导出
+        // 使用 processing_status 替代已废弃的 is_vectorized
         const csvContent = [
-          ['ID', 'Title', 'Type', 'Size', 'Created', 'Vectorized', 'Tags'].join(','),
+          ['ID', 'Title', 'Type', 'Size', 'Created', 'Processing Status', 'Tags'].join(','),
           ...selectedDocs.map(doc => [
             doc.id,
             `"${doc.title || ''}"`,
             doc.file_type || '',
             doc.file_size || 0,
             doc.created_at || '',
-            doc.is_vectorized ? 'Yes' : 'No',
+            doc.document_metadata?.processing_status || 'unknown',
             `"${(doc.tags || []).join(', ')}"`
           ].join(','))
         ].join('\n');

@@ -202,7 +202,6 @@ class KnowledgeService:
                 file_path=file_path,
                 file_type=os.path.splitext(file.filename)[1].lower(),
                 content="",  # 初始为空，将在处理过程中填充
-                is_vectorized=0,  # 标记为未向量化
                 file_hash=file_hash,  # 保存文件哈希
                 document_metadata={
                     "original_filename": file.filename,
@@ -274,7 +273,6 @@ class KnowledgeService:
                     if processing_result.get("success"):
                         # 更新文档内容
                         document.content = processing_result.get("text", "")
-                        # is_vectorized 已通过 property 自动处理，无需单独设置
                         document.vector_id = document.uuid  # 使用uuid作为向量ID
                         document.document_metadata["chunks_count"] = len(processing_result.get("chunks", []))
                         document.document_metadata["entities_count"] = len(processing_result.get("entities", []))
@@ -284,9 +282,27 @@ class KnowledgeService:
                         document.document_metadata["vectorization_rate"] = processing_result.get("vectorization_rate", 0)
                         document.document_metadata["success_count"] = processing_result.get("success_count", 0)
                         document.document_metadata["total_chunks"] = processing_result.get("total_chunks", 0)
+                        
+                        # 显式标记对象为已修改，确保SQLAlchemy追踪变化
+                        from sqlalchemy.orm import attributes
+                        attributes.flag_modified(document, "document_metadata")
+                        
+                        # 提交事务
                         db.commit()
-
-                        logger.info(f"文档异步处理完成: {document_id}，向量化成功率: {processing_result.get('vectorization_rate', 0):.2%}")
+                        
+                        # 刷新对象，确保从数据库重新加载
+                        db.refresh(document)
+                        
+                        # 验证更新是否成功
+                        verify_doc = db.query(KnowledgeDocument).filter(KnowledgeDocument.id == document_id).first()
+                        if verify_doc:
+                            verify_status = verify_doc.document_metadata.get("processing_status")
+                            logger.info(f"文档异步处理完成: {document_id}，状态验证: {verify_status}，向量化成功率: {processing_result.get('vectorization_rate', 0):.2%}")
+                        else:
+                            logger.error(f"文档异步处理完成但验证失败: {document_id}")
+                        
+                        # 强制同步到数据库
+                        db.flush()
 
                         if processing_result.get("graph_data"):
                             logger.info(f"图谱化完成: {document_id}，构建了包含 {len(processing_result['graph_data'].get('nodes', []))} 个节点的知识图谱")
@@ -319,9 +335,16 @@ class KnowledgeService:
                     document.document_metadata["processing_status"] = "failed"
                     document.document_metadata["processing_error"] = str(e)
                     document.document_metadata["retry_count"] = retry_count
+
+                    # 显式标记对象为已修改
+                    from sqlalchemy.orm import attributes
+                    attributes.flag_modified(document, "document_metadata")
+
                     db.commit()
-            except:
-                pass
+                    db.refresh(document)
+                    logger.info(f"文档处理失败状态已更新: {document_id}")
+            except Exception as update_error:
+                logger.error(f"更新文档失败状态出错: {document_id} - {update_error}")
         finally:
             db.close()
 
@@ -477,6 +500,98 @@ class KnowledgeService:
             })
         
         return text_results
+
+    async def sync_vectorization_status(self, knowledge_base_id: int, db: Session) -> Dict[str, Any]:
+        """同步向量化状态
+        
+        查询ChromaDB中已向量化的文档，并更新数据库中的状态
+        用于修复服务重启后状态不一致的问题
+        
+        Args:
+            knowledge_base_id: 知识库ID
+            db: 数据库会话
+            
+        Returns:
+            同步结果统计
+        """
+        import requests
+        import json
+        from datetime import datetime
+        
+        logger.info(f"开始同步知识库 {knowledge_base_id} 的向量化状态")
+        
+        try:
+            # 查询ChromaDB中的所有文档
+            response = requests.post(
+                'http://localhost:8008/collections/documents/documents/get',
+                json={'collection_name': 'documents', 'filters': {}, 'limit': 10000},
+                timeout=30
+            )
+            
+            if response.status_code != 200:
+                logger.error(f"查询ChromaDB失败: {response.status_code}")
+                return {"success": False, "error": f"查询ChromaDB失败: {response.status_code}"}
+            
+            data = response.json()
+            metadatas = data.get('metadatas', [])
+            
+            # 提取已向量化的文档ID
+            vectorized_doc_ids = set()
+            for metadata in metadatas:
+                if metadata:
+                    doc_id = metadata.get('document_id')
+                    kb_id = metadata.get('knowledge_base_id')
+                    if doc_id and kb_id == knowledge_base_id:
+                        try:
+                            vectorized_doc_ids.add(int(doc_id))
+                        except (ValueError, TypeError):
+                            pass
+            
+            logger.info(f"ChromaDB中找到 {len(vectorized_doc_ids)} 个已向量化的文档")
+            
+            # 获取知识库中的所有文档
+            docs = db.query(KnowledgeDocument).filter(
+                KnowledgeDocument.knowledge_base_id == knowledge_base_id
+            ).all()
+            
+            updated_count = 0
+            skipped_count = 0
+            
+            for doc in docs:
+                metadata = doc.document_metadata or {}
+                current_status = metadata.get('processing_status')
+
+                # 如果文档在ChromaDB中但数据库状态不是completed，则更新
+                if doc.id in vectorized_doc_ids:
+                    if current_status != 'completed':
+                        metadata['processing_status'] = 'completed'
+                        metadata['vectorization_rate'] = 1.0
+                        metadata['success_count'] = metadata.get('success_count', 1)
+                        metadata['synced_at'] = datetime.now().isoformat()
+                        updated_count += 1
+                    else:
+                        skipped_count += 1
+            
+            # 提交事务
+            db.commit()
+            
+            result = {
+                "success": True,
+                "total_documents": len(docs),
+                "vectorized_in_chroma": len(vectorized_doc_ids),
+                "updated_in_db": updated_count,
+                "already_synced": skipped_count,
+                "knowledge_base_id": knowledge_base_id
+            }
+            
+            logger.info(f"状态同步完成: {result}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"同步向量化状态失败: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return {"success": False, "error": str(e)}
     
     def list_documents(self, db: Session, skip: int = 0, limit: int = 10, knowledge_base_id: Optional[int] = None, processing_status: Optional[str] = None) -> List[KnowledgeDocument]:
         """获取知识库文档列表 - 使用 processing_status 单字段筛选"""
@@ -844,7 +959,6 @@ class KnowledgeService:
 
             # 更新文档信息
             document.vector_id = document.uuid  # 使用uuid作为向量ID
-            # is_vectorized 已通过 property 自动处理，设置 processing_status = 'completed' 即可
             if document.document_metadata is None:
                 document.document_metadata = {}
             document.document_metadata["processing_status"] = "completed"
@@ -1240,7 +1354,7 @@ class KnowledgeService:
                 ).order_by(DocumentChunk.chunk_index).all()
                 
                 if db_chunks:
-                    # 格式化数据库中的片段数据
+                    # 格式化数据库中的片段数据，匹配 KnowledgeDocumentChunk Pydantic 模型（第240行版本）
                     formatted_chunks = []
                     for chunk in db_chunks:
                         formatted_chunks.append({
@@ -1307,9 +1421,11 @@ class KnowledgeService:
             knowledge_base_id=current_doc.knowledge_base_id,
             version=current_doc.version + 1,
             is_current=True,
-            is_vectorized=0,  # 新版本需要重新向量化
             vector_id=None,   # 清空向量ID
-            document_metadata=current_doc.document_metadata
+            document_metadata={
+                **(current_doc.document_metadata or {}),
+                "processing_status": "pending"  # 新版本需要重新向量化
+            }
         )
         
         # 复制标签
@@ -1366,9 +1482,11 @@ class KnowledgeService:
             knowledge_base_id=target_version.knowledge_base_id,
             version=max_version + 1,  # 新版本号，基于最大版本号+1
             is_current=True,
-            is_vectorized=0,  # 需要重新向量化
             vector_id=None,   # 清空向量ID
-            document_metadata=target_version.document_metadata
+            document_metadata={
+                **(target_version.document_metadata or {}),
+                "processing_status": "pending"  # 需要重新向量化
+            }
         )
         
         # 复制标签

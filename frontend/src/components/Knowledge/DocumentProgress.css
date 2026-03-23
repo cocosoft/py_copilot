@@ -1,0 +1,316 @@
+/**
+ * 文档进度追踪组件样式
+ */
+
+.document-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  background: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #e1e8ed;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* 紧凑模式样式 */
+.document-progress.compact {
+  padding: 8px 12px;
+  gap: 8px;
+}
+
+/* 进度概览 */
+.progress-overview {
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e1e8ed;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.progress-header h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+/* 状态徽章 */
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-badge.status-idle {
+  background: #f5f5f5;
+  color: #8c8c8c;
+}
+
+.status-badge.status-pending {
+  background: #fff7e6;
+  color: #fa8c16;
+}
+
+.status-badge.status-queued {
+  background: #e6f7ff;
+  color: #1890ff;
+}
+
+.status-badge.status-processing {
+  background: #fffbe6;
+  color: #faad14;
+}
+
+.status-badge.status-completed {
+  background: #f6ffed;
+  color: #52c41a;
+}
+
+.status-badge.status-failed,
+.status-badge.status-error {
+  background: #fff2f0;
+  color: #ff4d4f;
+}
+
+/* 进度条容器 */
+.progress-bar-container {
+  position: relative;
+  height: 24px;
+  background: #f3f4f6;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 12px;
+  transition: width 0.5s ease;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 8px;
+}
+
+.progress-text {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  z-index: 1;
+}
+
+/* 进度统计 */
+.progress-stats {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 阶段列表 */
+.stages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 单个阶段项 */
+.stage-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.stage-item:hover {
+  background: #f9fafb;
+}
+
+/* 已完成状态 */
+.stage-item.completed {
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+}
+
+.stage-item.completed .stage-icon-container {
+  background: #d1fae5;
+}
+
+.stage-item.completed .stage-label {
+  color: #059669;
+  font-weight: 600;
+}
+
+/* 活跃状态 */
+.stage-item.active {
+  background: #fff7e6;
+  border: 1px solid #ffe58f;
+  animation: pulse 2s infinite;
+}
+
+.stage-item.active .stage-icon-container {
+  background: #fffbe6;
+  box-shadow: 0 0 0 4px rgba(250, 173, 20, 0.3);
+}
+
+/* 阶段图标容器 */
+.stage-icon-container {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.stage-icon {
+  font-size: 20px;
+}
+
+.stage-check {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 16px;
+  height: 16px;
+  background: #52c41a;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: bold;
+  border: 2px solid white;
+}
+
+/* 阶段信息 */
+.stage-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.stage-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 2px;
+}
+
+.stage-description {
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+/* 阶段箭头 */
+.stage-arrow {
+  color: #d1d5db;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.stage-item.completed .stage-arrow {
+  color: #52c41a;
+}
+
+/* 最后一个阶段不显示箭头 */
+.stage-item.last .stage-arrow {
+  display: none;
+}
+
+/* 状态徽章区域 */
+.status-badge-section {
+  padding-top: 16px;
+  border-top: 1px solid #e1e8ed;
+}
+
+/* 脉冲动画 */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .document-progress {
+    padding: 12px;
+    gap: 12px;
+  }
+  
+  .progress-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .stage-item {
+    padding: 8px;
+    gap: 8px;
+  }
+  
+  .stage-icon-container {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .stage-icon {
+    font-size: 16px;
+  }
+  
+  .stage-label {
+    font-size: 13px;
+  }
+  
+  .stage-description {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  .document-progress {
+    padding: 8px;
+    gap: 8px;
+  }
+  
+  .progress-stats {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .stage-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  
+  .stage-arrow {
+    transform: rotate(90deg);
+    align-self: center;
+  }
+}

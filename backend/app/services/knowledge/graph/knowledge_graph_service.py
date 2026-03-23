@@ -520,7 +520,7 @@ class KnowledgeGraphService:
             relationships = self.get_document_relationships(db, document_id)
             logger.info(f"[构建图谱] 文档 {document_id} 已有实体: {len(entities)}, 关系: {len(relationships)}")
 
-            if not entities and not relationships:
+            if not entities:
                 logger.info(f"[构建图谱] 文档 {document_id} 未进行实体提取，开始执行实体提取...")
 
                 # 执行实体提取，传入 knowledge_base_id 以使用正确的提取策略
@@ -551,6 +551,30 @@ class KnowledgeGraphService:
                     return {"error": "实体提取后没有发现任何实体"}
 
                 logger.info(f"[构建图谱] 文档 {document_id} 实体提取成功，提取到 {len(entities)} 个实体和 {len(relationships)} 个关系")
+            elif not relationships:
+                # 有实体但没有关系，需要重新提取关系
+                logger.info(f"[构建图谱] 文档 {document_id} 有 {len(entities)} 个实体但没有关系，重新提取实体和关系...")
+
+                # 清除旧的实体（因为关系需要基于新的实体ID）
+                logger.info(f"[构建图谱] 文档 {document_id} 清除旧实体...")
+                db.query(DocumentEntity).filter(DocumentEntity.document_id == document_id).delete()
+                db.commit()
+
+                # 重新执行实体提取（会同时提取关系）
+                extraction_result = self.extract_and_store_entities(
+                    db,
+                    document,
+                    knowledge_base_id=knowledge_base_id
+                )
+
+                if not extraction_result.get("success", False):
+                    logger.error(f"[构建图谱] 文档 {document_id} 重新提取失败: {extraction_result.get('error', '未知错误')}")
+                    return {"error": f"重新提取失败: {extraction_result.get('error', '未知错误')}"}
+
+                # 重新获取实体和关系
+                entities = self.get_document_entities(db, document_id)
+                relationships = self.get_document_relationships(db, document_id)
+                logger.info(f"[构建图谱] 文档 {document_id} 重新提取后: 实体={len(entities)}, 关系={len(relationships)}")
             else:
                 logger.info(f"[构建图谱] 文档 {document_id} 已有 {len(entities)} 个实体和 {len(relationships)} 个关系，直接构建知识图谱")
 

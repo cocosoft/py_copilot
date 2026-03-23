@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useCallback, useState, useMemo, useRef } from 'react';
-import { FiCpu, FiCheck, FiX, FiEdit2, FiTrash2, FiSearch, FiBox, FiSettings, FiFolder } from 'react-icons/fi';
+import { FiCheck, FiX, FiEdit2, FiTrash2, FiSearch, FiBox, FiSettings, FiFolder, FiLayers, FiDatabase, FiGlobe, FiFileText } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import useKnowledgeStore from '../../../stores/knowledgeStore';
 import { Button } from '../../../components/UI';
@@ -13,14 +13,18 @@ import { VirtualListEnhanced } from '../../../components/UI';
 import Modal from '../../../components/UI/Modal';
 import { message } from '../../../components/UI/Message/Message';
 import EntityConfigModal from '../../../components/Knowledge/EntityConfigModal';
-import websocketService from '../../../services/websocketService';
 import {
   listDocuments,
-  extractEntitiesAsync,
-  getEntityExtractionStatus,
   getDocumentEntitiesFromMaintenance,
   batchUpdateEntityStatus,
-  updateEntityStatus
+  updateEntityStatus,
+  extractChunkEntities,
+  getExtractTaskStatus,
+  aggregateDocumentEntities,
+  alignKnowledgeBaseEntities,
+  getDocumentChunkEntities,
+  getDocumentEntitiesNew,
+  updateDocumentProcessingStatus
 } from '../../../utils/api/knowledgeApi';
 import defaultModelApi from '../../../utils/api/defaultModelApi';
 import './styles.css';
@@ -50,6 +54,90 @@ const ENTITY_STATUS = {
 };
 
 /**
+ * 文档处理状态配置
+ * 统一使用 processing_status 字段判断文档状态
+ * 状态值：
+ *   - idle/pending: 待向量化
+ *   - queued: 排队中
+ *   - processing: 向量化中
+ *   - completed: 已向量化
+ *   - entity_processing: 实体识别中
+ *   - entity_completed: 已实体识别
+ *   - failed: 处理失败
+ */
+const DOCUMENT_STATUS = {
+  // 向量化相关状态
+  completed: { label: '已向量化', color: '#389e0d', bgColor: '#f6ffed', borderColor: '#b7eb8f', canSelect: true, stage: 'vectorization' },
+  processing: { label: '向量化中', color: '#1890ff', bgColor: '#e6f7ff', borderColor: '#91d5ff', canSelect: false, stage: 'vectorization' },
+  queued: { label: '排队中', color: '#722ed1', bgColor: '#f9f0ff', borderColor: '#d3adf7', canSelect: false, stage: 'vectorization' },
+  pending: { label: '待向量化', color: '#faad14', bgColor: '#fffbe6', borderColor: '#ffd591', canSelect: false, stage: 'vectorization' },
+  idle: { label: '待向量化', color: '#faad14', bgColor: '#fffbe6', borderColor: '#ffd591', canSelect: false, stage: 'vectorization' },
+
+  // 实体识别相关状态（新增）
+  entity_processing: { label: '实体识别中', color: '#13c2c2', bgColor: '#e6fffb', borderColor: '#87e8de', canSelect: false, stage: 'entity_extraction' },
+  entity_aggregating: { label: '实体聚合中', color: '#eb2f96', bgColor: '#fff0f6', borderColor: '#ffadd2', canSelect: false, stage: 'entity_extraction' },
+  entity_aligning: { label: '实体对齐中', color: '#722ed1', bgColor: '#f9f0ff', borderColor: '#d3adf7', canSelect: false, stage: 'entity_extraction' },
+  entity_completed: { label: '已实体识别', color: '#52c41a', bgColor: '#f6ffed', borderColor: '#b7eb8f', canSelect: true, stage: 'entity_extraction' },
+
+  // 失败状态
+  failed: { label: '处理失败', color: '#ff4d4f', bgColor: '#fff2f0', borderColor: '#ffccc7', canSelect: false, stage: 'error' },
+  entity_failed: { label: '实体识别失败', color: '#ff4d4f', bgColor: '#fff2f0', borderColor: '#ffccc7', canSelect: false, stage: 'error' },
+
+  // 未知状态
+  unknown: { label: '未知', color: '#8c8c8c', bgColor: '#f5f5f5', borderColor: '#d9d9d9', canSelect: false, stage: 'unknown' },
+};
+
+/**
+ * 获取文档处理状态
+ * 统一使用 processing_status 字段判断
+ * @param {Object} doc - 文档对象
+ * @returns {Object} 状态配置对象
+ */
+const getDocumentStatus = (doc) => {
+  if (!doc) return DOCUMENT_STATUS.unknown;
+  // 优先使用 document_metadata 中的 processing_status
+  const status = doc.document_metadata?.processing_status || doc.processing_status || 'unknown';
+  return DOCUMENT_STATUS[status] || DOCUMENT_STATUS.unknown;
+};
+
+/**
+ * 检查文档是否已完成向量化（可用于实体提取）
+ * @param {Object} doc - 文档对象
+ * @returns {boolean}
+ */
+const isDocumentProcessed = (doc) => {
+  if (!doc) return false;
+  const status = doc.document_metadata?.processing_status || doc.processing_status || 'unknown';
+  // 已完成向量化或已完成实体识别的文档都可以进行实体提取
+  return status === 'completed' || status === 'entity_processing' ||
+         status === 'entity_aggregating' || status === 'entity_aligning' ||
+         status === 'entity_completed';
+};
+
+/**
+ * 检查文档是否已完成实体识别
+ * @param {Object} doc - 文档对象
+ * @returns {boolean}
+ */
+const isEntityExtractionCompleted = (doc) => {
+  if (!doc) return false;
+  const status = doc.document_metadata?.processing_status || doc.processing_status || 'unknown';
+  return status === 'entity_completed';
+};
+
+/**
+ * 获取文档当前处理阶段
+ * @param {Object} doc - 文档对象
+ * @returns {string} 阶段名称：vectorization, entity_extraction, error, unknown
+ */
+const getDocumentStage = (doc) => {
+  if (!doc) return 'unknown';
+  const status = doc.document_metadata?.processing_status || doc.processing_status || 'unknown';
+  const statusConfig = DOCUMENT_STATUS[status];
+  return statusConfig?.stage || 'unknown';
+};
+
+/**
  * 实体识别页面
  */
 const EntityRecognition = () => {
@@ -61,22 +149,15 @@ const EntityRecognition = () => {
   const [selectedDocuments, setSelectedDocuments] = useState([]);
   const [entities, setEntities] = useState([]);
   const [filteredEntities, setFilteredEntities] = useState([]);
-  const [extracting, setExtracting] = useState(false);
-  const [extractProgress, setExtractProgress] = useState(0);
-  const [extractStage, setExtractStage] = useState('');
-  const [processedDocs, setProcessedDocs] = useState(0);
-
-  // 异步任务状态
-  const [currentTaskId, setCurrentTaskId] = useState(null);
-  const [taskStatus, setTaskStatus] = useState(null);
-  const [totalEntities, setTotalEntities] = useState(0);
-  const [currentDocument, setCurrentDocument] = useState('');
-  const websocketConnected = useRef(false);
-  const progressUnsubscribe = useRef(null);
 
   // 默认模型状态
   const [defaultModel, setDefaultModel] = useState(null);
   const [loadingModel, setLoadingModel] = useState(false);
+
+  // 状态同步相关
+  const [statusSyncNeeded, setStatusSyncNeeded] = useState(false);
+  const [docsNeedSync, setDocsNeedSync] = useState([]);
+  const [syncingStatus, setSyncingStatus] = useState(false);
 
   // 筛选状态
   const [filterType, setFilterType] = useState('all');
@@ -107,25 +188,84 @@ const EntityRecognition = () => {
     console.log('configModalVisible 状态变化:', configModalVisible);
   }, [configModalVisible]);
 
+  // 提取配置状态
+  const [extractConfig, setExtractConfig] = useState({
+    extractEntities: true,
+    extractRelationships: true,
+    processingMode: 'quality', // 'standard' | 'quality' | 'speed'
+    threshold: 0.7
+  });
+  const [showConfigPanel, setShowConfigPanel] = useState(false);
+
   // 文档搜索状态
   const [docSearchQuery, setDocSearchQuery] = useState('');
 
+  // 文档筛选状态: all(全部), pending(待识别), completed(已识别)
+  const [docFilterStatus, setDocFilterStatus] = useState('all');
+
+  // ==================== 四级架构状态 ====================
+  // 当前选中的实体层级: chunk(片段级), document(文档级), kb(知识库级), global(全局级)
+  const [entityLevel, setEntityLevel] = useState('document');
+
+  // 四级处理流程状态
+  const [processingFlow, setProcessingFlow] = useState({
+    chunk: { status: 'idle', progress: 0, message: '' },      // 片段级提取
+    document: { status: 'idle', progress: 0, message: '' },   // 文档级聚合
+    kb: { status: 'idle', progress: 0, message: '' },         // 知识库级对齐
+    global: { status: 'idle', progress: 0, message: '' }      // 全局级对齐
+  });
+
+  // 是否正在处理中（用于UI显示）
+  const isProcessing = useMemo(() => {
+    return processingFlow.chunk.status === 'processing' ||
+           processingFlow.document.status === 'processing' ||
+           processingFlow.kb.status === 'processing' ||
+           processingFlow.global.status === 'processing';
+  }, [processingFlow]);
+
+  // 各层级实体数据
+  const [chunkEntities, setChunkEntities] = useState([]);
+  const [documentEntities, setDocumentEntities] = useState([]);
+  const [kbEntities, setKbEntities] = useState([]);
+
+  // 当前选中的文档（用于查看片段级实体）
+  const [selectedDocForChunks, setSelectedDocForChunks] = useState(null);
+
   /**
    * 过滤后的文档列表
+   * 支持搜索和状态筛选
    */
   const filteredDocuments = useMemo(() => {
-    if (!docSearchQuery.trim()) return documents;
-    const query = docSearchQuery.toLowerCase();
-    return documents.filter(doc =>
-      doc.title.toLowerCase().includes(query)
-    );
-  }, [documents, docSearchQuery]);
+    let result = documents;
+
+    // 状态筛选
+    if (docFilterStatus === 'completed') {
+      result = result.filter(doc => isEntityExtractionCompleted(doc));
+    } else if (docFilterStatus === 'pending') {
+      result = result.filter(doc => !isEntityExtractionCompleted(doc));
+    }
+
+    // 搜索筛选
+    if (docSearchQuery.trim()) {
+      const query = docSearchQuery.toLowerCase();
+      result = result.filter(doc =>
+        doc.title.toLowerCase().includes(query)
+      );
+    }
+
+    return result;
+  }, [documents, docSearchQuery, docFilterStatus]);
 
   /**
    * 全选文档
+   * 只选择已处理完成（processing_status === 'completed'）的文档
    */
   const handleSelectAllDocuments = () => {
-    setSelectedDocuments(filteredDocuments.map(doc => doc.id));
+    const selectableDocs = filteredDocuments.filter(doc => isDocumentProcessed(doc));
+    setSelectedDocuments(selectableDocs.map(doc => doc.id));
+    if (selectableDocs.length === 0) {
+      message.info({ content: '没有可选择的已处理文档' });
+    }
   };
 
   /**
@@ -272,10 +412,80 @@ const EntityRecognition = () => {
       }
 
       setEntities(allEntities);
+
+      // 检测状态不一致：有实体但文档状态不是 entity_completed
+      checkStatusConsistency(allEntities, docs);
     } catch (error) {
       console.error('加载知识库实体失败:', error);
     }
   }, [currentKnowledgeBase]);
+
+  /**
+   * 检测文档状态一致性
+   * 检查是否有实体但文档状态未更新为 entity_completed 的情况
+   */
+  const checkStatusConsistency = useCallback((entitiesList, docsList) => {
+    if (!entitiesList.length || !docsList.length) {
+      setStatusSyncNeeded(false);
+      setDocsNeedSync([]);
+      return;
+    }
+
+    // 按文档ID分组统计实体数量
+    const docEntityCount = {};
+    entitiesList.forEach(entity => {
+      if (entity.documentId) {
+        docEntityCount[entity.documentId] = (docEntityCount[entity.documentId] || 0) + 1;
+      }
+    });
+
+    // 找出有实体但状态不是 entity_completed 的文档
+    const needSync = docsList.filter(doc => {
+      const hasEntities = docEntityCount[doc.id] > 0;
+      const status = doc.document_metadata?.processing_status || doc.processing_status || 'unknown';
+      const isCompleted = status === 'entity_completed';
+      return hasEntities && !isCompleted;
+    });
+
+    setDocsNeedSync(needSync);
+    setStatusSyncNeeded(needSync.length > 0);
+
+    if (needSync.length > 0) {
+      console.log(`检测到 ${needSync.length} 个文档需要同步状态:`, needSync.map(d => d.title));
+    }
+  }, []);
+
+  /**
+   * 同步文档状态
+   * 将有实体但状态未更新的文档状态设置为 entity_completed
+   */
+  const handleSyncDocumentStatus = useCallback(async () => {
+    if (docsNeedSync.length === 0) return;
+
+    setSyncingStatus(true);
+    try {
+      let successCount = 0;
+      for (const doc of docsNeedSync) {
+        try {
+          await updateDocumentProcessingStatus(doc.id, 'entity_completed');
+          successCount++;
+        } catch (e) {
+          console.warn(`更新文档 ${doc.id} 状态失败:`, e);
+        }
+      }
+
+      // 刷新文档列表
+      await fetchDocuments();
+
+      message.success({ content: `已成功同步 ${successCount} 个文档的状态` });
+      setStatusSyncNeeded(false);
+      setDocsNeedSync([]);
+    } catch (error) {
+      message.error({ content: '同步状态失败：' + error.message });
+    } finally {
+      setSyncingStatus(false);
+    }
+  }, [docsNeedSync, fetchDocuments]);
 
   /**
    * 加载默认模型配置
@@ -331,10 +541,23 @@ const EntityRecognition = () => {
     }
   }, [currentKnowledgeBase]);
 
+  // ==================== 四级架构处理函数 ====================
+
   /**
-   * 执行实体提取 - 使用异步API和WebSocket进度监听
+   * 更新处理流程状态
    */
-  const handleExtractEntities = useCallback(async () => {
+  const updateProcessingFlow = (level, status, progress = 0, message = '') => {
+    setProcessingFlow(prev => ({
+      ...prev,
+      [level]: { status, progress, message }
+    }));
+  };
+
+  /**
+   * 步骤1: 片段级实体提取（异步）
+   * 对选中的文档进行片段级实体识别
+   */
+  const handleExtractChunkEntities = useCallback(async () => {
     if (!currentKnowledgeBase) {
       message.warning({ content: '请先选择一个知识库' });
       return;
@@ -345,176 +568,371 @@ const EntityRecognition = () => {
       return;
     }
 
-    setExtracting(true);
-    setExtractProgress(0);
-    setExtractStage('准备中...');
-    setProcessedDocs(0);
-    setTotalEntities(0);
-    setCurrentDocument('');
+    updateProcessingFlow('chunk', 'processing', 0, '开始片段级实体提取...');
 
     try {
-      // 获取默认模型配置
-      setExtractStage('获取模型配置...');
-      const currentDefaultModel = defaultModel || await loadDefaultModel();
+      const total = selectedDocuments.length;
+      const taskIds = {};  // 存储每个文档的任务ID
 
-      // 连接WebSocket
-      setExtractStage('连接进度服务...');
-      try {
-        await websocketService.connect();
-        websocketConnected.current = true;
-        console.log('[实体提取] WebSocket连接成功');
-      } catch (wsError) {
-        console.warn('[实体提取] WebSocket连接失败，将使用轮询模式:', wsError);
-        websocketConnected.current = false;
+      // 更新所有选中文档的状态为实体识别中
+      for (const docId of selectedDocuments) {
+        try {
+          await updateDocumentProcessingStatus(docId, 'entity_processing');
+        } catch (e) {
+          console.warn(`更新文档 ${docId} 状态失败:`, e);
+        }
       }
 
-      // 注册WebSocket进度监听
-      if (websocketConnected.current) {
-        progressUnsubscribe.current = websocketService.on('entity_extraction_progress', (data) => {
-          console.log('[实体提取] 收到进度更新:', data);
-          if (data && data.task_id === currentTaskId) {
-            setExtractProgress(data.progress || 0);
-            setExtractStage(data.message || '');
-            setCurrentDocument(data.current_document || '');
-            setProcessedDocs(data.completed_documents || 0);
-            setTotalEntities(data.total_entities || 0);
-            setTaskStatus(data.status);
-
-            // 任务完成
-            if (data.status === 'completed') {
-              message.success({ 
-                content: `实体提取完成，共提取 ${data.total_entities} 个实体` 
-              });
-            } else if (data.status === 'failed') {
-              message.error({ content: `实体提取失败: ${data.error || '未知错误'}` });
-            }
+      // 第一步：为每个文档创建异步任务
+      updateProcessingFlow('chunk', 'processing', 5, `正在为 ${total} 个文档创建提取任务...`);
+      
+      for (const docId of selectedDocuments) {
+        const doc = documents.find(d => d.id === docId);
+        try {
+          console.log(`[批量处理] 创建任务: 文档 ${docId}: ${doc?.title || '未知'}`);
+          const result = await extractChunkEntities(docId, 4);
+          if (result.task_id) {
+            taskIds[docId] = result.task_id;
+            console.log(`[批量处理] 任务创建成功: ${result.task_id}`);
           }
-        });
+        } catch (error) {
+          console.error(`[批量处理] 创建任务失败 文档 ${docId}:`, error);
+        }
       }
 
-      // 构建异步提取参数
-      const extractParams = {
-        document_ids: selectedDocuments,
-        knowledge_base_id: currentKnowledgeBase.id,
-      };
-
-      // 如果有默认模型配置，添加到参数中
-      if (currentDefaultModel && currentDefaultModel.model_id) {
-        extractParams.model_id = currentDefaultModel.model_id.toString();
+      const createdTasks = Object.keys(taskIds).length;
+      if (createdTasks === 0) {
+        throw new Error('没有成功创建任何提取任务');
       }
 
-      setExtractStage('启动异步任务...');
+      message.success({ content: `已创建 ${createdTasks} 个提取任务，开始轮询进度...` });
 
-      // 调用异步实体提取 API
-      const response = await extractEntitiesAsync(extractParams);
-      console.log('[实体提取] 异步任务响应:', response);
-
-      if (response.success && response.task_id) {
-        setCurrentTaskId(response.task_id);
-        setExtractStage(response.message || '任务已启动');
+      // 第二步：轮询任务进度
+      let allCompleted = false;
+      let pollCount = 0;
+      const maxPolls = 600;  // 最多轮询600次（约20分钟）
+      
+      while (!allCompleted && pollCount < maxPolls) {
+        await new Promise(resolve => setTimeout(resolve, 2000));  // 每2秒轮询一次
+        pollCount++;
         
-        message.info({ 
-          content: `已启动实体提取任务，共 ${response.total_documents} 个文档` 
-        });
-
-        // 如果WebSocket未连接，使用轮询模式
-        if (!websocketConnected.current) {
-          setExtractStage('使用轮询模式监控进度...');
-          await pollTaskStatus(response.task_id);
+        let completedCount = 0;
+        let failedCount = 0;
+        let totalProgress = 0;
+        
+        for (const docId of Object.keys(taskIds)) {
+          const taskId = taskIds[docId];
+          try {
+            const status = await getExtractTaskStatus(docId, taskId);
+            totalProgress += status.progress || 0;
+            
+            if (status.status === 'completed') {
+              completedCount++;
+            } else if (status.status === 'failed') {
+              failedCount++;
+            }
+          } catch (e) {
+            console.warn(`获取任务状态失败: ${taskId}`, e);
+          }
         }
-      } else {
-        throw new Error(response.message || '启动任务失败');
-      }
-
-    } catch (error) {
-      console.error('[实体提取] 任务失败:', error);
-      setExtractStage('提取失败');
-      message.error({ content: '实体提取失败：' + error.message });
-      setExtracting(false);
-    }
-  }, [currentKnowledgeBase, selectedDocuments, defaultModel, loadDefaultModel, currentTaskId]);
-
-  /**
-   * 轮询任务状态（WebSocket不可用时的备用方案）
-   */
-  const pollTaskStatus = useCallback(async (taskId) => {
-    const maxPolls = 600; // 最多轮询10分钟（每秒一次）
-    let pollCount = 0;
-
-    const poll = async () => {
-      try {
-        const status = await getEntityExtractionStatus(taskId);
-        console.log('[实体提取] 轮询状态:', status);
-
-        setExtractProgress(status.progress || 0);
-        setExtractStage(status.current_message || '');
-        setCurrentDocument(status.current_document || '');
-        setProcessedDocs(status.completed_documents || 0);
-        setTotalEntities(status.total_entities || 0);
-        setTaskStatus(status.status);
-
-        if (status.status === 'completed') {
-          message.success({ 
-            content: `实体提取完成，共提取 ${status.total_entities} 个实体` 
+        
+        const totalTasks = Object.keys(taskIds).length;
+        const avgProgress = Math.round(totalProgress / totalTasks);
+        const processedCount = completedCount + failedCount;
+        
+        updateProcessingFlow(
+          'chunk', 
+          'processing', 
+          avgProgress,
+          `处理中: ${processedCount}/${totalTasks} 完成 (${avgProgress}%) | 成功: ${completedCount}, 失败: ${failedCount}`
+        );
+        
+        // 检查是否全部完成
+        if (processedCount === totalTasks) {
+          allCompleted = true;
+        }
+        
+        // 每30秒显示一次进度消息
+        if (pollCount % 15 === 0) {
+          message.info({ 
+            content: `实体提取进度: ${avgProgress}% (${processedCount}/${totalTasks})`,
+            duration: 3 
           });
-          setExtracting(false);
-          setExtractStage('完成');
-          setExtractProgress(100);
-          // 重新加载实体列表
-          await loadKnowledgeBaseEntities();
-          return;
-        }
-
-        if (status.status === 'failed') {
-          message.error({ content: `实体提取失败: ${status.error || '未知错误'}` });
-          setExtracting(false);
-          setExtractStage('提取失败');
-          return;
-        }
-
-        // 继续轮询
-        pollCount++;
-        if (pollCount < maxPolls && status.status === 'processing') {
-          setTimeout(poll, 1000);
-        } else if (pollCount >= maxPolls) {
-          message.warning({ content: '任务轮询超时，请刷新页面查看最新状态' });
-          setExtracting(false);
-        }
-      } catch (error) {
-        console.error('[实体提取] 轮询失败:', error);
-        pollCount++;
-        if (pollCount < maxPolls) {
-          setTimeout(poll, 2000); // 出错后延迟2秒重试
-        } else {
-          message.error({ content: '获取任务状态失败' });
-          setExtracting(false);
         }
       }
-    };
 
-    await poll();
-  }, [loadKnowledgeBaseEntities]);
+      if (!allCompleted) {
+        message.warning({ content: '轮询超时，部分任务可能仍在后台运行' });
+      } else {
+        updateProcessingFlow('chunk', 'completed', 100, `完成！共处理 ${createdTasks} 个文档`);
+        message.success({ content: `片段级实体提取完成，共处理 ${createdTasks} 个文档` });
+      }
+
+      // 自动进入下一步
+      updateProcessingFlow('document', 'idle', 0, '等待开始文档级聚合...');
+    } catch (error) {
+      console.error('片段级实体提取失败:', error);
+      updateProcessingFlow('chunk', 'failed', 0, `失败: ${error.message}`);
+
+      // 更新失败的文档状态
+      for (const docId of selectedDocuments) {
+        try {
+          await updateDocumentProcessingStatus(docId, 'entity_failed');
+        } catch (e) {
+          console.warn(`更新文档 ${docId} 失败状态失败:`, e);
+        }
+      }
+
+      message.error({ content: '片段级实体提取失败：' + error.message });
+    }
+  }, [currentKnowledgeBase, selectedDocuments, documents]);
 
   /**
-   * 清理WebSocket监听
+   * 步骤2: 文档级实体聚合
+   * 将片段级实体聚合成文档级实体
    */
-  useEffect(() => {
-    return () => {
-      if (progressUnsubscribe.current) {
-        progressUnsubscribe.current();
-        progressUnsubscribe.current = null;
+  const handleAggregateDocumentEntities = useCallback(async () => {
+    if (!currentKnowledgeBase) {
+      message.warning({ content: '请先选择一个知识库' });
+      return;
+    }
+
+    if (selectedDocuments.length === 0) {
+      message.warning({ content: '请至少选择一个文档' });
+      return;
+    }
+
+    updateProcessingFlow('document', 'processing', 0, '开始文档级实体聚合...');
+
+    try {
+      let completed = 0;
+      let totalEntities = 0;
+      const total = selectedDocuments.length;
+
+      // 更新所有选中文档的状态为实体聚合中
+      for (const docId of selectedDocuments) {
+        try {
+          await updateDocumentProcessingStatus(docId, 'entity_aggregating');
+        } catch (e) {
+          console.warn(`更新文档 ${docId} 状态失败:`, e);
+        }
       }
-    };
+
+      for (const docId of selectedDocuments) {
+        const doc = documents.find(d => d.id === docId);
+        updateProcessingFlow('document', 'processing', Math.round((completed / total) * 100), `正在聚合: ${doc?.title || docId}`);
+
+        try {
+          console.log(`[批量聚合] 开始聚合文档 ${docId}: ${doc?.title || '未知'}`);
+          const result = await aggregateDocumentEntities(docId);
+          totalEntities += result.entities_created || 0;
+          console.log(`[批量聚合] 完成聚合文档 ${docId}, 生成 ${result.entities_created || 0} 个实体`);
+          completed++;
+        } catch (error) {
+          console.error(`[批量聚合] 聚合文档 ${docId} 失败:`, error);
+          // 继续处理下一个文档，不中断流程
+        }
+      }
+
+      updateProcessingFlow('document', 'completed', 100, `完成！共生成 ${totalEntities} 个文档级实体`);
+      message.success({ content: `文档级实体聚合完成，共生成 ${totalEntities} 个实体` });
+
+      // 自动进入下一步
+      updateProcessingFlow('kb', 'idle', 0, '等待开始知识库级对齐...');
+    } catch (error) {
+      console.error('文档级实体聚合失败:', error);
+      updateProcessingFlow('document', 'failed', 0, `失败: ${error.message}`);
+
+      // 更新失败的文档状态
+      for (const docId of selectedDocuments) {
+        try {
+          await updateDocumentProcessingStatus(docId, 'entity_failed');
+        } catch (e) {
+          console.warn(`更新文档 ${docId} 失败状态失败:`, e);
+        }
+      }
+
+      message.error({ content: '文档级实体聚合失败：' + error.message });
+    }
+  }, [currentKnowledgeBase, selectedDocuments, documents]);
+
+  /**
+   * 步骤3: 知识库级实体对齐
+   * 将文档级实体对齐到知识库级实体
+   */
+  const handleAlignKBEntities = useCallback(async () => {
+    if (!currentKnowledgeBase) {
+      message.warning({ content: '请先选择一个知识库' });
+      return;
+    }
+
+    updateProcessingFlow('kb', 'processing', 0, '开始知识库级实体对齐...');
+
+    try {
+      // 更新所有选中文档的状态为实体对齐中
+      for (const docId of selectedDocuments) {
+        try {
+          await updateDocumentProcessingStatus(docId, 'entity_aligning');
+        } catch (e) {
+          console.warn(`更新文档 ${docId} 状态失败:`, e);
+        }
+      }
+
+      const result = await alignKnowledgeBaseEntities(currentKnowledgeBase.id, false);
+
+      updateProcessingFlow('kb', 'completed', 100, `完成！共生成 ${result.kb_entities_created || 0} 个知识库级实体`);
+      message.success({ content: `知识库级实体对齐完成，共生成 ${result.kb_entities_created || 0} 个实体` });
+
+      // 自动进入下一步
+      updateProcessingFlow('global', 'idle', 0, '等待开始全局级对齐...');
+    } catch (error) {
+      console.error('知识库级实体对齐失败:', error);
+      updateProcessingFlow('kb', 'failed', 0, `失败: ${error.message}`);
+
+      // 更新失败的文档状态
+      for (const docId of selectedDocuments) {
+        try {
+          await updateDocumentProcessingStatus(docId, 'entity_failed');
+        } catch (e) {
+          console.warn(`更新文档 ${docId} 失败状态失败:`, e);
+        }
+      }
+
+      message.error({ content: '知识库级实体对齐失败：' + error.message });
+    }
+  }, [currentKnowledgeBase, selectedDocuments]);
+
+  /**
+   * 步骤4: 全局级实体对齐
+   * 将知识库级实体对齐到全局级实体
+   * 注：此功能需要后端实现全局级对齐API
+   */
+  const handleAlignGlobalEntities = useCallback(async () => {
+    updateProcessingFlow('global', 'processing', 0, '开始全局级实体对齐...');
+
+    // 模拟全局级对齐（需要后端实现）
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        updateProcessingFlow('global', 'completed', 100, '完成！全局级对齐功能待后端实现');
+        message.info({ content: '全局级实体对齐功能需要后端API支持' });
+        resolve();
+      }, 2000);
+    });
   }, []);
 
   /**
-   * 任务完成后重新加载实体
+   * 执行完整的四级处理流程
+   * 批量处理所有选中的文档
+   */
+  const handleRunFullPipeline = useCallback(async () => {
+    if (selectedDocuments.length === 0) {
+      message.warning({ content: '请至少选择一个文档' });
+      return;
+    }
+
+    // 重置所有状态
+    setProcessingFlow({
+      chunk: { status: 'idle', progress: 0, message: '' },
+      document: { status: 'idle', progress: 0, message: '' },
+      kb: { status: 'idle', progress: 0, message: '' },
+      global: { status: 'idle', progress: 0, message: '' }
+    });
+
+    try {
+      // 依次执行四个步骤
+      await handleExtractChunkEntities();
+      await handleAggregateDocumentEntities();
+      await handleAlignKBEntities();
+      await handleAlignGlobalEntities();
+
+      // 所有步骤完成后，更新所有选中文档状态为已实体识别
+      message.loading(`正在更新 ${selectedDocuments.length} 个文档的状态...`);
+
+      let successCount = 0;
+      for (const docId of selectedDocuments) {
+        try {
+          await updateDocumentProcessingStatus(docId, 'entity_completed');
+          successCount++;
+        } catch (error) {
+          console.error(`更新文档 ${docId} 状态失败:`, error);
+        }
+      }
+
+      message.destroy();
+      message.success({ content: `已完成 ${successCount}/${selectedDocuments.length} 个文档的实体识别` });
+
+      // 刷新文档列表以显示最新状态
+      if (currentKnowledgeBase) {
+        try {
+          const response = await listDocuments(0, 1000, currentKnowledgeBase.id, true);
+          setDocuments(response.documents || []);
+        } catch (err) {
+          console.error('刷新文档列表失败:', err);
+        }
+      }
+
+      // 刷新实体列表
+      await loadKnowledgeBaseEntities();
+
+    } catch (error) {
+      message.destroy();
+      console.error('实体识别流程失败:', error);
+      message.error({ content: '实体识别流程失败：' + error.message });
+    }
+  }, [handleExtractChunkEntities, handleAggregateDocumentEntities, handleAlignKBEntities, handleAlignGlobalEntities, selectedDocuments, currentKnowledgeBase, loadKnowledgeBaseEntities]);
+
+  /**
+   * 加载指定层级的实体数据
+   */
+  const loadEntitiesByLevel = useCallback(async (level) => {
+    if (!currentKnowledgeBase) return;
+
+    try {
+      switch (level) {
+        case 'chunk':
+          // 片段级实体需要选择具体文档
+          if (selectedDocForChunks) {
+            const result = await getDocumentChunkEntities(selectedDocForChunks);
+            setChunkEntities(result.entities || []);
+          }
+          break;
+        case 'document':
+          // 加载所有选中文档的文档级实体
+          const docEntities = [];
+          for (const docId of selectedDocuments) {
+            try {
+              const result = await getDocumentEntitiesNew(docId);
+              docEntities.push(...(result.entities || []).map(e => ({ ...e, documentId: docId })));
+            } catch (e) {
+              console.warn(`获取文档 ${docId} 实体失败:`, e);
+            }
+          }
+          setDocumentEntities(docEntities);
+          break;
+        case 'kb':
+          // 知识库级实体
+          // 需要后端提供获取KB级实体的API
+          message.info({ content: '知识库级实体查看功能开发中' });
+          break;
+        case 'global':
+          // 全局级实体
+          message.info({ content: '全局级实体查看功能开发中' });
+          break;
+        default:
+          break;
+      }
+    } catch (error) {
+      console.error(`加载${level}级实体失败:`, error);
+      message.error({ content: `加载${level}级实体失败` });
+    }
+  }, [currentKnowledgeBase, selectedDocuments, selectedDocForChunks]);
+
+  /**
+   * 切换实体层级时加载对应数据
    */
   useEffect(() => {
-    if (taskStatus === 'completed' && !extracting) {
-      loadKnowledgeBaseEntities();
-    }
-  }, [taskStatus, extracting, loadKnowledgeBaseEntities]);
+    loadEntitiesByLevel(entityLevel);
+  }, [entityLevel, loadEntitiesByLevel]);
 
   /**
    * 应用筛选
@@ -853,256 +1271,453 @@ const EntityRecognition = () => {
         </div>
       </div>
 
-      {/* 文档选择区域 */}
-      <div className="document-selection">
-        <div className="selection-header">
-          <h4>选择要处理的文档</h4>
-          <div className="header-actions">
-            {/* 配置按钮 */}
-            <Button
-              variant="ghost"
-              size="small"
-              icon={<FiSettings />}
-              onClick={() => {
-                console.log('实体配置按钮被点击');
-                console.log('当前 configModalVisible 状态:', configModalVisible);
-                setConfigModalVisible(true);
-                console.log('设置后 configModalVisible 状态:', true);
-              }}
-              className="config-btn"
-            >
-              实体配置
-            </Button>
-            {/* 默认模型信息 */}
-            <div className="model-info">
-              <FiBox size={14} />
-              {loadingModel ? (
-                <span className="model-loading">加载模型配置...</span>
-              ) : defaultModel ? (
-                <span className="model-name">
-                  使用模型: {defaultModel.model_name || defaultModel.name || '默认模型'}
-                </span>
-              ) : (
-                <span className="model-warning">未配置默认模型，将使用系统默认</span>
-              )}
-            </div>
-          </div>
-        </div>
-        
-        {/* 文档搜索和选择操作 */}
-        <div className="document-list-header">
-          <div className="doc-search">
-            <FiSearch size={14} />
-            <input
-              type="text"
-              placeholder="搜索文档..."
-              value={docSearchQuery}
-              onChange={(e) => setDocSearchQuery(e.target.value)}
-            />
-          </div>
-          <div className="selection-actions">
-            <Button size="small" variant="ghost" onClick={handleSelectAllDocuments}>
-              全选
-            </Button>
-            <Button size="small" variant="ghost" onClick={handleClearDocumentSelection}>
-              清除
-            </Button>
-            <span className="selected-count">
-              已选 {selectedDocuments.length} / {documents.length} 个
-            </span>
-          </div>
-        </div>
-        
-        <div className="document-list">
-          {filteredDocuments.map(doc => (
-            <label key={doc.id} className={`document-checkbox ${!doc.is_vectorized ? 'not-processed' : ''}`}>
-              <input
-                type="checkbox"
-                checked={selectedDocuments.includes(doc.id)}
-                onChange={() => toggleDocumentSelection(doc.id)}
-                disabled={!doc.is_vectorized}
-              />
-              <span className="document-name">{doc.title}</span>
-              <span className="document-type">{doc.file_type}</span>
-              {!doc.is_vectorized && (
-                <span className="document-status warning" title="文档尚未处理，请先在文档管理页面处理文档">
-                  未处理
-                </span>
-              )}
-              {doc.is_vectorized && (
-                <span className="document-status success">
-                  已处理
-                </span>
-              )}
-            </label>
-          ))}
-          {filteredDocuments.length === 0 && documents.length > 0 && (
-            <div className="no-results">没有匹配的文档</div>
-          )}
-          {documents.length === 0 && (
-            <div className="no-documents">暂无文档，请先上传文档到知识库</div>
-          )}
-        </div>
-        <div className="extraction-actions">
-          <Button
-            variant="primary"
-            icon={<FiCpu />}
-            onClick={handleExtractEntities}
-            loading={extracting}
-            disabled={extracting || selectedDocuments.length === 0 || loadingModel}
-          >
-            {extracting ? `提取中 ${extractProgress}%` : '开始实体提取'}
-          </Button>
-          {selectedDocuments.length > 0 && (
-            <span className="selected-count">
-              已选择 {selectedDocuments.length} 个文档
-            </span>
-          )}
-        </div>
+      {/* ==================== 主内容区域 - 左右布局 ==================== */}
+      <div className="entity-recognition-main">
 
-        {/* 提取进度显示 */}
-        {extracting && (
-          <div className="extraction-progress">
-            <div className="progress-header">
-              <span className="progress-title">实体提取进度</span>
-              <span className={`task-status ${taskStatus || 'processing'}`}>
-                {taskStatus === 'completed' ? '已完成' : 
-                 taskStatus === 'failed' ? '失败' : 
-                 taskStatus === 'pending' ? '等待中' : '处理中'}
+        {/* 左侧：文档选择区域 */}
+        <div className="document-selection">
+          <div className="selection-header">
+            <h4>选择要处理的文档</h4>
+          </div>
+
+          {/* 文档搜索和选择操作 */}
+          <div className="document-list-header">
+            <div className="doc-search">
+              <FiSearch size={14} />
+              <input
+                type="text"
+                placeholder="搜索文档..."
+                value={docSearchQuery}
+                onChange={(e) => setDocSearchQuery(e.target.value)}
+              />
+            </div>
+            <div className="doc-filter">
+              <select
+                value={docFilterStatus}
+                onChange={(e) => setDocFilterStatus(e.target.value)}
+                className="filter-select"
+              >
+                <option value="all">全部文档</option>
+                <option value="pending">待识别</option>
+                <option value="completed">已识别</option>
+              </select>
+            </div>
+            <div className="selection-actions">
+              <Button size="small" variant="ghost" onClick={handleSelectAllDocuments}>
+                全选
+              </Button>
+              <Button size="small" variant="ghost" onClick={handleClearDocumentSelection}>
+                清除
+              </Button>
+              <span className="selected-count">
+                已选 {selectedDocuments.length} / {filteredDocuments.length} 个
               </span>
             </div>
-            <div className="progress-bar">
-              <div
-                className="progress-fill"
-                style={{ width: `${extractProgress}%` }}
-              />
+          </div>
+
+          <div className="document-list">
+            {filteredDocuments.map(doc => {
+              const docStatus = getDocumentStatus(doc);
+              const canSelect = docStatus.canSelect;
+              return (
+                <label
+                  key={doc.id}
+                  className={`document-checkbox ${!canSelect ? 'not-processed' : ''}`}
+                  title={!canSelect ? `文档状态：${docStatus.label}，请先在文档管理页面处理文档` : ''}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedDocuments.includes(doc.id)}
+                    onChange={() => toggleDocumentSelection(doc.id)}
+                    disabled={!canSelect}
+                  />
+                  <span className="document-name">{doc.title}</span>
+                  <span className="document-type">{doc.file_type}</span>
+                  <span
+                    className="document-status"
+                    style={{
+                      color: docStatus.color,
+                      backgroundColor: docStatus.bgColor,
+                      borderColor: docStatus.borderColor,
+                      border: '1px solid'
+                    }}
+                  >
+                    {docStatus.label}
+                  </span>
+                </label>
+              );
+            })}
+            {filteredDocuments.length === 0 && documents.length > 0 && (
+              <div className="no-results">没有匹配的文档</div>
+            )}
+            {documents.length === 0 && (
+              <div className="no-documents">暂无文档，请先上传文档到知识库</div>
+            )}
+          </div>
+        </div>
+
+        {/* 右侧：实体列表区域 */}
+        <div className="entities-section">
+          {/* 状态同步提示 */}
+          {statusSyncNeeded && (
+            <div className="status-sync-notice">
+              <span className="sync-text">
+                检测到 {docsNeedSync.length} 个文档已有实体但状态未同步
+              </span>
+              <Button
+                variant="primary"
+                size="small"
+                onClick={handleSyncDocumentStatus}
+                loading={syncingStatus}
+                disabled={syncingStatus}
+              >
+                {syncingStatus ? '同步中...' : '同步状态'}
+              </Button>
             </div>
-            <div className="progress-info">
-              <span className="progress-stage">{extractStage}</span>
-              <span className="progress-percent">{extractProgress.toFixed(1)}%</span>
+          )}
+
+          {/* 操作栏 - 包含实体配置和识别处理 */}
+          <div className="entity-actions-bar">
+            <div className="actions-left">
+              {/* 一键识别实体按钮 - 核心操作放在左侧显眼位置 */}
+              <Button
+                variant="primary"
+                size="small"
+                icon={<FiLayers />}
+                onClick={handleRunFullPipeline}
+                disabled={selectedDocuments.length === 0 || isProcessing}
+                loading={isProcessing}
+                className="extract-btn"
+              >
+                {isProcessing ? '处理中...' : (extractConfig.extractRelationships ? '一键识别实体和关系' : '一键识别实体')}
+              </Button>
+              {/* 配置按钮 */}
+              <Button
+                variant={showConfigPanel ? 'primary' : 'ghost'}
+                size="small"
+                icon={<FiSettings />}
+                onClick={() => setShowConfigPanel(!showConfigPanel)}
+              >
+                提取配置
+              </Button>
             </div>
-            <div className="progress-details">
-              {currentDocument && (
-                <div className="progress-item">
-                  <span className="progress-label">当前文档:</span>
-                  <span className="progress-value">{currentDocument}</span>
-                </div>
-              )}
-              {processedDocs > 0 && selectedDocuments.length > 0 && (
-                <div className="progress-item">
-                  <span className="progress-label">文档进度:</span>
-                  <span className="progress-value">{processedDocs} / {selectedDocuments.length}</span>
-                </div>
-              )}
-              {totalEntities > 0 && (
-                <div className="progress-item">
-                  <span className="progress-label">已提取实体:</span>
-                  <span className="progress-value">{totalEntities} 个</span>
-                </div>
-              )}
+            <div className="actions-right">
+              {/* 模型信息 */}
+              <div className="model-info-compact">
+                <FiBox size={14} />
+                {loadingModel ? (
+                  <span className="model-loading">加载中...</span>
+                ) : defaultModel ? (
+                  <span className="model-name">{defaultModel.model_name || defaultModel.name || '默认模型'}</span>
+                ) : (
+                  <span className="model-warning">未配置模型</span>
+                )}
+              </div>
+              {/* 实体配置按钮 */}
+              <Button
+                variant="ghost"
+                size="small"
+                icon={<FiSettings />}
+                onClick={() => setConfigModalVisible(true)}
+              >
+                实体配置
+              </Button>
             </div>
-            {currentTaskId && (
-              <div className="task-id-info">
-                <span className="task-id-label">任务ID:</span>
-                <span className="task-id-value">{currentTaskId.substring(0, 8)}...</span>
+          </div>
+
+          {/* 提取配置面板 */}
+          {showConfigPanel && (
+            <div className="extract-config-panel">
+              <div className="config-section">
+                <h4>处理模式</h4>
+                <div className="mode-selector">
+                  <label className={`mode-option ${extractConfig.processingMode === 'speed' ? 'active' : ''}`}>
+                    <input
+                      type="radio"
+                      name="processingMode"
+                      value="speed"
+                      checked={extractConfig.processingMode === 'speed'}
+                      onChange={(e) => setExtractConfig(prev => ({
+                        ...prev,
+                        processingMode: e.target.value,
+                        extractRelationships: false
+                      }))}
+                    />
+                    <span className="mode-name">速度模式</span>
+                    <span className="mode-desc">快速处理，不提取关系</span>
+                  </label>
+                  <label className={`mode-option ${extractConfig.processingMode === 'standard' ? 'active' : ''}`}>
+                    <input
+                      type="radio"
+                      name="processingMode"
+                      value="standard"
+                      checked={extractConfig.processingMode === 'standard'}
+                      onChange={(e) => setExtractConfig(prev => ({
+                        ...prev,
+                        processingMode: e.target.value,
+                        extractRelationships: false
+                      }))}
+                    />
+                    <span className="mode-name">标准模式</span>
+                    <span className="mode-desc">平衡速度和质量</span>
+                  </label>
+                  <label className={`mode-option ${extractConfig.processingMode === 'quality' ? 'active' : ''}`}>
+                    <input
+                      type="radio"
+                      name="processingMode"
+                      value="quality"
+                      checked={extractConfig.processingMode === 'quality'}
+                      onChange={(e) => setExtractConfig(prev => ({
+                        ...prev,
+                        processingMode: e.target.value,
+                        extractRelationships: true
+                      }))}
+                    />
+                    <span className="mode-name">质量模式</span>
+                    <span className="mode-desc">高质量提取，包含关系</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="config-section">
+                <h4>提取选项</h4>
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={extractConfig.extractEntities}
+                    onChange={(e) => setExtractConfig(prev => ({ ...prev, extractEntities: e.target.checked }))}
+                  />
+                  <span>提取实体</span>
+                </label>
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={extractConfig.extractRelationships}
+                    onChange={(e) => setExtractConfig(prev => ({ ...prev, extractRelationships: e.target.checked }))}
+                  />
+                  <span>提取关系</span>
+                </label>
+              </div>
+
+              <div className="config-section">
+                <h4>置信度阈值</h4>
+                <div className="threshold-control">
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="1.0"
+                    step="0.1"
+                    value={extractConfig.threshold}
+                    onChange={(e) => setExtractConfig(prev => ({ ...prev, threshold: parseFloat(e.target.value) }))}
+                  />
+                  <span className="threshold-value">{(extractConfig.threshold * 100).toFixed(0)}%</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 处理进度条 */}
+          {isProcessing && (
+            <div className="processing-progress-bar">
+              <div className="progress-steps-compact">
+                {[
+                  { key: 'chunk', label: '片段提取' },
+                  { key: 'document', label: '文档聚合' },
+                  { key: 'kb', label: '知识库对齐' },
+                  { key: 'global', label: '全局对齐' }
+                ].map((step, index) => {
+                  const status = processingFlow[step.key].status;
+                  return (
+                    <div key={step.key} className={`step-compact ${status}`}>
+                      <span className="step-num">{index + 1}</span>
+                      <span className="step-label">{step.label}</span>
+                      {status === 'completed' && <FiCheck size={12} />}
+                      {status === 'processing' && <span className="step-dot" />}
+                    </div>
+                  );
+                })}
+              </div>
+              {/* 当前处理文档信息 */}
+              <div className="processing-message">
+                {processingFlow.chunk.status === 'processing' && (
+                  <span>
+                    <strong>片段提取：</strong>
+                    {processingFlow.chunk.message || '正在处理...'}
+                    {processingFlow.chunk.progress > 0 && ` (${processingFlow.chunk.progress}%)`}
+                  </span>
+                )}
+                {processingFlow.document.status === 'processing' && (
+                  <span>
+                    <strong>文档聚合：</strong>
+                    {processingFlow.document.message || '正在处理...'}
+                    {processingFlow.document.progress > 0 && ` (${processingFlow.document.progress}%)`}
+                  </span>
+                )}
+                {processingFlow.kb.status === 'processing' && (
+                  <span>
+                    <strong>知识库对齐：</strong>
+                    {processingFlow.kb.message || '正在处理...'}
+                    {processingFlow.kb.progress > 0 && ` (${processingFlow.kb.progress}%)`}
+                  </span>
+                )}
+                {processingFlow.global.status === 'processing' && (
+                  <span>
+                    <strong>全局对齐：</strong>
+                    {processingFlow.global.message || '正在处理...'}
+                    {processingFlow.global.progress > 0 && ` (${processingFlow.global.progress}%)`}
+                  </span>
+                )}
+              </div>
+              <div className="progress-track">
+                <div
+                  className="progress-fill"
+                  style={{
+                    width: `${(
+                      (processingFlow.chunk.status === 'completed' ? 25 : processingFlow.chunk.progress * 0.25) +
+                      (processingFlow.document.status === 'completed' ? 25 : processingFlow.document.progress * 0.25) +
+                      (processingFlow.kb.status === 'completed' ? 25 : processingFlow.kb.progress * 0.25) +
+                      (processingFlow.global.status === 'completed' ? 25 : processingFlow.global.progress * 0.25)
+                    )}%`
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* 实体层级切换 - 简化版 */}
+          <div className="entity-level-bar">
+            <div className="level-tabs-compact">
+              {[
+                { key: 'document', label: '文档级', icon: FiDatabase, count: documentEntities.length },
+                { key: 'chunk', label: '片段级', icon: FiFileText, count: chunkEntities.length },
+                { key: 'kb', label: '知识库级', icon: FiLayers, count: kbEntities.length },
+              ].map(level => {
+                const Icon = level.icon;
+                return (
+                  <button
+                    key={level.key}
+                    className={`level-tab-compact ${entityLevel === level.key ? 'active' : ''}`}
+                    onClick={() => setEntityLevel(level.key)}
+                  >
+                    <Icon size={14} />
+                    <span>{level.label}</span>
+                    {level.count > 0 && <span className="level-count">{level.count}</span>}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* 片段级实体查看时的文档选择 */}
+            {entityLevel === 'chunk' && (
+              <div className="chunk-doc-select">
+                <select
+                  value={selectedDocForChunks || ''}
+                  onChange={(e) => setSelectedDocForChunks(e.target.value ? parseInt(e.target.value) : null)}
+                >
+                  <option value="">选择文档查看片段实体</option>
+                  {documents.map(doc => (
+                    <option key={doc.id} value={doc.id}>{doc.title}</option>
+                  ))}
+                </select>
               </div>
             )}
           </div>
-        )}
-      </div>
 
-      {/* 筛选栏 */}
-      <div className="filter-bar">
-        <div className="search-box">
-          <FiSearch size={16} />
-          <input
-            type="text"
-            placeholder="搜索实体..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+        {/* 筛选栏 */}
+        <div className="filter-bar">
+          <div className="search-box">
+            <FiSearch size={16} />
+            <input
+              type="text"
+              placeholder="搜索实体..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <div className="filter-group">
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+            >
+              <option value="all">全部类型</option>
+              {ENTITY_TYPES.map(type => (
+                <option key={type.value} value={type.value}>
+                  {type.label}
+                </option>
+              ))}
+            </select>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+            >
+              <option value="all">全部状态</option>
+              <option value="pending">待确认</option>
+              <option value="confirmed">已确认</option>
+              <option value="rejected">已拒绝</option>
+              <option value="modified">已修改</option>
+            </select>
+          </div>
+        </div>
+
+        {/* 批量操作栏 */}
+        {entities.length > 0 && (
+          <div className="batch-actions-bar">
+            <label className="batch-checkbox">
+              <input
+                type="checkbox"
+                checked={selectedEntities.length === filteredEntities.length && filteredEntities.length > 0}
+                ref={input => {
+                  if (input) {
+                    input.indeterminate = selectedEntities.length > 0 && selectedEntities.length < filteredEntities.length;
+                  }
+                }}
+                onChange={(e) => e.target.checked ? handleSelectAllEntities() : handleClearEntitySelection()}
+              />
+              <span>全选</span>
+            </label>
+
+            <span className="selection-info">
+              已选择 {selectedEntities.length} 个实体
+            </span>
+
+            <Button
+              size="small"
+              variant="primary"
+              disabled={selectedEntities.length === 0}
+              onClick={handleBatchConfirm}
+            >
+              批量确认
+            </Button>
+
+            <Button
+              size="small"
+              variant="danger"
+              disabled={selectedEntities.length === 0}
+              onClick={handleBatchReject}
+            >
+              批量拒绝
+            </Button>
+          </div>
+        )}
+
+        {/* 实体列表 */}
+        <div className="entities-list-container">
+          <VirtualListEnhanced
+            items={filteredEntities}
+            renderItem={renderEntity}
+            estimateSize={100}
+            overscan={10}
+            emptyText={
+              <div className="empty-state">
+                <div className="empty-icon">📋</div>
+                <h3>暂无实体</h3>
+                <p>选择文档并开始实体提取</p>
+              </div>
+            }
           />
         </div>
-        <div className="filter-group">
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-          >
-            <option value="all">全部类型</option>
-            {ENTITY_TYPES.map(type => (
-              <option key={type.value} value={type.value}>
-                {type.label}
-              </option>
-            ))}
-          </select>
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-          >
-            <option value="all">全部状态</option>
-            <option value="pending">待确认</option>
-            <option value="confirmed">已确认</option>
-            <option value="rejected">已拒绝</option>
-            <option value="modified">已修改</option>
-          </select>
-        </div>
       </div>
 
-      {/* 批量操作栏 */}
-      {entities.length > 0 && (
-        <div className="batch-actions-bar">
-          <label className="batch-checkbox">
-            <input
-              type="checkbox"
-              checked={selectedEntities.length === filteredEntities.length && filteredEntities.length > 0}
-              ref={input => {
-                if (input) {
-                  input.indeterminate = selectedEntities.length > 0 && selectedEntities.length < filteredEntities.length;
-                }
-              }}
-              onChange={(e) => e.target.checked ? handleSelectAllEntities() : handleClearEntitySelection()}
-            />
-            <span>全选</span>
-          </label>
-          
-          <span className="selection-info">
-            已选择 {selectedEntities.length} 个实体
-          </span>
-          
-          <Button
-            size="small"
-            variant="primary"
-            disabled={selectedEntities.length === 0}
-            onClick={handleBatchConfirm}
-          >
-            批量确认
-          </Button>
-          
-          <Button
-            size="small"
-            variant="danger"
-            disabled={selectedEntities.length === 0}
-            onClick={handleBatchReject}
-          >
-            批量拒绝
-          </Button>
-        </div>
-      )}
-
-      {/* 实体列表 */}
-      <div className="entities-list-container">
-        <VirtualListEnhanced
-          items={filteredEntities}
-          renderItem={renderEntity}
-          estimateSize={100}
-          overscan={10}
-          emptyText={
-            <div className="empty-state">
-              <div className="empty-icon">📋</div>
-              <h3>暂无实体</h3>
-              <p>选择文档并开始实体提取</p>
-            </div>
-          }
-        />
       </div>
 
       {/* 实体配置弹窗 */}

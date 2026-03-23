@@ -285,6 +285,103 @@
   border-color: var(--ucl-color-primary-500);
 }
 
+/* 提取配置面板 */
+.extract-config-panel {
+  background: var(--ucl-color-gray-50);
+  border-bottom: 1px solid var(--ucl-color-gray-200);
+  padding: var(--ucl-spacing-4);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ucl-spacing-6);
+}
+
+.config-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ucl-spacing-3);
+}
+
+.config-section h4 {
+  font-size: var(--ucl-font-size-sm);
+  font-weight: var(--ucl-font-weight-semibold);
+  color: var(--ucl-color-gray-700);
+  margin: 0;
+}
+
+.mode-selector {
+  display: flex;
+  gap: var(--ucl-spacing-3);
+}
+
+.mode-option {
+  display: flex;
+  flex-direction: column;
+  padding: var(--ucl-spacing-3) var(--ucl-spacing-4);
+  border: 2px solid var(--ucl-color-gray-200);
+  border-radius: var(--ucl-border-radius-md);
+  cursor: pointer;
+  transition: all 0.2s;
+  background: white;
+  min-width: 120px;
+}
+
+.mode-option:hover {
+  border-color: var(--ucl-color-primary-300);
+}
+
+.mode-option.active {
+  border-color: var(--ucl-color-primary-500);
+  background: var(--ucl-color-primary-50);
+}
+
+.mode-option input {
+  display: none;
+}
+
+.mode-name {
+  font-weight: var(--ucl-font-weight-semibold);
+  color: var(--ucl-color-gray-900);
+  font-size: var(--ucl-font-size-sm);
+}
+
+.mode-desc {
+  font-size: var(--ucl-font-size-xs);
+  color: var(--ucl-color-gray-500);
+  margin-top: var(--ucl-spacing-1);
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--ucl-spacing-2);
+  cursor: pointer;
+  font-size: var(--ucl-font-size-sm);
+  color: var(--ucl-color-gray-700);
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.threshold-control {
+  display: flex;
+  align-items: center;
+  gap: var(--ucl-spacing-3);
+}
+
+.threshold-control input[type="range"] {
+  width: 150px;
+}
+
+.threshold-value {
+  font-size: var(--ucl-font-size-sm);
+  font-weight: var(--ucl-font-weight-medium);
+  color: var(--ucl-color-primary-600);
+  min-width: 40px;
+}
+
 /* 实体列表 */
 .entity-list {
   flex: 1;

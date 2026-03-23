@@ -27,10 +27,10 @@ class KnowledgeBase(Base):
     kb_entities = relationship("KBEntity", back_populates="knowledge_base", cascade="all, delete-orphan")
     # 关系：一个知识库包含多个KB级关系
     kb_relationships = relationship("KBRelationship", back_populates="knowledge_base", cascade="all, delete-orphan")
-    # 关系：一个知识库有一个模型配置
-    model_configs = relationship("KnowledgeBaseModelConfig", back_populates="knowledge_base", cascade="all, delete-orphan", uselist=False)
     # 关系：一个知识库包含多个权限记录
     permissions = relationship("KnowledgeBasePermission", back_populates="knowledge_base", cascade="all, delete-orphan")
+    # 关系：一个知识库包含一个模型配置
+    model_configs = relationship("KnowledgeBaseModelConfig", back_populates="knowledge_base", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<KnowledgeBase(id={self.id}, name='{self.name}')>"
@@ -122,7 +122,9 @@ class DocumentEntity(Base):
     source_relationships = relationship("EntityRelationship", foreign_keys="EntityRelationship.source_id", cascade="all, delete-orphan")
     # 关系：作为目标实体的关系
     target_relationships = relationship("EntityRelationship", foreign_keys="EntityRelationship.target_id", cascade="all, delete-orphan")
-    
+    # 关系：包含多个片段级实体
+    chunk_entities = relationship("ChunkEntity", back_populates="document_entity")
+
     def __repr__(self):
         return f"<DocumentEntity(id={self.id}, entity_text='{self.entity_text}', entity_type='{self.entity_type}')>"
 
@@ -153,21 +155,64 @@ class EntityRelationship(Base):
 class DocumentChunk(Base):
     """文档向量片段模型"""
     __tablename__ = "document_chunks"
-    
+
     id = Column(Integer, primary_key=True, index=True)  # 片段ID
     document_id = Column(Integer, ForeignKey("knowledge_documents.id"), nullable=False)  # 所属文档ID
     chunk_text = Column(Text, nullable=False)  # 片段内容
     chunk_index = Column(Integer, nullable=False)  # 片段索引
+    start_pos = Column(Integer, nullable=True, default=0)  # 起始位置
+    end_pos = Column(Integer, nullable=True, default=0)  # 结束位置
     total_chunks = Column(Integer, nullable=False)  # 总片段数
     chunk_metadata = Column(JSON, nullable=True)  # 片段元数据
     vector_id = Column(String(100), nullable=True)  # 向量索引ID
+    is_vectorized = Column(Boolean, nullable=False, default=False)  # 是否已向量化
     created_at = Column(DateTime, nullable=False, default=func.now())  # 创建时间
-    
+
     # 关系：一个片段属于一个文档
     document = relationship("KnowledgeDocument", back_populates="chunks")
-    
+    # 关系：一个片段包含多个片段级实体
+    chunk_entities = relationship("ChunkEntity", back_populates="chunk", cascade="all, delete-orphan")
+
     def __repr__(self):
         return f"<DocumentChunk(id={self.id}, document_id={self.document_id}, chunk_index={self.chunk_index})>"
+
+
+class ChunkEntity(Base):
+    """片段级实体模型 - 最细粒度实体识别结果
+
+    用于存储片段级实体识别结果，后续可聚合为文档级实体
+    """
+    __tablename__ = "chunk_entities"
+
+    id = Column(Integer, primary_key=True, index=True)
+    chunk_id = Column(Integer, ForeignKey("document_chunks.id"), nullable=False, index=True)  # 所属片段ID
+    document_id = Column(Integer, ForeignKey("knowledge_documents.id"), nullable=False, index=True)  # 所属文档ID
+
+    # 实体信息
+    entity_text = Column(String(200), nullable=False)  # 实体文本
+    entity_type = Column(String(50), nullable=False)  # 实体类型
+    start_pos = Column(Integer, nullable=False)  # 在片段中的起始位置
+    end_pos = Column(Integer, nullable=False)  # 在片段中的结束位置
+    confidence = Column(Float, nullable=False, default=0.0)  # 识别置信度
+
+    # 上下文信息
+    context = Column(Text, nullable=True)  # 实体上下文（前后文本）
+
+    # 层级关联：关联到文档级实体
+    document_entity_id = Column(Integer, ForeignKey("document_entities.id"), nullable=True, index=True)
+
+    # 元数据
+    created_at = Column(DateTime, nullable=False, default=func.now())  # 创建时间
+
+    # 关系：一个片段级实体属于一个片段
+    chunk = relationship("DocumentChunk", back_populates="chunk_entities")
+    # 关系：一个片段级实体属于一个文档
+    document = relationship("KnowledgeDocument")
+    # 关系：关联到文档级实体
+    document_entity = relationship("DocumentEntity", back_populates="chunk_entities")
+
+    def __repr__(self):
+        return f"<ChunkEntity(id={self.id}, text='{self.entity_text}', type='{self.entity_type}')>"
 
 
 class KBEntity(Base):

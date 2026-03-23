@@ -73,7 +73,8 @@ def get_current_user(
             'email': 'admin@example.com',
             'is_active': True,
             'is_superuser': True,
-            'is_verified': True
+            'is_verified': True,
+            'current_workspace_id': None
         })
         return mock_user
     

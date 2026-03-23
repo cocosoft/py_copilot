@@ -110,21 +110,23 @@ const VectorizationManagement = () => {
       );
 
       // 转换文档为任务格式
+      // 使用 processing_status 替代已废弃的 is_vectorized
       const tasks = (response.documents || []).map(doc => {
         const metadata = doc.document_metadata || {};
+        const processingStatus = metadata.processing_status || 'pending';
         let status = 'pending';
         let progress = 0;
 
-        if (doc.is_vectorized) {
+        if (processingStatus === 'completed') {
           status = 'completed';
           progress = 100;
-        } else if (processingIds.has(doc.id)) {
+        } else if (processingStatus === 'processing' || processingIds.has(doc.id)) {
           status = 'processing';
           progress = metadata.processing_progress || 0;
-        } else if (metadata.processing_status === 'failed') {
+        } else if (processingStatus === 'failed') {
           status = 'failed';
           progress = 0;
-        } else if (metadata.processing_status === 'queued') {
+        } else if (processingStatus === 'queued') {
           status = 'pending';
           progress = 0;
         }
@@ -136,7 +138,7 @@ const VectorizationManagement = () => {
           status: status,
           progress: progress,
           createdAt: doc.created_at,
-          completedAt: doc.is_vectorized ? doc.updated_at : null,
+          completedAt: processingStatus === 'completed' ? doc.updated_at : null,
           error: metadata.processing_error || null,
         };
       });

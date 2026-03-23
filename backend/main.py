@@ -21,17 +21,17 @@ if __name__ == "__main__":
     uvicorn.run(
         app="app.api.main:app",
         host="0.0.0.0",
-        port=8009,
+        port=8010,  # 使用新端口，避免端口冲突
         reload=False,  # 禁用reload模式以避免多进程问题
         log_level=log_level,
-        workers=4,  # 根据CPU核心数调整，提高并发处理能力
+        workers=1,  # 使用单进程模式，确保代码修改生效
         backlog=2048,  # 增加连接队列大小
         limit_concurrency=1000,  # 限制并发连接数
         limit_max_requests=100000,  # 每个worker处理的最大请求数
         timeout_keep_alive=30,  # 保持连接的超时时间
         timeout_graceful_shutdown=120,  # 优雅关闭的超时时间
         # 性能优化
-        access_log=False,  # 禁用访问日志，减少I/O开销
+        access_log=True,  # 启用访问日志，便于调试
         use_colors=False,  # 禁用彩色日志
         forwarded_allow_ips="*"  # 允许所有代理IP
     )

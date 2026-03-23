@@ -1,15 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
-import './knowledge.css';
+import '../../knowledge.css';
 import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
 import { FaDownload } from 'react-icons/fa';
-import KnowledgeGraphManager from '../components/KnowledgeGraph/KnowledgeGraphManager';
-import KnowledgeGraph from '../components/KnowledgeGraph';
-import EntityConfirmationList from '../components/KnowledgeGraph/EntityConfirmationList';
-import HierarchicalGraphViewer from '../components/KnowledgeGraph/HierarchicalGraphViewer';
-import VectorizationManager from '../components/Vectorization/VectorizationManager';
-import KnowledgeNavigation from '../components/KnowledgeNavigation';
-import websocketService from '../services/websocketService';
+import KnowledgeGraphManager from '@components/KnowledgeGraph/KnowledgeGraphManager';
+import KnowledgeGraph from '@components/KnowledgeGraph';
+import EntityConfirmationList from '@components/KnowledgeGraph/EntityConfirmationList';
+import HierarchicalGraphViewer from '@components/KnowledgeGraph/HierarchicalGraphViewer';
+import VectorizationManager from '@components/Vectorization/VectorizationManager';
+
+import websocketService from '@services/websocketService';
 import {
   uploadDocument,
   searchDocuments,
@@ -31,7 +31,7 @@ import {
   removeDocumentTag,
   getAllTags,
   searchDocumentsByTag,
-  vectorizeDocument,
+  vectorizeDocumentLegacy,
   processDocument,
   getDocumentChunks,
   exportKnowledgeBase,
@@ -43,7 +43,7 @@ import {
   getGraphStatistics,
   getDocumentProcessingProgress,
   getProcessingQueueStatus
-} from '../utils/api/knowledgeApi';
+} from '@utils/api/knowledgeApi';
 
 // 设置PDF.js工作路径 - 使用本地worker文件
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
@@ -1597,7 +1597,7 @@ const Knowledge = () => {
   // 处理文档向量化
   const handleVectorizeDocument = async (documentId) => {
     try {
-      const result = await vectorizeDocument(documentId);
+      const result = await vectorizeDocumentLegacy(documentId);
 
       // 检查返回状态
       if (result.status === 'processing') {
@@ -1732,9 +1732,6 @@ const Knowledge = () => {
 
   return (
     <div className="knowledge-container">
-      {/* 增强版功能导航入口 */}
-      <KnowledgeNavigation />
-
       {/* 左侧知识库侧边栏 */}
       <div className="knowledge-sidebar">
         <div className="sidebar-header">

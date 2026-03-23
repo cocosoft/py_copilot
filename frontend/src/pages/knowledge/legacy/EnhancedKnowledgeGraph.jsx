@@ -13,16 +13,14 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 
 // 导入新功能组件
-import {
-  UnifiedKnowledgeViewer,
-  AssociationNetwork
-} from '../../components/Knowledge';
+import UnifiedKnowledgeViewer from '@components/Knowledge/UnifiedKnowledgeViewer';
+import AssociationNetwork from '@components/Knowledge/AssociationNetwork';
 
 // 导入原知识图谱组件
-import KnowledgeGraph from '../../components/KnowledgeGraph';
+import KnowledgeGraph from '@components/KnowledgeGraph';
 
 // 导入状态管理
-import useKnowledge from '../../hooks/useKnowledge';
+import useKnowledge from '@hooks/useKnowledge';
 
 // 导入 API
 import {
@@ -31,8 +29,8 @@ import {
   buildKnowledgeGraph,
   extractEntities,
   getGraphStatistics
-} from '../../utils/api/knowledgeApi';
-import defaultModelApi from '../../utils/api/defaultModelApi';
+} from '@utils/api/knowledgeApi';
+import defaultModelApi from '@utils/api/defaultModelApi';
 
 // 导入样式
 import './EnhancedKnowledgeGraph.css';

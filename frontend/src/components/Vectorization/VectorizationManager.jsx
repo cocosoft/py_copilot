@@ -10,7 +10,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  vectorizeDocument,
+  vectorizeDocumentLegacy,
   vectorizeDocumentAsync,
   getDocumentChunks,
   getDocumentProcessingProgress,
@@ -109,12 +109,16 @@ const VectorizationManager = () => {
 
   /**
    * 更新统计信息
+   * 使用 processing_status 替代已废弃的 is_vectorized
    */
   const updateStats = (docs) => {
     const stats = {
       total: docs.length,
-      vectorized: docs.filter(d => d.is_vectorized).length,
-      unvectorized: docs.filter(d => !d.is_vectorized && d.document_metadata?.processing_status !== 'processing').length,
+      vectorized: docs.filter(d => d.document_metadata?.processing_status === 'completed').length,
+      unvectorized: docs.filter(d =>
+        d.document_metadata?.processing_status !== 'completed' &&
+        d.document_metadata?.processing_status !== 'processing'
+      ).length,
       processing: docs.filter(d => d.document_metadata?.processing_status === 'processing').length,
       failed: docs.filter(d => d.document_metadata?.processing_status === 'failed').length
     };
@@ -134,13 +138,17 @@ const VectorizationManager = () => {
       );
     }
     
+    // 使用 processing_status 替代已废弃的 is_vectorized
     if (status !== 'all') {
       switch (status) {
         case 'vectorized':
-          filtered = filtered.filter(d => d.is_vectorized);
+          filtered = filtered.filter(d => d.document_metadata?.processing_status === 'completed');
           break;
         case 'unvectorized':
-          filtered = filtered.filter(d => !d.is_vectorized && d.document_metadata?.processing_status !== 'processing');
+          filtered = filtered.filter(d =>
+            d.document_metadata?.processing_status !== 'completed' &&
+            d.document_metadata?.processing_status !== 'processing'
+          );
           break;
         case 'processing':
           filtered = filtered.filter(d => d.document_metadata?.processing_status === 'processing');
@@ -312,16 +320,17 @@ const VectorizationManager = () => {
 
   /**
    * 批量向量化
+   * 使用 processing_status 替代已废弃的 is_vectorized
    */
   const handleBatchVectorize = async () => {
-    const docsToProcess = selectedDocuments.length > 0 
-      ? selectedDocuments 
-      : documents.filter(d => !d.is_vectorized);
-    
+    const docsToProcess = selectedDocuments.length > 0
+      ? selectedDocuments
+      : documents.filter(d => d.document_metadata?.processing_status !== 'completed');
+
     for (const docId of docsToProcess) {
       await handleVectorize(docId);
     }
-    
+
     setSelectedDocuments([]);
   };
 
@@ -462,13 +471,15 @@ const VectorizationManager = () => {
           {documents.slice(0, 5).map(doc => {
             const progress = processingProgress.get(doc.id);
             const isProcessing = progress?.status === 'processing' || doc.document_metadata?.processing_status === 'processing';
-            
+            // 使用 processing_status 替代已废弃的 is_vectorized
+            const isVectorized = doc.document_metadata?.processing_status === 'completed';
+
             return (
               <div key={doc.id} className="activity-item">
                 <div className="activity-info">
                   <span className="doc-title">{doc.title}</span>
-                  <span className={`status ${doc.is_vectorized ? 'success' : isProcessing ? 'processing' : 'pending'}`}>
-                    {doc.is_vectorized ? '已向量化' : isProcessing ? '处理中' : '待处理'}
+                  <span className={`status ${isVectorized ? 'success' : isProcessing ? 'processing' : 'pending'}`}>
+                    {isVectorized ? '已向量化' : isProcessing ? '处理中' : '待处理'}
                   </span>
                 </div>
                 {isProcessing && progress && (
@@ -649,12 +660,14 @@ const VectorizationManager = () => {
               {filteredDocuments.map(doc => {
                 const progress = processingProgress.get(doc.id);
                 const isProcessing = progress?.status === 'processing' || doc.document_metadata?.processing_status === 'processing';
-                
+                // 使用 processing_status 替代已废弃的 is_vectorized
+                const isVectorized = doc.document_metadata?.processing_status === 'completed';
+
                 return (
                   <tr key={doc.id} className={isProcessing ? 'processing' : ''}>
                     <td>
-                      <input 
-                        type="checkbox" 
+                      <input
+                        type="checkbox"
                         checked={selectedDocuments.includes(doc.id)}
                         onChange={() => handleSelectDocument(doc.id)}
                       />
@@ -666,7 +679,7 @@ const VectorizationManager = () => {
                       </div>
                     </td>
                     <td>
-                      {doc.is_vectorized ? (
+                      {isVectorized ? (
                         <span className="status-badge success">✓ {t('vectorization.status.vectorized', '已向量化')}</span>
                       ) : isProcessing ? (
                         <span className="status-badge processing">⏳ {t('vectorization.status.processing', '处理中')}</span>
@@ -679,8 +692,8 @@ const VectorizationManager = () => {
                     <td>
                       {isProcessing && progress && (
                         <div className="progress-bar">
-                          <div 
-                            className="progress-fill" 
+                          <div
+                            className="progress-fill"
                             style={{ width: `${progress.progress_percent}%` }}
                           />
                           <span className="progress-text">{progress.progress_percent}%</span>
@@ -696,16 +709,16 @@ const VectorizationManager = () => {
                     <td>{doc.chunk_count || '-'}</td>
                     <td>
                       <div className="action-buttons">
-                        {!doc.is_vectorized && !isProcessing && (
-                          <button 
+                        {!isVectorized && !isProcessing && (
+                          <button
                             className="btn btn-sm btn-primary"
                             onClick={() => handleVectorize(doc.id)}
                           >
                             {t('vectorization.action.vectorize', '向量化')}
                           </button>
                         )}
-                        {doc.is_vectorized && (
-                          <button 
+                        {isVectorized && (
+                          <button
                             className="btn btn-sm btn-secondary"
                             onClick={() => handleViewChunks(doc)}
                           >

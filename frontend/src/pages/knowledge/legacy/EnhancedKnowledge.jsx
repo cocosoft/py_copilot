@@ -14,16 +14,16 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 
 // 导入原知识库页面组件
-import Knowledge from '../Knowledge';
+import Knowledge from './Knowledge';
 
 // 导入虚拟列表组件
-import EnhancedVirtualList from '../../components/VirtualList';
+import EnhancedVirtualList from '@components/VirtualList';
 
 // 导入状态管理
-import useKnowledge from '../../hooks/useKnowledge';
+import useKnowledge from '@hooks/useKnowledge';
 
 // 导入 API
-import { listDocuments, getKnowledgeBases } from '../../utils/api/knowledgeApi';
+import { listDocuments, getKnowledgeBases } from '@utils/api/knowledgeApi';
 
 // 导入样式
 import './EnhancedKnowledge.css';
@@ -236,7 +236,7 @@ const EnhancedKnowledge = () => {
     });
 
     // 导入 API 函数
-    const { vectorizeDocument } = await import('../../utils/api/knowledgeApi');
+    const { vectorizeDocument } = await import('@utils/api/knowledgeApi');
 
     let successCount = 0;
     let failCount = 0;
@@ -290,7 +290,7 @@ const EnhancedKnowledge = () => {
     });
 
     // 导入 API 函数
-    const { deleteDocument } = await import('../../utils/api/knowledgeApi');
+    const { deleteDocument } = await import('@utils/api/knowledgeApi');
 
     let successCount = 0;
     let failCount = 0;

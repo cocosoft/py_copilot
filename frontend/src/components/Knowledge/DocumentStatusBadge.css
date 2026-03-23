@@ -1,0 +1,207 @@
+/**
+ * 文档状态徽章样式
+ */
+
+.document-status-badge {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #e1e8ed;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* 紧凑模式样式 */
+.document-status-badge.compact {
+  flex-direction: row;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 4px;
+  box-shadow: none;
+}
+
+.document-status-badge.compact .status-text {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+/* 状态颜色 */
+.document-status-badge.compact.status-idle .status-text {
+  background: #f5f5f5;
+  color: #8c8c8c;
+}
+
+.document-status-badge.compact.status-pending .status-text {
+  background: #fff7e6;
+  color: #fa8c16;
+}
+
+.document-status-badge.compact.status-queued .status-text {
+  background: #e6f7ff;
+  color: #1890ff;
+}
+
+.document-status-badge.compact.status-processing .status-text {
+  background: #fffbe6;
+  color: #faad14;
+}
+
+.document-status-badge.compact.status-completed .status-text {
+  background: #f6ffed;
+  color: #52c41a;
+}
+
+.document-status-badge.compact.status-failed .status-text,
+.document-status-badge.compact.status-error .status-text {
+  background: #fff2f0;
+  color: #ff4d4f;
+}
+
+/* 状态头部 */
+.status-header {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2c3e50;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e1e8ed;
+}
+
+.overall-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 阶段容器 */
+.stages-container {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  padding: 8px 0;
+}
+
+/* 单个阶段徽章 */
+.stage-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  min-width: 80px;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.stage-badge:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* 已完成状态 */
+.stage-badge.completed {
+  background: #f6ffed;
+  border-color: #b7eb8f;
+}
+
+.stage-badge.completed .stage-icon {
+  color: #52c41a;
+}
+
+.stage-badge.completed .stage-label {
+  color: #389e0d;
+  font-weight: 600;
+}
+
+.stage-badge.completed .stage-indicator {
+  color: #52c41a;
+  font-weight: bold;
+}
+
+/* 待处理状态 */
+.stage-badge.pending {
+  background: #f9fafb;
+  border-color: #e5e7eb;
+}
+
+.stage-badge.pending .stage-icon {
+  color: #9ca3af;
+}
+
+.stage-badge.pending .stage-label {
+  color: #6b7280;
+}
+
+.stage-badge.pending .stage-indicator {
+  color: #d1d5db;
+}
+
+/* 阶段图标 */
+.stage-icon {
+  font-size: 24px;
+  margin-bottom: 4px;
+}
+
+/* 阶段标签 */
+.stage-label {
+  font-size: 11px;
+  color: #374151;
+  text-align: center;
+  margin-bottom: 4px;
+  line-height: 1.2;
+}
+
+/* 阶段指示器 */
+.stage-indicator {
+  font-size: 12px;
+  margin-top: auto;
+}
+
+/* 阶段连接器 */
+.stage-connector {
+  position: absolute;
+  right: -4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 2px;
+  background: #d1d5db;
+  z-index: 1;
+}
+
+.stage-badge.completed + .stage-badge .stage-connector {
+  background: #52c41a;
+}
+
+/* 最后一个阶段不显示连接器 */
+.stage-badge.last .stage-connector {
+  display: none;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .stages-container {
+    flex-wrap: wrap;
+  }
+  
+  .stage-badge {
+    flex: 1 1 calc(50% - 8px);
+    min-width: 0;
+  }
+  
+  .stage-connector {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .stage-badge {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+}

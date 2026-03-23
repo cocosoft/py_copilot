@@ -5,8 +5,10 @@
  */
 
 import React from 'react';
-import { FiFileText, FiImage, FiMusic, FiVideo, FiFile, FiMoreVertical } from 'react-icons/fi';
+import { FiFileText, FiImage, FiMusic, FiVideo, FiFile, FiMoreVertical, FiLayers } from 'react-icons/fi';
 import useKnowledgeStore from '../../../stores/knowledgeStore';
+import DocumentStatusBadge from '../DocumentStatusBadge';
+import DocumentProgress from '../DocumentProgress';
 import './styles.css';
 
 /**
@@ -49,6 +51,7 @@ const fileTypeColors = {
 
 /**
  * 状态配置
+ * 支持向量化状态和实体识别状态
  */
 const statusConfig = {
   vectorized: {
@@ -74,6 +77,31 @@ const statusConfig = {
     color: '#ff4d4f',
     bgColor: '#fff2f0',
     borderColor: '#ffccc7',
+  },
+  // 实体识别相关状态
+  entity_processing: {
+    text: '实体识别中',
+    color: '#1890ff',
+    bgColor: '#e6f7ff',
+    borderColor: '#91d5ff',
+  },
+  entity_aggregating: {
+    text: '实体聚合中',
+    color: '#722ed1',
+    bgColor: '#f9f0ff',
+    borderColor: '#d3adf7',
+  },
+  entity_aligning: {
+    text: 'KB对齐中',
+    color: '#fa8c16',
+    bgColor: '#fff7e6',
+    borderColor: '#ffd591',
+  },
+  entity_completed: {
+    text: '已实体识别',
+    color: '#52c41a',
+    bgColor: '#f6ffed',
+    borderColor: '#b7eb8f',
   },
 };
 
@@ -125,6 +153,7 @@ const formatDate = (dateString) => {
  * @param {boolean} props.isSelected - 是否选中
  * @param {Function} props.onSelect - 选择回调
  * @param {Function} props.onClick - 点击回调
+ * @param {Function} props.onProcessingFlow - 处理流程回调
  * @param {string} props.viewMode - 视图模式 (list | grid)
  */
 const DocumentCard = ({
@@ -132,6 +161,7 @@ const DocumentCard = ({
   isSelected = false,
   onSelect,
   onClick,
+  onProcessingFlow,
   viewMode = 'list'
 }) => {
   const { documentFilters } = useKnowledgeStore();
@@ -140,7 +170,15 @@ const DocumentCard = ({
   const fileType = document.fileType?.toLowerCase() || 'unknown';
   const FileIcon = fileTypeIcons[fileType] || FiFile;
   const fileColor = fileTypeColors[fileType] || '#8c8c8c';
-  const status = statusConfig[document.vectorizationStatus] || statusConfig.pending;
+  
+  // 获取文档元数据
+  const metadata = document.document_metadata || {};
+  const processingStatus = metadata.processing_status || 'idle';
+  
+  // 计算总体进度
+  const stages = ['text_extracted', 'chunked', 'entity_extracted', 'vectorized', 'graph_built'];
+  const completedStages = stages.filter(stage => metadata[stage] === true);
+  const progress = (completedStages.length / stages.length) * 100;
 
   /**
    * 高亮搜索关键词
@@ -180,6 +218,14 @@ const DocumentCard = ({
     console.log('更多操作:', document.id);
   };
 
+  /**
+   * 处理流程按钮点击
+   */
+  const handleProcessingFlowClick = (e) => {
+    e.stopPropagation();
+    onProcessingFlow?.(document.id);
+  };
+
   if (viewMode === 'grid') {
     return (
       <div 
@@ -208,22 +254,24 @@ const DocumentCard = ({
         </div>
 
         <div className="document-card__footer">
-          <span 
-            className="document-card__status"
-            style={{
-              color: status.color,
-              backgroundColor: status.bgColor,
-              borderColor: status.borderColor,
-            }}
-          >
-            {status.text}
-          </span>
-          <input
-            type="checkbox"
-            className="document-card__checkbox"
-            checked={isSelected}
-            onChange={handleCheckboxClick}
-          />
+          {/* 使用新的细粒度状态显示 */}
+          <DocumentStatusBadge document={document} compact={true} />
+          <div className="document-card__actions">
+            <button
+              className="document-card__action-btn processing-flow-btn"
+              onClick={handleProcessingFlowClick}
+              title="处理流程"
+            >
+              <FiLayers size={14} />
+              <span>流程</span>
+            </button>
+            <input
+              type="checkbox"
+              className="document-card__checkbox"
+              checked={isSelected}
+              onChange={handleCheckboxClick}
+            />
+          </div>
         </div>
       </div>
     );
@@ -261,17 +309,18 @@ const DocumentCard = ({
       </div>
 
       <div className="document-card__status-wrapper">
-        <span 
-          className="document-card__status"
-          style={{
-            color: status.color,
-            backgroundColor: status.bgColor,
-            borderColor: status.borderColor,
-          }}
-        >
-          {status.text}
-        </span>
+        {/* 使用新的细粒度状态显示 */}
+        <DocumentStatusBadge document={document} compact={true} />
       </div>
+
+      <button
+        className="document-card__action-btn processing-flow-btn"
+        onClick={handleProcessingFlowClick}
+        title="处理流程"
+      >
+        <FiLayers size={14} />
+        <span>流程</span>
+      </button>
 
       <button className="document-card__more" onClick={handleMoreClick}>
         <FiMoreVertical size={16} />

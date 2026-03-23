@@ -10,8 +10,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import HierarchicalGraphVisualizer, { LayerType } from '../../components/knowledgeGraph/HierarchicalGraphVisualizer';
-import { getKnowledgeBaseGraphStats } from '../../utils/api/knowledgeGraphApi';
+import HierarchicalGraphVisualizer, { LayerType } from '@components/knowledgeGraph/HierarchicalGraphVisualizer';
+import { getKnowledgeBaseGraphStats } from '@utils/api/knowledgeGraphApi';
 import './KnowledgeGraphVisualization.css';
 
 /**

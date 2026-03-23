@@ -8,38 +8,23 @@ import AppRoutes from './routes';
 import LoginForm from './components/LoginForm';
 import { isAuthenticated } from './utils/authUtils';
 import { StoreProvider, StoreMonitor, useStateManager } from './utils/storeManager';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import GlobalErrorBoundary from './components/UI/GlobalErrorBoundary';
 import ErrorNotification from './components/UI/ErrorNotification';
 import Notification from './components/UI/Notification';
 import { request } from './utils/apiUtils';
 import WorkspaceSelector from './components/WorkspaceSelector';
 
-// 创建React Query客户端实例
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      staleTime: 5 * 60 * 1000, // 5分钟
-    },
-    mutations: {
-      retry: 1,
-    },
-  },
-});
-
 function App() {
   return (
     <GlobalErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <StoreProvider>
-          <Router
-            future={{
-              v7_startTransition: true,
-              v7_relativeSplatPath: true,
-            }}
-          >
-            <SupplierProvider>
+      <StoreProvider>
+        <Router
+          future={{
+            v7_startTransition: true,
+            v7_relativeSplatPath: true,
+          }}
+        >
+          <SupplierProvider>
               <Routes>
                 {/* 登录页面路由 */}
                 <Route path="/login" element={<LoginForm />} />
@@ -53,7 +38,6 @@ function App() {
           {/* 开发环境下的状态监控 */}
           {process.env.NODE_ENV === 'development' && <StoreMonitor enabled={false} />}
         </StoreProvider>
-      </QueryClientProvider>
     </GlobalErrorBoundary>
   );
 }

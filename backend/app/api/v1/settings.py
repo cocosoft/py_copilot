@@ -17,10 +17,16 @@ def get_settings(
 ):
     """获取用户所有设置"""
     try:
+        print(f"[DEBUG] get_settings called, current_user type: {type(current_user)}")
+        print(f"[DEBUG] current_user attributes: {dir(current_user)}")
         user_id = current_user.id if hasattr(current_user, 'id') else 1
+        print(f"[DEBUG] user_id: {user_id}")
         settings = SettingService.get_user_settings(db, user_id)
         return {"success": True, "data": settings}
     except Exception as e:
+        import traceback
+        print(f"[ERROR] get_settings failed: {e}")
+        print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"获取设置失败: {str(e)}")
 
 

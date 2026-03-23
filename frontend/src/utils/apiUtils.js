@@ -8,6 +8,138 @@ export const STORAGE_PREFIX = 'llm_admin_';
 import { getAuthToken } from './authUtils';
 
 /**
+ * 告警管理器
+ * 用于管理API错误告警，避免重复告警和告警轰炸
+ */
+class AlertManager {
+  constructor() {
+    this.alertHistory = new Map(); // 存储告警历史
+    this.cooldownPeriod = 60000; // 告警冷却时间（1分钟）
+    this.maxAlertsPerMinute = 5; // 每分钟最大告警次数
+    this.alertCounts = new Map(); // 存储每分钟的告警次数
+  }
+
+  /**
+   * 检查是否应该显示告警
+   * @param {string} key - 告警唯一标识
+   * @returns {boolean} 是否应该显示告警
+   */
+  shouldShowAlert(key) {
+    const now = Date.now();
+    const lastAlertTime = this.alertHistory.get(key);
+    
+    // 检查冷却时间
+    if (lastAlertTime && (now - lastAlertTime) < this.cooldownPeriod) {
+      return false;
+    }
+
+    // 检查每分钟告警次数
+    const minuteKey = Math.floor(now / 60000);
+    const count = this.alertCounts.get(minuteKey) || 0;
+    if (count >= this.maxAlertsPerMinute) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * 记录告警
+   * @param {string} key - 告警唯一标识
+   */
+  recordAlert(key) {
+    const now = Date.now();
+    this.alertHistory.set(key, now);
+    
+    const minuteKey = Math.floor(now / 60000);
+    const count = this.alertCounts.get(minuteKey) || 0;
+    this.alertCounts.set(minuteKey, count + 1);
+
+    // 清理过期的告警计数
+    this.cleanupOldAlerts();
+  }
+
+  /**
+   * 清理过期的告警计数
+   */
+  cleanupOldAlerts() {
+    const now = Date.now();
+    const currentMinute = Math.floor(now / 60000);
+    
+    for (const minuteKey of this.alertCounts.keys()) {
+      if (minuteKey < currentMinute - 1) {
+        this.alertCounts.delete(minuteKey);
+      }
+    }
+  }
+
+  /**
+   * 显示API错误告警
+   * @param {Error} error - 错误对象
+   * @param {string} url - 请求URL
+   * @param {string} method - 请求方法
+   */
+  showApiErrorAlert(error, url, method) {
+    const alertKey = `${method || 'GET'}_${url}_${error.status || 'unknown'}`;
+    
+    if (!this.shouldShowAlert(alertKey)) {
+      return;
+    }
+
+    this.recordAlert(alertKey);
+
+    let title = 'API请求错误';
+    let message = error.message || '未知错误';
+    let type = 'error';
+
+    // 根据错误类型设置不同的告警信息
+    if (error.status === 408) {
+      title = 'API请求超时';
+      message = '服务器响应超时，请检查网络连接或稍后重试。';
+      type = 'warning';
+    } else if (error.status === 0) {
+      title = '网络连接错误';
+      message = '无法连接到服务器，请确保后端服务已启动。';
+      type = 'error';
+    } else if (error.status >= 500) {
+      title = '服务器错误';
+      message = '服务器内部错误，请稍后重试。';
+      type = 'error';
+    } else if (error.status === 401) {
+      title = '认证错误';
+      message = '登录已过期，请重新登录。';
+      type = 'error';
+    } else if (error.status === 403) {
+      title = '权限错误';
+      message = '您没有权限执行此操作。';
+      type = 'warning';
+    } else if (error.status === 404) {
+      title = '资源不存在';
+      message = '请求的资源不存在。';
+      type = 'warning';
+    }
+
+    // 显示告警
+    if (typeof window !== 'undefined' && window.message) {
+      window.message[type]({
+        content: `${title}: ${message}`,
+        duration: 5,
+        showClose: true
+      });
+    } else {
+      // 降级到控制台
+      console[type === 'error' ? 'error' : 'warn'](`${title}: ${message}`);
+    }
+  }
+}
+
+// 创建全局告警管理器实例
+const alertManager = new AlertManager();
+
+// 导出告警管理器
+export { alertManager };
+
+/**
  * 获取当前用户ID
  * 从localStorage中的auth-storage读取
  * 优先从user对象获取，如果user为null则从currentWorkspace获取
@@ -243,6 +375,9 @@ export const request = async (endpoint, options = {}) => {
     // 调试日志 - 对于 AbortError（用户主动取消的请求）不打印错误日志
     if (error.name !== 'AbortError') {
       console.error(`[API Error] ${options.method || 'GET'} ${url} - error:`, error);
+      
+      // 显示API错误告警
+      alertManager.showApiErrorAlert(error, url, options.method);
     }
 
     if (error.name === 'AbortError') {
@@ -255,6 +390,10 @@ export const request = async (endpoint, options = {}) => {
       const timeoutError = new Error('API请求超时，请检查网络连接或端点响应时间。');
       timeoutError.originalError = error;
       timeoutError.status = 408;
+      
+      // 显示超时告警
+      alertManager.showApiErrorAlert(timeoutError, url, options.method);
+      
       throw timeoutError;
     }
 
@@ -265,6 +404,10 @@ export const request = async (endpoint, options = {}) => {
       const connectionError = new Error('无法连接到服务器，请确保后端服务器已启动并运行在正确的端口上。');
       connectionError.originalError = error;
       connectionError.status = 0; // 自定义状态码表示连接错误
+      
+      // 显示连接错误告警
+      alertManager.showApiErrorAlert(connectionError, url, options.method);
+      
       throw connectionError;
     }
     

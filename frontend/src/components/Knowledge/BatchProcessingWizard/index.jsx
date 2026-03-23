@@ -22,7 +22,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from '../icons.jsx';
-import { vectorizeDocument, getDocumentProcessingProgress } from '../../../utils/api/knowledgeApi';
+import { vectorizeDocumentLegacy, getDocumentProcessingProgress } from '../../../utils/api/knowledgeApi';
 import './BatchProcessingWizard.css';
 
 /**
@@ -441,7 +441,7 @@ const BatchProcessingWizard = ({
       
       try {
         // 调用向量化API
-        await vectorizeDocument(docId);
+        await vectorizeDocumentLegacy(docId);
         
         // 更新进度
         setProgress((prev) => ({

@@ -15,25 +15,23 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 
 // 导入新功能组件
-import {
-  QualityPanel,
-  BatchProcessingWizard,
-  VectorSpace3D,
-  ResourceMonitor
-} from '../../components/Knowledge';
+import QualityPanel from '@components/Knowledge/QualityPanel';
+import BatchProcessingWizard from '@components/Knowledge/BatchProcessingWizard';
+import VectorSpace3D from '@components/Knowledge/VectorSpace3D';
+import ResourceMonitor from '@components/Knowledge/ResourceMonitor';
 
 // 导入原向量化管理组件
-import VectorizationManager from '../../components/Vectorization/VectorizationManager';
+import VectorizationManager from '@components/Vectorization/VectorizationManager';
 
 // 导入状态管理
-import useKnowledge from '../../hooks/useKnowledge';
+import useKnowledge from '@hooks/useKnowledge';
 
 // 导入 API
 import { 
   listDocuments, 
   getKnowledgeBases,
   getDocumentChunks 
-} from '../../utils/api/knowledgeApi';
+} from '@utils/api/knowledgeApi';
 
 // 导入样式
 import './EnhancedVectorization.css';

@@ -1,4 +1,7 @@
 import logging
+import re
+import gc
+import sys
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from sqlalchemy.orm import Session
@@ -8,17 +11,32 @@ from app.services.knowledge.processing_progress_service import processing_progre
 logger = logging.getLogger(__name__)
 
 
-class DocumentProcessor:
-    """文档处理核心模块，负责文档解析、分块、向量化和图谱化
+def release_memory():
+    """主动释放内存，删除大对象并强制垃圾回收
     
-    处理流程（7步）：
+    该函数用于在文档处理完成后释放内存，避免内存持续增长
+    """
+    try:
+        # 强制垃圾回收
+        gc.collect()
+        gc.collect()  # 第二次调用确保清理更彻底
+        
+        # 记录内存释放信息
+        logger.info("内存释放完成")
+    except Exception as e:
+        logger.warning(f"内存释放时出错: {e}")
+
+
+class DocumentProcessor:
+    """文档处理核心模块，负责文档解析、分块、向量化
+
+    处理流程（4步）：
     1. 文档解析
     2. 文本清理
     3. 智能分块
-    4. 实体识别与关系提取
-    5. 实体对齐 ⭐ 新增
-    6. 向量化处理
-    7. 知识图谱构建
+    4. 向量化处理
+
+    注：实体识别、实体对齐、知识图谱构建已分离到独立服务
     """
 
     def __init__(self):
@@ -38,26 +56,115 @@ class DocumentProcessor:
         from app.services.knowledge.retrieval.retrieval_service import RetrievalService
         self.retrieval_service = RetrievalService()
 
-        # 使用知识图谱服务
-        from app.services.knowledge.graph.knowledge_graph_service import KnowledgeGraphService
-        self.knowledge_graph_service = KnowledgeGraphService()
-        
-        # 实体对齐服务（延迟初始化，需要db session）
-        self.alignment_service = None
+    def _simple_chunking(self, text: str, max_chunk_size: int = 1000,
+                         min_chunk_size: int = 200, overlap: int = 50) -> List[str]:
+        """基于规则的简单分块方法（高性能版本）
+
+        使用段落和句子边界进行分块，避免LLM调用，大幅提升处理速度。
+
+        Args:
+            text: 输入文本
+            max_chunk_size: 最大块大小（字符数）
+            min_chunk_size: 最小块大小（字符数）
+            overlap: 块之间的重叠大小（字符数）
+
+        Returns:
+            分块后的文本列表
+        """
+        if not text:
+            return []
+
+        if len(text) <= max_chunk_size:
+            return [text]
+
+        chunks = []
+
+        # 首先按段落分割（优先在段落边界分割）
+        paragraphs = re.split(r'\n\s*\n', text)
+        paragraphs = [p.strip() for p in paragraphs if p.strip()]
+
+        current_chunk = ""
+        current_size = 0
+
+        for paragraph in paragraphs:
+            para_size = len(paragraph)
+
+            # 如果当前段落本身就超过最大块大小，需要进一步分割
+            if para_size > max_chunk_size:
+                # 先保存当前块
+                if current_chunk and current_size >= min_chunk_size:
+                    chunks.append(current_chunk.strip())
+                    # 保留重叠部分
+                    if overlap > 0 and len(current_chunk) > overlap:
+                        current_chunk = current_chunk[-overlap:]
+                        current_size = len(current_chunk)
+                    else:
+                        current_chunk = ""
+                        current_size = 0
+
+                # 按句子分割这个长段落
+                sentences = re.split(r'(?<=[.!?。！？])\s+', paragraph)
+                sentences = [s.strip() for s in sentences if s.strip()]
+
+                for sentence in sentences:
+                    sent_size = len(sentence)
+
+                    if current_size + sent_size <= max_chunk_size:
+                        current_chunk += " " + sentence if current_chunk else sentence
+                        current_size += sent_size
+                    else:
+                        # 保存当前块
+                        if current_chunk and current_size >= min_chunk_size:
+                            chunks.append(current_chunk.strip())
+                            # 保留重叠部分
+                            if overlap > 0 and len(current_chunk) > overlap:
+                                current_chunk = current_chunk[-overlap:] + " " + sentence
+                                current_size = overlap + sent_size
+                            else:
+                                current_chunk = sentence
+                                current_size = sent_size
+                        else:
+                            current_chunk = sentence
+                            current_size = sent_size
+            else:
+                # 正常段落处理
+                if current_size + para_size <= max_chunk_size:
+                    current_chunk += "\n\n" + paragraph if current_chunk else paragraph
+                    current_size += para_size + 2  # +2 for \n\n
+                else:
+                    # 保存当前块
+                    if current_chunk and current_size >= min_chunk_size:
+                        chunks.append(current_chunk.strip())
+                        # 保留重叠部分
+                        if overlap > 0 and len(current_chunk) > overlap:
+                            current_chunk = current_chunk[-overlap:] + "\n\n" + paragraph
+                            current_size = overlap + para_size + 2
+                        else:
+                            current_chunk = paragraph
+                            current_size = para_size
+                    else:
+                        current_chunk = paragraph
+                        current_size = para_size
+
+        # 保存最后一个块
+        if current_chunk:
+            chunks.append(current_chunk.strip())
+
+        logger.info(f"基于规则的分块完成，生成 {len(chunks)} 个块")
+        return chunks
 
     def process_document(self, file_path: str, file_type: str, document_id: int,
                         knowledge_base_id: Optional[int] = None, db: Session = None,
                         document_name: str = None) -> Dict[str, Any]:
-        """完整文档处理流程 - 集成图谱化操作和进度反馈
+        """文档向量化处理流程
         
-        处理流程：
+        处理流程（4步）：
         1. 文档解析
         2. 文本清理
         3. 智能分块
-        4. 实体识别与关系提取
-        5. 实体对齐 ⭐ 新增
-        6. 向量化处理
-        7. 知识图谱构建
+        4. 向量化处理
+        
+        注：实体识别、实体对齐、知识图谱构建已分离到独立服务
         """
 
         # 初始化进度追踪
@@ -68,7 +175,7 @@ class DocumentProcessor:
             import os
             document_name = os.path.basename(file_path)
         
-        processing_progress_service.start_processing(doc_id_str, total_steps=7, document_name=document_name)
+        processing_progress_service.start_processing(doc_id_str, total_steps=4, document_name=document_name)
 
         try:
             # 1. 解析文档
@@ -91,75 +198,31 @@ class DocumentProcessor:
             )
             cleaned_text = self.text_processor.clean_text(raw_text)
 
-            # 3. 智能分块
+            # 3. 智能分块（使用高性能规则分块，避免LLM调用）
             processing_progress_service.update_progress(
                 doc_id_str, 3, "智能分块",
                 "正在进行语义分块...",
                 {"cleaned_text_length": len(cleaned_text)}
             )
-            chunks = self.text_processor.semantic_chunking_sync(cleaned_text)
+            # 使用基于规则的高性能分块方法，避免LLM调用耗时
+            chunks = self._simple_chunking(cleaned_text, max_chunk_size=1000, min_chunk_size=200, overlap=50)
             logger.info(f"文档分块完成，共 {len(chunks)} 个块")
-
-            # 4. 实体识别与关系提取
-            processing_progress_service.update_progress(
-                doc_id_str, 4, "实体识别",
-                "正在识别实体和提取关系...",
-                {"chunks_count": len(chunks)}
-            )
-            entities, relationships = self.text_processor.extract_entities_relationships_sync(cleaned_text)
-            logger.info(f"实体识别完成，识别到 {len(entities)} 个实体和 {len(relationships)} 个关系")
             
-            # 5. 实体对齐 ⭐ 新增步骤
-            if db and knowledge_base_id and entities:
-                processing_progress_service.update_progress(
-                    doc_id_str, 5, "实体对齐",
-                    "正在对齐实体...",
-                    {"entity_count": len(entities)}
-                )
-                
-                try:
-                    # 保存文档实体到数据库
-                    self._save_document_entities(db, document_id, knowledge_base_id, entities)
-                    
-                    # 初始化实体对齐服务
-                    if not self.alignment_service:
-                        from app.services.knowledge.alignment.entity_alignment_service import EntityAlignmentService
-                        self.alignment_service = EntityAlignmentService(db)
-                    
-                    # 执行实体对齐
-                    alignment_result = self.alignment_service.align_entities_for_kb(knowledge_base_id)
-                    
-                    if alignment_result.get("success"):
-                        logger.info(f"实体对齐完成: 创建了 {alignment_result.get('kb_entities_created', 0)} 个KB实体, "
-                                  f"对齐了 {alignment_result.get('entities_aligned', 0)} 个文档实体")
-                    else:
-                        logger.warning(f"实体对齐失败: {alignment_result.get('error')}")
-                        
-                except Exception as align_error:
-                    logger.error(f"实体对齐过程出错: {align_error}")
-                    # 实体对齐失败不影响后续流程
-            else:
-                if not entities:
-                    logger.info("未识别到实体，跳过实体对齐")
-                elif not db:
-                    logger.info("未提供数据库连接，跳过实体对齐")
-                elif not knowledge_base_id:
-                    logger.info("未提供知识库ID，跳过实体对齐")
-            
-            # 6. 向量化处理 - 分批次批量处理优化版
+            # 4. 向量化处理 - 分批次批量处理优化版
+            # 注：实体识别、实体对齐、知识图谱构建已分离到独立服务
             vector_results = []
             success_count = 0
             failed_chunks = []
 
             # 根据chunks数量决定批次大小
-            # 如果chunks过多，分批次处理以避免内存占用过高和请求超时
+            # 增加批次大小以减少HTTP请求次数，提升处理速度
             total_chunks = len(chunks)
-            if total_chunks <= 50:
+            if total_chunks <= 100:
                 batch_size = total_chunks  # 小文件一次性处理
-            elif total_chunks <= 100:
-                batch_size = 50  # 中等文件分2批
+            elif total_chunks <= 500:
+                batch_size = 100  # 中等文件每批100个
             else:
-                batch_size = 50  # 大文件每批50个chunks
+                batch_size = 100  # 大文件每批100个chunks
 
             total_batches = (total_chunks + batch_size - 1) // batch_size
             logger.info(f"开始分批次向量化处理: {total_chunks} 个块, 分成 {total_batches} 批, 每批 {batch_size} 个")
@@ -253,12 +316,19 @@ class DocumentProcessor:
                             })
                             logger.error(f"向量化块 {global_idx} 失败: {e}")
 
-                # 每处理完一批，短暂释放资源
+                # 每处理完一批，释放资源
                 if batch_idx < total_batches - 1:
-                    import gc
-                    gc.collect()  # 触发垃圾回收
-                    import time
-                    time.sleep(0.5)  # 短暂暂停，让系统有时间处理其他请求
+                    # 删除当前批次的大对象
+                    del batch_documents
+                    del current_batch_chunks
+                    
+                    # 触发垃圾回收
+                    gc.collect()
+                    
+                    # 仅在大量批次时短暂暂停，避免系统过载
+                    if total_batches > 10:
+                        import time
+                        time.sleep(0.1)
 
             # 计算向量化成功率
             vectorization_rate = success_count / len(chunks) if chunks else 0
@@ -267,9 +337,18 @@ class DocumentProcessor:
             if failed_chunks:
                 logger.warning(f"以下块向量化失败: {failed_chunks}")
 
-            # 6.5 更新进度 - 向量化完成（步骤6）
+            # 5. 保存分块到PostgreSQL（供实体识别使用）
+            if db and chunks:
+                try:
+                    self._save_chunks_to_db(db, document_id, knowledge_base_id, chunks)
+                    logger.info(f"分块已保存到PostgreSQL: {len(chunks)} 个")
+                except Exception as e:
+                    logger.error(f"保存分块到PostgreSQL失败: {e}")
+                    # 不影响主流程，继续执行
+
+            # 4. 更新进度 - 向量化完成（步骤4）
             processing_progress_service.update_progress(
-                doc_id_str, 6, "向量化完成",
+                doc_id_str, 4, "向量化完成",
                 f"向量化处理完成，成功率: {vectorization_rate:.2%}",
                 {
                     "vectorization_rate": vectorization_rate,
@@ -278,131 +357,55 @@ class DocumentProcessor:
                 }
             )
 
-            # 7. ✨ 知识图谱构建（步骤7）
-            processing_progress_service.update_progress(
-                doc_id_str, 7, "知识图谱构建",
-                "正在构建知识图谱...",
-                {}
-            )
-
-            graph_data = None
-            if db:
-                try:
-                    # 导入KnowledgeDocument模型
-                    from app.modules.knowledge.models.knowledge_document import KnowledgeDocument
-
-                    # 获取文档对象
-                    document = db.query(KnowledgeDocument).filter(KnowledgeDocument.id == document_id).first()
-                    if document:
-                        # 提取并存储实体关系（传递已提取的实体，避免重复提取）
-                        entity_result = self.knowledge_graph_service.extract_and_store_entities(
-                            db, document, entities, relationships
-                        )
-
-                        if entity_result.get("success"):
-                            # 构建知识图谱
-                            graph_data = self.knowledge_graph_service.build_document_graph(document_id, db)
-
-                            if "error" not in graph_data:
-                                logger.info(f"图谱化操作完成，构建了包含 {len(graph_data.get('nodes', []))} 个节点和 {len(graph_data.get('edges', []))} 条边的知识图谱")
-                            else:
-                                logger.warning(f"图谱构建失败: {graph_data.get('error')}")
-                        else:
-                            logger.warning(f"实体提取失败: {entity_result.get('error')}")
-                    else:
-                        logger.warning(f"未找到文档 {document_id}，跳过图谱化操作")
-
-                except Exception as graph_error:
-                    logger.error(f"图谱化操作失败: {graph_error}")
-                    # 图谱化失败不影响文档处理流程继续
-            else:
-                logger.info("未提供数据库连接，跳过图谱化操作")
-
             # 完成处理
+            # 注：实体识别、实体对齐、知识图谱构建已分离到独立服务
             result = {
                 "text": cleaned_text,
                 "chunks": chunks,
-                "entities": entities,
-                "relationships": relationships,
                 "vectors": vector_results,
                 "vectorization_rate": vectorization_rate,
                 "success_count": success_count,
                 "total_chunks": len(chunks),
                 "failed_chunks": failed_chunks,
-                "graph_data": graph_data,
                 "success": True
             }
 
             processing_progress_service.complete_processing(doc_id_str, success=True, result=result)
+            
+            # 主动释放内存：删除大对象变量
+            logger.info(f"文档 {document_id} 处理完成，开始释放内存...")
+            del raw_text
+            del cleaned_text
+            del chunks
+            del batch_documents
+            del vector_results
+            
+            # 触发垃圾回收
+            release_memory()
+            logger.info(f"文档 {document_id} 内存释放完成")
 
             return result
 
         except Exception as e:
             logger.error(f"文档处理失败: {e}")
             processing_progress_service.complete_processing(doc_id_str, success=False, result={"error": str(e)})
+            
+            # 即使处理失败也尝试释放内存
+            try:
+                if 'raw_text' in locals():
+                    del raw_text
+                if 'cleaned_text' in locals():
+                    del cleaned_text
+                if 'chunks' in locals():
+                    del chunks
+                release_memory()
+            except:
+                pass
+            
             return {
                 "success": False,
                 "error": str(e)
             }
-    
-    def _save_document_entities(self, db: Session, document_id: int, knowledge_base_id: int, 
-                                entities: List[Dict[str, Any]]) -> bool:
-        """
-        保存文档实体到数据库
-        
-        Args:
-            db: 数据库会话
-            document_id: 文档ID
-            knowledge_base_id: 知识库ID
-            entities: 实体列表
-            
-        Returns:
-            是否保存成功
-        """
-        try:
-            from app.modules.knowledge.models.knowledge_document import DocumentEntity
-            
-            saved_count = 0
-            for entity in entities:
-                try:
-                    # 检查是否已存在
-                    existing = db.query(DocumentEntity).filter(
-                        DocumentEntity.document_id == document_id,
-                        DocumentEntity.entity_text == entity.get('text', ''),
-                        DocumentEntity.entity_type == entity.get('type', '')
-                    ).first()
-                    
-                    if existing:
-                        # 更新现有实体
-                        existing.occurrences = existing.occurrences + 1 if existing.occurrences else 1
-                        existing.updated_at = datetime.now()
-                    else:
-                        # 创建新实体
-                        doc_entity = DocumentEntity(
-                            document_id=document_id,
-                            knowledge_base_id=knowledge_base_id,
-                            entity_text=entity.get('text', ''),
-                            entity_type=entity.get('type', ''),
-                            context=entity.get('context', ''),
-                            confidence=entity.get('confidence', 1.0),
-                            occurrences=1
-                        )
-                        db.add(doc_entity)
-                    
-                    saved_count += 1
-                    
-                except Exception as e:
-                    logger.error(f"保存实体失败 {entity.get('text', '')}: {e}")
-                    continue
-            
-            db.commit()
-            logger.info(f"保存了 {saved_count}/{len(entities)} 个文档实体")
-            return True
-            
-        except Exception as e:
-            logger.error(f"保存文档实体失败: {e}")
-            db.rollback()
-            return False
     
     def search_documents(self, query: str, n_results: int = 10, 
                         knowledge_base_id: Optional[int] = None, 
@@ -444,7 +447,70 @@ class DocumentProcessor:
     def calculate_similarity(self, text1: str, text2: str) -> float:
         """计算文本相似度"""
         return self.text_processor.calculate_similarity_sync(text1, text2)
-    
+
+    def _save_chunks_to_db(self, db: Session, document_id: int,
+                           knowledge_base_id: Optional[int], chunks: List[str]):
+        """保存分块到PostgreSQL数据库
+
+        供实体识别服务使用
+
+        Args:
+            db: 数据库会话
+            document_id: 文档ID
+            knowledge_base_id: 知识库ID
+            chunks: 分块文本列表
+        """
+        from app.modules.knowledge.models.knowledge_document import DocumentChunk
+
+        # 先删除旧的分块
+        db.query(DocumentChunk).filter(
+            DocumentChunk.document_id == document_id
+        ).delete(synchronize_session=False)
+
+        # 保存新的分块
+        total_chunks = len(chunks)
+        current_pos = 0
+        for idx, chunk_text in enumerate(chunks):
+            chunk_len = len(chunk_text)
+            chunk = DocumentChunk(
+                document_id=document_id,
+                chunk_text=chunk_text,
+                chunk_index=idx,
+                total_chunks=total_chunks,
+                chunk_metadata={
+                    "knowledge_base_id": knowledge_base_id,
+                    "vector_id": f"{document_id}_chunk_{idx}"
+                },
+                vector_id=f"{document_id}_chunk_{idx}"
+            )
+
+            # 设置数据库表必需的字段（使用 SQLAlchemy 的 ORM 属性设置）
+            # 这些字段在模型中未定义但在数据库表中存在
+            from sqlalchemy import text
+            db.execute(
+                text("""
+                    INSERT INTO document_chunks 
+                    (document_id, chunk_text, chunk_index, total_chunks, 
+                     start_pos, end_pos, vector_id, is_vectorized, created_at)
+                    VALUES 
+                    (:doc_id, :text, :idx, :total, 
+                     :start_pos, :end_pos, :vector_id, 0, CURRENT_TIMESTAMP)
+                """),
+                {
+                    "doc_id": document_id,
+                    "text": chunk_text,
+                    "idx": idx,
+                    "total": total_chunks,
+                    "start_pos": current_pos,
+                    "end_pos": current_pos + chunk_len,
+                    "vector_id": f"{document_id}_chunk_{idx}"
+                }
+            )
+            current_pos += chunk_len
+
+        db.commit()
+        logger.info(f"已保存 {total_chunks} 个分块到PostgreSQL (文档ID: {document_id})")
+
     def get_document_chunks(self, document_id: int) -> List[Dict[str, Any]]:
         """获取文档的分块信息"""
         try:
