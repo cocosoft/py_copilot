@@ -585,7 +585,10 @@ from app.api.v1.topic_title import router as topic_title_router
 from app.modules.conversation.api.conversations import router as conversations_router
 from app.api.v1.tools_api import router as tools_router
 from app.api.v1.function_calling_api import router as function_calling_router
-from app.api.v1.settings import router as settings_router
+
+# 注意：settings 路由已通过 api_router 注册，无需重复注册
+# settings 路由在 app/api/v1/__init__.py 中通过 ROUTE_GROUPS 配置自动加载
+
 app.include_router(categories_router, prefix="/api/v1", tags=["model_categories"])
 app.include_router(capability_router, prefix="/api/v1/capabilities", tags=["model_capabilities"])
 app.include_router(model_capabilities_router, prefix="/api/v1/model-capabilities", tags=["model_capabilities"])
@@ -597,7 +600,8 @@ app.include_router(topic_title_router, prefix="/api/v1", tags=["topic-title"])
 app.include_router(conversations_router, prefix="/api/v1/conversations", tags=["conversations"])
 app.include_router(tools_router, prefix="/api/v1", tags=["tools"])
 app.include_router(function_calling_router, prefix="/api/v1", tags=["function_calling"])
-app.include_router(settings_router, prefix="/api/v1/settings", tags=["settings"])
+
+# settings 路由已通过 api_router 自动加载，路径为 /api/v1/settings
 
 # 注册WebSocket路由
 from app.websocket.websocket_router import router as websocket_router

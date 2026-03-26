@@ -15,7 +15,6 @@ import { message } from '../../../components/UI/Message/Message';
 import EntityConfigModal from '../../../components/Knowledge/EntityConfigModal';
 import {
   listDocuments,
-  getDocumentEntitiesFromMaintenance,
   batchUpdateEntityStatus,
   updateEntityStatus,
   extractChunkEntities,
@@ -389,12 +388,13 @@ const EntityRecognition = () => {
       const allEntities = [];
       for (const doc of docs) {
         try {
-          const response = await getDocumentEntitiesFromMaintenance(doc.id, { pageSize: 1000 });
+          // 使用 getDocumentEntitiesNew 替代不存在的 getDocumentEntitiesFromMaintenance
+          const response = await getDocumentEntitiesNew(doc.id);
           if (response && Array.isArray(response.entities)) {
             const docEntities = response.entities.map((entity) => ({
               id: entity.id,  // 使用数据库中的真实ID
-              name: entity.text,
-              type: entity.type || 'concept',
+              name: entity.entity_text || entity.text,
+              type: entity.entity_type || entity.type || 'concept',
               description: '',
               documentId: doc.id,
               documentName: doc.title || '未命名文档',
@@ -902,7 +902,18 @@ const EntityRecognition = () => {
           for (const docId of selectedDocuments) {
             try {
               const result = await getDocumentEntitiesNew(docId);
-              docEntities.push(...(result.entities || []).map(e => ({ ...e, documentId: docId })));
+              docEntities.push(...(result.entities || []).map(e => ({
+                id: e.id,
+                name: e.entity_text || e.text,
+                type: e.entity_type || e.type || 'concept',
+                description: e.description || '',
+                documentId: docId,
+                documentName: e.document_name || '未命名文档',
+                confidence: e.confidence || 0.8,
+                status: e.status || 'pending',
+                occurrences: e.occurrence_count || 1,
+                source: 'database',
+              })));
             } catch (e) {
               console.warn(`获取文档 ${docId} 实体失败:`, e);
             }

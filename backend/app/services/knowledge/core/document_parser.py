@@ -8,10 +8,13 @@ import io
 import os
 import json
 import time
+import logging
 from pathlib import Path
 from typing import Optional, Dict, List, Any
 from dataclasses import dataclass
 from enum import Enum
+
+logger = logging.getLogger(__name__)
 
 
 class FileType(Enum):
@@ -26,6 +29,126 @@ class FileType(Enum):
     WPS_EXCEL = "wps_excel"
     WPS_POWERPOINT = "wps_powerpoint"
     UNKNOWN = "unknown"
+
+
+class EncodingDetector:
+    """智能编码检测器
+
+    修复P02：实现智能编码检测，优先检测BOM，然后使用chardet
+    """
+
+    @staticmethod
+    def detect_encoding(file_path: str) -> str:
+        """智能检测文件编码
+
+        检测顺序：
+        1. 检查BOM标记
+        2. 使用chardet检测
+        3. 尝试常见中文编码
+
+        Args:
+            file_path: 文件路径
+
+        Returns:
+            检测到的编码名称
+        """
+        # 1. 检查BOM标记
+        encoding = EncodingDetector._check_bom(file_path)
+        if encoding:
+            logger.info(f"通过BOM检测到编码: {encoding}")
+            return encoding
+
+        # 2. 使用chardet检测（如果可用）
+        try:
+            import chardet
+            with open(file_path, 'rb') as f:
+                raw_data = f.read()
+                result = chardet.detect(raw_data)
+                detected_encoding = result.get('encoding')
+                confidence = result.get('confidence', 0)
+
+                if detected_encoding and confidence > 0.7:
+                    # 标准化编码名称
+                    detected_encoding = detected_encoding.lower().replace('-', '_')
+                    if detected_encoding == 'gb2312':
+                        detected_encoding = 'gbk'  # GBK是GB2312的超集
+                    elif detected_encoding == 'ascii':
+                        detected_encoding = 'utf-8'  # ASCII是UTF-8的子集
+
+                    logger.info(f"通过chardet检测到编码: {detected_encoding} (置信度: {confidence:.2f})")
+                    return detected_encoding
+        except ImportError:
+            logger.debug("chardet未安装，跳过自动编码检测")
+        except Exception as e:
+            logger.warning(f"chardet检测失败: {e}")
+
+        # 3. 尝试常见中文编码
+        return EncodingDetector._try_common_encodings(file_path)
+
+    @staticmethod
+    def _check_bom(file_path: str) -> Optional[str]:
+        """检查文件BOM标记
+
+        Args:
+            file_path: 文件路径
+
+        Returns:
+            编码名称或None
+        """
+        try:
+            with open(file_path, 'rb') as f:
+                raw = f.read(4)
+
+                if raw.startswith(b'\xef\xbb\xbf'):
+                    return 'utf-8-sig'
+                elif raw.startswith(b'\xff\xfe\x00\x00'):
+                    return 'utf-32-le'
+                elif raw.startswith(b'\x00\x00\xfe\xff'):
+                    return 'utf-32-be'
+                elif raw.startswith(b'\xff\xfe'):
+                    return 'utf-16-le'
+                elif raw.startswith(b'\xfe\xff'):
+                    return 'utf-16-be'
+
+        except Exception as e:
+            logger.warning(f"BOM检查失败: {e}")
+
+        return None
+
+    @staticmethod
+    def _try_common_encodings(file_path: str) -> str:
+        """尝试常见编码
+
+        优先顺序：UTF-8 > GBK > GB18030 > Latin-1
+
+        Args:
+            file_path: 文件路径
+
+        Returns:
+            成功解码的编码名称
+        """
+        encodings = [
+            ('utf-8', 'UTF-8'),
+            ('gbk', 'GBK'),
+            ('gb18030', 'GB18030'),
+            ('gb2312', 'GB2312'),
+            ('latin-1', 'Latin-1')
+        ]
+
+        for encoding, name in encodings:
+            try:
+                with open(file_path, 'r', encoding=encoding) as f:
+                    f.read()
+                logger.info(f"通过尝试检测到编码: {name}")
+                return encoding
+            except UnicodeDecodeError:
+                continue
+            except Exception as e:
+                logger.warning(f"尝试编码 {name} 时出错: {e}")
+
+        # 默认返回GBK，使用replace模式
+        logger.warning("无法准确检测编码，默认使用GBK")
+        return 'gbk'
 
 
 class ParseStatus(Enum):
@@ -141,12 +264,50 @@ class DocumentParser:
             return f"OCR处理失败: {str(e)}"
     
     @staticmethod
+    def _parse_pdf_with_pymupdf(file_path: str) -> str:
+        """使用pymupdf (fitz) 解析PDF - 效果更好"""
+        try:
+            import fitz  # pymupdf
+            text = ""
+            doc = fitz.open(file_path)
+            
+            for page_num in range(len(doc)):
+                page = doc[page_num]
+                text += f"=== 第{page_num + 1}页 ===\n"
+                text += page.get_text()
+                text += "\n\n"
+            
+            doc.close()
+            return text
+        except ImportError:
+            logger.warning("pymupdf未安装，无法使用高级PDF解析")
+            raise
+        except Exception as e:
+            logger.warning(f"pymupdf解析失败: {e}")
+            raise
+
+    @staticmethod
     def parse_pdf(file_path: str, use_ocr: bool = False) -> str:
-        """解析PDF文档"""
+        """解析PDF文档
+        
+        修复：优先使用pymupdf (fitz) 解析，效果比PyPDF2更好
+        如果pymupdf不可用或失败，回退到PyPDF2
+        """
         start_time = time.time()
         
+        # 首先尝试使用pymupdf解析（效果更好）
         try:
-            # 首先尝试标准文本提取
+            text = DocumentParser._parse_pdf_with_pymupdf(file_path)
+            processing_time = time.time() - start_time
+            
+            if text.strip():
+                logger.info(f"使用pymupdf成功解析PDF，共{len(text)}字符，耗时{processing_time:.2f}秒")
+                return text
+        except Exception as e:
+            logger.warning(f"pymupdf解析失败，回退到PyPDF2: {e}")
+        
+        # 回退到PyPDF2
+        try:
             text = ""
             with open(file_path, 'rb') as file:
                 reader = PyPDF2.PdfReader(file)
@@ -178,6 +339,7 @@ class DocumentParser:
             if not text.strip():
                 return f"PDF解析完成，但未提取到文本内容。处理时间: {processing_time:.2f}秒"
             
+            logger.info(f"使用PyPDF2成功解析PDF，共{len(text)}字符，耗时{processing_time:.2f}秒")
             return text
             
         except Exception as e:
@@ -374,53 +536,43 @@ class DocumentParser:
     @staticmethod
     def parse_txt(file_path: str) -> str:
         """解析文本文件
-        
+
+        修复P02：使用智能编码检测，优先检测BOM，然后使用chardet
+
         支持多种编码格式，自动检测并处理编码错误：
-        1. 首先尝试UTF-8编码
-        2. 如果失败，尝试GBK编码
-        3. 如果仍然失败，使用GB18030编码（GBK的超集，支持更多字符）
-        4. 最后使用errors='replace'参数，将无法解码的字符替换为�
-        
+        1. 首先使用智能编码检测
+        2. 如果检测失败，使用errors='replace'参数，将无法解码的字符替换为�
+
         Args:
             file_path: 文本文件路径
-            
+
         Returns:
             文件内容字符串
-            
+
         Raises:
             ValueError: 当所有编码方式都失败时抛出
         """
-        encodings = ['utf-8', 'gbk', 'gb18030', 'gb2312', 'latin-1']
-        
-        # 首先尝试正常解码
-        for encoding in encodings:
-            try:
-                with open(file_path, 'r', encoding=encoding) as file:
-                    return file.read()
-            except UnicodeDecodeError:
-                continue
-            except Exception as e:
-                raise ValueError(f"文本文件解析失败: {str(e)}")
-        
-        # 如果所有编码都失败，使用errors='replace'模式
-        # 这样可以将无法解码的字符替换为�，而不是抛出异常
+        # 使用智能编码检测
+        detected_encoding = EncodingDetector.detect_encoding(file_path)
+
         try:
-            # 优先尝试GBK + replace（因为中文文本通常是GBK编码）
-            with open(file_path, 'r', encoding='gbk', errors='replace') as file:
+            with open(file_path, 'r', encoding=detected_encoding) as file:
                 content = file.read()
-                # 记录警告日志
-                import logging
-                logger = logging.getLogger(__name__)
+                logger.info(f"成功使用 {detected_encoding} 编码解析文件: {os.path.basename(file_path)}")
+                return content
+        except UnicodeDecodeError:
+            # 如果检测的编码失败，使用replace模式
+            logger.warning(f"编码 {detected_encoding} 解码失败，使用replace模式")
+            with open(file_path, 'r', encoding=detected_encoding, errors='replace') as file:
+                content = file.read()
                 logger.warning(f"文件 {os.path.basename(file_path)} 包含无法解码的字符，已使用替换模式")
                 return content
         except Exception as e:
-            # 最后尝试UTF-8 + replace
+            # 最后尝试UTF-8 + replace作为兜底
             try:
                 with open(file_path, 'r', encoding='utf-8', errors='replace') as file:
                     content = file.read()
-                    import logging
-                    logger = logging.getLogger(__name__)
-                    logger.warning(f"文件 {os.path.basename(file_path)} 包含无法解码的字符，已使用替换模式")
+                    logger.warning(f"使用UTF-8替换模式解析文件: {os.path.basename(file_path)}")
                     return content
             except Exception as e2:
                 raise ValueError(f"文本文件解析失败: {str(e2)}")

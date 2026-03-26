@@ -111,7 +111,8 @@ ROUTE_GROUPS: Dict[str, List[Dict]] = {
     ],
     'settings': [
         {'module': 'app.api.v1.settings', 'prefix': '/settings', 'tags': ['settings']},
-        {'module': 'app.api.v1.config_management', 'tags': ['config-management']}
+        {'module': 'app.api.v1.config_management', 'tags': ['config-management']},
+        {'module': 'app.api.v1.vector_store_config', 'prefix': '/vector-store', 'tags': ['vector-store-config']}
     ],
     'mcp': [
         {'module': 'app.api.v1.mcp', 'prefix': '/mcp', 'tags': ['mcp']}

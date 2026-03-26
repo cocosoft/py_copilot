@@ -7,12 +7,15 @@
 @phase 基础架构重构
 """
 
+import logging
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from app.modules.knowledge.models.knowledge_document import (
     GlobalEntity, KBEntity, DocumentEntity,
     GlobalRelationship, KBRelationship, EntityRelationship
 )
+
+logger = logging.getLogger(__name__)
 
 
 class RelationshipDiscoveryService:
@@ -193,23 +196,144 @@ class RelationshipStorageService:
     def _store_document_relationship(self, entity: DocumentEntity, relationship: Dict[str, Any]) -> EntityRelationship:
         """
         存储文档级关系
+
+        修复E03：实现文档级关系存储逻辑
         """
-        # 实现文档级关系存储逻辑
-        pass
-    
+        try:
+            # 检查是否已存在相同关系
+            existing = self.db.query(EntityRelationship).filter(
+                EntityRelationship.source_document_entity_id == entity.id,
+                EntityRelationship.target_entity_text == relationship.get('target_text'),
+                EntityRelationship.relationship_type == relationship.get('relationship_type')
+            ).first()
+
+            if existing:
+                # 更新现有关系
+                existing.confidence = max(existing.confidence, relationship.get('confidence', 0.5))
+                existing.occurrence_count = (existing.occurrence_count or 0) + 1
+                self.db.commit()
+                return existing
+
+            # 创建新关系
+            new_rel = EntityRelationship(
+                source_document_entity_id=entity.id,
+                target_entity_text=relationship.get('target_text', ''),
+                relationship_type=relationship.get('relationship_type', 'related_to'),
+                confidence=relationship.get('confidence', 0.5),
+                occurrence_count=1,
+                source_text=relationship.get('source_text', ''),
+                target_text=relationship.get('target_text', '')
+            )
+
+            self.db.add(new_rel)
+            self.db.commit()
+            self.db.refresh(new_rel)
+
+            return new_rel
+
+        except Exception as e:
+            self.db.rollback()
+            logger.error(f"存储文档级关系失败: {e}")
+            return None
+
     def _store_kb_relationship(self, entity: KBEntity, relationship: Dict[str, Any]) -> KBRelationship:
         """
         存储知识库级关系
+
+        修复E03：实现知识库级关系存储逻辑
         """
-        # 实现知识库级关系存储逻辑
-        pass
-    
+        try:
+            target_kb_entity_id = relationship.get('target_kb_entity_id')
+            if not target_kb_entity_id:
+                return None
+
+            # 检查是否已存在相同关系
+            existing = self.db.query(KBRelationship).filter(
+                KBRelationship.source_kb_entity_id == entity.id,
+                KBRelationship.target_kb_entity_id == target_kb_entity_id,
+                KBRelationship.relationship_type == relationship.get('relationship_type')
+            ).first()
+
+            if existing:
+                # 更新现有关系
+                existing.aggregated_count = (existing.aggregated_count or 0) + 1
+                # 添加来源文档关系ID
+                source_rels = existing.source_relationships or []
+                if relationship.get('source_relationship_id') not in source_rels:
+                    source_rels.append(relationship.get('source_relationship_id'))
+                    existing.source_relationships = source_rels
+                self.db.commit()
+                return existing
+
+            # 创建新关系
+            new_rel = KBRelationship(
+                knowledge_base_id=entity.knowledge_base_id,
+                source_kb_entity_id=entity.id,
+                target_kb_entity_id=target_kb_entity_id,
+                relationship_type=relationship.get('relationship_type', 'related_to'),
+                aggregated_count=1,
+                source_relationships=[relationship.get('source_relationship_id')] if relationship.get('source_relationship_id') else []
+            )
+
+            self.db.add(new_rel)
+            self.db.commit()
+            self.db.refresh(new_rel)
+
+            return new_rel
+
+        except Exception as e:
+            self.db.rollback()
+            logger.error(f"存储知识库级关系失败: {e}")
+            return None
+
     def _store_global_relationship(self, entity: GlobalEntity, relationship: Dict[str, Any]) -> GlobalRelationship:
         """
         存储全局级关系
+
+        修复E03：实现全局级关系存储逻辑
         """
-        # 实现全局级关系存储逻辑
-        pass
+        try:
+            target_global_entity_id = relationship.get('target_global_entity_id')
+            if not target_global_entity_id:
+                return None
+
+            # 检查是否已存在相同关系
+            existing = self.db.query(GlobalRelationship).filter(
+                GlobalRelationship.source_global_entity_id == entity.id,
+                GlobalRelationship.target_global_entity_id == target_global_entity_id,
+                GlobalRelationship.relationship_type == relationship.get('relationship_type')
+            ).first()
+
+            if existing:
+                # 更新现有关系
+                existing.aggregated_count = (existing.aggregated_count or 0) + 1
+                # 添加来源知识库ID
+                source_kbs = existing.source_kbs or []
+                if relationship.get('source_kb_id') not in source_kbs:
+                    source_kbs.append(relationship.get('source_kb_id'))
+                    existing.source_kbs = source_kbs
+                self.db.commit()
+                return existing
+
+            # 创建新关系
+            new_rel = GlobalRelationship(
+                source_global_entity_id=entity.id,
+                target_global_entity_id=target_global_entity_id,
+                relationship_type=relationship.get('relationship_type', 'related_to'),
+                aggregated_count=1,
+                source_kbs=[relationship.get('source_kb_id')] if relationship.get('source_kb_id') else []
+            )
+
+            self.db.add(new_rel)
+            self.db.commit()
+            self.db.refresh(new_rel)
+
+            return new_rel
+
+        except Exception as e:
+            self.db.rollback()
+            logger.error(f"存储全局级关系失败: {e}")
+            return None
 
 
 class RelationshipWeightCalculator:

@@ -11,6 +11,36 @@ from app.services.knowledge.processing_progress_service import processing_progre
 logger = logging.getLogger(__name__)
 
 
+def estimate_tokens(text: str) -> int:
+    """
+    估算文本的token数量
+
+    修复K03：提供基于token的大小控制
+    使用字符数与token数的经验比例（中文约1:1.5，英文约1:0.75）
+    混合文本使用平均比例1:1.1
+
+    Args:
+        text: 输入文本
+
+    Returns:
+        估算的token数量
+    """
+    if not text:
+        return 0
+
+    # 统计中文字符数量
+    chinese_chars = len(re.findall(r'[\u4e00-\u9fff]', text))
+    # 统计英文单词数量（粗略估算）
+    english_words = len(re.findall(r'[a-zA-Z]+', text))
+    # 其他字符（数字、标点等）
+    other_chars = len(text) - chinese_chars - sum(len(w) for w in re.findall(r'[a-zA-Z]+', text))
+
+    # 中文字符约1.5 tokens/字，英文单词约1.3 tokens/词，其他字符约0.5 tokens/字符
+    estimated_tokens = int(chinese_chars * 1.5 + english_words * 1.3 + other_chars * 0.5)
+
+    return max(1, estimated_tokens)
+
+
 def release_memory():
     """主动释放内存，删除大对象并强制垃圾回收
     
@@ -48,25 +78,29 @@ class DocumentProcessor:
         from app.services.knowledge.core.advanced_text_processor import AdvancedTextProcessor
         self.text_processor = AdvancedTextProcessor()
 
-        # 使用现有的ChromaService
-        from app.services.knowledge.vectorization.chroma_service import ChromaService
-        self.chroma_service = ChromaService()
+        # 使用向量存储工厂获取存储实例（支持 SQLite 和 ChromaDB）
+        from app.services.knowledge.vectorization import VectorStoreFactory
+        self.vector_store = VectorStoreFactory.get_store()
 
         # 使用现有的检索服务
         from app.services.knowledge.retrieval.retrieval_service import RetrievalService
         self.retrieval_service = RetrievalService()
 
     def _simple_chunking(self, text: str, max_chunk_size: int = 1000,
-                         min_chunk_size: int = 200, overlap: int = 50) -> List[str]:
+                         min_chunk_size: int = 200, overlap: int = 50,
+                         use_token_based: bool = True) -> List[str]:
         """基于规则的简单分块方法（高性能版本）
 
         使用段落和句子边界进行分块，避免LLM调用，大幅提升处理速度。
 
+        修复K03：支持基于token的大小控制，提供更精确的分块大小管理
+
         Args:
             text: 输入文本
-            max_chunk_size: 最大块大小（字符数）
-            min_chunk_size: 最小块大小（字符数）
-            overlap: 块之间的重叠大小（字符数）
+            max_chunk_size: 最大块大小（字符数或token数，取决于use_token_based）
+            min_chunk_size: 最小块大小（字符数或token数，取决于use_token_based）
+            overlap: 块之间的重叠大小（字符数或token数，取决于use_token_based）
+            use_token_based: 是否使用基于token的大小控制，默认为True
 
         Returns:
             分块后的文本列表
@@ -74,8 +108,14 @@ class DocumentProcessor:
         if not text:
             return []
 
-        if len(text) <= max_chunk_size:
-            return [text]
+        # 修复K03：如果使用token-based控制，先估算总token数
+        if use_token_based:
+            total_tokens = estimate_tokens(text)
+            if total_tokens <= max_chunk_size:
+                return [text]
+        else:
+            if len(text) <= max_chunk_size:
+                return [text]
 
         chunks = []
 
@@ -84,10 +124,16 @@ class DocumentProcessor:
         paragraphs = [p.strip() for p in paragraphs if p.strip()]
 
         current_chunk = ""
-        current_size = 0
+        current_size = 0  # 根据use_token_based决定是字符数还是token数
 
         for paragraph in paragraphs:
-            para_size = len(paragraph)
+            # 修复K03：根据模式选择大小计算方式
+            if use_token_based:
+                para_size = estimate_tokens(paragraph)
+                overlap_size = estimate_tokens(current_chunk[-overlap * 2:]) if overlap > 0 and current_chunk else 0
+            else:
+                para_size = len(paragraph)
+                overlap_size = overlap
 
             # 如果当前段落本身就超过最大块大小，需要进一步分割
             if para_size > max_chunk_size:
@@ -96,8 +142,14 @@ class DocumentProcessor:
                     chunks.append(current_chunk.strip())
                     # 保留重叠部分
                     if overlap > 0 and len(current_chunk) > overlap:
-                        current_chunk = current_chunk[-overlap:]
-                        current_size = len(current_chunk)
+                        if use_token_based:
+                            # token-based模式：从末尾估算token数
+                            overlap_text = current_chunk[-overlap * 2:]  # 取两倍overlap字符数作为参考
+                            current_chunk = overlap_text
+                            current_size = estimate_tokens(overlap_text)
+                        else:
+                            current_chunk = current_chunk[-overlap:]
+                            current_size = len(current_chunk)
                     else:
                         current_chunk = ""
                         current_size = 0
@@ -107,7 +159,11 @@ class DocumentProcessor:
                 sentences = [s.strip() for s in sentences if s.strip()]
 
                 for sentence in sentences:
-                    sent_size = len(sentence)
+                    # 修复K03：根据模式选择大小计算方式
+                    if use_token_based:
+                        sent_size = estimate_tokens(sentence)
+                    else:
+                        sent_size = len(sentence)
 
                     if current_size + sent_size <= max_chunk_size:
                         current_chunk += " " + sentence if current_chunk else sentence
@@ -118,8 +174,13 @@ class DocumentProcessor:
                             chunks.append(current_chunk.strip())
                             # 保留重叠部分
                             if overlap > 0 and len(current_chunk) > overlap:
-                                current_chunk = current_chunk[-overlap:] + " " + sentence
-                                current_size = overlap + sent_size
+                                if use_token_based:
+                                    overlap_text = current_chunk[-overlap * 2:]
+                                    current_chunk = overlap_text + " " + sentence
+                                    current_size = estimate_tokens(overlap_text) + sent_size
+                                else:
+                                    current_chunk = current_chunk[-overlap:] + " " + sentence
+                                    current_size = overlap + sent_size
                             else:
                                 current_chunk = sentence
                                 current_size = sent_size
@@ -130,15 +191,20 @@ class DocumentProcessor:
                 # 正常段落处理
                 if current_size + para_size <= max_chunk_size:
                     current_chunk += "\n\n" + paragraph if current_chunk else paragraph
-                    current_size += para_size + 2  # +2 for \n\n
+                    current_size += para_size + (2 if not use_token_based else estimate_tokens("\n\n"))
                 else:
                     # 保存当前块
                     if current_chunk and current_size >= min_chunk_size:
                         chunks.append(current_chunk.strip())
                         # 保留重叠部分
                         if overlap > 0 and len(current_chunk) > overlap:
-                            current_chunk = current_chunk[-overlap:] + "\n\n" + paragraph
-                            current_size = overlap + para_size + 2
+                            if use_token_based:
+                                overlap_text = current_chunk[-overlap * 2:]
+                                current_chunk = overlap_text + "\n\n" + paragraph
+                                current_size = estimate_tokens(overlap_text) + para_size + estimate_tokens("\n\n")
+                            else:
+                                current_chunk = current_chunk[-overlap:] + "\n\n" + paragraph
+                                current_size = overlap + para_size + 2
                         else:
                             current_chunk = paragraph
                             current_size = para_size
@@ -150,7 +216,16 @@ class DocumentProcessor:
         if current_chunk:
             chunks.append(current_chunk.strip())
 
-        logger.info(f"基于规则的分块完成，生成 {len(chunks)} 个块")
+        # 修复K03：记录分块统计信息
+        if use_token_based:
+            chunk_tokens = [estimate_tokens(chunk) for chunk in chunks]
+            avg_tokens = sum(chunk_tokens) / len(chunk_tokens) if chunk_tokens else 0
+            logger.info(f"基于规则的token-aware分块完成，生成 {len(chunks)} 个块，"
+                       f"平均token数: {avg_tokens:.1f}，范围: [{min(chunk_tokens) if chunk_tokens else 0}, "
+                       f"{max(chunk_tokens) if chunk_tokens else 0}]")
+        else:
+            logger.info(f"基于规则的字符分块完成，生成 {len(chunks)} 个块")
+
         return chunks
 
     def process_document(self, file_path: str, file_type: str, document_id: int,
@@ -263,7 +338,7 @@ class DocumentProcessor:
 
                 # 批量添加当前批次到向量数据库
                 logger.info(f"处理批次 {batch_idx + 1}/{total_batches}: {len(batch_documents)} 个块")
-                batch_result = self.chroma_service.add_documents_batch(batch_documents)
+                batch_result = self.vector_store.add_documents_batch(batch_documents)
 
                 if batch_result.get("success"):
                     batch_success = batch_result.get("count", 0)
@@ -283,7 +358,7 @@ class DocumentProcessor:
                         })
                 else:
                     # 批量失败，回退到逐个处理当前批次
-                    logger.warning(f"批次 {batch_idx + 1} 批量处理失败: {batch_result.get('error')}, 回退到逐个处理")
+                    logger.warning(f"批次 {batch_idx + 1} 批量处理失败: {batch_result.get('message')}, 回退到逐个处理")
                     for i, chunk in enumerate(current_batch_chunks):
                         global_idx = start_idx + i
                         chunk_id = f"{document_id}_chunk_{global_idx}"
@@ -292,11 +367,12 @@ class DocumentProcessor:
                             "knowledge_base_id": knowledge_base_id,
                             "chunk_index": global_idx,
                             "total_chunks": total_chunks,
-                            "title": f"文档 {document_id} 第 {global_idx + 1} 块"
+                            "title": f"文档 {document_id} 第 {global_idx + 1} 块",
+                            "chunk_id": chunk_id
                         }
 
                         try:
-                            self.chroma_service.add_document(chunk_id, chunk, metadata)
+                            self.vector_store.add_document(chunk_id, chunk, metadata)
                             success_count += 1
                             vector_results.append({
                                 "chunk_id": chunk_id,
@@ -420,16 +496,16 @@ class DocumentProcessor:
             if filters:
                 where_filter.update(filters)
             
-            # 使用ChromaService进行向量搜索
-            results = self.chroma_service.search_similar(query, n_results, where_filter)
+            # 使用向量存储进行搜索
+            results = self.vector_store.search(query, n_results, where_filter)
             
             # 处理搜索结果
             processed_results = []
             for result in results:
                 processed_results.append({
-                    "id": result.get("id", ""),
+                    "id": result.get("document_id", ""),
                     "title": result.get("metadata", {}).get("title", ""),
-                    "content": result.get("document", ""),
+                    "content": result.get("text", ""),
                     "score": result.get("score", 0.0),
                     "metadata": result.get("metadata", {})
                 })
@@ -514,18 +590,15 @@ class DocumentProcessor:
     def get_document_chunks(self, document_id: int) -> List[Dict[str, Any]]:
         """获取文档的分块信息"""
         try:
-            # 构建查询条件
-            where_filter = {"document_id": document_id}
-            
-            # 从向量数据库获取文档块
-            results = self.chroma_service.get_documents_by_filter(where_filter)
+            # 从向量存储获取文档
+            doc = self.vector_store.get_document(str(document_id))
             
             chunks = []
-            for result in results:
+            if doc:
                 chunks.append({
-                    "chunk_id": result.get("id", ""),
-                    "content": result.get("document", ""),
-                    "metadata": result.get("metadata", {})
+                    "chunk_id": doc.get("chunk_id", ""),
+                    "content": doc.get("text", ""),
+                    "metadata": doc.get("metadata", {})
                 })
             
             # 按块索引排序
@@ -540,28 +613,35 @@ class DocumentProcessor:
     def delete_document_vectors(self, document_id: int) -> bool:
         """删除文档的向量数据"""
         try:
-            # 构建查询条件
-            where_filter = {"document_id": document_id}
+            # 从向量存储删除文档
+            success = self.vector_store.delete_document(str(document_id))
             
-            # 从向量数据库删除文档块
-            deleted_count = self.chroma_service.delete_documents_by_metadata(where_filter)
-            
-            logger.info(f"成功删除文档 {document_id} 的 {deleted_count} 个向量片段")
-            return True
+            if success:
+                logger.info(f"成功删除文档 {document_id} 的向量数据")
+            return success
             
         except Exception as e:
             logger.error(f"删除文档向量数据失败: {e}")
             return False
     
-    def update_document_vectors(self, document_id: int, new_content: str) -> Dict[str, Any]:
-        """更新文档的向量数据"""
+    def update_document_vectors(self, document_id: int, new_content: str, use_llm_chunking: bool = False) -> Dict[str, Any]:
+        """更新文档的向量数据
+
+        Args:
+            document_id: 文档ID
+            new_content: 新文档内容
+            use_llm_chunking: 是否使用LLM语义分块（默认False，使用高性能规则分块）
+        """
         try:
             # 1. 删除旧的向量数据
             self.delete_document_vectors(document_id)
-            
+
             # 2. 重新处理文档内容
-            # 智能分块
-            chunks = self.text_processor.semantic_chunking_sync(new_content)
+            # 智能分块 - 默认使用高性能规则分块，避免LLM调用
+            if use_llm_chunking:
+                chunks = self.text_processor.semantic_chunking_sync(new_content)
+            else:
+                chunks = self._simple_chunking(new_content, max_chunk_size=1000, min_chunk_size=200, overlap=50)
             
             # 3. 重新向量化（带验证）
             vector_results = []
@@ -578,11 +658,10 @@ class DocumentProcessor:
                 }
                 
                 try:
-                    # 添加到向量数据库
-                    self.chroma_service.add_document(chunk_id, chunk, metadata)
+                    # 添加到向量存储
+                    result = self.vector_store.add_document(chunk_id, chunk, metadata)
                     
-                    # 验证是否成功写入
-                    if self.chroma_service.verify_document_exists(chunk_id):
+                    if result.get("success"):
                         success_count += 1
                         vector_results.append({
                             "chunk_id": chunk_id,
@@ -591,7 +670,7 @@ class DocumentProcessor:
                             "status": "success"
                         })
                     else:
-                        failed_chunks.append({"index": i, "chunk_id": chunk_id, "reason": "验证失败"})
+                        failed_chunks.append({"index": i, "chunk_id": chunk_id, "reason": result.get("message", "添加失败")})
                         vector_results.append({
                             "chunk_id": chunk_id,
                             "chunk_index": i,
@@ -630,18 +709,34 @@ class DocumentProcessor:
                 "error": str(e)
             }
     
-    def process_document_text(self, text: str) -> List[str]:
-        """处理纯文本文档，返回分块结果"""
+    def process_document_text(self, text: str, use_llm_chunking: bool = False) -> List[str]:
+        """处理纯文本文档，返回分块结果
+
+        Args:
+            text: 输入文本
+            use_llm_chunking: 是否使用LLM语义分块（默认False，使用高性能规则分块）
+
+        Returns:
+            分块后的文本列表
+        """
         try:
             # 文本预处理与清理
             cleaned_text = self.text_processor.clean_text(text)
-            
-            # 智能分块
-            chunks = self.text_processor.semantic_chunking(cleaned_text)
-            
+
+            # 智能分块 - 默认使用高性能规则分块，避免LLM调用
+            if use_llm_chunking:
+                import asyncio
+                try:
+                    loop = asyncio.get_event_loop()
+                    chunks = loop.run_until_complete(self.text_processor.semantic_chunking(cleaned_text))
+                except RuntimeError:
+                    chunks = asyncio.run(self.text_processor.semantic_chunking(cleaned_text))
+            else:
+                chunks = self._simple_chunking(cleaned_text, max_chunk_size=1000, min_chunk_size=200, overlap=50)
+
             logger.info(f"文档文本处理完成，共 {len(chunks)} 个块")
             return chunks
-            
+
         except Exception as e:
             logger.error(f"文档文本处理失败: {e}")
             return []

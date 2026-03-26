@@ -32,22 +32,25 @@ class ChunkEntityTaskService:
     def create_task(self, document_id: int, max_workers: int = 4) -> str:
         """
         创建新的实体提取任务
-        
+
         Args:
             document_id: 文档ID
             max_workers: 并行工作线程数
-            
+
         Returns:
             任务ID
         """
         task_id = str(uuid.uuid4())
-        
+
         # 获取文档信息
         chunks = self.db.query(DocumentChunk).filter(
             DocumentChunk.document_id == document_id
         ).all()
-        
+
         total_chunks = len(chunks)
+
+        # 更新文档状态为处理中
+        self._update_document_status(document_id, "processing")
         
         task = {
             "task_id": task_id,
@@ -207,6 +210,13 @@ class ChunkEntityTaskService:
 
             logger.info(f"任务完成: {task_id}, 成功: {completed}, 失败: {failed}, 实体数: {total_entities}")
 
+            # 更新文档状态为实体已提取
+            try:
+                self._update_document_status(document_id, "entity_extracted", db)
+                logger.info(f"文档 {document_id} 状态已更新为 entity_extracted")
+            except Exception as e:
+                logger.error(f"更新文档状态失败: {e}", exc_info=True)
+
         except Exception as e:
             db.rollback()
             logger.error(f"任务处理失败: {task_id}, 错误: {e}")
@@ -214,6 +224,13 @@ class ChunkEntityTaskService:
             task["error"] = str(e)
             task["message"] = f"处理失败: {str(e)}"
             task["updated_at"] = datetime.now().isoformat()
+
+            # 更新文档状态为失败
+            try:
+                self._update_document_status(document_id, "entity_extraction_failed", db)
+                logger.info(f"文档 {document_id} 状态已更新为 entity_extraction_failed")
+            except Exception as update_e:
+                logger.error(f"更新文档失败状态失败: {update_e}", exc_info=True)
         finally:
             db.close()
     
@@ -235,10 +252,10 @@ class ChunkEntityTaskService:
     def list_tasks(self, document_id: Optional[int] = None) -> List[Dict[str, Any]]:
         """
         列出任务
-        
+
         Args:
             document_id: 可选的文档ID过滤
-            
+
         Returns:
             任务列表
         """
@@ -247,3 +264,50 @@ class ChunkEntityTaskService:
             if document_id is None or task.get("document_id") == document_id:
                 tasks.append(task.copy())
         return sorted(tasks, key=lambda x: x.get("created_at", ""), reverse=True)
+
+    def _update_document_status(self, document_id: int, status: str, db: Session = None):
+        """
+        更新文档的处理状态
+
+        Args:
+            document_id: 文档ID
+            status: 新的状态值
+            db: 可选的数据库会话，如果不提供则使用 self.db
+        """
+        from sqlalchemy.orm.attributes import flag_modified
+
+        session = db or self.db
+        try:
+            from app.modules.knowledge.models.knowledge_document import KnowledgeDocument
+
+            logger.debug(f"正在更新文档 {document_id} 状态为 {status}")
+
+            document = session.query(KnowledgeDocument).filter(
+                KnowledgeDocument.id == document_id
+            ).first()
+
+            if document:
+                logger.debug(f"找到文档 {document_id}, 当前元数据: {document.document_metadata}")
+
+                # 创建新的元数据字典副本，确保 SQLAlchemy 能检测到变化
+                if document.document_metadata is None:
+                    new_metadata = {}
+                else:
+                    new_metadata = dict(document.document_metadata)
+
+                new_metadata["processing_status"] = status
+                new_metadata["last_status_update"] = datetime.now().isoformat()
+
+                # 赋值新的元数据
+                document.document_metadata = new_metadata
+
+                # 标记字段已修改
+                flag_modified(document, "document_metadata")
+
+                session.commit()
+                logger.info(f"文档 {document_id} 状态已更新为: {status}")
+            else:
+                logger.warning(f"更新文档状态时未找到文档: {document_id}")
+        except Exception as e:
+            session.rollback()
+            logger.error(f"更新文档 {document_id} 状态失败: {e}", exc_info=True)

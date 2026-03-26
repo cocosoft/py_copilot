@@ -12,15 +12,17 @@ from collections import defaultdict
 import logging
 from dataclasses import dataclass
 
+# 先创建logger
+logger = logging.getLogger(__name__)
+
 # 可选导入torch
 try:
     import torch
     TORCH_AVAILABLE = True
-except ImportError:
+except Exception as e:
     TORCH_AVAILABLE = False
     torch = None
-
-logger = logging.getLogger(__name__)
+    logger.warning(f"torch导入失败，BERT实体对齐功能将不可用: {e}")
 
 
 @dataclass

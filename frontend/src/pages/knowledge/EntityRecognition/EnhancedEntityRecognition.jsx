@@ -32,7 +32,7 @@ import {
   getKnowledgeBaseEntities,
   batchUpdateEntityStatus,
   updateEntityStatus,
-  getDocumentEntitiesFromMaintenance
+  getDocumentEntitiesNew
 } from '../../../utils/api/knowledgeApi';
 import defaultModelApi from '../../../utils/api/defaultModelApi';
 import './enhanced-styles.css';
@@ -135,15 +135,25 @@ const EnhancedEntityRecognition = () => {
    */
   const fetchEntities = useCallback(async () => {
     if (!currentKnowledgeBase || !selectedDocument) return;
-    
+
     setLoading(true);
     try {
       // 调用真实 API 获取实体
-      const entityData = await getDocumentEntitiesFromMaintenance(
-        currentKnowledgeBase.id,
-        selectedDocument.id
-      );
-      setEntities(entityData);
+      // 使用 getDocumentEntitiesNew 替代不存在的 getDocumentEntitiesFromMaintenance
+      const entityData = await getDocumentEntitiesNew(selectedDocument.id);
+      // 将后端返回的字段映射为前端需要的格式
+      const mappedEntities = (entityData.entities || []).map(e => ({
+        id: e.id,
+        name: e.entity_text || e.text,
+        type: e.entity_type || e.type || 'concept',
+        status: e.status || 'pending',
+        confidence: e.confidence || 0.8,
+        context: e.context || '',
+        document_id: e.document_id,
+        start_pos: e.start_pos,
+        end_pos: e.end_pos,
+      }));
+      setEntities(mappedEntities);
     } catch (error) {
       message.error({ content: `获取实体列表失败: ${error.message}` });
     } finally {

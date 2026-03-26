@@ -734,6 +734,10 @@ class LLMEntityExtractor:
                     return []
 
             entities = result.get('entities', [])
+
+            # 修复：校准实体位置信息
+            entities = self._calibrate_entity_positions(text, entities)
+
             for entity in entities:
                 entity['source'] = 'llm'
 
@@ -742,6 +746,65 @@ class LLMEntityExtractor:
         except Exception as e:
             logger.error(f"[LLMExtractor] 单片段实体提取失败: {e}")
             return []
+
+    def _calibrate_entity_positions(self, text: str, entities: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """校准实体位置信息
+
+        修复：LLM返回的位置信息可能不准确，使用字符串查找进行校准
+
+        Args:
+            text: 原始文本
+            entities: 实体列表
+
+        Returns:
+            位置校准后的实体列表
+        """
+        calibrated = []
+
+        for entity in entities:
+            entity_text = entity.get('text', '').strip()
+            if not entity_text:
+                continue
+
+            # 在文本中查找实体位置
+            start_pos = text.find(entity_text)
+
+            if start_pos != -1:
+                # 找到精确匹配
+                entity['start_pos'] = start_pos
+                entity['end_pos'] = start_pos + len(entity_text)
+            else:
+                # 尝试模糊匹配（去除空格等）
+                normalized_text = text.replace(' ', '').replace('\n', '').replace('\t', '')
+                normalized_entity = entity_text.replace(' ', '').replace('\n', '').replace('\t', '')
+
+                norm_start = normalized_text.find(normalized_entity)
+                if norm_start != -1:
+                    # 将归一化位置映射回原始文本
+                    # 这是一个近似值
+                    orig_start = entity.get('start_pos', 0)
+                    orig_end = entity.get('end_pos', orig_start + len(entity_text))
+
+                    # 如果LLM返回的位置在文本范围内，保留原位置
+                    if 0 <= orig_start < len(text) and orig_end <= len(text):
+                        entity['start_pos'] = orig_start
+                        entity['end_pos'] = orig_end
+                    else:
+                        # 位置超出范围，设为0
+                        entity['start_pos'] = 0
+                        entity['end_pos'] = min(len(entity_text), len(text))
+                else:
+                    # 完全找不到，使用LLM返回的位置或设为0
+                    orig_start = entity.get('start_pos', 0)
+                    orig_end = entity.get('end_pos', orig_start + len(entity_text))
+
+                    if orig_start >= len(text):
+                        entity['start_pos'] = 0
+                        entity['end_pos'] = min(len(entity_text), len(text))
+
+            calibrated.append(entity)
+
+        return calibrated
     
     def _merge_and_deduplicate_entities(self, entities: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """

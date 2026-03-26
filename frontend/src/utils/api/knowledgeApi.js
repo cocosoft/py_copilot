@@ -66,6 +66,239 @@ export const uploadDocument = async (file, knowledgeBaseId) => {
     return response;
 };
 
+// 大文件分块上传常量
+const CHUNK_SIZE = 5 * 1024 * 1024; // 每块5MB
+const LARGE_FILE_THRESHOLD = 50 * 1024 * 1024; // 50MB以上使用分块上传
+
+/**
+ * 计算文件哈希值（MD5）
+ *
+ * @param {File} file - 文件对象
+ * @returns {Promise<string>} MD5哈希值
+ */
+export const calculateFileHash = async (file) => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const arrayBuffer = e.target.result;
+            // 使用简单的哈希方法（实际项目建议使用spark-md5库）
+            const hashArray = new Uint8Array(arrayBuffer);
+            let hash = 0;
+            for (let i = 0; i < hashArray.length; i++) {
+                const char = hashArray[i];
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            resolve(Math.abs(hash).toString(16));
+        };
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+    });
+};
+
+/**
+ * 上传文档分块
+ *
+ * @param {Object} chunkData - 分块数据
+ * @param {string} chunkData.uploadId - 上传任务ID
+ * @param {number} chunkData.chunkIndex - 当前块索引
+ * @param {number} chunkData.totalChunks - 总块数
+ * @param {string} chunkData.fileHash - 文件哈希
+ * @param {string} chunkData.filename - 文件名
+ * @param {number} chunkData.knowledgeBaseId - 知识库ID
+ * @param {File} chunkData.file - 当前块文件
+ * @returns {Promise<Object>} 上传结果
+ */
+export const uploadDocumentChunk = async (chunkData) => {
+    const formData = new FormData();
+    formData.append('file', chunkData.file);
+
+    const response = await request('/v1/knowledge/documents/upload-chunk', {
+        method: 'POST',
+        params: {
+            upload_id: chunkData.uploadId,
+            chunk_index: chunkData.chunkIndex,
+            total_chunks: chunkData.totalChunks,
+            file_hash: chunkData.fileHash,
+            filename: chunkData.filename,
+            knowledge_base_id: chunkData.knowledgeBaseId
+        },
+        body: formData,
+        timeout: 60000 // 每块1分钟超时
+    });
+
+    return response;
+};
+
+/**
+ * 合并上传的分块
+ *
+ * @param {Object} mergeData - 合并数据
+ * @param {string} mergeData.uploadId - 上传任务ID
+ * @param {string} mergeData.filename - 文件名
+ * @param {number} mergeData.knowledgeBaseId - 知识库ID
+ * @param {string} mergeData.fileHash - 文件哈希
+ * @param {number} mergeData.totalChunks - 总块数
+ * @param {string} mergeData.contentType - 文件MIME类型
+ * @param {number} mergeData.fileSize - 文件大小
+ * @returns {Promise<Object>} 合并结果
+ */
+export const mergeDocumentChunks = async (mergeData) => {
+    const response = await request('/v1/knowledge/documents/merge-chunks', {
+        method: 'POST',
+        data: mergeData,
+        timeout: 300000 // 合并操作最多5分钟
+    });
+
+    return response;
+};
+
+/**
+ * 获取分块上传状态
+ *
+ * @param {string} uploadId - 上传任务ID
+ * @returns {Promise<Object>} 上传状态
+ */
+export const getUploadStatus = async (uploadId) => {
+    const response = await request(`/v1/knowledge/documents/upload-status/${uploadId}`, {
+        method: 'GET'
+    });
+
+    return response;
+};
+
+/**
+ * 生成UUID
+ *
+ * @returns {string} UUID字符串
+ */
+const generateUUID = () => {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+};
+
+/**
+ * 分块文件
+ *
+ * @param {File} file - 文件对象
+ * @param {number} chunkSize - 块大小（字节）
+ * @returns {Array<{file: Blob, start: number, end: number, index: number}>} 分块信息
+ */
+const splitFileIntoChunks = (file, chunkSize) => {
+    const chunks = [];
+    let start = 0;
+    let index = 0;
+
+    while (start < file.size) {
+        const end = Math.min(start + chunkSize, file.size);
+        chunks.push({
+            file: file.slice(start, end),
+            start,
+            end,
+            index
+        });
+        start = end;
+        index++;
+    }
+
+    return chunks;
+};
+
+/**
+ * 大文件上传（自动选择分块或普通模式）
+ *
+ * @param {File} file - 文件对象
+ * @param {number} knowledgeBaseId - 知识库ID
+ * @param {Function} onProgress - 进度回调 (progress: number, message: string) => void
+ * @returns {Promise<Object>} 上传结果
+ */
+export const uploadLargeDocument = async (file, knowledgeBaseId, onProgress = null) => {
+    // 根据文件大小选择上传方式
+    if (file.size > LARGE_FILE_THRESHOLD) {
+        // 使用分块上传
+        return await uploadChunkedDocument(file, knowledgeBaseId, onProgress);
+    } else {
+        // 使用普通上传
+        if (onProgress) onProgress(0, '开始上传...');
+        const result = await uploadDocument(file, knowledgeBaseId);
+        if (onProgress) onProgress(100, '上传完成');
+        return result;
+    }
+};
+
+/**
+ * 分块上传文档
+ *
+ * @param {File} file - 文件对象
+ * @param {number} knowledgeBaseId - 知识库ID
+ * @param {Function} onProgress - 进度回调 (progress: number, message: string) => void
+ * @returns {Promise<Object>} 上传结果
+ */
+export const uploadChunkedDocument = async (file, knowledgeBaseId, onProgress = null) => {
+    const uploadId = generateUUID();
+    const fileHash = await calculateFileHash(file);
+    const chunks = splitFileIntoChunks(file, CHUNK_SIZE);
+    const totalChunks = chunks.length;
+
+    if (onProgress) {
+        onProgress(0, `开始分块上传，共 ${totalChunks} 个块...`);
+    }
+
+    // 上传每个块
+    for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+
+        if (onProgress) {
+            const progress = Math.round((i / totalChunks) * 90); // 预留10%给合并操作
+            onProgress(progress, `上传中... 第 ${i + 1}/${totalChunks} 块`);
+        }
+
+        try {
+            await uploadDocumentChunk({
+                uploadId,
+                chunkIndex: i,
+                totalChunks,
+                fileHash,
+                filename: file.name,
+                knowledgeBaseId,
+                file: chunk.file
+            });
+        } catch (error) {
+            console.error(`分块 ${i} 上传失败:`, error);
+            throw new Error(`分块 ${i + 1} 上传失败: ${error.message}`);
+        }
+    }
+
+    // 合并分块
+    if (onProgress) {
+        onProgress(95, '正在合并文件...');
+    }
+
+    try {
+        const mergeResult = await mergeDocumentChunks({
+            uploadId,
+            filename: file.name,
+            knowledgeBaseId,
+            fileHash,
+            totalChunks,
+            contentType: file.type,
+            fileSize: file.size
+        });
+
+        if (onProgress) {
+            onProgress(100, '上传完成');
+        }
+
+        return mergeResult;
+    } catch (error) {
+        console.error('合并分块失败:', error);
+        throw new Error(`合并文件失败: ${error.message}`);
+    }
+};
+
 export const searchDocuments = async (query, limit = 10, knowledgeBaseId = null, sortBy = 'relevance', sortOrder = 'desc', fileTypes = [], startDate = null, endDate = null) => {
     const response = await request('/v1/knowledge/search', {
         method: 'GET',
@@ -178,10 +411,15 @@ export const processDocument = async (documentId) => {
     return response;
 };
 
-export const batchProcessDocuments = async (documentIds) => {
-    const response = await request('/v1/knowledge/documents/batch-process', {
-        method: 'POST',
-        data: { document_ids: documentIds }
+/**
+ * 批量处理知识库中的文档
+ *
+ * @param {number} knowledgeBaseId - 知识库ID
+ * @returns {Promise<Object>} 批量处理结果
+ */
+export const batchProcessDocuments = async (knowledgeBaseId) => {
+    const response = await request(`/v1/knowledge/knowledge-bases/${knowledgeBaseId}/batch-process`, {
+        method: 'POST'
     });
     return response;
 };
@@ -1140,19 +1378,6 @@ export const alignKnowledgeBaseEntities = async (knowledgeBaseId, useBert = fals
   const response = await request(`/v1/knowledge/knowledge-bases/${knowledgeBaseId}/align-entities`, {
     method: 'POST',
     params: { use_bert: useBert }
-  });
-  return response;
-};
-
-/**
- * 从维护表获取文档实体
- *
- * @param {number} documentId - 文档ID
- * @returns {Promise<Object>} 实体列表
- */
-export const getDocumentEntitiesFromMaintenance = async (documentId) => {
-  const response = await request(`/v1/knowledge/documents/${documentId}/entities-from-maintenance`, {
-    method: 'GET'
   });
   return response;
 };

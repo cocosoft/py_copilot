@@ -15,9 +15,14 @@ logger = logging.getLogger(__name__)
 
 class DocumentProcessingService:
     """文档处理流程管理服务
-    
+
     统一管理文档处理的完整流程，包括：
     1. 向量化（文档解析、分块、向量化）
+    2. 片段级实体识别
+    3. 文档级实体聚合
+    4. 知识库级实体对齐（修复E01：启用GlobalEntity）
+    5. 全局级实体链接（修复E01：启用GlobalEntity）
+    6. 知识图谱构建
     2. 片段级实体识别
     3. 文档级实体聚合
     4. 知识库级实体对齐
@@ -35,27 +40,32 @@ class DocumentProcessingService:
     def get_document_status(self, document_id: int) -> Dict[str, Any]:
         """
         获取文档的处理状态
-        
+
+        修复E14：增强状态展示，添加实体确认状态统计
+
         Args:
             document_id: 文档ID
-            
+
         Returns:
             包含处理状态的字典
         """
         document = self.db.query(KnowledgeDocument).filter(
             KnowledgeDocument.id == document_id
         ).first()
-        
+
         if not document:
             return {
                 "document_id": document_id,
                 "status": "not_found",
                 "message": "文档不存在"
             }
-        
+
         metadata = document.document_metadata or {}
         processing_status = metadata.get('processing_status', DocumentProcessingStatus.IDLE.value)
-        
+
+        # 修复E14：获取实体确认状态统计
+        entity_confirmation_stats = self._get_entity_confirmation_stats(document_id)
+
         # 构建详细状态信息
         status_info = {
             "document_id": document_id,
@@ -100,10 +110,72 @@ class DocumentProcessingService:
                 "graph_nodes": metadata.get('graph_nodes', 0),
                 "graph_edges": metadata.get('graph_edges', 0)
             },
+            # 修复E14：添加实体确认状态展示
+            "entity_confirmation": entity_confirmation_stats,
             "timestamps": metadata.get('processing_timestamps', {})
         }
-        
+
         return status_info
+
+    def _get_entity_confirmation_stats(self, document_id: int) -> Dict[str, Any]:
+        """
+        获取文档的实体确认状态统计
+
+        修复E14：支持前端展示实体确认工作流状态
+
+        Args:
+            document_id: 文档ID
+
+        Returns:
+            实体确认状态统计信息
+        """
+        try:
+            from sqlalchemy import func
+            from app.modules.knowledge.models.knowledge_document import DocumentEntity
+
+            # 查询该文档的实体统计
+            status_counts = self.db.query(
+                DocumentEntity.status,
+                func.count(DocumentEntity.id)
+            ).filter(
+                DocumentEntity.document_id == document_id
+            ).group_by(DocumentEntity.status).all()
+
+            # 构建统计结果
+            status_distribution = {status: count for status, count in status_counts}
+            total = sum(status_distribution.values())
+
+            pending_count = status_distribution.get('pending', 0)
+            confirmed_count = status_distribution.get('confirmed', 0)
+            rejected_count = status_distribution.get('rejected', 0)
+            modified_count = status_distribution.get('modified', 0)
+
+            # 计算确认率
+            confirmed_rate = (confirmed_count / total * 100) if total > 0 else 0
+
+            return {
+                "total_entities": total,
+                "pending_count": pending_count,
+                "confirmed_count": confirmed_count,
+                "rejected_count": rejected_count,
+                "modified_count": modified_count,
+                "confirmation_rate": round(confirmed_rate, 2),
+                "status_distribution": status_distribution,
+                "needs_confirmation": pending_count > 0
+            }
+        except Exception as e:
+            logger.warning(f"获取实体确认统计失败: {e}")
+            return {
+                "total_entities": 0,
+                "pending_count": 0,
+                "confirmed_count": 0,
+                "rejected_count": 0,
+                "modified_count": 0,
+                "confirmation_rate": 0.0,
+                "status_distribution": {},
+                "needs_confirmation": False,
+                "error": str(e)
+            }
     
     def validate_preconditions(self, document_id: int, target_stage: str) -> Dict[str, Any]:
         """
@@ -145,6 +217,7 @@ class DocumentProcessingService:
             ],
             DocumentProcessingStatus.VECTORIZED.value: [
                 DocumentProcessingStatus.CHUNKED.value,
+                DocumentProcessingStatus.ENTITY_EXTRACTED.value,
                 DocumentProcessingStatus.VECTORIZATION_FAILED.value
             ],
             DocumentProcessingStatus.GRAPH_BUILT.value: [
@@ -185,16 +258,16 @@ class DocumentProcessingService:
             "message": "前置条件满足"
         }
     
-    def update_document_status(self, document_id: int, status: DocumentProcessingStatus, 
+    def update_document_status(self, document_id: int, status: DocumentProcessingStatus,
                              stats: Optional[Dict[str, Any]] = None) -> bool:
         """
         更新文档的处理状态
-        
+
         Args:
             document_id: 文档ID
             status: 新的处理状态
             stats: 统计信息（可选）
-            
+
         Returns:
             是否更新成功
         """
@@ -202,32 +275,38 @@ class DocumentProcessingService:
             document = self.db.query(KnowledgeDocument).filter(
                 KnowledgeDocument.id == document_id
             ).first()
-            
+
             if not document:
                 return False
-            
+
             metadata = document.document_metadata or {}
-            
+
             # 更新处理状态
             metadata['processing_status'] = status.value
-            
+
             # 更新时间戳
             timestamps = metadata.get('processing_timestamps', {})
             timestamp_key = status.value.replace('_', '_at')
             timestamps[timestamp_key] = datetime.now().isoformat()
             metadata['processing_timestamps'] = timestamps
-            
+
             # 更新统计信息
             if stats:
                 metadata.update(stats)
-            
-            # 保存更新
-            document.document_metadata = metadata
+
+            # 保存更新 - 创建新字典确保 SQLAlchemy 检测到变化
+            import copy
+            document.document_metadata = copy.deepcopy(metadata)
+
+            # 标记为已修改
+            from sqlalchemy.orm import attributes
+            attributes.flag_modified(document, "document_metadata")
+
             self.db.commit()
-            
+
             logger.info(f"文档 {document_id} 状态更新为: {status.value}")
             return True
-            
+
         except Exception as e:
             logger.error(f"更新文档状态失败: {e}")
             self.db.rollback()
@@ -249,7 +328,7 @@ class DocumentProcessingService:
         # 验证前置条件
         validation = self.validate_preconditions(
             document_id, 
-            DocumentProcessingStatus.TEXT_EXTRACTED.value
+            DocumentProcessingStatus.VECTORIZED.value
         )
         
         if not validation['valid']:
@@ -288,23 +367,54 @@ class DocumentProcessingService:
             )
             
             if result.get('success'):
-                # 更新状态为分块完成
-                self.update_document_status(
-                    document_id, 
-                    DocumentProcessingStatus.CHUNKED,
-                    {
-                        "chunks_count": len(result.get('chunks', [])),
-                        "vectorization_rate": 1.0
-                    }
-                )
+                # 检查向量化成功率
+                vectorization_rate = result.get('vectorization_rate', 0)
+                success_count = result.get('success_count', 0)
+                total_chunks = result.get('total_chunks', 0)
                 
-                return {
-                    "success": True,
-                    "message": "向量化完成",
-                    "document_id": document_id,
-                    "chunks_count": len(result.get('chunks', [])),
-                    "status": DocumentProcessingStatus.CHUNKED.value
-                }
+                logger.info(f"向量化处理结果: 成功率={vectorization_rate:.2%}, 成功={success_count}, 总计={total_chunks}")
+                
+                # 只有当向量化成功时才更新为 VECTORIZED 状态
+                if vectorization_rate >= 0.9:  # 90%以上成功率认为成功
+                    self.update_document_status(
+                        document_id,
+                        DocumentProcessingStatus.VECTORIZED,
+                        {
+                            "chunks_count": len(result.get('chunks', [])),
+                            "vectorization_rate": vectorization_rate,
+                            "success_count": success_count,
+                            "total_chunks": total_chunks
+                        }
+                    )
+                    
+                    return {
+                        "success": True,
+                        "message": "向量化完成",
+                        "document_id": document_id,
+                        "chunks_count": len(result.get('chunks', [])),
+                        "status": DocumentProcessingStatus.VECTORIZED.value
+                    }
+                else:
+                    # 向量化失败，更新为失败状态
+                    logger.warning(f"向量化成功率过低 ({vectorization_rate:.2%})，标记为失败")
+                    self.update_document_status(
+                        document_id,
+                        DocumentProcessingStatus.FAILED,
+                        {
+                            "chunks_count": len(result.get('chunks', [])),
+                            "vectorization_rate": vectorization_rate,
+                            "success_count": success_count,
+                            "total_chunks": total_chunks,
+                            "error": "向量化成功率过低"
+                        }
+                    )
+                    
+                    return {
+                        "success": False,
+                        "message": f"向量化失败: 成功率过低 ({vectorization_rate:.2%})",
+                        "document_id": document_id,
+                        "status": DocumentProcessingStatus.FAILED.value
+                    }
             else:
                 # 更新状态为失败
                 self.update_document_status(
@@ -546,5 +656,117 @@ class DocumentProcessingService:
                 "completed": sum(1 for doc in documents if doc.document_metadata and doc.document_metadata.get('processing_status') == DocumentProcessingStatus.COMPLETED.value) / total_documents if total_documents > 0 else 0
             }
         }
-        
+
         return summary
+
+    def process_kb_entity_alignment(self, knowledge_base_id: int) -> Dict[str, Any]:
+        """执行知识库级实体对齐
+
+        修复E01：启用GlobalEntity，完善三层实体架构
+
+        Args:
+            knowledge_base_id: 知识库ID
+
+        Returns:
+            处理结果
+        """
+        try:
+            from app.services.knowledge.graph.hierarchical_build_service import HierarchicalBuildService
+
+            logger.info(f"开始知识库级实体对齐: knowledge_base_id={knowledge_base_id}")
+
+            build_service = HierarchicalBuildService(self.db)
+            result = build_service.build_knowledge_base_level(knowledge_base_id)
+
+            if result.get('success'):
+                logger.info(f"知识库级实体对齐完成: kb_entities_created={result.get('kb_entities_created', 0)}, "
+                           f"entities_aligned={result.get('entities_aligned', 0)}")
+            else:
+                logger.warning(f"知识库级实体对齐失败: {result.get('error')}")
+
+            return result
+
+        except Exception as e:
+            logger.error(f"知识库级实体对齐异常: {e}")
+            return {"success": False, "error": str(e)}
+
+    def process_global_entity_linking(self) -> Dict[str, Any]:
+        """执行全局级实体链接
+
+        修复E01：启用GlobalEntity，完善三层实体架构
+
+        Returns:
+            处理结果
+        """
+        try:
+            from app.services.knowledge.graph.hierarchical_build_service import HierarchicalBuildService
+
+            logger.info("开始全局级实体链接")
+
+            build_service = HierarchicalBuildService(self.db)
+            result = build_service.build_global_level()
+
+            if result.get('success'):
+                logger.info(f"全局级实体链接完成: global_entities_created={result.get('global_entities_created', 0)}, "
+                           f"kb_entities_linked={result.get('kb_entities_linked', 0)}")
+            else:
+                logger.warning(f"全局级实体链接失败: {result.get('error')}")
+
+            return result
+
+        except Exception as e:
+            logger.error(f"全局级实体链接异常: {e}")
+            return {"success": False, "error": str(e)}
+
+    def build_all_levels(self, knowledge_base_id: int, document_id: int) -> Dict[str, Any]:
+        """构建所有层级的实体
+
+        修复E01：完善三层实体架构，依次构建片段级、文档级、知识库级、全局级
+
+        Args:
+            knowledge_base_id: 知识库ID
+            document_id: 文档ID
+
+        Returns:
+            处理结果
+        """
+        results = {
+            "success": True,
+            "document_id": document_id,
+            "knowledge_base_id": knowledge_base_id,
+            "stages": {}
+        }
+
+        # 1. 片段级实体识别（在向量化后自动触发）
+        # 已经在process_vectorization中完成
+
+        # 2. 文档级实体聚合
+        logger.info(f"开始文档级实体聚合: document_id={document_id}")
+        agg_result = self.process_entity_aggregation(document_id)
+        results["stages"]["document_aggregation"] = agg_result
+
+        if not agg_result.get('success'):
+            logger.warning(f"文档级实体聚合失败: {agg_result.get('message')}")
+            results["success"] = False
+            return results
+
+        # 3. 知识库级实体对齐
+        logger.info(f"开始知识库级实体对齐: knowledge_base_id={knowledge_base_id}")
+        kb_result = self.process_kb_entity_alignment(knowledge_base_id)
+        results["stages"]["kb_alignment"] = kb_result
+
+        if not kb_result.get('success'):
+            logger.warning(f"知识库级实体对齐失败: {kb_result.get('error')}")
+            # 不中断流程，继续执行
+
+        # 4. 全局级实体链接
+        logger.info("开始全局级实体链接")
+        global_result = self.process_global_entity_linking()
+        results["stages"]["global_linking"] = global_result
+
+        if not global_result.get('success'):
+            logger.warning(f"全局级实体链接失败: {global_result.get('error')}")
+            # 不中断流程
+
+        logger.info(f"所有层级构建完成: document_id={document_id}")
+        return results

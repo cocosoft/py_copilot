@@ -97,8 +97,14 @@ const statusConfig = {
     bgColor: '#fff7e6',
     borderColor: '#ffd591',
   },
-  entity_completed: {
+  entity_extracted: {
     text: '已实体识别',
+    color: '#52c41a',
+    bgColor: '#f6ffed',
+    borderColor: '#b7eb8f',
+  },
+  entities_extracted: {
+    text: '已识别实体',
     color: '#52c41a',
     bgColor: '#f6ffed',
     borderColor: '#b7eb8f',
@@ -177,7 +183,13 @@ const DocumentCard = ({
   
   // 计算总体进度
   const stages = ['text_extracted', 'chunked', 'entity_extracted', 'vectorized', 'graph_built'];
-  const completedStages = stages.filter(stage => metadata[stage] === true);
+  const completedStages = stages.filter(stage => {
+    if (stage === 'entity_extracted') {
+      // 同时检查 entity_extracted 和 entities_extracted
+      return metadata[stage] === true || metadata['entities_extracted'] === true;
+    }
+    return metadata[stage] === true;
+  });
   const progress = (completedStages.length / stages.length) * 100;
 
   /**

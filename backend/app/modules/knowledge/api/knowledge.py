@@ -2,10 +2,13 @@ import os
 import logging
 import time
 import asyncio
+import hashlib
+import shutil
 from datetime import datetime
+from pathlib import Path
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, Query, Depends, BackgroundTasks
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, UploadFile, File, HTTPException, Query, Depends, BackgroundTasks, Request
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -34,6 +37,8 @@ from app.modules.knowledge.models.knowledge_document import (
 )
 from app.services.knowledge.retrieval.retrieval_service import AdvancedRetrievalService
 from app.services.knowledge.document_processing_queue import document_processing_queue
+from app.services.knowledge.document.document_processing_service import DocumentProcessingService
+from app.services.knowledge.graph.knowledge_graph_service import KnowledgeGraphService
 from app.modules.knowledge.schemas.knowledge import (
     KnowledgeDocument, SearchResponse, DocumentListResponse,
     KnowledgeBase, KnowledgeBaseCreate, KnowledgeBaseUpdate,
@@ -694,8 +699,8 @@ async def get_document_processing_progress(
         raise HTTPException(status_code=500, detail=f"获取处理进度失败: {str(e)}")
 
 
-@router.get("/documents/{document_id}/status")
-async def get_document_status(
+@router.get("/documents/{document_id}/simple-status")
+async def get_document_simple_status(
     document_id: int,
     db: Session = Depends(get_db)
 ):
@@ -703,26 +708,44 @@ async def get_document_status(
     获取文档处理状态（简化版）
 
     用于前端查询文档当前处理状态
+    使用 DocumentProcessingService 获取准确的状态信息
+
+    注意：此端点已重命名为 /simple-status 以避免与 document_processing.py 中的 /status 端点冲突
     """
     try:
-        document = await run_in_threadpool(
-            lambda: db.query(KnowledgeDocumentModel).filter(
-                KnowledgeDocumentModel.id == document_id
-            ).first()
-        )
+        # 使用 DocumentProcessingService 获取详细状态
+        processing_service = DocumentProcessingService(db)
+        status_info = processing_service.get_document_status(document_id)
 
-        if not document:
+        if status_info.get("status") == "not_found":
             raise HTTPException(status_code=404, detail="文档不存在")
 
-        metadata = document.document_metadata or {}
-        processing_status = metadata.get('processing_status', 'unknown')
+        # 提取处理状态
+        processing_status = status_info.get("processing_status", "unknown")
+
+        # 计算进度
+        progress = 0
+        if processing_status == "completed":
+            progress = 100
+        elif processing_status == "vectorized":
+            progress = 80
+        elif processing_status == "entity_extracted":
+            progress = 60
+        elif processing_status == "chunked":
+            progress = 40
+        elif processing_status == "text_extracted":
+            progress = 20
+        elif processing_status == "processing":
+            progress = 10
 
         return {
             "document_id": document_id,
             "status": processing_status,
-            "progress": 100 if processing_status == 'completed' else 0,
-            "created_at": document.created_at.isoformat() if document.created_at else None,
-            "updated_at": document.updated_at.isoformat() if document.updated_at else None
+            "progress": progress,
+            "stages": status_info.get("stages", {}),
+            "stats": status_info.get("stats", {}),
+            "created_at": status_info.get("timestamps", {}).get("created"),
+            "updated_at": status_info.get("timestamps", {}).get("last_status_update")
         }
 
     except HTTPException:
@@ -1011,16 +1034,6 @@ async def process_document(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"文档处理启动失败: {str(e)}")
-
-@router.post("/documents/{document_id}/vectorize")
-async def vectorize_document(
-    document_id: int,
-    background_tasks: BackgroundTasks = None,
-    db: Session = Depends(get_db)
-):
-    """启动文档向量化处理 - 异步后台执行（兼容旧接口）"""
-    # 直接调用新的处理接口
-    return await process_document(document_id, background_tasks, db)
 
 @router.post("/documents/{document_id}/tags", response_model=KnowledgeTag)
 async def add_document_tag(
@@ -2937,3 +2950,522 @@ async def get_document_chunk_stats(
     except Exception as e:
         logger.error(f"获取切片统计失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取统计失败: {str(e)}")
+
+
+# ==================== 大文件流式上传 API (修复P04) ====================
+
+class ChunkUploadRequest(BaseModel):
+    """分块上传请求"""
+    upload_id: str
+    chunk_index: int
+    total_chunks: int
+    file_hash: str
+    filename: str
+    knowledge_base_id: int
+
+
+class ChunkUploadResponse(BaseModel):
+    """分块上传响应"""
+    success: bool
+    upload_id: str
+    chunk_index: int
+    received_chunks: int
+    total_chunks: int
+    message: str
+
+
+# 存储上传状态（生产环境应使用Redis）
+_chunk_uploads: Dict[str, Dict[str, Any]] = {}
+
+
+def _get_upload_dir() -> Path:
+    """获取上传目录"""
+    upload_dir = Path("uploads") / "temp"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    return upload_dir
+
+
+@router.post("/documents/upload-chunk", response_model=ChunkUploadResponse)
+async def upload_document_chunk(
+    upload_id: str = Query(..., description="上传任务ID"),
+    chunk_index: int = Query(..., ge=0, description="当前块索引"),
+    total_chunks: int = Query(..., ge=1, description="总块数"),
+    file_hash: str = Query(..., description="文件哈希"),
+    filename: str = Query(..., description="文件名"),
+    knowledge_base_id: int = Query(..., description="知识库ID"),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    """
+    分块上传文档（修复P04：支持大文件流式上传）
+
+    适用于大文件（>50MB）的上传，将文件分成多个小块上传：
+    1. 前端将文件分块（建议每块5-10MB）
+    2. 逐块调用此接口上传
+    3. 所有块上传完成后调用 /documents/merge-chunks 合并
+
+    Args:
+        upload_id: 上传任务唯一ID（前端生成UUID）
+        chunk_index: 当前块索引（从0开始）
+        total_chunks: 总块数
+        file_hash: 完整文件的MD5哈希（用于校验）
+        filename: 文件名
+        knowledge_base_id: 知识库ID
+        file: 当前块文件内容
+
+    Returns:
+        上传状态
+    """
+    try:
+        # 检查知识库是否存在
+        kb = knowledge_service.get_knowledge_base(knowledge_base_id, db)
+        if not kb:
+            raise HTTPException(status_code=404, detail="知识库不存在")
+
+        # 检查文件格式支持
+        if not knowledge_service.is_supported_format(filename):
+            raise HTTPException(status_code=400, detail="不支持的文件格式")
+
+        # 初始化上传状态
+        if upload_id not in _chunk_uploads:
+            _chunk_uploads[upload_id] = {
+                "upload_id": upload_id,
+                "filename": filename,
+                "file_hash": file_hash,
+                "knowledge_base_id": knowledge_base_id,
+                "total_chunks": total_chunks,
+                "received_chunks": set(),
+                "chunk_hashes": {},
+                "created_at": datetime.now().isoformat()
+            }
+
+        upload_state = _chunk_uploads[upload_id]
+
+        # 检查是否重复上传同一块
+        if chunk_index in upload_state["received_chunks"]:
+            return ChunkUploadResponse(
+                success=True,
+                upload_id=upload_id,
+                chunk_index=chunk_index,
+                received_chunks=len(upload_state["received_chunks"]),
+                total_chunks=total_chunks,
+                message="该块已上传，跳过"
+            )
+
+        # 保存块文件
+        upload_dir = _get_upload_dir()
+        chunk_filename = f"{upload_id}_{chunk_index}"
+        chunk_path = upload_dir / chunk_filename
+
+        # 流式写入块文件
+        chunk_hash = hashlib.md5()
+        with open(chunk_path, "wb") as f:
+            while True:
+                chunk_data = await file.read(1024 * 1024)  # 每次读取1MB
+                if not chunk_data:
+                    break
+                f.write(chunk_data)
+                chunk_hash.update(chunk_data)
+
+        # 记录块信息
+        upload_state["received_chunks"].add(chunk_index)
+        upload_state["chunk_hashes"][chunk_index] = chunk_hash.hexdigest()
+
+        logger.info(f"分块上传: upload_id={upload_id}, chunk={chunk_index + 1}/{total_chunks}")
+
+        return ChunkUploadResponse(
+            success=True,
+            upload_id=upload_id,
+            chunk_index=chunk_index,
+            received_chunks=len(upload_state["received_chunks"]),
+            total_chunks=total_chunks,
+            message=f"块 {chunk_index + 1}/{total_chunks} 上传成功"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"分块上传失败: {e}")
+        raise HTTPException(status_code=500, detail=f"上传失败: {str(e)}")
+
+
+class MergeChunksRequest(BaseModel):
+    """合并块请求"""
+    upload_id: str
+    filename: str
+    knowledge_base_id: int
+    auto_process: bool = False
+
+
+class MergeChunksResponse(BaseModel):
+    """合并块响应"""
+    success: bool
+    document_id: Optional[int] = None
+    message: str
+    status: str
+    file_size: Optional[int] = None
+
+
+@router.post("/documents/merge-chunks", response_model=MergeChunksResponse)
+async def merge_document_chunks(
+    request: MergeChunksRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    合并分块并创建文档（修复P04：支持大文件流式上传）
+
+    所有块上传完成后调用此接口合并文件并创建文档记录
+
+    Args:
+        request: 合并请求参数
+
+    Returns:
+        合并结果
+    """
+    try:
+        upload_id = request.upload_id
+
+        # 检查上传状态
+        if upload_id not in _chunk_uploads:
+            raise HTTPException(status_code=404, detail="上传任务不存在或已过期")
+
+        upload_state = _chunk_uploads[upload_id]
+
+        # 检查是否所有块都已上传
+        total_chunks = upload_state["total_chunks"]
+        received_chunks = upload_state["received_chunks"]
+
+        if len(received_chunks) < total_chunks:
+            missing_chunks = set(range(total_chunks)) - received_chunks
+            raise HTTPException(
+                status_code=400,
+                detail=f"还有 {len(missing_chunks)} 个块未上传: {sorted(missing_chunks)}"
+            )
+
+        # 合并块文件
+        upload_dir = _get_upload_dir()
+        merged_filename = f"{upload_id}_merged"
+        merged_path = upload_dir / merged_filename
+
+        # 按顺序合并所有块
+        with open(merged_path, "wb") as merged_file:
+            for i in range(total_chunks):
+                chunk_path = upload_dir / f"{upload_id}_{i}"
+                if not chunk_path.exists():
+                    raise HTTPException(status_code=400, detail=f"块 {i} 文件丢失")
+
+                with open(chunk_path, "rb") as chunk_file:
+                    shutil.copyfileobj(chunk_file, merged_file)
+
+        # 验证文件哈希
+        file_hash = hashlib.md5()
+        with open(merged_path, "rb") as f:
+            while True:
+                data = f.read(1024 * 1024)
+                if not data:
+                    break
+                file_hash.update(data)
+
+        calculated_hash = file_hash.hexdigest()
+        expected_hash = upload_state["file_hash"]
+
+        if calculated_hash != expected_hash:
+            # 删除合并的文件
+            merged_path.unlink(missing_ok=True)
+            raise HTTPException(
+                status_code=400,
+                detail=f"文件校验失败: 期望 {expected_hash}, 实际 {calculated_hash}"
+            )
+
+        # 获取文件大小
+        file_size = merged_path.stat().st_size
+
+        # 创建UploadFile对象用于保存文档
+        from fastapi import UploadFile as FastAPIUploadFile
+        from io import BytesIO
+
+        # 读取合并后的文件内容
+        with open(merged_path, "rb") as f:
+            file_content = f.read()
+
+        # 创建UploadFile对象
+        upload_file = FastAPIUploadFile(
+            filename=request.filename,
+            file=BytesIO(file_content)
+        )
+
+        # 保存文档
+        save_result = await knowledge_service.save_document(
+            upload_file,
+            request.knowledge_base_id,
+            db
+        )
+
+        # 清理临时文件
+        for i in range(total_chunks):
+            chunk_path = upload_dir / f"{upload_id}_{i}"
+            chunk_path.unlink(missing_ok=True)
+        merged_path.unlink(missing_ok=True)
+
+        # 删除上传状态
+        del _chunk_uploads[upload_id]
+
+        # 检查是否是重复文件
+        if save_result.get("duplicate"):
+            existing_doc = save_result.get("document")
+            return MergeChunksResponse(
+                success=True,
+                document_id=existing_doc.id,
+                message=save_result.get("message", "该文件已存在于知识库中"),
+                status="duplicate",
+                file_size=file_size
+            )
+
+        document = save_result.get("document")
+
+        # 如果自动处理，添加到队列
+        if request.auto_process:
+            await document_processing_queue.add_document(
+                document_id=document.id,
+                knowledge_base_id=request.knowledge_base_id,
+                document_name=document.title,
+                priority=0
+            )
+
+        return MergeChunksResponse(
+            success=True,
+            document_id=document.id,
+            message="文档上传成功",
+            status="completed" if not request.auto_process else "queued",
+            file_size=file_size
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"合并块失败: {e}")
+        raise HTTPException(status_code=500, detail=f"合并失败: {str(e)}")
+
+
+@router.get("/documents/upload-status/{upload_id}")
+async def get_chunk_upload_status(upload_id: str):
+    """
+    获取分块上传状态
+
+    Args:
+        upload_id: 上传任务ID
+
+    Returns:
+        上传状态信息
+    """
+    if upload_id not in _chunk_uploads:
+        raise HTTPException(status_code=404, detail="上传任务不存在或已过期")
+
+    upload_state = _chunk_uploads[upload_id]
+
+    return {
+        "upload_id": upload_id,
+        "filename": upload_state["filename"],
+        "total_chunks": upload_state["total_chunks"],
+        "received_chunks": len(upload_state["received_chunks"]),
+        "missing_chunks": sorted(
+            set(range(upload_state["total_chunks"])) - upload_state["received_chunks"]
+        ),
+        "progress": len(upload_state["received_chunks"]) / upload_state["total_chunks"] * 100,
+        "created_at": upload_state["created_at"]
+    }
+
+
+# ==================== 知识图谱相关端点 ====================
+
+_knowledge_graph_service = KnowledgeGraphService()
+
+
+class KnowledgeGraphDataResponse(BaseModel):
+    """知识图谱数据响应模型"""
+    nodes: List[Dict[str, Any]] = []
+    edges: List[Dict[str, Any]] = []
+    statistics: Dict[str, Any] = {}
+
+
+@router.get("/knowledge-bases/{knowledge_base_id}/graph", response_model=KnowledgeGraphDataResponse)
+async def get_knowledge_base_graph(
+    knowledge_base_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    获取知识库的知识图谱数据
+    
+    Args:
+        knowledge_base_id: 知识库ID
+        
+    Returns:
+        知识图谱数据，包含节点、边和统计信息
+    """
+    try:
+        graph_data = _knowledge_graph_service.get_knowledge_base_graph_data(db, knowledge_base_id)
+
+        if "error" in graph_data:
+            error_msg = graph_data["error"]
+            if "不存在" in error_msg:
+                raise HTTPException(status_code=404, detail=error_msg)
+            else:
+                raise HTTPException(status_code=500, detail=error_msg)
+
+        metadata = graph_data.get("metadata", {})
+        if metadata.get("is_empty", False):
+            return KnowledgeGraphDataResponse(
+                nodes=[],
+                edges=[],
+                statistics={
+                    "total_entities": 0,
+                    "total_relationships": 0,
+                    "message": "知识库存在但没有文档，请先上传文档"
+                }
+            )
+
+        return KnowledgeGraphDataResponse(**graph_data)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取知识库图谱数据失败: {e}")
+        raise HTTPException(status_code=500, detail=f"获取知识库图谱数据失败: {str(e)}")
+
+
+@router.get("/documents/{document_id}/graph", response_model=KnowledgeGraphDataResponse)
+async def get_document_graph(
+    document_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    获取文档的知识图谱数据
+    
+    Args:
+        document_id: 文档ID
+        
+    Returns:
+        文档的知识图谱数据
+    """
+    try:
+        document = db.query(KnowledgeDocumentModel).filter(
+            KnowledgeDocumentModel.id == document_id
+        ).first()
+
+        if not document:
+            raise HTTPException(status_code=404, detail="文档不存在")
+
+        graph_data = _knowledge_graph_service.get_document_graph_data(db, document_id)
+
+        if "error" in graph_data:
+            raise HTTPException(status_code=500, detail=graph_data["error"])
+
+        return KnowledgeGraphDataResponse(**graph_data)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取文档图谱数据失败: {e}")
+        raise HTTPException(status_code=500, detail=f"获取文档图谱数据失败: {str(e)}")
+
+
+@router.get("/knowledge-bases/{knowledge_base_id}/graph-statistics")
+async def get_knowledge_base_graph_statistics(
+    knowledge_base_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    获取知识库图谱统计信息
+    
+    Args:
+        knowledge_base_id: 知识库ID
+        
+    Returns:
+        图谱统计信息
+    """
+    try:
+        graph_data = _knowledge_graph_service.get_knowledge_base_graph_data(db, knowledge_base_id)
+
+        if "error" in graph_data:
+            raise HTTPException(status_code=500, detail=graph_data["error"])
+
+        return graph_data.get("statistics", {})
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取图谱统计信息失败: {e}")
+        raise HTTPException(status_code=500, detail=f"获取图谱统计信息失败: {str(e)}")
+
+
+@router.post("/knowledge-bases/{knowledge_base_id}/build-graph")
+async def build_knowledge_base_graph(
+    knowledge_base_id: int,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """
+    构建知识库的知识图谱
+    
+    Args:
+        knowledge_base_id: 知识库ID
+        background_tasks: 后台任务
+        
+    Returns:
+        构建结果
+    """
+    try:
+        knowledge_base = db.query(KnowledgeBaseModel).filter(
+            KnowledgeBaseModel.id == knowledge_base_id
+        ).first()
+
+        if not knowledge_base:
+            raise HTTPException(status_code=404, detail="知识库不存在")
+
+        result = _knowledge_graph_service.build_knowledge_base_graph(knowledge_base_id, db)
+
+        if "error" in result:
+            raise HTTPException(status_code=500, detail=result["error"])
+
+        return {
+            "success": True,
+            "message": "知识图谱构建成功",
+            "nodes_count": len(result.get("nodes", [])),
+            "edges_count": len(result.get("edges", []))
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"构建知识图谱失败: {e}")
+        raise HTTPException(status_code=500, detail=f"构建知识图谱失败: {str(e)}")
+
+
+@router.get("/knowledge-bases/{knowledge_base_id}/analyze-graph")
+async def analyze_knowledge_base_graph(
+    knowledge_base_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    分析知识库的知识图谱
+    
+    Args:
+        knowledge_base_id: 知识库ID
+        
+    Returns:
+        图谱分析结果
+    """
+    try:
+        graph_id = f"kb_{knowledge_base_id}"
+        result = _knowledge_graph_service.analyze_graph(graph_id, db)
+
+        if "error" in result:
+            raise HTTPException(status_code=500, detail=result["error"])
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"分析知识图谱失败: {e}")
+        raise HTTPException(status_code=500, detail=f"分析知识图谱失败: {str(e)}")

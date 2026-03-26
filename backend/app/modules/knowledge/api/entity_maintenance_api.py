@@ -474,16 +474,20 @@ def add_document_entity(
         raise HTTPException(status_code=404, detail="文档不存在")
     
     # 创建实体
-    kg_service = KnowledgeGraphService(db)
-    entity = kg_service.create_entity(
-        db=db,
+    from app.modules.knowledge.models.knowledge_document import DocumentEntity
+    
+    entity = DocumentEntity(
         document_id=request.document_id,
         entity_text=request.entity_text,
         entity_type=request.entity_type,
-        start_pos=request.start_pos,
-        end_pos=request.end_pos,
-        confidence=request.confidence
+        start_pos=request.start_pos or 0,
+        end_pos=request.end_pos or 0,
+        confidence=request.confidence or 1.0,
+        status="confirmed"
     )
+    db.add(entity)
+    db.commit()
+    db.refresh(entity)
     
     return {
         "success": True,
@@ -679,3 +683,143 @@ def update_entity_status(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"更新实体状态失败: {str(e)}")
+
+
+# ============ 实体确认工作流接口（修复E13） ============
+
+@router.get("/confirmation-stats/{knowledge_base_id}")
+def get_entity_confirmation_stats(
+    knowledge_base_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    获取实体确认工作流统计
+
+    修复E13：提供实体确认工作流的统计信息，支持前端状态展示
+
+    Args:
+        knowledge_base_id: 知识库ID
+
+    Returns:
+        实体确认统计信息
+    """
+    try:
+        from sqlalchemy import func
+
+        # 获取文档ID列表
+        document_ids = db.query(KnowledgeDocument.id).filter(
+            KnowledgeDocument.knowledge_base_id == knowledge_base_id
+        ).all()
+        document_ids = [d[0] for d in document_ids]
+
+        if not document_ids:
+            return {
+                "knowledge_base_id": knowledge_base_id,
+                "total_entities": 0,
+                "status_distribution": {},
+                "confirmation_rate": "0.00%",
+                "pending_count": 0,
+                "confirmed_count": 0,
+                "rejected_count": 0,
+                "modified_count": 0
+            }
+
+        # 按状态统计
+        status_counts = db.query(
+            DocumentEntity.status,
+            func.count(DocumentEntity.id)
+        ).filter(
+            DocumentEntity.document_id.in_(document_ids)
+        ).group_by(DocumentEntity.status).all()
+
+        # 构建统计结果
+        status_distribution = {status: count for status, count in status_counts}
+        total = sum(status_distribution.values())
+
+        pending_count = status_distribution.get('pending', 0)
+        confirmed_count = status_distribution.get('confirmed', 0)
+        rejected_count = status_distribution.get('rejected', 0)
+        modified_count = status_distribution.get('modified', 0)
+
+        # 计算确认率
+        confirmed_rate = (confirmed_count / total * 100) if total > 0 else 0
+
+        return {
+            "knowledge_base_id": knowledge_base_id,
+            "total_entities": total,
+            "status_distribution": status_distribution,
+            "confirmation_rate": f"{confirmed_rate:.2f}%",
+            "pending_count": pending_count,
+            "confirmed_count": confirmed_count,
+            "rejected_count": rejected_count,
+            "modified_count": modified_count
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取实体确认统计失败: {str(e)}")
+
+
+@router.get("/pending-entities/{knowledge_base_id}")
+def get_pending_entities(
+    knowledge_base_id: int,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db)
+):
+    """
+    获取待确认的实体列表
+
+    修复E13：支持实体确认工作流
+
+    Args:
+        knowledge_base_id: 知识库ID
+        page: 页码
+        page_size: 每页数量
+
+    Returns:
+        待确认实体列表
+    """
+    try:
+        # 获取文档ID列表
+        document_ids = db.query(KnowledgeDocument.id).filter(
+            KnowledgeDocument.knowledge_base_id == knowledge_base_id
+        ).all()
+        document_ids = [d[0] for d in document_ids]
+
+        if not document_ids:
+            return {
+                "total": 0,
+                "page": page,
+                "page_size": page_size,
+                "entities": []
+            }
+
+        # 查询待确认实体
+        query = db.query(DocumentEntity).filter(
+            DocumentEntity.document_id.in_(document_ids),
+            DocumentEntity.status == 'pending'
+        )
+
+        total = query.count()
+        entities = query.offset((page - 1) * page_size).limit(page_size).all()
+
+        return {
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "entities": [
+                {
+                    "id": e.id,
+                    "text": e.entity_text,
+                    "type": e.entity_type,
+                    "confidence": e.confidence,
+                    "document_id": e.document_id,
+                    "status": e.status,
+                    "created_at": e.created_at.isoformat() if e.created_at else None
+                }
+                for e in entities
+            ]
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取待确认实体失败: {str(e)}")

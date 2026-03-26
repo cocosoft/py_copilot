@@ -45,17 +45,129 @@ class AdvancedTextProcessor:
 
         logger.info(f"高级文本处理器初始化成功，知识库ID: {knowledge_base_id}，使用混合策略进行文本处理")
     
-    def clean_text(self, text: str) -> str:
-        """清理文本，移除多余空格和特殊字符"""
+    def clean_text(self, text: str, doc_type: str = 'text') -> str:
+        """清理文本，根据文档类型选择清理策略
+
+        修复C01：增强文本清理规则，支持多种文档类型
+
+        Args:
+            text: 输入文本
+            doc_type: 文档类型，支持 'text', 'html', 'markdown', 'pdf'
+
+        Returns:
+            清理后的文本
+        """
         # 处理None值
         if text is None:
             return ""
 
+        # 根据文档类型选择清理策略
+        cleaners = {
+            'html': self._clean_html,
+            'markdown': self._clean_markdown,
+            'pdf': self._clean_pdf,
+            'text': self._clean_text
+        }
+
+        cleaner = cleaners.get(doc_type, self._clean_text)
+        return cleaner(text)
+
+    def _clean_text(self, text: str) -> str:
+        """基础文本清理
+
+        保留中文、英文、数字和常用标点符号
+        """
         # 移除多余的空格和换行
         text = re.sub(r'\s+', ' ', text)
-        # 移除特殊字符，保留中文、英文、数字和基本标点
-        text = re.sub(r'[^\w\s\u4e00-\u9fff.,!?;:()\[\]{}]', '', text)
+
+        # 保留中文、英文、数字和常用标点
+        # \u4e00-\u9fff: 中文字符
+        # \u3000-\u303f: 中文标点
+        # \uff00-\uffef: 全角字符
+        text = re.sub(r'[^\w\s\u4e00-\u9fff\u3000-\u303f\uff00-\uffef.,!?;:()\[\]{}"\'\-/@#$%&*]', '', text)
+
         return text.strip()
+
+    def _clean_html(self, text: str) -> str:
+        """清理HTML标签
+
+        移除script、style标签，提取纯文本内容
+        """
+        try:
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(text, 'html.parser')
+
+            # 移除script和style标签
+            for script in soup(["script", "style", "nav", "footer", "header"]):
+                script.decompose()
+
+            # 获取文本内容
+            text = soup.get_text(separator=' ', strip=True)
+
+            # 基础清理
+            return self._clean_text(text)
+        except ImportError:
+            logger.warning("BeautifulSoup未安装，使用正则表达式清理HTML")
+            # 使用正则表达式移除HTML标签
+            text = re.sub(r'<script[^>]*>.*?</script>', '', text, flags=re.DOTALL | re.IGNORECASE)
+            text = re.sub(r'<style[^>]*>.*?</style>', '', text, flags=re.DOTALL | re.IGNORECASE)
+            text = re.sub(r'<[^>]+>', ' ', text)
+            return self._clean_text(text)
+
+    def _clean_markdown(self, text: str) -> str:
+        """清理Markdown标记
+
+        移除Markdown语法标记，保留纯文本
+        """
+        # 移除代码块
+        text = re.sub(r'```[\s\S]*?```', '', text)
+        text = re.sub(r'`([^`]+)`', r'\1', text)
+
+        # 移除图片链接
+        text = re.sub(r'!\[([^\]]*)\]\([^)]+\)', r'\1', text)
+
+        # 移除超链接，保留文本
+        text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text)
+
+        # 移除标题标记
+        text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
+
+        # 移除粗体和斜体标记
+        text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)
+        text = re.sub(r'\*([^*]+)\*', r'\1', text)
+        text = re.sub(r'__([^_]+)__', r'\1', text)
+        text = re.sub(r'_([^_]+)_', r'\1', text)
+
+        # 移除列表标记
+        text = re.sub(r'^\s*[-*+]\s+', '', text, flags=re.MULTILINE)
+        text = re.sub(r'^\s*\d+\.\s+', '', text, flags=re.MULTILINE)
+
+        # 移除水平线
+        text = re.sub(r'^-{3,}$', '', text, flags=re.MULTILINE)
+
+        # 基础清理
+        return self._clean_text(text)
+
+    def _clean_pdf(self, text: str) -> str:
+        """清理PDF提取的文本
+
+        处理PDF提取时的常见问题
+        """
+        # 移除页眉页脚标记（常见模式）
+        text = re.sub(r'\n\s*\d+\s*\n', '\n', text)  # 页码
+
+        # 移除多余的换行（PDF常见的问题）
+        # 将单换行替换为空格，保留段落分隔（双换行）
+        text = re.sub(r'(?<!\n)\n(?!\n)', ' ', text)
+
+        # 合并多个空行
+        text = re.sub(r'\n{3,}', '\n\n', text)
+
+        # 移除PDF特有的乱码字符
+        text = re.sub(r'[\x00-\x08\x0b-\x0c\x0e-\x1f]', '', text)
+
+        # 基础清理
+        return self._clean_text(text)
 
     def _load_extraction_rules(self) -> Dict[str, List[Dict[str, Any]]]:
         """加载提取规则
@@ -598,27 +710,12 @@ class AdvancedTextProcessor:
         logger.info(f"[TextProcessor] 同步提取实体和关系, 文本长度={len(text)}, knowledge_base_id={self.knowledge_base_id}")
 
         try:
-            # 尝试获取当前事件循环
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # 如果在异步环境中，创建新任务
-                import nest_asyncio
-                nest_asyncio.apply()
-                result = loop.run_until_complete(self.extract_entities_relationships(text))
-            else:
-                # 如果没有运行的事件循环，使用run_until_complete
-                result = loop.run_until_complete(self.extract_entities_relationships(text))
+            # 修复：使用统一的异步工具方法，避免事件循环冲突
+            from app.services.knowledge.utils.async_utils import run_async_safely
+            result = run_async_safely(self.extract_entities_relationships(text))
 
             entities, relationships = result
             logger.info(f"[TextProcessor] 同步提取完成: {len(entities)} 个实体, {len(relationships)} 个关系")
-            return result
-
-        except RuntimeError:
-            # 没有事件循环，创建新的
-            logger.info("[TextProcessor] 创建新的事件循环进行提取")
-            result = asyncio.run(self.extract_entities_relationships(text))
-            entities, relationships = result
-            logger.info(f"[TextProcessor] 同步提取完成(新循环): {len(entities)} 个实体, {len(relationships)} 个关系")
             return result
 
         except Exception as e:
@@ -628,6 +725,8 @@ class AdvancedTextProcessor:
     def semantic_chunking_sync(self, text: str, max_chunk_size: int = 1000,
                                min_chunk_size: int = 200, overlap: int = 30) -> List[str]:
         """同步版本的语义分块
+
+        修复：使用统一的异步工具方法，避免事件循环冲突
 
         Args:
             text: 输入文本
@@ -639,63 +738,46 @@ class AdvancedTextProcessor:
             分块后的文本列表
         """
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                import nest_asyncio
-                nest_asyncio.apply()
-                return loop.run_until_complete(self.semantic_chunking(text, max_chunk_size, min_chunk_size, overlap))
-            else:
-                return loop.run_until_complete(self.semantic_chunking(text, max_chunk_size, min_chunk_size, overlap))
-        except RuntimeError:
-            return asyncio.run(self.semantic_chunking(text, max_chunk_size, min_chunk_size, overlap))
+            from app.services.knowledge.utils.async_utils import run_async_safely
+            return run_async_safely(self.semantic_chunking(text, max_chunk_size, min_chunk_size, overlap))
         except Exception as e:
             logger.error(f"同步语义分块失败: {e}")
             return [text] if text else []
 
     def extract_keywords_sync(self, text: str, top_n: int = 10) -> List[Dict[str, Any]]:
         """同步版本的关键词提取
-        
+
+        修复：使用统一的异步工具方法，避免事件循环冲突
+
         Args:
             text: 输入文本
             top_n: 返回的关键词数量
-            
+
         Returns:
             关键词列表
         """
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                import nest_asyncio
-                nest_asyncio.apply()
-                return loop.run_until_complete(self.extract_keywords(text, top_n))
-            else:
-                return loop.run_until_complete(self.extract_keywords(text, top_n))
-        except RuntimeError:
-            return asyncio.run(self.extract_keywords(text, top_n))
+            from app.services.knowledge.utils.async_utils import run_async_safely
+            return run_async_safely(self.extract_keywords(text, top_n))
         except Exception as e:
             logger.error(f"同步关键词提取失败: {e}")
             return []
 
     def calculate_similarity_sync(self, text1: str, text2: str) -> float:
         """同步版本的相似度计算
-        
+
+        修复：使用统一的异步工具方法，避免事件循环冲突
+
         Args:
             text1: 第一个文本
             text2: 第二个文本
-            
+
         Returns:
             相似度分数
         """
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                import nest_asyncio
-                nest_asyncio.apply()
-                return loop.run_until_complete(self.calculate_similarity(text1, text2))
-            else:
-                return loop.run_until_complete(self.calculate_similarity(text1, text2))
-        except RuntimeError:
-            return asyncio.run(self.calculate_similarity(text1, text2))
+            from app.services.knowledge.utils.async_utils import run_async_safely
+            return run_async_safely(self.calculate_similarity(text1, text2))
         except Exception as e:
             logger.error(f"同步相似度计算失败: {e}")
             return 0.0

@@ -129,7 +129,9 @@ const isStageCompleted = (processingStatus, stageKey) => {
     'chunked': 2,
     'chunking_failed': 2,
     'entity_extracted': 3,
+    'entities_extracted': 3, // 支持 entities_extracted 状态
     'entity_extraction_failed': 3,
+    'entities_extraction_failed': 3, // 支持 entities_extraction_failed 状态
     'vectorized': 4,
     'vectorization_failed': 4,
     'graph_built': 5,
@@ -158,7 +160,9 @@ const getStatusText = (status) => {
     chunked: '已切片',
     chunking_failed: '切片失败',
     entity_extracted: '已识别实体',
+    entities_extracted: '已识别实体', // 支持 entities_extracted 状态
     entity_extraction_failed: '实体识别失败',
+    entities_extraction_failed: '实体识别失败', // 支持 entities_extraction_failed 状态
     vectorized: '已向量化',
     vectorization_failed: '向量化失败',
     graph_built: '已构建图谱',

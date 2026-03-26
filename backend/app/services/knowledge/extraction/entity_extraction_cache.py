@@ -13,14 +13,21 @@ logger = logging.getLogger(__name__)
 
 class EntityExtractionCache:
     """实体提取结果缓存
-    
+
     使用内存缓存 + 可选的Redis缓存，提供两级缓存机制。
+    修复E11：增强缓存机制，添加命中率统计和监控
     """
-    
+
     # 内存缓存
     _memory_cache = {}
     _cache_timestamps = {}
-    
+
+    # 缓存统计
+    _cache_hits = 0
+    _cache_misses = 0
+    _redis_hits = 0
+    _memory_hits = 0
+
     # 缓存配置
     CACHE_PREFIX = "entity_extraction:"
     DEFAULT_TTL = 3600  # 默认1小时
@@ -66,6 +73,7 @@ class EntityExtractionCache:
         """获取缓存的提取结果
 
         先检查内存缓存，再检查Redis缓存（如果启用）。
+        修复E11：添加缓存命中率统计
 
         Args:
             text: 输入文本
@@ -76,18 +84,20 @@ class EntityExtractionCache:
             (实体列表, 关系列表) 或 None
         """
         cache_key = EntityExtractionCache._generate_cache_key(text, knowledge_base_id)
-        
+
         # 1. 检查内存缓存
         if cache_key in EntityExtractionCache._memory_cache:
             timestamp = EntityExtractionCache._cache_timestamps.get(cache_key)
             if EntityExtractionCache._is_cache_valid(timestamp, EntityExtractionCache.DEFAULT_TTL):
                 logger.debug(f"内存缓存命中: {cache_key[:16]}...")
+                EntityExtractionCache._cache_hits += 1
+                EntityExtractionCache._memory_hits += 1
                 return EntityExtractionCache._memory_cache[cache_key]
             else:
                 # 缓存过期，清理
                 del EntityExtractionCache._memory_cache[cache_key]
                 del EntityExtractionCache._cache_timestamps[cache_key]
-        
+
         # 2. 检查Redis缓存
         if use_redis:
             try:
@@ -96,15 +106,19 @@ class EntityExtractionCache:
                 if cached_data:
                     data = json.loads(cached_data)
                     result = (data.get('entities', []), data.get('relationships', []))
-                    
+
                     # 同时更新内存缓存
                     EntityExtractionCache._update_memory_cache(cache_key, result)
-                    
+
                     logger.debug(f"Redis缓存命中: {cache_key[:16]}...")
+                    EntityExtractionCache._cache_hits += 1
+                    EntityExtractionCache._redis_hits += 1
                     return result
             except Exception as e:
                 logger.warning(f"Redis缓存读取失败: {e}")
-        
+
+        # 缓存未命中
+        EntityExtractionCache._cache_misses += 1
         return None
     
     @staticmethod
@@ -252,18 +266,38 @@ class EntityExtractionCache:
     @staticmethod
     def get_cache_stats() -> Dict[str, Any]:
         """获取缓存统计信息
-        
+
+        修复E11：添加命中率统计
+
         Returns:
             缓存统计信息
         """
         EntityExtractionCache._cleanup_expired_cache()
-        
+
+        total_requests = EntityExtractionCache._cache_hits + EntityExtractionCache._cache_misses
+        hit_rate = (EntityExtractionCache._cache_hits / total_requests * 100) if total_requests > 0 else 0
+
         return {
             "memory_cache_size": len(EntityExtractionCache._memory_cache),
             "max_memory_cache_size": EntityExtractionCache.MAX_MEMORY_CACHE_SIZE,
             "default_ttl": EntityExtractionCache.DEFAULT_TTL,
-            "cache_prefix": EntityExtractionCache.CACHE_PREFIX
+            "cache_prefix": EntityExtractionCache.CACHE_PREFIX,
+            "cache_hits": EntityExtractionCache._cache_hits,
+            "cache_misses": EntityExtractionCache._cache_misses,
+            "memory_hits": EntityExtractionCache._memory_hits,
+            "redis_hits": EntityExtractionCache._redis_hits,
+            "hit_rate": f"{hit_rate:.2f}%",
+            "total_requests": total_requests
         }
+
+    @staticmethod
+    def reset_cache_stats():
+        """重置缓存统计信息"""
+        EntityExtractionCache._cache_hits = 0
+        EntityExtractionCache._cache_misses = 0
+        EntityExtractionCache._memory_hits = 0
+        EntityExtractionCache._redis_hits = 0
+        logger.info("缓存统计信息已重置")
 
 
 # 便捷函数

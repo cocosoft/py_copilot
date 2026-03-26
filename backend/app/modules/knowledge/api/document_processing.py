@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import Dict, Any, Optional
 from datetime import datetime
@@ -10,12 +10,27 @@ from app.api.deps import get_current_user
 from app.models.user import User
 from app.modules.knowledge.services.knowledge_service import KnowledgeService
 from app.services.knowledge.document.document_processing_service import DocumentProcessingService
+from app.modules.knowledge.schemas.knowledge import DocumentProcessingStatus
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(
     tags=["knowledge_document_processing"]
 )
+
+
+class VectorizeRequest(BaseModel):
+    """
+    文档向量化请求模型
+    """
+    knowledge_base_id: int = Field(..., description="知识库ID")
+
+
+class BuildGraphRequest(BaseModel):
+    """
+    构建图谱请求模型
+    """
+    knowledge_base_id: int = Field(..., description="知识库ID")
 
 
 class ChunkRequest(BaseModel):
@@ -54,28 +69,104 @@ async def get_document_processing_status(
 @router.post("/documents/{document_id}/vectorize")
 async def vectorize_document(
     document_id: int,
-    knowledge_base_id: int,
+    request_data: VectorizeRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> Dict[str, Any]:
     """
-    执行文档向量化
-    
+    执行文档向量化（异步）
+
     流程：文档解析 → 文本清理 → 智能分块 → 向量化处理
+    立即返回任务已启动，后台执行实际处理
     """
     processing_service = DocumentProcessingService(db)
-    result = processing_service.process_vectorization(
-        document_id=document_id,
-        knowledge_base_id=knowledge_base_id
+
+    # 验证前置条件
+    validation = processing_service.validate_preconditions(
+        document_id,
+        DocumentProcessingStatus.VECTORIZED.value
     )
-    
-    if not result["success"]:
-        raise HTTPException(status_code=400, detail=result["message"])
-    
+
+    if not validation['valid']:
+        raise HTTPException(status_code=400, detail=validation['message'])
+
+    # 注意：不在此处更新状态为 PROCESSING，让后台任务来更新
+    # 因为 process_vectorization 方法会再次验证前置条件，
+    # 如果这里更新了状态，后台任务中的验证会失败
+
+    # 启动后台任务执行向量化
+    background_tasks.add_task(
+        _process_vectorization_task,
+        document_id,
+        request_data.knowledge_base_id
+    )
+    logger.info(f"向量化后台任务已启动: document_id={document_id}")
+
     return {
         "success": True,
-        "data": result
+        "message": "向量化任务已启动",
+        "document_id": document_id,
+        "status": "processing"
     }
+
+
+def _process_vectorization_task(document_id: int, knowledge_base_id: int):
+    """
+    后台执行向量化任务
+    """
+    import traceback
+    logger.info(f"[后台任务] ====== 开始执行向量化 ======")
+    logger.info(f"[后台任务] document_id={document_id}, knowledge_base_id={knowledge_base_id}")
+
+    from app.core.database import SessionLocal
+    db = SessionLocal()
+    try:
+        processing_service = DocumentProcessingService(db)
+        logger.info(f"[后台任务] DocumentProcessingService 创建成功")
+
+        # 先检查当前状态
+        status_info = processing_service.get_document_status(document_id)
+        logger.info(f"[后台任务] 当前文档状态: {status_info}")
+
+        logger.info(f"[后台任务] 调用process_vectorization: document_id={document_id}")
+        result = processing_service.process_vectorization(
+            document_id=document_id,
+            knowledge_base_id=knowledge_base_id
+        )
+        logger.info(f"[后台任务] process_vectorization返回: {result}")
+
+        if result.get('success'):
+            logger.info(f"[后台任务] 向量化任务完成: document_id={document_id}")
+        else:
+            logger.error(f"[后台任务] 向量化任务失败: document_id={document_id}, error={result.get('message')}")
+            # 更新状态为失败
+            try:
+                processing_service.update_document_status(
+                    document_id,
+                    DocumentProcessingStatus.FAILED,
+                    {"error": result.get('message')}
+                )
+                logger.info(f"[后台任务] 已更新状态为FAILED")
+            except Exception as e2:
+                logger.error(f"[后台任务] 更新失败状态失败: {e2}")
+    except Exception as e:
+        logger.error(f"[后台任务] 向量化任务异常: document_id={document_id}, error={e}")
+        logger.error(f"[后台任务] 异常堆栈: {traceback.format_exc()}")
+        # 更新状态为失败
+        try:
+            processing_service = DocumentProcessingService(db)
+            processing_service.update_document_status(
+                document_id,
+                DocumentProcessingStatus.FAILED
+            )
+            logger.info(f"[后台任务] 已更新状态为FAILED")
+        except Exception as e2:
+            logger.error(f"[后台任务] 更新失败状态也失败: {e2}")
+    finally:
+        logger.info(f"[后台任务] 关闭数据库连接: document_id={document_id}")
+        db.close()
+        logger.info(f"[后台任务] ====== 向量化任务结束 ======")
 
 
 @router.post("/documents/{document_id}/extract-entities")
@@ -86,22 +177,61 @@ async def extract_document_entities(
     current_user: User = Depends(get_current_user)
 ) -> Dict[str, Any]:
     """
-    执行片段级实体识别
+    执行片段级实体识别（异步）
     
-    对文档的所有片段进行并行实体识别
+    对文档的所有片段进行并行实体识别，立即返回任务已启动
     """
+    import asyncio
+    from concurrent.futures import ThreadPoolExecutor
+    
     processing_service = DocumentProcessingService(db)
-    result = processing_service.process_entity_extraction(
-        document_id=document_id,
-        max_workers=max_workers
+    
+    # 验证前置条件
+    validation = processing_service.validate_preconditions(
+        document_id, 
+        DocumentProcessingStatus.ENTITY_EXTRACTED.value
     )
     
-    if not result["success"]:
-        raise HTTPException(status_code=400, detail=result["message"])
+    if not validation['valid']:
+        raise HTTPException(status_code=400, detail=validation['message'])
     
+    # 更新状态为处理中
+    processing_service.update_document_status(
+        document_id, 
+        DocumentProcessingStatus.PROCESSING
+    )
+    
+    # 在后台线程中执行实体识别
+    def run_entity_extraction():
+        # 创建新的数据库会话
+        from app.core.database import SessionLocal
+        db_session = SessionLocal()
+        try:
+            service = DocumentProcessingService(db_session)
+            result = service.process_entity_extraction(
+                document_id=document_id,
+                max_workers=max_workers
+            )
+            return result
+        finally:
+            db_session.close()
+    
+    # 使用线程池在后台执行
+    loop = asyncio.get_event_loop()
+    executor = ThreadPoolExecutor(max_workers=1)
+    
+    # 提交后台任务，不等待完成
+    future = executor.submit(run_entity_extraction)
+    
+    # 立即返回响应
     return {
         "success": True,
-        "data": result
+        "data": {
+            "document_id": document_id,
+            "message": "实体识别任务已启动",
+            "status": "processing",
+            "task_id": f"entity_extraction_{document_id}_{int(asyncio.get_event_loop().time())}"
+        }
     }
 
 
@@ -341,50 +471,47 @@ async def chunk_document(
 @router.post("/documents/{document_id}/build-graph")
 async def build_document_graph(
     document_id: int,
-    knowledge_base_id: int,
+    request_data: BuildGraphRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> Dict[str, Any]:
     """
     执行文档知识图谱构建
-    
+
     基于文档实体和关系构建知识图谱
     """
     from app.modules.knowledge.models.knowledge_document import KnowledgeDocument
     from app.services.knowledge.graph.knowledge_graph_service import KnowledgeGraphService
-    
+
     # 查找文档
     document = db.query(KnowledgeDocument).filter(
         KnowledgeDocument.id == document_id
     ).first()
-    
+
     if not document:
         raise HTTPException(status_code=404, detail="文档不存在")
-    
+
     try:
         # 更新状态为处理中
         if not document.document_metadata:
             document.document_metadata = {}
         document.document_metadata["processing_status"] = "processing"
         db.commit()
-        
+
         # 执行图谱构建
-        graph_service = KnowledgeGraphService(db)
-        
-        # 获取文档实体
-        from app.modules.knowledge.models.knowledge_document import DocumentEntity
-        entities = db.query(DocumentEntity).filter(
-            DocumentEntity.document_id == document_id
-        ).all()
-        
-        if not entities:
-            raise ValueError("文档没有实体，请先进行实体提取")
-        
+        # KnowledgeGraphService.build_document_graph 会自动处理实体提取
+        graph_service = KnowledgeGraphService()
+
         # 构建图谱
         result = graph_service.build_document_graph(
             document_id=document_id,
-            knowledge_base_id=knowledge_base_id
+            db=db,
+            knowledge_base_id=request_data.knowledge_base_id
         )
+        
+        # 检查构建结果
+        if "error" in result:
+            raise ValueError(result["error"])
         
         # 更新文档状态
         document.document_metadata["processing_status"] = "graph_built"

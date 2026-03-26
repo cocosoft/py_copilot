@@ -4,6 +4,7 @@ import EmotionSettings from './EmotionSettings';
 import LearningSettings from './LearningSettings';
 import RelationshipSettings from './RelationshipSettings';
 import GeneralSettings from './GeneralSettings';
+import VectorStoreSettings from './VectorStoreSettings';
 import { useI18n } from '../../hooks/useI18n';
 import { request } from '../../utils/api';
 import './settings.css';
@@ -315,6 +316,8 @@ ${JSON.stringify(settings, null, 2)}
           saveSettings={(data) => saveSettings('relationship', data)}
           isLoading={isLoading}
         />;
+      case 'vectorStore':
+        return <VectorStoreSettings />;
       default:
         return <GeneralSettings 
           settings={settings.general} 
@@ -466,6 +469,12 @@ ${JSON.stringify(settings, null, 2)}
           onClick={() => setActiveTab('relationship')}
         >
           {t('settings.relationship.title')}
+        </button>
+        <button
+          className={`settings-nav-item ${activeTab === 'vectorStore' ? 'active' : ''}`}
+          onClick={() => setActiveTab('vectorStore')}
+        >
+          向量存储
         </button>
       </div>
 

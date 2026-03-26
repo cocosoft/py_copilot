@@ -99,6 +99,12 @@ class Settings(BaseSettings):
     enable_performance_logging: bool = Field(default=True, env="ENABLE_PERFORMANCE_LOGGING")
     performance_log_level: str = Field(default="INFO", env="PERFORMANCE_LOG_LEVEL")
     
+    # 向量存储配置
+    vector_store_backend: str = Field(default="sqlite", env="VECTOR_STORE_BACKEND", description="向量存储后端: sqlite 或 chromadb")
+    vector_store_db_path: str = Field(default=os.path.join(BASE_DIR, "vector_store.db"), env="VECTOR_STORE_DB_PATH", description="SQLite向量存储数据库路径")
+    chromadb_server_url: str = Field(default="http://localhost:8008", env="CHROMADB_SERVER_URL", description="ChromaDB服务地址")
+    chromadb_collection: str = Field(default="documents", env="CHROMADB_COLLECTION", description="ChromaDB默认集合名称")
+    
     class Config:
         env_file = ".env"
         case_sensitive = False

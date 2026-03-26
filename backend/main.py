@@ -21,7 +21,7 @@ if __name__ == "__main__":
     uvicorn.run(
         app="app.api.main:app",
         host="0.0.0.0",
-        port=8010,  # 使用新端口，避免端口冲突
+        port=8020,  # 使用新端口，避免端口冲突
         reload=False,  # 禁用reload模式以避免多进程问题
         log_level=log_level,
         workers=1,  # 使用单进程模式，确保代码修改生效

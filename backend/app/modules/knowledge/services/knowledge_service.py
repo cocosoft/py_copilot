@@ -229,6 +229,14 @@ class KnowledgeService:
         """
         异步处理文档（解析、向量化、图谱化）- 带重试机制
 
+        完整处理流程：
+        1. 文档解析
+        2. 文本清理
+        3. 智能分块
+        4. 向量化处理
+        5. 实体提取
+        6. 知识图谱构建
+
         @param document_id: 文档ID
         @param knowledge_base_id: 知识库ID
         """
@@ -238,7 +246,7 @@ class KnowledgeService:
         db = SessionLocal()
         max_retries = 3
         retry_count = 0
-        
+
         try:
             while retry_count < max_retries:
                 try:
@@ -255,9 +263,11 @@ class KnowledgeService:
                     document.document_metadata["retry_count"] = retry_count
                     db.commit()
 
-                    # 使用DocumentProcessor进行完整文档处理
+                    # ====== 第一步：向量化处理 ======
                     from app.services.knowledge.core.document_processor import DocumentProcessor
                     document_processor = DocumentProcessor()
+
+                    logger.info(f"[批处理] 文档 {document_id} 开始向量化处理...")
 
                     # 处理文档 - 使用线程池执行，避免阻塞事件循环
                     processing_result = await asyncio.to_thread(
@@ -267,57 +277,79 @@ class KnowledgeService:
                         document.id,
                         document.knowledge_base_id,
                         db,
-                        document.title  # document_name
+                        document.title
                     )
 
-                    if processing_result.get("success"):
-                        # 更新文档内容
-                        document.content = processing_result.get("text", "")
-                        document.vector_id = document.uuid  # 使用uuid作为向量ID
-                        document.document_metadata["chunks_count"] = len(processing_result.get("chunks", []))
-                        document.document_metadata["entities_count"] = len(processing_result.get("entities", []))
-                        document.document_metadata["relationships_count"] = len(processing_result.get("relationships", []))
-                        document.document_metadata["graph_data_available"] = processing_result.get("graph_data") is not None
-                        document.document_metadata["processing_status"] = "completed"
-                        document.document_metadata["vectorization_rate"] = processing_result.get("vectorization_rate", 0)
-                        document.document_metadata["success_count"] = processing_result.get("success_count", 0)
-                        document.document_metadata["total_chunks"] = processing_result.get("total_chunks", 0)
-                        
-                        # 显式标记对象为已修改，确保SQLAlchemy追踪变化
-                        from sqlalchemy.orm import attributes
-                        attributes.flag_modified(document, "document_metadata")
-                        
-                        # 提交事务
-                        db.commit()
-                        
-                        # 刷新对象，确保从数据库重新加载
-                        db.refresh(document)
-                        
-                        # 验证更新是否成功
-                        verify_doc = db.query(KnowledgeDocument).filter(KnowledgeDocument.id == document_id).first()
-                        if verify_doc:
-                            verify_status = verify_doc.document_metadata.get("processing_status")
-                            logger.info(f"文档异步处理完成: {document_id}，状态验证: {verify_status}，向量化成功率: {processing_result.get('vectorization_rate', 0):.2%}")
-                        else:
-                            logger.error(f"文档异步处理完成但验证失败: {document_id}")
-                        
-                        # 强制同步到数据库
-                        db.flush()
+                    if not processing_result.get("success"):
+                        raise Exception(processing_result.get("error", "向量化处理失败"))
 
-                        if processing_result.get("graph_data"):
-                            logger.info(f"图谱化完成: {document_id}，构建了包含 {len(processing_result['graph_data'].get('nodes', []))} 个节点的知识图谱")
-                        
-                        # 处理成功，跳出重试循环
-                        break
+                    # 更新文档内容
+                    document.content = processing_result.get("text", "")
+                    document.vector_id = document.uuid
+                    document.document_metadata["chunks_count"] = len(processing_result.get("chunks", []))
+                    document.document_metadata["vectorization_rate"] = processing_result.get("vectorization_rate", 0)
+                    document.document_metadata["success_count"] = processing_result.get("success_count", 0)
+                    document.document_metadata["total_chunks"] = processing_result.get("total_chunks", 0)
+                    document.document_metadata["processing_status"] = "vectorized"
+
+                    from sqlalchemy.orm import attributes
+                    attributes.flag_modified(document, "document_metadata")
+                    db.commit()
+                    db.refresh(document)
+
+                    logger.info(f"[批处理] 文档 {document_id} 向量化完成，成功率: {processing_result.get('vectorization_rate', 0):.2%}")
+
+                    # ====== 第二步：知识图谱构建 ======
+                    logger.info(f"[批处理] 文档 {document_id} 开始知识图谱构建...")
+
+                    from app.services.knowledge.knowledge_graph_service import KnowledgeGraphService
+                    graph_service = KnowledgeGraphService()
+
+                    # 构建图谱（包含实体提取）
+                    graph_result = await asyncio.to_thread(
+                        graph_service.build_document_graph,
+                        document_id,
+                        db,
+                        knowledge_base_id
+                    )
+
+                    if "error" in graph_result:
+                        logger.warning(f"[批处理] 文档 {document_id} 图谱构建失败: {graph_result.get('error')}")
+                        # 图谱构建失败不影响整体处理，继续完成
+                        document.document_metadata["graph_error"] = graph_result.get("error")
+                        document.document_metadata["graph_data_available"] = False
                     else:
-                        # 处理失败，抛出异常进行重试
-                        raise Exception(processing_result.get("error", "处理失败"))
-                        
+                        # 更新图谱相关元数据
+                        document.document_metadata["entities_count"] = graph_result.get("nodes_count", 0)
+                        document.document_metadata["relationships_count"] = graph_result.get("edges_count", 0)
+                        document.document_metadata["graph_data_available"] = True
+                        document.document_metadata["graph_nodes"] = graph_result.get("nodes_count", 0)
+                        document.document_metadata["graph_edges"] = graph_result.get("edges_count", 0)
+
+                        logger.info(f"[批处理] 文档 {document_id} 图谱构建完成: {graph_result.get('nodes_count', 0)} 个节点, {graph_result.get('edges_count', 0)} 条边")
+
+                    # ====== 完成 ======
+                    document.document_metadata["processing_status"] = "completed"
+                    attributes.flag_modified(document, "document_metadata")
+                    db.commit()
+                    db.refresh(document)
+
+                    # 验证更新是否成功
+                    verify_doc = db.query(KnowledgeDocument).filter(KnowledgeDocument.id == document_id).first()
+                    if verify_doc:
+                        verify_status = verify_doc.document_metadata.get("processing_status")
+                        logger.info(f"[批处理] 文档 {document_id} 处理完成，状态: {verify_status}")
+                    else:
+                        logger.error(f"[批处理] 文档 {document_id} 处理完成但验证失败")
+
+                    # 处理成功，跳出重试循环
+                    break
+
                 except Exception as e:
                     retry_count += 1
                     if retry_count >= max_retries:
                         raise
-                    
+
                     # 指数退避等待
                     wait_time = 2 ** retry_count
                     logger.warning(f"文档处理失败，{wait_time}秒后重试: {e}")
@@ -336,7 +368,6 @@ class KnowledgeService:
                     document.document_metadata["processing_error"] = str(e)
                     document.document_metadata["retry_count"] = retry_count
 
-                    # 显式标记对象为已修改
                     from sqlalchemy.orm import attributes
                     attributes.flag_modified(document, "document_metadata")
 

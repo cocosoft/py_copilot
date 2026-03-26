@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_');
 
   // 直接硬编码后端地址
-    const apiBaseUrl = 'http://localhost:8010'
+    const apiBaseUrl = 'http://localhost:8020'
   
   return {
     plugins: [

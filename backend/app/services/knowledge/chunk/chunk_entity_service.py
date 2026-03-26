@@ -55,33 +55,9 @@ class ChunkEntityService:
             )
 
             # 提取实体（仅处理片段文本）
-            # 注意：extract_entities 是异步方法，需要使用 asyncio.run 或 await 调用
-            try:
-                # 尝试直接运行异步方法
-                entities = asyncio.run(extractor.extract_entities(chunk.chunk_text))
-            except RuntimeError as e:
-                if "cannot be called from a running event loop" in str(e):
-                    # 如果已经在事件循环中，使用 nest_asyncio 或获取当前循环
-                    try:
-                        import nest_asyncio
-                        nest_asyncio.apply()
-                        entities = asyncio.run(extractor.extract_entities(chunk.chunk_text))
-                    except ImportError:
-                        # 如果没有 nest_asyncio，尝试获取当前事件循环
-                        loop = asyncio.get_event_loop()
-                        if loop.is_running():
-                            # 创建新线程来运行异步代码
-                            import concurrent.futures
-                            with concurrent.futures.ThreadPoolExecutor() as executor:
-                                future = executor.submit(
-                                    asyncio.run,
-                                    extractor.extract_entities(chunk.chunk_text)
-                                )
-                                entities = future.result()
-                        else:
-                            entities = loop.run_until_complete(extractor.extract_entities(chunk.chunk_text))
-                else:
-                    raise
+            # 修复：使用统一的异步工具方法，避免事件循环冲突
+            from app.services.knowledge.utils.async_utils import run_async_safely
+            entities = run_async_safely(extractor.extract_entities(chunk.chunk_text))
 
             # 保存为ChunkEntity
             chunk_entities = []

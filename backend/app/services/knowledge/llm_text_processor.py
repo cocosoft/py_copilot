@@ -420,14 +420,173 @@ class LLMTextProcessor:
         return None
 
 
+    async def batch_extract_keywords(self, texts: List[str], top_n: int = 10) -> List[List[Dict[str, Any]]]:
+        """批量提取关键词 - 优化版
+
+        修复：将多次LLM调用合并为一次批量调用，减少API请求次数
+
+        Args:
+            texts: 文本列表
+            top_n: 每个文本提取的关键词数量
+
+        Returns:
+            关键词列表的列表
+        """
+        if not texts:
+            return []
+
+        # 如果文本数量较少，使用单个调用
+        if len(texts) <= 3:
+            results = []
+            for text in texts:
+                keywords = await self.extract_keywords(text, top_n)
+                results.append(keywords)
+            return results
+
+        try:
+            model_id = self._get_model_for_processing()
+
+            # 构建批量提示
+            text_items = []
+            for i, text in enumerate(texts):
+                text_items.append(f"文本{i+1}:\n{text[:1500]}")
+
+            text_content = "\n\n".join(text_items)
+            prompt = f"""请从以下{len(texts)}个文本中分别提取最重要的关键词。
+
+{text_content}
+
+要求：
+1. 每个文本提取 {top_n} 个关键词
+2. 关键词应该能代表文本的核心主题
+3. 返回JSON格式：{{"results": [{{"text_index": 1, "keywords": [{{"word": "关键词1", "weight": 0.95}}, ...]}}, ...]}}
+4. weight取值范围0-1，表示重要性
+
+请只返回JSON格式的结果，不要包含其他说明。"""
+
+            response = await self.llm_service.chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+                model_name=model_id,
+                temperature=0.3
+            )
+
+            if response and "choices" in response:
+                content = response["choices"][0]["message"]["content"]
+                json_match = self._extract_json(content)
+                if json_match:
+                    result = json.loads(json_match)
+                    results_data = result.get("results", [])
+
+                    # 按索引排序
+                    results_data.sort(key=lambda x: x.get("text_index", 0))
+                    results = [item.get("keywords", []) for item in results_data]
+
+                    logger.info(f"批量关键词提取成功，处理 {len(texts)} 个文本")
+                    return results
+
+            # 如果批量调用失败，回退到逐个调用
+            logger.warning("批量关键词提取失败，回退到逐个调用")
+            results = []
+            for text in texts:
+                keywords = await self.extract_keywords(text, top_n)
+                results.append(keywords)
+            return results
+
+        except Exception as e:
+            logger.error(f"批量关键词提取异常: {e}")
+            # 回退到逐个调用
+            results = []
+            for text in texts:
+                keywords = await self.extract_keywords(text, top_n)
+                results.append(keywords)
+            return results
+
+    async def batch_calculate_similarity(self, text_pairs: List[tuple]) -> List[float]:
+        """批量计算文本相似度 - 优化版
+
+        修复：将多次LLM调用合并为一次批量调用，减少API请求次数
+
+        Args:
+            text_pairs: 文本对列表，每个元素为 (text1, text2)
+
+        Returns:
+            相似度分数列表
+        """
+        if not text_pairs:
+            return []
+
+        # 如果文本对数量较少，使用单个调用
+        if len(text_pairs) <= 3:
+            results = []
+            for text1, text2 in text_pairs:
+                similarity = await self.calculate_similarity(text1, text2)
+                results.append(similarity)
+            return results
+
+        try:
+            model_id = self._get_model_for_processing()
+
+            # 构建批量提示
+            pair_items = []
+            for i, (text1, text2) in enumerate(text_pairs):
+                pair_items.append(f"文本对{i+1}:\n文本1：{text1[:800]}\n文本2：{text2[:800]}")
+
+            pairs_content = "\n\n".join(pair_items)
+            prompt = f"""请判断以下{len(text_pairs)}组文本的语义相似度。
+
+{pairs_content}
+
+请返回JSON格式：{{"similarities": [{{"pair_index": 1, "score": 0.85}}, ...]}}
+score取值范围0-1，1表示完全相同，0表示完全不同。
+
+请只返回JSON格式的结果，不要包含其他说明。"""
+
+            response = await self.llm_service.chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+                model_name=model_id,
+                temperature=0.1
+            )
+
+            if response and "choices" in response:
+                content = response["choices"][0]["message"]["content"]
+                json_match = self._extract_json(content)
+                if json_match:
+                    result = json.loads(json_match)
+                    similarities_data = result.get("similarities", [])
+
+                    # 按索引排序并提取分数
+                    similarities_data.sort(key=lambda x: x.get("pair_index", 0))
+                    scores = [min(1.0, max(0.0, item.get("score", 0.0))) for item in similarities_data]
+
+                    logger.info(f"批量相似度计算成功，处理 {len(text_pairs)} 对文本")
+                    return scores
+
+            # 如果批量调用失败，回退到逐个调用
+            logger.warning("批量相似度计算失败，回退到逐个调用")
+            results = []
+            for text1, text2 in text_pairs:
+                similarity = await self.calculate_similarity(text1, text2)
+                results.append(similarity)
+            return results
+
+        except Exception as e:
+            logger.error(f"批量相似度计算异常: {e}")
+            # 回退到逐个调用
+            results = []
+            for text1, text2 in text_pairs:
+                similarity = await self.calculate_similarity(text1, text2)
+                results.append(similarity)
+            return results
+
+
 # 同步包装函数，用于兼容现有接口
 def create_llm_text_processor(db: Session = None) -> LLMTextProcessor:
     """
     创建LLM文本处理器实例
-    
+
     Args:
         db: 数据库会话
-        
+
     Returns:
         LLMTextProcessor实例
     """

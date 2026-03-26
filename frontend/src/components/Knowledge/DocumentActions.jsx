@@ -4,7 +4,7 @@
  * 根据文档的不同处理状态显示相应的操作按钮
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   FiFileText, FiScissors, FiUsers, FiDatabase, 
   FiShare2, FiRefreshCw, FiTrash2, FiDownload,
@@ -46,7 +46,25 @@ const ACTION_CONFIG = {
     description: '识别文档中的命名实体',
     color: '#722ed1',
     bgColor: '#f9f0ff',
-    condition: (metadata) => { const status = metadata.processing_status || "idle"; return status === "chunked"; }
+    condition: (metadata) => { 
+      const status = metadata.processing_status || "idle"; 
+      // 在 chunked 或 processing 状态下都显示实体识别按钮
+      // processing 状态表示实体识别正在进行中
+      return status === "chunked" || status === "processing"; 
+    },
+    // 动态标签：根据状态显示不同的文本
+    getLabel: (metadata) => {
+      const status = metadata.processing_status || "idle";
+      if (status === "processing") {
+        return "实体识别中...";
+      }
+      return "实体识别";
+    },
+    // 动态禁用状态：processing 状态下禁用按钮
+    getDisabled: (metadata) => {
+      const status = metadata.processing_status || "idle";
+      return status === "processing";
+    }
   },
   vectorize: {
     key: 'vectorize',
@@ -55,7 +73,18 @@ const ACTION_CONFIG = {
     description: '将文本片段转换为向量表示',
     color: '#faad14',
     bgColor: '#fffbe6',
-    condition: (metadata) => { const status = metadata.processing_status || "idle"; return status === "entity_extracted"; }
+    condition: (metadata) => { const status = metadata.processing_status || "idle"; return status === "entity_extracted" || status === "entities_extracted" || status === "processing"; },
+    getLabel: (metadata) => {
+      const status = metadata?.processing_status;
+      if (status === 'processing') {
+        return '向量化中...';
+      }
+      return '向量化';
+    },
+    getDisabled: (metadata) => {
+      const status = metadata?.processing_status;
+      return status === 'processing';
+    }
   },
   buildGraph: {
     key: 'buildGraph',
@@ -107,25 +136,50 @@ const ACTION_CONFIG = {
 /**
  * 单个操作按钮组件
  */
-const ActionButton = ({ action, onClick, loading, disabled }) => {
+const ActionButton = ({ action, onClick, loading, disabled, metadata }) => {
   const Icon = action.icon;
+  
+  // 获取动态标签
+  const getLabel = () => {
+    if (loading) {
+      return `${action.label}中...`;
+    }
+    // 如果 action 有 getLabel 方法，使用它
+    if (action.getLabel && metadata) {
+      return action.getLabel(metadata);
+    }
+    return action.label;
+  };
+  
+  // 获取禁用状态
+  const getDisabled = () => {
+    // 如果 action 有 getDisabled 方法，使用它
+    if (action.getDisabled && metadata) {
+      return disabled || loading || action.getDisabled(metadata);
+    }
+    return disabled || loading;
+  };
+  
+  const label = getLabel();
+  const isDisabled = getDisabled();
+  const isProcessing = label.includes('中...');
   
   return (
     <button
-      className={`action-button ${action.key} ${loading ? 'loading' : ''}`}
+      className={`action-button ${action.key} ${loading || isProcessing ? 'loading' : ''}`}
       onClick={onClick}
-      disabled={disabled || loading}
-      title={loading ? `${action.label}处理中...` : action.description}
+      disabled={isDisabled}
+      title={loading || isProcessing ? `${label}` : action.description}
       style={{
         '--action-color': action.color,
         '--action-bg-color': action.bgColor
       }}
     >
       <span className="button-icon">
-        {loading ? <FiRefreshCw className="spin-icon" /> : <Icon />}
+        {loading || isProcessing ? <FiRefreshCw className="spin-icon" /> : <Icon />}
       </span>
       <span className="button-label">
-        {loading ? `${action.label}中...` : action.label}
+        {label}
       </span>
     </button>
   );
@@ -137,12 +191,19 @@ const ActionButton = ({ action, onClick, loading, disabled }) => {
 const DocumentActions = ({ document, onActionComplete, compact = false }) => {
   const [loading, setLoading] = useState({});
   const [showMore, setShowMore] = useState(false);
+  // 使用本地状态跟踪文档对象，以便在异步操作期间立即更新UI
+  const [localDocument, setLocalDocument] = useState(document);
 
-  if (!document) return null;
+  // 当document prop变化时，更新本地状态
+  useEffect(() => {
+    setLocalDocument(document);
+  }, [document]);
 
-  const metadata = document.document_metadata || {};
+  if (!localDocument) return null;
+
+  const metadata = localDocument.document_metadata || {};
   const processingStatus = metadata.processing_status || 'idle';
-  const knowledgeBaseId = document.knowledge_base_id;
+  const knowledgeBaseId = localDocument.knowledge_base_id;
 
   // 根据条件筛选可用的操作
   const availableActions = Object.values(ACTION_CONFIG).filter(action => 
@@ -166,51 +227,119 @@ const DocumentActions = ({ document, onActionComplete, compact = false }) => {
       switch (action.key) {
         case 'extractText':
           console.log(`[DocumentActions] 开始提取文本`);
-          response = await documentProcessingApi.extractDocumentText(document.id);
+          response = await documentProcessingApi.extractDocumentText(localDocument.id);
           console.log(`[DocumentActions] 文本提取完成:`, response);
           break;
         case 'chunkDocument':
           console.log(`[DocumentActions] 开始切片处理`);
-          response = await documentProcessingApi.chunkDocument(document.id, knowledgeBaseId);
+          response = await documentProcessingApi.chunkDocument(localDocument.id, knowledgeBaseId);
           console.log(`[DocumentActions] 切片处理完成:`, response);
           break;
         case 'extractEntities':
           console.log(`[DocumentActions] 开始实体识别`);
-          response = await documentProcessingApi.extractDocumentEntities(document.id);
-          console.log(`[DocumentActions] 实体识别完成:`, response);
+          try {
+            // 设置较短的超时时间，因为后端是异步处理
+            response = await documentProcessingApi.extractDocumentEntities(localDocument.id);
+            console.log(`[DocumentActions] 实体识别任务已启动:`, response);
+
+            // 立即更新本地状态，让UI显示"实体识别中"
+            const updatedDocument = {
+              ...localDocument,
+              document_metadata: {
+                ...localDocument.document_metadata,
+                processing_status: 'processing'
+              },
+              _forceStatusUpdate: true
+            };
+            setLocalDocument(updatedDocument);
+
+            // 立即触发状态更新回调，让父组件更新状态为"处理中"
+            if (onActionComplete) {
+              console.log(`[DocumentActions] 触发状态更新回调，状态: processing`);
+              onActionComplete('extractEntities', updatedDocument);
+            }
+            // 异步操作已处理，直接返回，不执行后续的通用回调
+            setLoading(prev => ({ ...prev, [action.key]: false }));
+            return;
+          } catch (error) {
+            console.error(`[DocumentActions] 实体识别启动失败:`, error);
+            // 如果是因为超时，也认为任务已启动
+            if (error.message && error.message.includes('超时')) {
+              console.log(`[DocumentActions] 请求超时，但任务可能已在后台启动`);
+              response = { success: true, message: '实体识别任务已启动（后台处理中）' };
+
+              // 立即更新本地状态，让UI显示"实体识别中"
+              const updatedDocument = {
+                ...localDocument,
+                document_metadata: {
+                  ...localDocument.document_metadata,
+                  processing_status: 'processing'
+                },
+                _forceStatusUpdate: true
+              };
+              setLocalDocument(updatedDocument);
+
+              if (onActionComplete) {
+                onActionComplete('extractEntities', updatedDocument);
+              }
+              // 异步操作已处理，直接返回，不执行后续的通用回调
+              setLoading(prev => ({ ...prev, [action.key]: false }));
+              return;
+            } else {
+              throw error;
+            }
+          }
           break;
         case 'vectorize':
           console.log(`[DocumentActions] 开始向量化`);
-          response = await documentProcessingApi.vectorizeDocument(document.id, knowledgeBaseId);
+          response = await documentProcessingApi.vectorizeDocument(localDocument.id, knowledgeBaseId);
           console.log(`[DocumentActions] 向量化完成:`, response);
-          break;
+
+          // 立即更新本地状态，让UI显示"向量化中"
+          const vectorizeUpdatedDocument = {
+            ...localDocument,
+            document_metadata: {
+              ...localDocument.document_metadata,
+              processing_status: 'processing'
+            },
+            _forceStatusUpdate: true
+          };
+          setLocalDocument(vectorizeUpdatedDocument);
+
+          if (onActionComplete) {
+            console.log(`[DocumentActions] 触发状态更新回调，状态: processing`);
+            onActionComplete('vectorize', vectorizeUpdatedDocument);
+          }
+          // 异步操作已处理，直接返回，不执行后续的通用回调
+          setLoading(prev => ({ ...prev, [action.key]: false }));
+          return;
         case 'buildGraph':
           console.log(`[DocumentActions] 开始构建知识图谱`);
-          response = await documentProcessingApi.buildDocumentGraph(document.id, knowledgeBaseId);
+          response = await documentProcessingApi.buildDocumentGraph(localDocument.id, knowledgeBaseId);
           console.log(`[DocumentActions] 知识图谱构建完成:`, response);
           break;
         case 'reprocess':
           // 使用统一的process端点进行重新处理
           console.log(`[DocumentActions] 开始重新处理文档`);
-          response = await processDocument(document.id);
+          response = await processDocument(localDocument.id);
           console.log(`[DocumentActions] 重新处理完成:`, response);
           break;
         case 'viewDetails':
           // 触发查看详情事件
           if (onActionComplete) {
-            onActionComplete('viewDetails', document);
+            onActionComplete('viewDetails', localDocument);
           }
           return;
         case 'download':
           // 触发下载事件
           if (onActionComplete) {
-            onActionComplete('download', document);
+            onActionComplete('download', localDocument);
           }
           return;
         case 'delete':
           // 触发删除事件
           if (onActionComplete) {
-            onActionComplete('delete', document);
+            onActionComplete('delete', localDocument);
           }
           return;
         default:
@@ -228,13 +357,26 @@ const DocumentActions = ({ document, onActionComplete, compact = false }) => {
       // 操作成功回调 - 触发父组件刷新文档列表
       if (onActionComplete) {
         console.log(`[DocumentActions] 触发 onActionComplete 回调: ${action.key}`);
-        onActionComplete(action.key, document);
+        onActionComplete(action.key, localDocument);
       }
     } catch (error) {
       console.error(`[DocumentActions] 操作 ${action.key} 失败:`, error);
-      // 可以添加错误提示
+      
+      // 添加友好的错误提示
+      let errorMessage = `操作 ${action.label} 失败`;
       if (error.message) {
+        errorMessage += `: ${error.message}`;
         console.error(`[DocumentActions] 错误详情: ${error.message}`);
+      }
+      
+      // 检查是否是超时错误
+      if (error.message && error.message.includes('超时')) {
+        errorMessage = `操作 ${action.label} 超时，请检查网络连接或稍后重试`;
+      }
+      
+      // 显示错误提示
+      if (typeof message !== 'undefined') {
+        message.error({ content: errorMessage });
       }
     } finally {
       setLoading(prev => ({ ...prev, [action.key]: false }));
@@ -252,6 +394,7 @@ const DocumentActions = ({ document, onActionComplete, compact = false }) => {
             onClick={() => handleAction(action)}
             loading={loading[action.key]}
             disabled={processingStatus === 'processing'}
+            metadata={metadata}
           />
         ))}
       </div>
@@ -269,6 +412,7 @@ const DocumentActions = ({ document, onActionComplete, compact = false }) => {
             onClick={() => handleAction(action)}
             loading={loading[action.key]}
             disabled={processingStatus === 'processing'}
+            metadata={metadata}
           />
         ))}
       </div>
@@ -292,6 +436,7 @@ const DocumentActions = ({ document, onActionComplete, compact = false }) => {
                   onClick={() => handleAction(action)}
                   loading={loading[action.key]}
                   disabled={processingStatus === 'processing'}
+                  metadata={metadata}
                 />
               ))}
             </div>

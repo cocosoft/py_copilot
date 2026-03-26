@@ -422,7 +422,7 @@ class KnowledgeGraphVisualizationExecutor(BaseNodeExecutor):
         if entity_ids and not all(isinstance(entity_id, str) for entity_id in entity_ids):
             raise ValueError("实体ID列表中的元素必须是字符串类型")
         
-        knowledge_graph_service = KnowledgeGraphService(self.db)
+        knowledge_graph_service = KnowledgeGraphService()
         
         logger.info(f"执行知识图谱可视化: 类型={visualization_type}, 实体数量={len(entity_ids)}")
         
