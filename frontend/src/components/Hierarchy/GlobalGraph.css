@@ -1,0 +1,254 @@
+.global-graph {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.gg-loading,
+.gg-error {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 400px;
+  font-size: 16px;
+  color: #666;
+}
+
+.gg-error {
+  color: #e74c3c;
+}
+
+.gg-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.gg-header h3 {
+  margin: 0;
+  color: #333;
+  font-size: 18px;
+}
+
+.gg-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.gg-filter {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.gg-filter select {
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: white;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.gg-filter select:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.control-button {
+  padding: 6px 10px;
+  background-color: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+}
+
+.control-button:hover {
+  background-color: #e0e0e0;
+  border-color: #ccc;
+}
+
+.gg-settings {
+  background-color: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.gg-settings h4 {
+  margin: 0 0 15px 0;
+  color: #333;
+  font-size: 16px;
+}
+
+.setting-item {
+  margin-bottom: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.setting-item label {
+  font-size: 14px;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.setting-item input[type="range"] {
+  width: 100%;
+  cursor: pointer;
+}
+
+.setting-item input[type="checkbox"] {
+  cursor: pointer;
+}
+
+.setting-item select {
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: white;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.setting-item select:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.gg-container {
+  flex: 1;
+  position: relative;
+  overflow: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background-color: #fafafa;
+  min-height: 400px;
+  margin-bottom: 20px;
+}
+
+.gg-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.3s ease;
+  transform-origin: center;
+}
+
+.node-group {
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.node-group:hover {
+  opacity: 0.8;
+}
+
+.gg-legend {
+  background-color: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 15px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.gg-legend h4 {
+  margin: 0 0 15px 0;
+  color: #333;
+  font-size: 16px;
+}
+
+.legend-items {
+  display: flex;
+  gap: 30px;
+  flex-wrap: wrap;
+}
+
+.legend-section {
+  flex: 1;
+  min-width: 200px;
+}
+
+.legend-section h5 {
+  margin: 0 0 10px 0;
+  color: #666;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.legend-subitems {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #333;
+}
+
+.legend-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid #ddd;
+}
+
+@media (max-width: 768px) {
+  .gg-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  
+  .gg-controls {
+    justify-content: space-between;
+  }
+  
+  .control-button {
+    min-width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+  
+  .gg-container {
+    min-height: 300px;
+  }
+  
+  .legend-items {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .legend-section {
+    min-width: 100%;
+  }
+}

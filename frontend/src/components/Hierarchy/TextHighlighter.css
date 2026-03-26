@@ -1,0 +1,89 @@
+/**
+ * 文本高亮组件样式
+ */
+
+.text-highlighter {
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.highlighted-text {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #333333;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.entity-highlight {
+  position: relative;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: all 0.3s ease;
+  margin: 0 1px;
+}
+
+.entity-highlight:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.entity-legend {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #e8e8e8;
+}
+
+.entity-legend h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333333;
+  margin-bottom: 10px;
+}
+
+.legend-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #666666;
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.legend-label {
+  white-space: nowrap;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .text-highlighter {
+    padding: 15px;
+  }
+  
+  .highlighted-text {
+    font-size: 13px;
+  }
+  
+  .legend-items {
+    gap: 8px;
+  }
+  
+  .legend-item {
+    font-size: 11px;
+  }
+}

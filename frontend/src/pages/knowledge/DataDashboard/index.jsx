@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import DataVisualization from '../../../components/DataVisualization';
+import HierarchyNavigator from '../../../components/Hierarchy/HierarchyNavigator';
+import HierarchyViewContainer from '../../../components/Hierarchy/HierarchyViewContainer';
 import useKnowledgeStore from '../../../stores/knowledgeStore';
 import { getKnowledgeBases, getDocumentStats, getEntityStats } from '../../../utils/api/knowledgeApi';
 import './styles.css';
@@ -123,84 +125,15 @@ const DataDashboard = () => {
 
   return (
     <div className="data-dashboard">
-      <div className="dashboard-header">
-        <h2>数据可视化仪表盘</h2>
+      <div className="page-header">
+        <h1>数据可视化仪表盘</h1>
         <p>知识库系统运行状态和统计数据</p>
       </div>
-
-      <div className="dashboard-grid">
-        {/* 文档数量趋势 */}
-        <div className="dashboard-card">
-          <h3>文档数量趋势</h3>
-          <DataVisualization
-            data={stats.trendData}
-            chartType="line"
-            title="每日文档处理量"
-            height={300}
-          />
-        </div>
-
-        {/* 实体类型分布 */}
-        <div className="dashboard-card">
-          <h3>实体类型分布</h3>
-          <DataVisualization
-            data={stats.entityTypeData}
-            chartType="pie"
-            title="实体类型占比"
-            height={300}
-          />
-        </div>
-
-        {/* 文档处理状态 */}
-        <div className="dashboard-card">
-          <h3>文档处理状态</h3>
-          <DataVisualization
-            data={[
-              { name: '已处理', value: 120 },
-              { name: '处理中', value: 30 },
-              { name: '待处理', value: 15 },
-              { name: '失败', value: 5 }
-            ]}
-            chartType="bar"
-            title="文档状态分布"
-            height={300}
-          />
-        </div>
-
-        {/* 系统性能指标 */}
-        <div className="dashboard-card">
-          <h3>系统性能指标</h3>
-          <DataVisualization
-            data={[
-              { name: '响应时间', 平均值: 120, 最大值: 300, 最小值: 50 },
-              { name: '吞吐量', 平均值: 85, 最大值: 120, 最小值: 40 },
-              { name: '准确率', 平均值: 92, 最大值: 98, 最小值: 85 },
-              { name: '召回率', 平均值: 88, 最大值: 95, 最小值: 80 }
-            ]}
-            chartType="radar"
-            title="系统性能雷达图"
-            height={300}
-          />
-        </div>
-      </div>
-
-      <div className="dashboard-summary">
-        <div className="summary-card">
-          <div className="summary-value">{stats.documentStats.length || 0}</div>
-          <div className="summary-label">总文档数</div>
-        </div>
-        <div className="summary-card">
-          <div className="summary-value">{stats.entityStats.reduce((sum, stat) => sum + (stat.count || 0), 0)}</div>
-          <div className="summary-label">总实体数</div>
-        </div>
-        <div className="summary-card">
-          <div className="summary-value">{Math.floor(Math.random() * 1000) + 500}</div>
-          <div className="summary-label">总关系数</div>
-        </div>
-        <div className="summary-card">
-          <div className="summary-value">{Math.floor(Math.random() * 90) + 90}%</div>
-          <div className="summary-label">处理成功率</div>
-        </div>
+      
+      <HierarchyNavigator />
+      
+      <div className="hierarchy-content">
+        <HierarchyViewContainer knowledgeBaseId={currentKnowledgeBase?.id} />
       </div>
     </div>
   );

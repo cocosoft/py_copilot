@@ -6,9 +6,11 @@
 
 import React, { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
+import useKnowledgeStore from '../stores/knowledgeStore';
 
-const SimpleKnowledgeGraph = ({ data, width = 800, height = 600 }) => {
+const SimpleKnowledgeGraph = ({ data, width = 800, height = 600, knowledgeBaseId }) => {
   const svgRef = useRef();
+  const { setCurrentHierarchyLevel, setHierarchyData, setDrillDownPath } = useKnowledgeStore();
 
   useEffect(() => {
     if (!data || !svgRef.current) {
@@ -119,7 +121,28 @@ const SimpleKnowledgeGraph = ({ data, width = 800, height = 600 }) => {
           if (!event.active) simulation.alphaTarget(0);
           d.fx = null;
           d.fy = null;
-        }));
+        }))
+      .on("dblclick", (event, d) => {
+        // 实现节点双击下钻功能
+        handleNodeDoubleClick(d);
+      });
+
+    /**
+     * 处理节点双击事件，实现下钻功能
+     * @param {Object} node - 双击的节点数据
+     */
+    const handleNodeDoubleClick = (node) => {
+      console.log('双击节点:', node);
+      
+      // 根据当前层级和节点类型决定下钻到哪个层级
+      // 这里简化处理，默认从知识库级下钻到文档级
+      setCurrentHierarchyLevel('document');
+      setHierarchyData({ entity: node, knowledgeBaseId });
+      setDrillDownPath([{ level: 'knowledge_base', data: { knowledgeBaseId } }, { level: 'document', data: { entity: node } }]);
+      
+      // 显示下钻提示
+      console.log(`下钻到文档级，实体: ${node.name}`);
+    };
 
     // 节点圆圈
     node.append("circle")

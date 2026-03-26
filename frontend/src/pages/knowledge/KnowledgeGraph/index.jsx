@@ -6,7 +6,8 @@
 
 import React from 'react';
 import useKnowledgeStore from '../../../stores/knowledgeStore';
-import EnhancedKnowledgeGraph from '../../../components/KnowledgeGraph/EnhancedKnowledgeGraph';
+import HierarchyNavigator from '../../../components/Hierarchy/HierarchyNavigator';
+import HierarchyViewContainer from '../../../components/Hierarchy/HierarchyViewContainer';
 import './styles.css';
 
 /**
@@ -15,20 +16,20 @@ import './styles.css';
 const KnowledgeGraph = () => {
   const { currentKnowledgeBase } = useKnowledgeStore();
 
-  /**
-   * 处理节点点击
-   */
-  const handleNodeClick = (node) => {
-    console.log('Node clicked:', node);
-    // 可以在这里添加更多的节点点击处理逻辑
-  };
-
   return (
     <div className="knowledge-graph-page">
-      <EnhancedKnowledgeGraph 
-        knowledgeBaseId={currentKnowledgeBase?.id}
-        onNodeClick={handleNodeClick}
-      />
+      <div className="page-header">
+        <h2>知识图谱</h2>
+        <p>可视化展示知识库中的实体和关系</p>
+      </div>
+      
+      {/* 层级导航器 */}
+      <HierarchyNavigator />
+      
+      {/* 层级视图容器 */}
+      <div className="page-content">
+        <HierarchyViewContainer knowledgeBaseId={currentKnowledgeBase?.id} />
+      </div>
     </div>
   );
 };

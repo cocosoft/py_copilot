@@ -4,10 +4,10 @@
  * 整合实体识别和实体关系管理功能，提供统一的实体管理界面
  */
 
-import React, { useState } from 'react';
-import EntityRecognition from './EntityRecognition';
-import RelationManagement from '../../components/KnowledgeGraph/RelationManagement';
+import React from 'react';
 import useKnowledgeStore from '@stores/knowledgeStore';
+import HierarchyNavigator from '../../components/Hierarchy/HierarchyNavigator';
+import HierarchyViewContainer from '../../components/Hierarchy/HierarchyViewContainer';
 import './EntityManagement.css';
 
 /**
@@ -15,7 +15,6 @@ import './EntityManagement.css';
  */
 const EntityManagement = () => {
   const { currentKnowledgeBase } = useKnowledgeStore();
-  const [activeTab, setActiveTab] = useState('recognition');
 
   return (
     <div className="entity-management">
@@ -24,30 +23,12 @@ const EntityManagement = () => {
         <p>管理知识库中的实体和实体关系</p>
       </div>
       
-      {/* 标签页导航 */}
-      <div className="entity-management-tabs">
-        <button 
-          className={`tab-button ${activeTab === 'recognition' ? 'active' : ''}`}
-          onClick={() => setActiveTab('recognition')}
-        >
-          实体识别
-        </button>
-        <button 
-          className={`tab-button ${activeTab === 'relationships' ? 'active' : ''}`}
-          onClick={() => setActiveTab('relationships')}
-        >
-          实体关系
-        </button>
-      </div>
+      {/* 层级导航器 */}
+      <HierarchyNavigator />
       
-      {/* 标签页内容 */}
+      {/* 层级视图容器 */}
       <div className="entity-management-content">
-        {activeTab === 'recognition' && (
-          <EntityRecognition />
-        )}
-        {activeTab === 'relationships' && (
-          <RelationManagement knowledgeBaseId={currentKnowledgeBase?.id} />
-        )}
+        <HierarchyViewContainer knowledgeBaseId={currentKnowledgeBase?.id} />
       </div>
     </div>
   );

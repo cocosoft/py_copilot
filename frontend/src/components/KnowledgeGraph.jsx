@@ -346,6 +346,7 @@ const KnowledgeGraph = ({ documentId, textContent, graphData, data, viewMode = '
           data={dataToRender} 
           width={dimensions.width} 
           height={dimensions.height} 
+          knowledgeBaseId={knowledgeBaseId}
         />
       </div>
     </div>

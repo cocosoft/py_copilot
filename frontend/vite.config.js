@@ -186,6 +186,33 @@ export default defineConfig(({ mode }) => {
               };
             }
           },
+        '/v1': {
+            target: apiBaseUrl,
+            changeOrigin: true,
+            secure: false,
+            timeout: 300000,
+            ws: true,
+            configure: (proxy, options) => {
+              options.onProxyReq = (proxyReq, req, res) => {
+                proxyReq.setHeader('X-Proxy-Request', 'true');
+              };
+              
+              options.onProxyRes = (proxyRes, req, res) => {
+                res.setHeader('X-Proxy-Response', 'true');
+                if (proxyRes.headers['content-type'] === 'text/event-stream') {
+                  res.setHeader('Content-Type', 'text/event-stream');
+                  res.setHeader('Cache-Control', 'no-cache');
+                  res.setHeader('Connection', 'keep-alive');
+                  res.setHeader('X-Accel-Buffering', 'no');
+                }
+              };
+              
+              options.onError = (err, req, res) => {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Proxy error', details: err.message }));
+              };
+            }
+          },
         '/logos': {
             target: apiBaseUrl,
             changeOrigin: true,

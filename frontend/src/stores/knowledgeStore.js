@@ -114,7 +114,6 @@ const initialState = {
 
   // 处理状态
   processingStatus: {},
-  processingProgress: {},
 
   // 缓存
   cache: {
@@ -122,6 +121,17 @@ const initialState = {
     chunks: new Map(),
     entities: new Map(),
     searchResults: new Map(),
+    // 缓存配置
+    config: {
+      maxSize: 1000, // 最大缓存条目数
+      maxAge: 5 * 60 * 1000, // 缓存最大年龄（5分钟）
+    },
+    // 缓存统计
+    stats: {
+      hits: 0,
+      misses: 0,
+      size: 0,
+    },
   },
 
   // 视图状态
@@ -145,6 +155,20 @@ const initialState = {
 
   // 消息通知
   notifications: [],
+
+  // 层级状态
+  currentHierarchyLevel: 'knowledge_base', // 'fragment' | 'document' | 'knowledge_base' | 'global'
+  
+  // 层级数据缓存
+  hierarchyData: {
+    fragment: {},
+    document: {},
+    knowledge_base: {},
+    global: {}
+  },
+  
+  // 下钻路径
+  drillDownPath: [],
 };
 
 /**
@@ -571,46 +595,7 @@ const useKnowledgeStore = create(
             });
           },
 
-          // ==================== 批量操作 ====================
 
-          /**
-           * 开始批量操作
-           */
-          startBatchOperation: (operation) => {
-            set((state) => {
-              state.batchOperation = operation;
-              state.batchProgress = 0;
-              state.batchResults = [];
-            });
-          },
-
-          /**
-           * 更新批量进度
-           */
-          updateBatchProgress: (progress) => {
-            set((state) => {
-              state.batchProgress = progress;
-            });
-          },
-
-          /**
-           * 添加批量结果
-           */
-          addBatchResult: (result) => {
-            set((state) => {
-              state.batchResults.push(result);
-            });
-          },
-
-          /**
-           * 结束批量操作
-           */
-          endBatchOperation: () => {
-            set((state) => {
-              state.batchOperation = null;
-              state.batchProgress = 0;
-            });
-          },
 
           // ==================== 视图状态 ====================
 
@@ -693,6 +678,108 @@ const useKnowledgeStore = create(
               state.cache.chunks.clear();
               state.cache.entities.clear();
               state.cache.searchResults.clear();
+              state.cache.stats = {
+                hits: 0,
+                misses: 0,
+                size: 0,
+              };
+            });
+          },
+
+          /**
+           * 检查缓存是否过期
+           */
+          isCacheExpired: (timestamp) => {
+            const { cache } = get();
+            return Date.now() - timestamp > cache.config.maxAge;
+          },
+
+          /**
+           * 清理过期缓存
+           */
+          cleanupExpiredCache: () => {
+            set((state) => {
+              const now = Date.now();
+              const maxAge = state.cache.config.maxAge;
+              
+              // 清理搜索结果缓存
+              for (const [key, value] of state.cache.searchResults.entries()) {
+                if (now - value.timestamp > maxAge) {
+                  state.cache.searchResults.delete(key);
+                }
+              }
+              
+              // 清理其他缓存（如果需要）
+              // ...
+              
+              // 更新缓存大小
+              state.cache.stats.size = 
+                state.cache.documents.size +
+                state.cache.chunks.size +
+                state.cache.entities.size +
+                state.cache.searchResults.size;
+            });
+          },
+
+          /**
+           * 检查缓存大小并清理
+           */
+          ensureCacheSize: () => {
+            set((state) => {
+              const maxSize = state.cache.config.maxSize;
+              const currentSize = 
+                state.cache.documents.size +
+                state.cache.chunks.size +
+                state.cache.entities.size +
+                state.cache.searchResults.size;
+              
+              if (currentSize > maxSize) {
+                // 清理搜索结果缓存（最易过期）
+                state.cache.searchResults.clear();
+                
+                // 如果仍然超过大小，清理其他缓存
+                if (
+                  state.cache.documents.size +
+                  state.cache.chunks.size +
+                  state.cache.entities.size > maxSize
+                ) {
+                  // 这里可以实现更复杂的缓存清理策略
+                  // 例如：清理最旧的缓存条目
+                  // 简化起见，这里只清理部分缓存
+                  state.cache.entities.clear();
+                }
+              }
+              
+              // 更新缓存大小
+              state.cache.stats.size = 
+                state.cache.documents.size +
+                state.cache.chunks.size +
+                state.cache.entities.size +
+                state.cache.searchResults.size;
+            });
+          },
+
+          /**
+           * 获取缓存统计信息
+           */
+          getCacheStats: () => {
+            return get().cache.stats;
+          },
+
+          /**
+           * 重置缓存统计信息
+           */
+          resetCacheStats: () => {
+            set((state) => {
+              state.cache.stats = {
+                hits: 0,
+                misses: 0,
+                size: 
+                  state.cache.documents.size +
+                  state.cache.chunks.size +
+                  state.cache.entities.size +
+                  state.cache.searchResults.size,
+              };
             });
           },
 
@@ -953,6 +1040,62 @@ const useKnowledgeStore = create(
           getSnapshot: () => {
             return get();
           },
+
+          // ==================== 层级操作 ====================
+
+          /**
+           * 设置当前层级
+           */
+          setHierarchyLevel: (level) => {
+            set((state) => {
+              state.currentHierarchyLevel = level;
+            });
+          },
+
+          /**
+           * 缓存层级数据
+           */
+          cacheHierarchyData: (level, key, data) => {
+            set((state) => {
+              state.hierarchyData[level] = { ...state.hierarchyData[level], [key]: data };
+            });
+          },
+
+          /**
+           * 添加下钻路径
+           */
+          pushDrillDown: (node) => {
+            set((state) => {
+              state.drillDownPath = [...state.drillDownPath, node];
+            });
+          },
+
+          /**
+           * 移除下钻路径
+           */
+          popDrillDown: () => {
+            set((state) => {
+              state.drillDownPath = state.drillDownPath.slice(0, -1);
+            });
+          },
+
+          /**
+           * 清空下钻路径
+           */
+          clearDrillDownPath: () => {
+            set((state) => {
+              state.drillDownPath = [];
+            });
+          },
+
+          /**
+           * 获取当前层级数据
+           */
+          getCurrentLevelData: (key) => {
+            const { currentHierarchyLevel, hierarchyData, currentKnowledgeBase } = get();
+            const levelData = hierarchyData[currentHierarchyLevel];
+            return levelData?.[key] || levelData?.[currentKnowledgeBase?.id];
+          },
         }))
       ),
       {
@@ -968,6 +1111,7 @@ const useKnowledgeStore = create(
           activeTab: state.activeTab,
           documentsPageSize: state.documentsPageSize,
           searchHistory: state.searchHistory,
+          currentHierarchyLevel: state.currentHierarchyLevel,
         }),
       }
     ),

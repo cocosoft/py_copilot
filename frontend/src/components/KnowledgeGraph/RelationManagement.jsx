@@ -7,6 +7,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getRelations, getRelationTypes } from '../../utils/api/knowledgeGraphApi';
 import { showNotification, NotificationType } from '../UI/Notification';
+import HierarchyNavigator from '../Hierarchy/HierarchyNavigator';
+import HierarchyViewContainer from '../Hierarchy/HierarchyViewContainer';
 import './RelationManagement.css';
 
 /**
@@ -450,6 +452,14 @@ const RelationManagement = ({ knowledgeBaseId }) => {
 
   return (
     <div className="relation-management">
+      {/* 层级导航器 */}
+      <HierarchyNavigator />
+      
+      {/* 层级视图容器 */}
+      <div className="hierarchy-view-container">
+        <HierarchyViewContainer knowledgeBaseId={knowledgeBaseId} />
+      </div>
+      
       {/* 头部 */}
       <div className="relation-header">
         <h3>关系管理</h3>

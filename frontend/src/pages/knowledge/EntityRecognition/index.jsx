@@ -13,6 +13,8 @@ import { VirtualListEnhanced } from '../../../components/UI';
 import Modal from '../../../components/UI/Modal';
 import { message } from '../../../components/UI/Message/Message';
 import EntityConfigModal from '../../../components/Knowledge/EntityConfigModal';
+import HierarchyNavigator from '../../../components/Hierarchy/HierarchyNavigator';
+import HierarchyViewContainer from '../../../components/Hierarchy/HierarchyViewContainer';
 import {
   listDocuments,
   batchUpdateEntityStatus,
@@ -1595,138 +1597,13 @@ const EntityRecognition = () => {
             </div>
           )}
 
-          {/* 实体层级切换 - 简化版 */}
-          <div className="entity-level-bar">
-            <div className="level-tabs-compact">
-              {[
-                { key: 'document', label: '文档级', icon: FiDatabase, count: documentEntities.length },
-                { key: 'chunk', label: '片段级', icon: FiFileText, count: chunkEntities.length },
-                { key: 'kb', label: '知识库级', icon: FiLayers, count: kbEntities.length },
-              ].map(level => {
-                const Icon = level.icon;
-                return (
-                  <button
-                    key={level.key}
-                    className={`level-tab-compact ${entityLevel === level.key ? 'active' : ''}`}
-                    onClick={() => setEntityLevel(level.key)}
-                  >
-                    <Icon size={14} />
-                    <span>{level.label}</span>
-                    {level.count > 0 && <span className="level-count">{level.count}</span>}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* 片段级实体查看时的文档选择 */}
-            {entityLevel === 'chunk' && (
-              <div className="chunk-doc-select">
-                <select
-                  value={selectedDocForChunks || ''}
-                  onChange={(e) => setSelectedDocForChunks(e.target.value ? parseInt(e.target.value) : null)}
-                >
-                  <option value="">选择文档查看片段实体</option>
-                  {documents.map(doc => (
-                    <option key={doc.id} value={doc.id}>{doc.title}</option>
-                  ))}
-                </select>
-              </div>
-            )}
+          {/* 层级导航器 */}
+          <HierarchyNavigator />
+          
+          {/* 层级视图容器 */}
+          <div className="hierarchy-view-container">
+            <HierarchyViewContainer knowledgeBaseId={currentKnowledgeBase?.id} />
           </div>
-
-        {/* 筛选栏 */}
-        <div className="filter-bar">
-          <div className="search-box">
-            <FiSearch size={16} />
-            <input
-              type="text"
-              placeholder="搜索实体..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <div className="filter-group">
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-            >
-              <option value="all">全部类型</option>
-              {ENTITY_TYPES.map(type => (
-                <option key={type.value} value={type.value}>
-                  {type.label}
-                </option>
-              ))}
-            </select>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-            >
-              <option value="all">全部状态</option>
-              <option value="pending">待确认</option>
-              <option value="confirmed">已确认</option>
-              <option value="rejected">已拒绝</option>
-              <option value="modified">已修改</option>
-            </select>
-          </div>
-        </div>
-
-        {/* 批量操作栏 */}
-        {entities.length > 0 && (
-          <div className="batch-actions-bar">
-            <label className="batch-checkbox">
-              <input
-                type="checkbox"
-                checked={selectedEntities.length === filteredEntities.length && filteredEntities.length > 0}
-                ref={input => {
-                  if (input) {
-                    input.indeterminate = selectedEntities.length > 0 && selectedEntities.length < filteredEntities.length;
-                  }
-                }}
-                onChange={(e) => e.target.checked ? handleSelectAllEntities() : handleClearEntitySelection()}
-              />
-              <span>全选</span>
-            </label>
-
-            <span className="selection-info">
-              已选择 {selectedEntities.length} 个实体
-            </span>
-
-            <Button
-              size="small"
-              variant="primary"
-              disabled={selectedEntities.length === 0}
-              onClick={handleBatchConfirm}
-            >
-              批量确认
-            </Button>
-
-            <Button
-              size="small"
-              variant="danger"
-              disabled={selectedEntities.length === 0}
-              onClick={handleBatchReject}
-            >
-              批量拒绝
-            </Button>
-          </div>
-        )}
-
-        {/* 实体列表 */}
-        <div className="entities-list-container">
-          <VirtualListEnhanced
-            items={filteredEntities}
-            renderItem={renderEntity}
-            estimateSize={100}
-            overscan={10}
-            emptyText={
-              <div className="empty-state">
-                <div className="empty-icon">📋</div>
-                <h3>暂无实体</h3>
-                <p>选择文档并开始实体提取</p>
-              </div>
-            }
-          />
-        </div>
       </div>
 
       </div>

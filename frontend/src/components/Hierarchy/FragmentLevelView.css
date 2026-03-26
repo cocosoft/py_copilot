@@ -1,0 +1,198 @@
+.fragment-level-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 20px;
+  background-color: #f5f5f5;
+}
+
+.flv-header {
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.flv-header h2 {
+  margin: 0 0 10px 0;
+  color: #333;
+  font-size: 24px;
+}
+
+.flv-breadcrumb {
+  font-size: 14px;
+  color: #666;
+}
+
+.flv-breadcrumb span {
+  margin: 0 5px;
+}
+
+.flv-content {
+  display: flex;
+  flex: 1;
+  gap: 20px;
+  overflow: hidden;
+}
+
+.flv-text-container {
+  flex: 1;
+  background-color: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow-y: auto;
+}
+
+.flv-text-container h3 {
+  margin: 0 0 15px 0;
+  color: #333;
+  font-size: 18px;
+}
+
+.flv-sidebar {
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.flv-stats {
+  background-color: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.flv-stats h3 {
+  margin: 0 0 15px 0;
+  color: #333;
+  font-size: 16px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: #666;
+}
+
+.stat-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.flv-entities {
+  background-color: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  flex: 1;
+  overflow-y: auto;
+}
+
+.flv-entities h3 {
+  margin: 0 0 15px 0;
+  color: #333;
+  font-size: 16px;
+}
+
+.entity-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.entity-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  margin-bottom: 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-left: 4px solid #ddd;
+}
+
+.entity-item:hover {
+  background-color: #f0f0f0;
+  transform: translateX(5px);
+}
+
+.entity-type-领域 {
+  border-left-color: #3498db;
+}
+
+.entity-type-技术 {
+  border-left-color: #2ecc71;
+}
+
+.entity-type-组织 {
+  border-left-color: #f39c12;
+}
+
+.entity-type-人物 {
+  border-left-color: #e74c3c;
+}
+
+.entity-type-地点 {
+  border-left-color: #9b59b6;
+}
+
+.entity-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.entity-type {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background-color: #e0e0e0;
+  color: #666;
+}
+
+.flv-loading,
+.flv-error {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  font-size: 16px;
+  color: #666;
+}
+
+.flv-error {
+  color: #e74c3c;
+}
+
+@media (max-width: 768px) {
+  .flv-content {
+    flex-direction: column;
+  }
+  
+  .flv-sidebar {
+    width: 100%;
+    flex-direction: row;
+  }
+  
+  .flv-stats,
+  .flv-entities {
+    flex: 1;
+  }
+}

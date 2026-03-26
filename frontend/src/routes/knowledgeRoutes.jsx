@@ -18,6 +18,12 @@ const EntityManagement = lazy(() => import('../pages/knowledge/EntityManagement.
 const DataDashboard = lazy(() => import('../pages/knowledge/DataDashboard'));
 const Reranking = lazy(() => import('../pages/knowledge/Reranking'));
 
+// 层级结构组件
+const FragmentEntityList = lazy(() => import('../components/Hierarchy/FragmentEntityList'));
+const FragmentGraph = lazy(() => import('../components/Hierarchy/FragmentGraph'));
+const GlobalEntityList = lazy(() => import('../components/Hierarchy/GlobalEntityList'));
+const CrossKBAnalysis = lazy(() => import('../components/Hierarchy/CrossKBAnalysis'));
+
 /**
  * 页面加载占位符
  */
@@ -91,6 +97,28 @@ export const knowledgeRoutes = {
     {
       path: 'settings',
       element: withSuspense(KnowledgeSettings),
+    },
+    // 10. 层级结构相关路由
+    {
+      path: 'hierarchy',
+      children: [
+        // 片段级路由
+        {
+          path: 'fragment',
+          children: [
+            { path: 'entities', element: withSuspense(FragmentEntityList) },
+            { path: 'graph', element: withSuspense(FragmentGraph) },
+          ],
+        },
+        // 全局级路由
+        {
+          path: 'global',
+          children: [
+            { path: 'entities', element: withSuspense(GlobalEntityList) },
+            { path: 'analysis', element: withSuspense(CrossKBAnalysis) },
+          ],
+        },
+      ],
     },
   ],
 };

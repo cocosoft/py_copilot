@@ -1,0 +1,137 @@
+.hierarchy-navigator {
+  background: #f5f5f5;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.hierarchy-title {
+  margin-bottom: 20px;
+}
+
+.hierarchy-title h3 {
+  margin: 0 0 5px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.hierarchy-subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.hierarchy-levels {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.hierarchy-level {
+  flex: 1;
+  min-width: 200px;
+  background: white;
+  border: 2px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hierarchy-level:hover {
+  border-color: var(--level-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.hierarchy-level.active {
+  border-color: var(--level-color);
+  background: rgba(var(--level-color-rgb), 0.05);
+  box-shadow: 0 2px 8px rgba(var(--level-color-rgb), 0.2);
+}
+
+.level-icon {
+  font-size: 24px;
+  color: var(--level-color);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--level-color-rgb), 0.1);
+  border-radius: 50%;
+}
+
+.level-info {
+  flex: 1;
+}
+
+.level-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.level-description {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.level-count {
+  font-size: 12px;
+  color: var(--level-color);
+  font-weight: 500;
+}
+
+.hierarchy-breadcrumb {
+  display: flex;
+  gap: 10px;
+  font-size: 14px;
+  padding-top: 15px;
+  border-top: 1px solid #e8e8e8;
+}
+
+.breadcrumb-separator {
+  color: #999;
+  margin: 0 5px;
+}
+
+.breadcrumb-item {
+  cursor: pointer;
+  color: #666;
+  transition: color 0.3s ease;
+}
+
+.breadcrumb-item:hover {
+  color: #1890ff;
+}
+
+.breadcrumb-item.active {
+  color: #1890ff;
+  font-weight: 600;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .hierarchy-levels {
+    flex-direction: column;
+  }
+  
+  .hierarchy-level {
+    min-width: auto;
+  }
+  
+  .hierarchy-breadcrumb {
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-bottom: 10px;
+  }
+}

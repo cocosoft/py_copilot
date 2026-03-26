@@ -1,0 +1,290 @@
+.global-entity-list {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.gel-header {
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.gel-header h3 {
+  margin: 0 0 15px 0;
+  color: #333;
+  font-size: 18px;
+}
+
+.gel-controls {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.gel-search {
+  flex: 1;
+  min-width: 200px;
+}
+
+.gel-search input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: border-color 0.2s ease;
+}
+
+.gel-search input:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.gel-filters {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.gel-filter select {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: white;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.gel-filter select:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.gel-table-container {
+  flex: 1;
+  overflow: auto;
+  margin-bottom: 15px;
+}
+
+.gel-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.gel-table th,
+.gel-table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.gel-table th {
+  background-color: #f9f9f9;
+  font-weight: 600;
+  color: #333;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.sortable:hover {
+  background-color: #f0f0f0;
+}
+
+.sort-icon {
+  font-size: 12px;
+  color: #666;
+}
+
+.sorted-asc .sort-icon,
+.sorted-desc .sort-icon {
+  color: #3498db;
+}
+
+.entity-row {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.entity-row:hover {
+  background-color: #f5f5f5;
+}
+
+.entity-text {
+  font-weight: 500;
+  color: #333;
+}
+
+.entity-type-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: white;
+}
+
+.entity-type-领域 {
+  background-color: #3498db;
+}
+
+.entity-type-技术 {
+  background-color: #2ecc71;
+}
+
+.entity-type-设备 {
+  background-color: #f39c12;
+}
+
+.entity-type-组织 {
+  background-color: #9b59b6;
+}
+
+.entity-type-人物 {
+  background-color: #e74c3c;
+}
+
+.entity-type-地点 {
+  background-color: #1abc9c;
+}
+
+.entity-type-架构 {
+  background-color: #e67e22;
+}
+
+.action-button {
+  padding: 4px 10px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.action-button:hover {
+  background-color: #2980b9;
+}
+
+.no-entities {
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+  font-style: italic;
+}
+
+.gel-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 15px;
+  border-top: 1px solid #e0e0e0;
+  font-size: 14px;
+  color: #666;
+}
+
+.entity-count {
+  font-weight: 500;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.page-button {
+  padding: 6px 12px;
+  background-color: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.page-button:hover:not(:disabled) {
+  background-color: #e0e0e0;
+  border-color: #ccc;
+}
+
+.page-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-info {
+  font-size: 14px;
+  color: #333;
+}
+
+.gel-loading,
+.gel-error {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  font-size: 16px;
+  color: #666;
+}
+
+.gel-error {
+  color: #e74c3c;
+}
+
+@media (max-width: 768px) {
+  .gel-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .gel-search,
+  .gel-filters,
+  .gel-filter {
+    width: 100%;
+  }
+  
+  .gel-filters {
+    flex-direction: column;
+  }
+  
+  .gel-table th,
+  .gel-table td {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+  
+  .action-button {
+    padding: 2px 6px;
+    font-size: 10px;
+  }
+  
+  .gel-footer {
+    flex-direction: column;
+    gap: 10px;
+    align-items: stretch;
+  }
+  
+  .pagination {
+    justify-content: center;
+  }
+}

@@ -482,6 +482,7 @@ const GraphVisualization = ({ knowledgeBaseId }) => {
                 viewMode={viewMode}
                 filters={filters}
                 onNodeClick={setSelectedNode}
+                knowledgeBaseId={knowledgeBaseId}
               />
             ) : (
               <div className="empty-graph">

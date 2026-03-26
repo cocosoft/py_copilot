@@ -1826,3 +1826,17 @@
   outline: none;
   border-color: #1890ff;
 }
+
+/* ==================== 层级视图容器样式 ==================== */
+
+.hierarchy-view-container {
+  flex: 1;
+  padding: 16px;
+  overflow: auto;
+  background: #ffffff;
+}
+
+/* 确保层级导航器在实体识别页面中正确显示 */
+.entities-section .hierarchy-navigator {
+  margin-bottom: 16px;
+}

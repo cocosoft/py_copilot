@@ -5,7 +5,9 @@
  */
 
 import React from 'react';
-import RelationManagement from '../../components/KnowledgeGraph/RelationManagement';
+import { FiDatabase, FiLayers, FiFileText, FiGlobe } from 'lucide-react';
+import HierarchyNavigator from '../../components/Hierarchy/HierarchyNavigator';
+import HierarchyViewContainer from '../../components/Hierarchy/HierarchyViewContainer';
 import useKnowledgeStore from '../../stores/knowledgeStore';
 
 /**
@@ -16,7 +18,16 @@ const EntityRelationships = () => {
 
   return (
     <div className="entity-relationships">
-      <RelationManagement knowledgeBaseId={currentKnowledgeBase?.id} />
+      <div className="page-header">
+        <h1>实体关系管理</h1>
+        <p>管理知识图谱中的实体关系，支持关系的增删改查操作</p>
+      </div>
+      
+      <HierarchyNavigator />
+      
+      <div className="hierarchy-content">
+        <HierarchyViewContainer knowledgeBaseId={currentKnowledgeBase?.id} />
+      </div>
     </div>
   );
 };

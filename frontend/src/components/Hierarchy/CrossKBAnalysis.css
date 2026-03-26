@@ -1,0 +1,442 @@
+.cross-kb-analysis {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.cka-loading,
+.cka-error {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 400px;
+  font-size: 16px;
+  color: #666;
+}
+
+.cka-error {
+  color: #e74c3c;
+}
+
+.cka-header {
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.cka-header h3 {
+  margin: 0 0 15px 0;
+  color: #333;
+  font-size: 18px;
+}
+
+.cka-controls {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.analysis-type-selector,
+.knowledge-base-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.analysis-type-selector label,
+.knowledge-base-selector label {
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+}
+
+.analysis-type-selector select {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: white;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+  min-width: 200px;
+}
+
+.analysis-type-selector select:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.kb-checkboxes {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.kb-checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14px;
+  color: #333;
+}
+
+.kb-checkbox-item input[type="checkbox"] {
+  cursor: pointer;
+}
+
+.cka-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.analysis-section {
+  margin-bottom: 30px;
+  padding: 20px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.analysis-section h4 {
+  margin: 0 0 20px 0;
+  color: #333;
+  font-size: 16px;
+}
+
+/* 实体分布分析样式 */
+.distribution-table-container {
+  margin-bottom: 20px;
+  overflow-x: auto;
+}
+
+.distribution-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  background-color: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.distribution-table th,
+.distribution-table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.distribution-table th {
+  background-color: #f5f5f5;
+  font-weight: 600;
+  color: #333;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.total-cell {
+  font-weight: 600;
+  background-color: #f5f5f5;
+}
+
+.distribution-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.distribution-bar {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.bar-label {
+  width: 80px;
+  font-size: 14px;
+  color: #333;
+}
+
+.bar-container {
+  flex: 1;
+  height: 20px;
+  background-color: #e0e0e0;
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 10px;
+  transition: width 0.5s ease;
+}
+
+.bar-value {
+  width: 50px;
+  text-align: right;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+/* 实体重叠分析样式 */
+.overlap-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  background-color: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.stat-icon {
+  font-size: 24px;
+}
+
+.stat-content {
+  flex: 1;
+}
+
+.stat-value {
+  display: block;
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+}
+
+.stat-label {
+  display: block;
+  font-size: 12px;
+  color: #666;
+  margin-top: 2px;
+}
+
+.common-entities {
+  margin-top: 20px;
+}
+
+.common-entities h5 {
+  margin: 0 0 15px 0;
+  color: #333;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.common-entities-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  background-color: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.common-entity-item {
+  padding: 12px 15px;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+
+.common-entity-item:last-child {
+  border-bottom: none;
+}
+
+.entity-name {
+  font-weight: 500;
+  color: #333;
+}
+
+.entity-count {
+  color: #666;
+  font-size: 13px;
+}
+
+/* 关系分析样式 */
+.relation-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  background-color: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.relation-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.relation-info {
+  width: 150px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+}
+
+.relation-name {
+  font-weight: 500;
+  color: #333;
+}
+
+.relation-count {
+  color: #666;
+}
+
+.relation-bar-container {
+  flex: 1;
+  height: 20px;
+  background-color: #e0e0e0;
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+}
+
+.relation-bar-fill {
+  height: 100%;
+  border-radius: 10px;
+  transition: width 0.5s ease;
+}
+
+.relation-percentage {
+  width: 60px;
+  text-align: right;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+/* 知识库统计样式 */
+.kb-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.kb-stat-card {
+  background-color: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.kb-stat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.kb-stat-header h5 {
+  margin: 0;
+  color: #333;
+  font-size: 16px;
+}
+
+.kb-id {
+  font-size: 12px;
+  color: #666;
+  background-color: #f5f5f5;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.kb-stat-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.kb-stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+
+.kb-stat-label {
+  color: #666;
+}
+
+.kb-stat-value {
+  font-weight: 500;
+  color: #333;
+}
+
+@media (max-width: 768px) {
+  .cka-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .analysis-type-selector select {
+    width: 100%;
+  }
+  
+  .kb-checkboxes {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .distribution-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 5px;
+  }
+  
+  .bar-label {
+    width: 100%;
+  }
+  
+  .bar-value {
+    width: 100%;
+    text-align: left;
+  }
+  
+  .overlap-stats {
+    grid-template-columns: 1fr;
+  }
+  
+  .relation-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  
+  .relation-info {
+    width: 100%;
+  }
+  
+  .relation-percentage {
+    width: 100%;
+    text-align: left;
+  }
+  
+  .kb-stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
