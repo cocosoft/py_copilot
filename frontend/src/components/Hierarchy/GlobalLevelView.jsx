@@ -84,42 +84,42 @@ const GlobalLevelView = () => {
           <div className="stat-card">
             <div className="stat-icon">🏛️</div>
             <div className="stat-content">
-              <span className="stat-value">{stats.knowledgeBaseCount}</span>
+              <span className="stat-value">{stats.knowledgeBaseCount || 0}</span>
               <span className="stat-label">知识库数量</span>
             </div>
           </div>
           <div className="stat-card">
             <div className="stat-icon">📄</div>
             <div className="stat-content">
-              <span className="stat-value">{stats.documentCount}</span>
+              <span className="stat-value">{stats.documentCount || 0}</span>
               <span className="stat-label">文档数量</span>
             </div>
           </div>
           <div className="stat-card">
             <div className="stat-icon">🏷️</div>
             <div className="stat-content">
-              <span className="stat-value">{stats.entityCount}</span>
+              <span className="stat-value">{stats.entityCount || 0}</span>
               <span className="stat-label">实体数量</span>
             </div>
           </div>
           <div className="stat-card">
             <div className="stat-icon">🔗</div>
             <div className="stat-content">
-              <span className="stat-value">{stats.relationCount}</span>
+              <span className="stat-value">{stats.relationCount || 0}</span>
               <span className="stat-label">关系数量</span>
             </div>
           </div>
           <div className="stat-card">
             <div className="stat-icon">📊</div>
             <div className="stat-content">
-              <span className="stat-value">{stats.averageEntitiesPerDocument.toFixed(1)}</span>
+              <span className="stat-value">{(stats.averageEntitiesPerDocument || 0).toFixed(1)}</span>
               <span className="stat-label">平均实体数/文档</span>
             </div>
           </div>
           <div className="stat-card">
             <div className="stat-icon">🔄</div>
             <div className="stat-content">
-              <span className="stat-value">{stats.averageRelationsPerDocument.toFixed(1)}</span>
+              <span className="stat-value">{(stats.averageRelationsPerDocument || 0).toFixed(1)}</span>
               <span className="stat-label">平均关系数/文档</span>
             </div>
           </div>

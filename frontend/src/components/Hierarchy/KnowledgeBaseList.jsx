@@ -117,8 +117,8 @@ const KnowledgeBaseList = () => {
           {loading ? (
             <div className="loading">加载中...</div>
           ) : sortedKnowledgeBases.length > 0 ? (
-            sortedKnowledgeBases.map(kb => (
-              <div key={kb.id} className="table-row">
+            sortedKnowledgeBases.map((kb, index) => (
+              <div key={`kb-list-${kb.id}-${index}`} className="table-row">
                 <div className="table-cell">{kb.name}</div>
                 <div className="table-cell">{kb.entityCount}</div>
                 <div className="table-cell">{kb.relationCount}</div>

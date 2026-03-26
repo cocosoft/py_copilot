@@ -144,8 +144,8 @@ const TextHighlighter = ({ text, entities, onEntityClick }) => {
         <div className="entity-legend">
           <h4>实体类型</h4>
           <div className="legend-items">
-            {Array.from(new Set(entities.map(e => e.type || 'default'))).map((type) => (
-              <div key={type} className="legend-item">
+            {Array.from(new Set(entities.map(e => e.type || 'default'))).map((type, index) => (
+              <div key={`th-legend-${type}-${index}`} className="legend-item">
                 <span
                   className="legend-color"
                   style={{ backgroundColor: getEntityColor(type) }}

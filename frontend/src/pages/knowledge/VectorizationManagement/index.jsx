@@ -1,12 +1,14 @@
 /**
  * 向量化管理页面
- * 
+ *
  * 管理文档的向量化处理任务
  */
 
 import React, { useEffect, useCallback, useState } from 'react';
 import { FiPlay, FiPause, FiRotateCcw, FiTrash2, FiSettings, FiBarChart2 } from 'react-icons/fi';
 import useKnowledgeStore from '../../../stores/knowledgeStore';
+import useKnowledgeBaseValidation from '../../../hooks/useKnowledgeBaseValidation';
+import EmptyKnowledgeBaseState from '../../../components/Knowledge/EmptyKnowledgeBaseState';
 import { Button } from '../../../components/UI';
 import { VirtualListEnhanced } from '../../../components/UI';
 import { message } from '../../../components/UI/Message/Message';
@@ -48,7 +50,7 @@ const taskStatusConfig = {
  * 向量化管理页面
  */
 const VectorizationManagement = () => {
-  const { 
+  const {
     currentKnowledgeBase,
     processingQueue,
     isProcessing,
@@ -60,6 +62,8 @@ const VectorizationManagement = () => {
     pauseProcessing,
     resumeProcessing,
   } = useKnowledgeStore();
+
+  const { isValid, isChecking } = useKnowledgeBaseValidation();
 
   // 本地状态
   const [tasks, setTasks] = useState([]);
@@ -342,6 +346,38 @@ const VectorizationManagement = () => {
     completed: filteredTasks.filter(t => t.status === 'completed').length,
     failed: filteredTasks.filter(t => t.status === 'failed').length,
   };
+
+  // 验证中，显示加载状态
+  if (isChecking) {
+    return (
+      <div className="vectorization-management">
+        <div className="page-header">
+          <h2>向量化管理</h2>
+          <p>管理文档的向量化处理任务</p>
+        </div>
+        <div className="vectorization-loading">
+          <div className="loading-spinner"></div>
+          <p>正在加载知识库...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 知识库不存在时显示引导界面
+  if (!isValid) {
+    return (
+      <div className="vectorization-management">
+        <div className="page-header">
+          <h2>向量化管理</h2>
+          <p>管理文档的向量化处理任务</p>
+        </div>
+        <EmptyKnowledgeBaseState
+          title="暂无知识库"
+          description="您还没有创建任何知识库，请先创建知识库后再管理向量化任务"
+        />
+      </div>
+    );
+  }
 
   if (!currentKnowledgeBase) {
     return (

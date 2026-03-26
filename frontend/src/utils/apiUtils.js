@@ -81,8 +81,19 @@ class AlertManager {
    */
   showApiErrorAlert(error, url, method) {
     const alertKey = `${method || 'GET'}_${url}_${error.status || 'unknown'}`;
-    
+
     if (!this.shouldShowAlert(alertKey)) {
+      return;
+    }
+
+    // 知识库不存在时(404)，静默处理，不显示错误提示
+    // 这类错误通常由前端组件自行处理
+    if (error.status === 404 && url && (
+      url.includes('/knowledge/knowledge-bases/') ||
+      url.includes('/knowledge/documents/unprocessed') ||
+      url.includes('/knowledge/documents/async')
+    )) {
+      console.warn(`[API] 知识库相关资源不存在: ${url}`);
       return;
     }
 
@@ -372,10 +383,22 @@ export const request = async (endpoint, options = {}) => {
       return text;
     }
   } catch (error) {
+    // 知识库不存在时(404)，静默处理，不打印错误日志也不显示错误提示
+    // 这类错误通常由前端组件自行处理
+    if (error.status === 404 && url && (
+      url.includes('/knowledge/knowledge-bases/') ||
+      url.includes('/knowledge/documents/unprocessed') ||
+      url.includes('/knowledge/documents/async')
+    )) {
+      // 仅输出简洁的警告日志
+      console.warn(`[API] 知识库相关资源不存在: ${url}`);
+      throw error;
+    }
+
     // 调试日志 - 对于 AbortError（用户主动取消的请求）不打印错误日志
     if (error.name !== 'AbortError') {
       console.error(`[API Error] ${options.method || 'GET'} ${url} - error:`, error);
-      
+
       // 显示API错误告警
       alertManager.showApiErrorAlert(error, url, options.method);
     }

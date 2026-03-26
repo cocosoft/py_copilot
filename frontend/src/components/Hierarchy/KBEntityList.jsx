@@ -228,8 +228,8 @@ const KBEntityList = ({ knowledgeBaseId }) => {
             onChange={(e) => setEntityTypeFilter(e.target.value)}
             className="type-filter"
           >
-            {getEntityTypes().map(type => (
-              <option key={type} value={type}>
+            {getEntityTypes().map((type, index) => (
+              <option key={`type-option-${type}-${index}`} value={type}>
                 {getEntityTypeLabel(type)}
               </option>
             ))}
@@ -337,8 +337,8 @@ const KBEntityList = ({ knowledgeBaseId }) => {
                 </tr>
               </thead>
               <tbody>
-                {pagedEntities.map((entity) => (
-                  <tr key={entity.id} className="entity-row">
+                {pagedEntities.map((entity, index) => (
+                  <tr key={`entity-row-${entity.id}-${index}`} className="entity-row">
                     <td className="entity-name">{entity.name}</td>
                     <td>
                       <span className={`entity-type-badge ${entity.type.toLowerCase()}`}>

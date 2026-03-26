@@ -36,9 +36,10 @@ const DocumentGraph = ({ knowledgeBaseId, documentId }) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await getDocumentGraph(knowledgeBaseId, {
-        document_id: documentId
-      });
+      // 确保 documentId 是字符串或数字
+      const docId = typeof documentId === 'object' ? documentId.id || documentId.document_id : documentId;
+      console.log('[DocumentGraph] 加载图谱数据:', { knowledgeBaseId, documentId: docId });
+      const response = await getDocumentGraph(knowledgeBaseId, docId);
       setGraphData({
         nodes: response.nodes || [],
         links: response.links || []
@@ -142,7 +143,7 @@ const DocumentGraph = ({ knowledgeBaseId, documentId }) => {
           {/* 绘制连接线 */}
           {graphData.links.map((link, index) => (
             <line
-              key={`link-${index}`}
+              key={`dg-link-${index}`}
               x1={Math.random() * 700 + 50}
               y1={Math.random() * 500 + 50}
               x2={Math.random() * 700 + 50}
@@ -154,8 +155,8 @@ const DocumentGraph = ({ knowledgeBaseId, documentId }) => {
           ))}
 
           {/* 绘制节点 */}
-          {graphData.nodes.map((node) => (
-            <g key={`node-${node.id}`}>
+          {graphData.nodes.map((node, index) => (
+            <g key={`dg-node-${node.id}-${index}`}>
               <circle
                 cx={Math.random() * 700 + 50}
                 cy={Math.random() * 500 + 50}
@@ -287,7 +288,7 @@ const DocumentGraph = ({ knowledgeBaseId, documentId }) => {
           <h4>图例</h4>
           <div className="legend-items">
             {[...new Set(graphData.nodes.map(node => node.type))].map((type, index) => (
-              <div key={type} className="legend-item">
+              <div key={`dg-legend-${type}-${index}`} className="legend-item">
                 <div
                   className="legend-color"
                   style={{ backgroundColor: `hsl(${(index + 1) * 36}, 70%, 60%)` }}

@@ -68,6 +68,9 @@ const DocumentLevelView = ({ knowledgeBaseId, documentId }) => {
    * 加载文档列表
    */
   const loadDocuments = async () => {
+    // 清空现有数据，避免重复
+    setDocuments([]);
+
     try {
       if (!knowledgeBaseId) {
         throw new Error('知识库ID不能为空');
@@ -84,19 +87,34 @@ const DocumentLevelView = ({ knowledgeBaseId, documentId }) => {
       
       // 处理API响应，构建文档列表
       const entities = response.data || [];
-      
+
+      // 调试：打印第一个实体数据结构
+      if (entities.length > 0) {
+        console.log('[DocumentLevelView] 第一个实体数据:', entities[0]);
+      }
+
       // 按文档分组，计算每个文档的实体数和关系数
       const docMap = new Map();
       entities.forEach(entity => {
-        if (!docMap.has(entity.documentId)) {
-          docMap.set(entity.documentId, {
-            id: entity.documentId,
-            title: entity.documentTitle || `文档${entity.documentId}`,
+        // 获取文档ID，支持多种字段名
+        const docId = entity.document_id || entity.documentId || entity.doc_id || entity.docId || 'unknown';
+        // 获取文档标题，支持多种字段名
+        let docTitle = entity.document_title || entity.documentTitle || entity.doc_title || entity.docTitle || entity.title;
+
+        // 如果标题为空或未定义，使用默认格式
+        if (!docTitle || docTitle === 'undefined' || docTitle === 'null') {
+          docTitle = `文档${docId}`;
+        }
+
+        if (!docMap.has(docId)) {
+          docMap.set(docId, {
+            id: docId,
+            title: docTitle,
             entityCount: 0,
             relationCount: 0
           });
         }
-        const doc = docMap.get(entity.documentId);
+        const doc = docMap.get(docId);
         doc.entityCount++;
         // 这里假设每个实体可能有多个关系，实际项目中需要根据API返回的数据结构调整
         if (entity.relations) {
@@ -178,12 +196,16 @@ const DocumentLevelView = ({ knowledgeBaseId, documentId }) => {
               onChange={(e) => handleDocumentSelect(e.target.value)}
               className="document-select"
             >
-              <option value="">请选择文档</option>
-              {documents.map(doc => (
-                <option key={doc.id} value={doc.id}>
-                  {doc.title} ({doc.entityCount}个实体, {doc.relationCount}个关系)
-                </option>
-              ))}
+              <option key="default-option" value="">请选择文档</option>
+              {documents.map((doc, index) => {
+                // 确保标题有值
+                const displayTitle = doc.title || `文档${doc.id}`;
+                return (
+                  <option key={`doc-option-${doc.id}-${index}`} value={doc.id}>
+                    {displayTitle} ({doc.entityCount}个实体, {doc.relationCount}个关系)
+                  </option>
+                );
+              })}
             </select>
           </div>
           

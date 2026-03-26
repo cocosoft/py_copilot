@@ -183,6 +183,28 @@
   color: #595959;
 }
 
+/* 页面加载状态 */
+.page-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  background: #ffffff;
+}
+
+.page-loading .loading-spinner {
+  width: 40px;
+  height: 40px;
+  margin-bottom: 16px;
+}
+
+.page-loading p {
+  color: #8c8c8c;
+  font-size: 14px;
+  margin: 0;
+}
+
 /* ==================== 节点详情面板 ==================== */
 
 .node-detail-panel {

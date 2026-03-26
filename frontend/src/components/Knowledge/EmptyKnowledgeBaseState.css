@@ -1,0 +1,59 @@
+/**
+ * 知识库为空状态组件样式
+ */
+
+.empty-knowledge-base-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 24px;
+  text-align: center;
+  height: 100%;
+  min-height: 400px;
+  background: #f5f5f5;
+}
+
+.empty-state-content {
+  background: #ffffff;
+  padding: 48px 64px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.empty-icon {
+  font-size: 64px;
+  margin-bottom: 24px;
+}
+
+.empty-knowledge-base-state h3 {
+  font-size: 20px;
+  font-weight: 500;
+  color: #262626;
+  margin: 0 0 12px 0;
+}
+
+.empty-knowledge-base-state p {
+  font-size: 14px;
+  color: #8c8c8c;
+  margin: 0 0 32px 0;
+}
+
+.create-knowledge-base-btn {
+  padding: 12px 32px;
+  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+  border: none;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.3);
+}
+
+.create-knowledge-base-btn:hover {
+  background: linear-gradient(135deg, #40a9ff 0%, #1890ff 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.4);
+}

@@ -181,7 +181,7 @@ const KBGraph = ({ knowledgeBaseId }) => {
           if (!sourcePos || !targetPos) return null;
 
           return (
-            <g key={`link-${index}`}>
+            <g key={`kbg-link-${index}`}>
               <line
                 x1={sourcePos.x}
                 y1={sourcePos.y}
@@ -207,14 +207,14 @@ const KBGraph = ({ knowledgeBaseId }) => {
         })}
 
         {/* 绘制节点 */}
-        {graphData.nodes.map(node => {
+        {graphData.nodes.map((node, index) => {
           const pos = nodePositions[node.id];
           if (!pos) return null;
 
           return (
-            <g 
-              key={`node-${node.id}`} 
-              className="graph-node" 
+            <g
+              key={`kbg-node-${node.id}-${index}`}
+              className="graph-node"
               data-id={node.id}
               onDoubleClick={() => handleNodeDoubleClick(node)}
               style={{ cursor: 'pointer' }}
@@ -269,8 +269,8 @@ const KBGraph = ({ knowledgeBaseId }) => {
       <div className="graph-legend">
         <h4>图例</h4>
         <div className="legend-items">
-          {entityTypes.map(item => (
-            <div key={item.type} className="legend-item">
+          {entityTypes.map((item, index) => (
+            <div key={`kbg-legend-${item.type}-${index}`} className="legend-item">
               <div 
                 className="legend-color" 
                 style={{ backgroundColor: getNodeColor(item.type) }}

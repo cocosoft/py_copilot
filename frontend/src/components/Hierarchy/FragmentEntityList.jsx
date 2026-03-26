@@ -196,8 +196,8 @@ const FragmentEntityList = ({ fragmentId, onEntityClick }) => {
               onChange={handleTypeFilterChange}
             >
               <option value="all">所有类型</option>
-              {entityTypes.map(type => (
-                <option key={type} value={type}>{type}</option>
+              {entityTypes.map((type, index) => (
+                <option key={`fel-type-${type}-${index}`} value={type}>{type}</option>
               ))}
             </select>
           </div>
@@ -257,9 +257,9 @@ const FragmentEntityList = ({ fragmentId, onEntityClick }) => {
           </thead>
           <tbody>
             {filteredEntities.length > 0 ? (
-              filteredEntities.map(entity => (
-                <tr 
-                  key={entity.id} 
+              filteredEntities.map((entity, index) => (
+                <tr
+                  key={`fel-entity-${entity.id}-${index}`}
                   className="entity-row"
                   onClick={() => onEntityClick && onEntityClick(entity)}
                 >

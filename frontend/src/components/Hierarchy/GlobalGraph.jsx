@@ -183,7 +183,7 @@ const GlobalGraph = () => {
             >
               <option value="all">所有知识库</option>
               {knowledgeBases.map((kb, index) => (
-                <option key={index} value={`kb${index + 1}`}>{kb}</option>
+                <option key={`gg-kb-${index}`} value={`kb${index + 1}`}>{kb}</option>
               ))}
             </select>
           </div>
@@ -300,7 +300,7 @@ const GlobalGraph = () => {
         >
           {/* 绘制连线 */}
           {filteredData.links.map((link, index) => (
-            <g key={`link-${index}`}>
+            <g key={`gg-link-${index}`}>
               <line
                 x1={100 + parseInt(link.source) * 150}
                 y1={100 + (parseInt(link.source) % 2) * 150}
@@ -346,8 +346,8 @@ const GlobalGraph = () => {
               : typeColors[node.type] || '#999';
             
             return (
-              <g 
-                key={`node-${node.id}`} 
+              <g
+                key={`gg-node-${node.id}-${index}`}
                 className="node-group"
                 onDoubleClick={() => handleNodeDoubleClick(node)}
                 style={{ cursor: 'pointer' }}

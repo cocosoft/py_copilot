@@ -69,7 +69,7 @@ const GlobalStatistics = ({ stats }) => {
         <h4>Top 知识库</h4>
         <div className="kb-ranking">
           {stats.topKnowledgeBases.map((kb, index) => (
-            <div key={kb.id} className="kb-rank-item">
+            <div key={`gs-kb-${kb.id}-${index}`} className="kb-rank-item">
               <div className="rank-number">{index + 1}</div>
               <div className="rank-info">
                 <div className="kb-name">{kb.name}</div>

@@ -108,8 +108,8 @@ const CrossLevelSearch = ({ knowledgeBaseId }) => {
             onChange={(e) => setSelectedLevel(e.target.value)}
             className="level-select"
           >
-            {levelOptions.map(option => (
-              <option key={option.value} value={option.value}>
+            {levelOptions.map((option, index) => (
+              <option key={`level-option-${option.value}-${index}`} value={option.value}>
                 {option.label}
               </option>
             ))}
@@ -146,7 +146,7 @@ const CrossLevelSearch = ({ knowledgeBaseId }) => {
           <h4>搜索结果 ({searchResults.length})</h4>
           <div className="results-list">
             {searchResults.map((entity, index) => (
-              <div key={entity.id || index} className="result-item" onClick={() => handleEntityClick(entity)}>
+              <div key={`search-result-${entity.id || ''}-${index}`} className="result-item" onClick={() => handleEntityClick(entity)}>
                 <div className="entity-name">{entity.name || entity.label}</div>
                 <div className="entity-type">{entity.type || '未知类型'}</div>
                 <div className="entity-meta">
@@ -175,12 +175,12 @@ const CrossLevelSearch = ({ knowledgeBaseId }) => {
             </div>
             <div className="hierarchy-levels">
               <h6>跨层级导航</h6>
-              {levelOptions.map(option => {
+              {levelOptions.map((option, index) => {
                 // 跳过当前层级
                 if (option.value === entityHierarchy.currentLevel) return null;
                 return (
                   <button
-                    key={option.value}
+                    key={`level-nav-${option.value}-${index}`}
                     className="level-nav-btn"
                     onClick={() => navigateToLevel(option.value, entityHierarchy.entity)}
                   >

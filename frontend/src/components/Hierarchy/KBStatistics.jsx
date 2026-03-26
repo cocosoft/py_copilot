@@ -241,8 +241,8 @@ const KBStatistics = ({ knowledgeBaseId }) => {
               </tr>
             </thead>
             <tbody>
-              {stats.documentStats.map((doc) => (
-                <tr key={doc.id}>
+              {stats.documentStats.map((doc, index) => (
+                <tr key={`doc-stat-${doc.id}-${index}`}>
                   <td>{doc.title}</td>
                   <td>{doc.entityCount}</td>
                   <td>{doc.wordCount}</td>

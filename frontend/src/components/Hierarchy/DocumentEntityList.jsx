@@ -207,8 +207,8 @@ const DocumentEntityList = ({ knowledgeBaseId, documentId }) => {
             onChange={(e) => setEntityTypeFilter(e.target.value)}
             className="type-filter"
           >
-            {getEntityTypes().map(type => (
-              <option key={type} value={type}>
+            {getEntityTypes().map((type, index) => (
+              <option key={`doc-type-option-${type}-${index}`} value={type}>
                 {getEntityTypeLabel(type)}
               </option>
             ))}
@@ -267,9 +267,9 @@ const DocumentEntityList = ({ knowledgeBaseId, documentId }) => {
                 </tr>
               </thead>
               <tbody>
-                {pagedEntities.map((entity) => (
-                  <tr 
-                    key={entity.id} 
+                {pagedEntities.map((entity, index) => (
+                  <tr
+                    key={`doc-entity-row-${entity.id}-${index}`}
                     className="entity-row"
                     onClick={() => handleEntityClick(entity)}
                     style={{ cursor: 'pointer' }}

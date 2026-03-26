@@ -230,7 +230,7 @@ const FragmentGraph = ({ fragmentId }) => {
         >
           {/* 绘制连线 */}
           {graphData.links.map((link, index) => (
-            <g key={`link-${index}`}>
+            <g key={`fg-link-${index}`}>
               <line
                 x1={100 + parseInt(link.source) * 150}
                 y1={100 + (parseInt(link.source) % 2) * 100}
@@ -252,7 +252,7 @@ const FragmentGraph = ({ fragmentId }) => {
           ))}
 
           {/* 绘制节点 */}
-          {graphData.nodes.map((node) => {
+          {graphData.nodes.map((node, index) => {
             const colors = {
               '领域': '#3498db',
               '技术': '#2ecc71',
@@ -261,11 +261,11 @@ const FragmentGraph = ({ fragmentId }) => {
               '人物': '#e74c3c',
               '地点': '#1abc9c'
             };
-            
+
             const color = colors[node.type] || '#999';
-            
+
             return (
-              <g key={`node-${node.id}`} className="node-group">
+              <g key={`fg-node-${node.id}-${index}`} className="node-group">
                 <circle
                   cx={100 + parseInt(node.id) * 150}
                   cy={100 + (parseInt(node.id) % 2) * 100}

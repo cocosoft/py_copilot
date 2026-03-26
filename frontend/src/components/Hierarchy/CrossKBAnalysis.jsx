@@ -105,8 +105,8 @@ const CrossKBAnalysis = () => {
             <thead>
               <tr>
                 <th>实体类型</th>
-                {knowledgeBases.map(kb => (
-                  <th key={kb.id}>{kb.name}</th>
+                {knowledgeBases.map((kb, index) => (
+                  <th key={`cka-kb-th-${kb.id}-${index}`}>{kb.name}</th>
                 ))}
                 <th>总计</th>
               </tr>
@@ -115,8 +115,8 @@ const CrossKBAnalysis = () => {
               {analysisData.entityDistribution.map((item, index) => (
                 <tr key={index}>
                   <td>{item.type}</td>
-                  {knowledgeBases.map(kb => (
-                    <td key={kb.id}>{item[kb.id]}</td>
+                  {knowledgeBases.map((kb, kbIndex) => (
+                    <td key={`cka-kb-td-${kb.id}-${kbIndex}`}>{item[kb.id]}</td>
                   ))}
                   <td className="total-cell">{item.total}</td>
                 </tr>
@@ -194,7 +194,7 @@ const CrossKBAnalysis = () => {
           <h5>跨知识库常见实体</h5>
           <ul className="common-entities-list">
             {entityOverlap.commonEntities.map((entity, index) => (
-              <li key={index} className="common-entity-item">
+              <li key={`common-entity-${index}`} className="common-entity-item">
                 <span className="entity-name">{entity.label}</span>
                 <span className="entity-count">出现在 {entity.count} 个知识库中</span>
               </li>
@@ -216,7 +216,7 @@ const CrossKBAnalysis = () => {
         <h4>关系类型分析</h4>
         <div className="relation-chart">
           {analysisData.relationAnalysis.map((item, index) => (
-            <div key={index} className="relation-item">
+            <div key={`relation-item-${index}`} className="relation-item">
               <div className="relation-info">
                 <span className="relation-name">{item.relation}</span>
                 <span className="relation-count">{item.count}</span>
@@ -249,7 +249,7 @@ const CrossKBAnalysis = () => {
         <h4>知识库统计</h4>
         <div className="kb-stats-grid">
           {analysisData.knowledgeBaseStats.map((kb, index) => (
-            <div key={kb.id} className="kb-stat-card">
+            <div key={`kb-stat-${kb.id}-${index}`} className="kb-stat-card">
               <div className="kb-stat-header">
                 <h5>{kb.name}</h5>
                 <span className="kb-id">ID: {kb.id}</span>
@@ -325,8 +325,8 @@ const CrossKBAnalysis = () => {
           <div className="knowledge-base-selector">
             <label>选择知识库:</label>
             <div className="kb-checkboxes">
-              {knowledgeBases.map(kb => (
-                <div key={kb.id} className="kb-checkbox-item">
+              {knowledgeBases.map((kb, index) => (
+                <div key={`kb-checkbox-${kb.id}-${index}`} className="kb-checkbox-item">
                   <input
                     type="checkbox"
                     id={`kb-${kb.id}`}

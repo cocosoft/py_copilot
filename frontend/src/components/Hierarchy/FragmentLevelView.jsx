@@ -195,9 +195,9 @@ const FragmentLevelView = ({ knowledgeBaseId: propKnowledgeBaseId }) => {
           <div className="flv-entities">
             <h3>实体列表</h3>
             <ul className="entity-list">
-              {entities.map(entity => (
-                <li 
-                  key={entity.id} 
+              {entities.map((entity, index) => (
+                <li
+                  key={`entity-${entity.id}-${index}`}
                   className={`entity-item entity-type-${entity.type.toLowerCase()}`}
                   onClick={() => handleEntityClick(entity)}
                 >

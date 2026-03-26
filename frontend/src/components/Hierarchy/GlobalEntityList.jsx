@@ -358,8 +358,8 @@ const GlobalEntityList = () => {
                 onChange={handleTypeFilterChange}
               >
                 <option value="all">所有类型</option>
-                {entityTypes.map(type => (
-                  <option key={type} value={type}>{type}</option>
+                {entityTypes.map((type, index) => (
+                  <option key={`gel-type-${type}-${index}`} value={type}>{type}</option>
                 ))}
               </select>
             </div>
@@ -370,8 +370,8 @@ const GlobalEntityList = () => {
                 onChange={handleKnowledgeBaseFilterChange}
               >
                 <option value="all">所有知识库</option>
-                {knowledgeBases.map(kb => (
-                  <option key={kb.id} value={kb.id}>{kb.name}</option>
+                {knowledgeBases.map((kb, index) => (
+                  <option key={`gel-kb-${kb.id}-${index}`} value={kb.id}>{kb.name}</option>
                 ))}
               </select>
             </div>
@@ -459,8 +459,8 @@ const GlobalEntityList = () => {
           >
             {getVisibleEntities().length > 0 ? (
               getVisibleEntities().map((entity, index) => (
-                <tr 
-                  key={entity.id} 
+                <tr
+                  key={`gel-entity-${entity.id}-${index}`}
                   className="entity-row"
                   style={{
                     position: 'absolute',
