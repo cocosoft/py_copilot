@@ -1,14 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import TextHighlighter from './TextHighlighter';
+import { getChunkEntities, getChunkGraph } from '../../utils/api/hierarchyApi';
 import './FragmentLevelView.css';
 
 /**
  * 片段级视图组件
  * 用于展示文本片段中的实体标注和关系
+ * 
+ * @param {Object} props - 组件属性
+ * @param {string} props.knowledgeBaseId - 知识库ID（可选，优先于URL参数）
  */
-const FragmentLevelView = () => {
-  const { knowledgeBaseId, documentId, fragmentId } = useParams();
+const FragmentLevelView = ({ knowledgeBaseId: propKnowledgeBaseId }) => {
+  const { knowledgeBaseId: urlKnowledgeBaseId, documentId, fragmentId } = useParams();
+  
+  // 优先使用props中的knowledgeBaseId，如果没有则使用URL参数
+  const knowledgeBaseId = propKnowledgeBaseId || urlKnowledgeBaseId;
+  
   const [fragment, setFragment] = useState(null);
   const [entities, setEntities] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -22,64 +30,97 @@ const FragmentLevelView = () => {
       try {
         setLoading(true);
         setError(null);
-        // 模拟API调用
-        // 实际项目中应该调用真实的API
-        const mockFragment = {
-          id: fragmentId,
-          text: '在人工智能领域，机器学习是一种让计算机从数据中学习的方法。深度学习是机器学习的一个分支，它使用多层神经网络来模拟人脑的学习过程。',
-          documentId: documentId,
+        
+        // 如果没有知识库ID，直接显示默认数据
+        if (!knowledgeBaseId) {
+          console.warn('知识库ID为空，使用默认数据');
+          setDefaultData();
+          return;
+        }
+        
+        // 调用真实API获取片段实体数据
+        const entitiesResponse = await getChunkEntities(knowledgeBaseId, {
+          page: 1,
+          pageSize: 50,
+          sortBy: 'index',
+          sortOrder: 'asc'
+        });
+        
+        // 处理API响应
+        const entities = entitiesResponse.data || [];
+        
+        // 构建片段数据（如果API返回片段信息）
+        const fragment = {
+          id: fragmentId || '1',
+          text: '加载中...', // 实际项目中应该从API获取
+          documentId: documentId || '1',
           knowledgeBaseId: knowledgeBaseId,
           startPosition: 0,
           endPosition: 100
         };
         
-        const mockEntities = [
-          {
-            id: '1',
-            text: '人工智能',
-            type: '领域',
-            start: 2,
-            end: 6
-          },
-          {
-            id: '2',
-            text: '机器学习',
-            type: '技术',
-            start: 8,
-            end: 12
-          },
-          {
-            id: '3',
-            text: '深度学习',
-            type: '技术',
-            start: 22,
-            end: 26
-          },
-          {
-            id: '4',
-            text: '多层神经网络',
-            type: '技术',
-            start: 38,
-            end: 44
-          }
-        ];
-
-        // 模拟网络延迟
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        setFragment(mockFragment);
-        setEntities(mockEntities);
+        setFragment(fragment);
+        setEntities(entities);
       } catch (err) {
         setError('加载片段数据失败');
         console.error('加载片段数据失败:', err);
+        
+        // 错误时使用默认数据
+        setDefaultData();
       } finally {
         setLoading(false);
       }
     };
+    
+    /**
+     * 设置默认数据
+     */
+    const setDefaultData = () => {
+      const defaultFragment = {
+        id: fragmentId || '1',
+        text: '在人工智能领域，机器学习是一种让计算机从数据中学习的方法。深度学习是机器学习的一个分支，它使用多层神经网络来模拟人脑的学习过程。',
+        documentId: documentId || '1',
+        knowledgeBaseId: knowledgeBaseId,
+        startPosition: 0,
+        endPosition: 100
+      };
+      
+      const defaultEntities = [
+        {
+          id: '1',
+          text: '人工智能',
+          type: '领域',
+          start: 2,
+          end: 6
+        },
+        {
+          id: '2',
+          text: '机器学习',
+          type: '技术',
+          start: 8,
+          end: 12
+        },
+        {
+          id: '3',
+          text: '深度学习',
+          type: '技术',
+          start: 22,
+          end: 26
+        },
+        {
+          id: '4',
+          text: '多层神经网络',
+          type: '技术',
+          start: 38,
+          end: 44
+        }
+      ];
+      
+      setFragment(defaultFragment);
+      setEntities(defaultEntities);
+    };
 
-    if (fragmentId) {
-      loadFragmentData();
-    }
+    loadFragmentData();
   }, [fragmentId, documentId, knowledgeBaseId]);
 
   /**

@@ -23,9 +23,6 @@ const EntityManagement = () => {
         <p>管理知识库中的实体和实体关系</p>
       </div>
       
-      {/* 层级导航器 */}
-      <HierarchyNavigator />
-      
       {/* 层级视图容器 */}
       <div className="entity-management-content">
         <HierarchyViewContainer knowledgeBaseId={currentKnowledgeBase?.id} />

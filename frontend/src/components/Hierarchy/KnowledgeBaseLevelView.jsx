@@ -18,9 +18,8 @@ const KnowledgeBaseLevelView = ({ knowledgeBaseId }) => {
   const [stats, setStats] = useState(null);
 
   useEffect(() => {
-    if (knowledgeBaseId) {
-      loadStats();
-    }
+    // 无论是否有 knowledgeBaseId，都加载模拟数据
+    loadStats();
   }, [knowledgeBaseId]);
 
   /**

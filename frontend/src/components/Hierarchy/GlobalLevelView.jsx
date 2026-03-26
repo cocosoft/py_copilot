@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import GlobalEntityList from './GlobalEntityList';
 import GlobalGraph from './GlobalGraph';
 import CrossKBAnalysis from './CrossKBAnalysis';
+import { getGlobalLevelStats } from '../../utils/api/hierarchyApi';
 import './GlobalLevelView.css';
 
 /**
@@ -22,9 +23,20 @@ const GlobalLevelView = () => {
       try {
         setLoading(true);
         setError(null);
-        // 模拟API调用
-        // 实际项目中应该调用真实的API
-        const mockStats = {
+        
+        // 调用真实API获取全局统计数据
+        const response = await getGlobalLevelStats();
+        
+        // 处理API响应
+        const stats = response || {};
+        
+        setStats(stats);
+      } catch (err) {
+        setError('加载全局统计数据失败');
+        console.error('加载全局统计数据失败:', err);
+        
+        // 错误时使用默认数据，确保页面能正常显示
+        const defaultStats = {
           knowledgeBaseCount: 5,
           documentCount: 120,
           entityCount: 3500,
@@ -32,14 +44,8 @@ const GlobalLevelView = () => {
           averageEntitiesPerDocument: 29.2,
           averageRelationsPerDocument: 23.3
         };
-
-        // 模拟网络延迟
-        await new Promise(resolve => setTimeout(resolve, 500));
         
-        setStats(mockStats);
-      } catch (err) {
-        setError('加载全局统计数据失败');
-        console.error('加载全局统计数据失败:', err);
+        setStats(defaultStats);
       } finally {
         setLoading(false);
       }

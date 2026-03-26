@@ -15,8 +15,18 @@ import {
 } from '../../utils/api/hierarchyApi';
 import './HierarchyViewContainer.css';
 
-const HierarchyViewContainer = () => {
-  const { knowledgeBaseId } = useParams();
+/**
+ * 层级视图容器组件
+ * 
+ * @param {Object} props - 组件属性
+ * @param {string|number} props.knowledgeBaseId - 知识库ID（可选，优先于URL参数）
+ */
+const HierarchyViewContainer = ({ knowledgeBaseId: propKnowledgeBaseId }) => {
+  const { knowledgeBaseId: urlKnowledgeBaseId } = useParams();
+  
+  // 优先使用props中的knowledgeBaseId，如果没有则使用URL参数
+  const knowledgeBaseId = propKnowledgeBaseId || urlKnowledgeBaseId;
+  
   const { 
     currentHierarchyLevel, 
     setHierarchyLevel,
