@@ -18,19 +18,24 @@ const ApiKeyUpdater = () => {
         const suppliersKey = `${STORAGE_PREFIX}suppliers`;
         localStorage.setItem(suppliersKey, JSON.stringify(suppliersArray));
       } catch (error) {
-        console.error('❌ 获取供应商数据失败:', error.message);
-        console.error('请检查后端服务是否正常运行');
-        
+        // 静默处理超时错误，避免在控制台显示错误堆栈
+        if (error.status === 408 || error.message?.includes('超时')) {
+          console.log('[ApiKeyUpdater] 获取供应商数据超时，使用本地缓存或默认数据');
+        } else {
+          console.error('获取供应商数据失败:', error.message);
+          console.log('请检查后端服务是否正常运行');
+        }
+
         // 如果API调用失败，尝试使用默认供应商数据
         const STORAGE_PREFIX = 'model_management_';
         const suppliersKey = `${STORAGE_PREFIX}suppliers`;
         const cachedSuppliers = localStorage.getItem(suppliersKey);
-        
+
         if (cachedSuppliers) {
-          console.log('✅ 使用localStorage中的缓存供应商数据');
+          console.log('使用localStorage中的缓存供应商数据');
         } else {
-          console.log('✅ 使用默认供应商数据');
-          const defaultSuppliers = [          
+          console.log('使用默认供应商数据');
+          const defaultSuppliers = [
             {
               id: 3,
               name: 'DeepSeek',

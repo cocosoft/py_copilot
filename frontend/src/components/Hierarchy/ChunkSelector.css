@@ -1,0 +1,276 @@
+/**
+ * 片段选择器组件样式
+ *
+ * @task Phase3-Week10
+ * @phase 层级视图逻辑修复
+ */
+
+/* 选择器容器 */
+.chunk-selector {
+  position: relative;
+  width: 100%;
+  font-size: 14px;
+}
+
+.chunk-selector.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* 触发按钮 */
+.selector-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  background-color: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.selector-trigger:hover {
+  border-color: #40a9ff;
+}
+
+.selector-trigger.open {
+  border-color: #40a9ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.trigger-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #262626;
+}
+
+.trigger-text.placeholder {
+  color: #bfbfbf;
+}
+
+.trigger-arrow {
+  margin-left: 8px;
+  font-size: 12px;
+  color: #8c8c8c;
+  transition: transform 0.2s ease;
+}
+
+.trigger-arrow.up {
+  transform: rotate(180deg);
+}
+
+/* 下拉面板 */
+.selector-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background-color: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  max-height: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 头部信息 */
+.selector-header {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  background-color: #fafafa;
+  border-radius: 6px 6px 0 0;
+  font-size: 13px;
+  color: #8c8c8c;
+  font-weight: 500;
+}
+
+/* 列表容器 */
+.selector-list {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 320px;
+}
+
+/* 片段列表 */
+.chunk-list {
+  padding: 4px 0;
+}
+
+/* 片段项 */
+.chunk-item {
+  padding: 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #f5f5f5;
+  transition: background-color 0.2s ease;
+}
+
+.chunk-item:last-child {
+  border-bottom: none;
+}
+
+.chunk-item:hover {
+  background-color: #f5f5f5;
+}
+
+.chunk-item.selected {
+  background-color: #e6f7ff;
+  border-left: 3px solid #1890ff;
+}
+
+.chunk-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.chunk-index {
+  font-weight: 600;
+  color: #1890ff;
+  font-size: 13px;
+}
+
+.chunk-entity-count {
+  font-size: 12px;
+  color: #52c41a;
+  background-color: #f6ffed;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid #b7eb8f;
+}
+
+.chunk-text {
+  font-size: 13px;
+  color: #595959;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  margin-bottom: 6px;
+}
+
+.chunk-position {
+  font-size: 11px;
+  color: #8c8c8c;
+}
+
+/* 加载状态 */
+.selector-loading,
+.selector-error,
+.selector-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: #8c8c8c;
+  text-align: center;
+}
+
+.loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #1890ff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 12px;
+}
+
+.loading-spinner.small {
+  width: 16px;
+  height: 16px;
+  margin-bottom: 0;
+  margin-right: 8px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 错误状态 */
+.error-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.selector-error button {
+  margin-top: 12px;
+  padding: 6px 16px;
+  background-color: #1890ff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.selector-error button:hover {
+  background-color: #40a9ff;
+}
+
+/* 空状态 */
+.empty-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+/* 加载更多 */
+.load-more {
+  padding: 12px;
+  text-align: center;
+  color: #1890ff;
+  cursor: pointer;
+  border-top: 1px solid #f0f0f0;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.load-more:hover {
+  background-color: #f5f5f5;
+}
+
+/* 响应式适配 */
+@media (max-width: 768px) {
+  .selector-dropdown {
+    max-height: 300px;
+  }
+
+  .selector-list {
+    max-height: 240px;
+  }
+
+  .chunk-text {
+    -webkit-line-clamp: 3;
+  }
+}
+
+/* 滚动条样式 */
+.selector-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.selector-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.selector-list::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.selector-list::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}

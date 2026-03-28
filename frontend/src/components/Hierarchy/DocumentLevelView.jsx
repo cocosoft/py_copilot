@@ -1,180 +1,264 @@
 /**
- * 文档级视图组件
+ * 文档级视图组件（重构版）
  *
  * 用于显示文档级别的实体和关系
+ * 支持文档选择功能
+ *
+ * @task Phase3-Week10
+ * @phase 层级视图逻辑修复
  */
 
-import React, { useState, useEffect } from 'react';
-import { FiGrid, FiList, FiLink2 } from 'react-icons/fi';
-import { 
+import React, { useState, useEffect, useCallback } from 'react';
+import { FiGrid, FiList, FiLink2, FiRefreshCw } from 'react-icons/fi';
+import {
   getDocumentEntities,
   getDocumentGraph,
-  getDocumentLevelStats
+  getDocumentLevelStats,
+  getDocumentsList,
+  aggregateDocumentEntities,
+  getDocumentExtractionStatus
 } from '../../utils/api/hierarchyApi';
+import DocumentSelector from './DocumentSelector';
 import DocumentEntityList from './DocumentEntityList';
 import DocumentGraph from './DocumentGraph';
-import RelationManagement from '../KnowledgeGraph/RelationManagement';
+import DocumentRelationManagement from './DocumentRelationManagement';
+import useKnowledgeStore from '../../stores/knowledgeStore';
+import { useNotification } from '../../hooks/useNotification';
 import './DocumentLevelView.css';
 
-const DocumentLevelView = ({ knowledgeBaseId, documentId }) => {
+/**
+ * 文档级视图组件
+ *
+ * @param {Object} props - 组件属性
+ * @param {string|number} props.knowledgeBaseId - 知识库ID
+ * @param {string|number} props.documentId - 文档ID（可选）
+ */
+const DocumentLevelView = ({ knowledgeBaseId, documentId: propDocumentId }) => {
+  // 视图模式
   const [viewMode, setViewMode] = useState('graph'); // 'graph' | 'list' | 'relations'
+
+  // 加载状态
   const [loading, setLoading] = useState(false);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [aggregating, setAggregating] = useState(false);
+
+  // 数据状态
   const [stats, setStats] = useState(null);
-  const [currentDocumentId, setCurrentDocumentId] = useState(documentId);
   const [documents, setDocuments] = useState([]);
+  const [documentsTotal, setDocumentsTotal] = useState(0);
+  const [extractionStatus, setExtractionStatus] = useState(null);
 
-  useEffect(() => {
-    // 无论是否有 knowledgeBaseId，都加载模拟数据
-    loadStats();
-    loadDocuments();
-  }, [knowledgeBaseId]);
+  // 当前选中文档
+  const [currentDocumentId, setCurrentDocumentId] = useState(propDocumentId || null);
 
-  useEffect(() => {
-    if (currentDocumentId) {
-      // 当文档ID变化时，可以在这里加载相关数据
-    }
-  }, [currentDocumentId]);
+  // 从状态管理获取层级相关状态
+  const {
+    setHierarchySelectedDocument,
+    setHierarchyStats
+  } = useKnowledgeStore();
 
-  /**
-   * 加载文档级统计数据
-   */
-  const loadStats = async () => {
-    setLoading(true);
-    try {
-      const response = await getDocumentLevelStats(knowledgeBaseId);
-      setStats(response);
-    } catch (error) {
-      console.error('加载文档级统计失败:', error);
-      // 使用模拟数据
-      setStats({
-        documentCount: 50,
-        entityCount: 1200,
-        relationCount: 800,
-        avgEntitiesPerDoc: 24,
-        entityTypes: [
-          { type: 'person', count: 350 },
-          { type: 'organization', count: 250 },
-          { type: 'location', count: 200 },
-          { type: 'date', count: 150 },
-          { type: 'other', count: 250 },
-        ],
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  // 通知钩子
+  const { showNotification } = useNotification();
 
   /**
    * 加载文档列表
    */
-  const loadDocuments = async () => {
-    // 清空现有数据，避免重复
-    setDocuments([]);
+  const loadDocuments = useCallback(async () => {
+    if (!knowledgeBaseId) {
+      setDocuments([]);
+      return;
+    }
 
     try {
-      if (!knowledgeBaseId) {
-        throw new Error('知识库ID不能为空');
-      }
-      
-      // 调用API获取文档实体数据，这里假设API返回的是按文档分组的实体数据
-      // 实际项目中应该使用专门的文档列表API
-      const response = await getDocumentEntities(knowledgeBaseId, {
+      setLoading(true);
+
+      // 使用新的文档列表API
+      const response = await getDocumentsList(knowledgeBaseId, {
         page: 1,
-        pageSize: 50,
-        sortBy: 'name',
-        sortOrder: 'asc'
+        pageSize: 100
       });
-      
-      // 处理API响应，构建文档列表
-      const entities = response.data || [];
 
-      // 调试：打印第一个实体数据结构
-      if (entities.length > 0) {
-        console.log('[DocumentLevelView] 第一个实体数据:', entities[0]);
-      }
+      const { list, total } = response.data || {};
+      const docs = list || [];
 
-      // 按文档分组，计算每个文档的实体数和关系数
-      const docMap = new Map();
-      entities.forEach(entity => {
-        // 获取文档ID，支持多种字段名
-        const docId = entity.document_id || entity.documentId || entity.doc_id || entity.docId || 'unknown';
-        // 获取文档标题，支持多种字段名
-        let docTitle = entity.document_title || entity.documentTitle || entity.doc_title || entity.docTitle || entity.title;
+      setDocuments(docs);
+      setDocumentsTotal(total || 0);
 
-        // 如果标题为空或未定义，使用默认格式
-        if (!docTitle || docTitle === 'undefined' || docTitle === 'null') {
-          docTitle = `文档${docId}`;
-        }
-
-        if (!docMap.has(docId)) {
-          docMap.set(docId, {
-            id: docId,
-            title: docTitle,
-            entityCount: 0,
-            relationCount: 0
-          });
-        }
-        const doc = docMap.get(docId);
-        doc.entityCount++;
-        // 这里假设每个实体可能有多个关系，实际项目中需要根据API返回的数据结构调整
-        if (entity.relations) {
-          doc.relationCount += entity.relations.length;
-        }
-      });
-      
-      const documents = Array.from(docMap.values());
-      
-      setDocuments(documents);
-      
-      // 如果没有指定文档ID，选择第一个文档
-      if (!currentDocumentId && documents.length > 0) {
-        setCurrentDocumentId(documents[0].id);
+      // 不再自动选择第一个文档，让用户手动选择
+      // 只有在明确传入documentId时才自动选择
+      if (propDocumentId && !currentDocumentId) {
+        setCurrentDocumentId(propDocumentId);
+        setHierarchySelectedDocument(propDocumentId);
       }
     } catch (error) {
       console.error('加载文档列表失败:', error);
-      
-      // 错误时使用默认数据，确保页面能正常显示
-      const defaultDocuments = [
-        { id: 1, title: '文档1', entityCount: 25, relationCount: 18 },
-        { id: 2, title: '文档2', entityCount: 32, relationCount: 24 },
-        { id: 3, title: '文档3', entityCount: 18, relationCount: 12 },
-        { id: 4, title: '文档4', entityCount: 45, relationCount: 32 },
-        { id: 5, title: '文档5', entityCount: 22, relationCount: 16 },
-      ];
-      
-      setDocuments(defaultDocuments);
-      
-      if (!currentDocumentId && defaultDocuments.length > 0) {
-        setCurrentDocumentId(defaultDocuments[0].id);
-      }
+      // 错误时显示空列表
+      setDocuments([]);
+      setDocumentsTotal(0);
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [knowledgeBaseId, propDocumentId, setHierarchySelectedDocument]);
+
+  /**
+   * 加载文档级统计数据
+   * 只有在选择了文档时才加载
+   */
+  const loadStats = useCallback(async () => {
+    // 未选择文档时不加载统计
+    if (!currentDocumentId) {
+      setStats(null);
+      return;
+    }
+
+    setStatsLoading(true);
+    try {
+      const response = await getDocumentLevelStats(knowledgeBaseId);
+      const statsData = response.data || response;
+      setStats(statsData);
+
+      // 更新状态管理中的统计数据
+      setHierarchyStats('document', statsData);
+    } catch (error) {
+      console.error('加载文档级统计失败:', error);
+      // 错误时清空统计
+      setStats(null);
+    } finally {
+      setStatsLoading(false);
+    }
+  }, [knowledgeBaseId, currentDocumentId, setHierarchyStats]);
+
+  /**
+   * 加载文档实体识别状态
+   */
+  const loadExtractionStatus = useCallback(async () => {
+    if (!currentDocumentId || !knowledgeBaseId) {
+      setExtractionStatus(null);
+      return;
+    }
+
+    try {
+      const response = await getDocumentExtractionStatus(knowledgeBaseId, currentDocumentId);
+      if (response.code === 200) {
+        setExtractionStatus(response.data);
+      }
+    } catch (error) {
+      console.error('加载文档识别状态失败:', error);
+      setExtractionStatus(null);
+    }
+  }, [knowledgeBaseId, currentDocumentId]);
+
+  /**
+   * 聚合文档实体
+   */
+  const handleAggregateEntities = useCallback(async () => {
+    if (!currentDocumentId || !knowledgeBaseId) {
+      showNotification({
+        type: 'warning',
+        message: '请先选择一个文档'
+      });
+      return;
+    }
+
+    setAggregating(true);
+    try {
+      const response = await aggregateDocumentEntities(knowledgeBaseId, currentDocumentId);
+      
+      if (response.code === 200) {
+        const data = response.data;
+        showNotification({
+          type: 'success',
+          message: `实体聚合成功！片段级实体: ${data.chunk_entity_count}，文档级实体: ${data.document_entity_count}`
+        });
+        
+        // 刷新状态
+        await loadExtractionStatus();
+        // 刷新统计数据
+        await loadStats();
+      } else {
+        showNotification({
+          type: 'error',
+          message: response.message || '实体聚合失败'
+        });
+      }
+    } catch (error) {
+      console.error('实体聚合失败:', error);
+      showNotification({
+        type: 'error',
+        message: '实体聚合失败: ' + (error.message || '未知错误')
+      });
+    } finally {
+      setAggregating(false);
+    }
+  }, [knowledgeBaseId, currentDocumentId, loadExtractionStatus, loadStats, showNotification]);
+
+  // 初始加载
+  useEffect(() => {
+    loadDocuments();
+  }, [loadDocuments]);
+
+  // 加载统计数据
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
+
+  // 加载文档识别状态
+  useEffect(() => {
+    loadExtractionStatus();
+  }, [loadExtractionStatus]);
+
+  // 当props中的documentId变化时更新
+  useEffect(() => {
+    if (propDocumentId && propDocumentId !== currentDocumentId) {
+      setCurrentDocumentId(propDocumentId);
+      setHierarchySelectedDocument(propDocumentId);
+    }
+  }, [propDocumentId, currentDocumentId, setHierarchySelectedDocument]);
 
   /**
    * 处理文档选择
    */
-  const handleDocumentSelect = (documentId) => {
-    setCurrentDocumentId(documentId);
-  };
+  const handleDocumentSelect = useCallback((document) => {
+    if (document) {
+      setCurrentDocumentId(document.id);
+      setHierarchySelectedDocument(document.id);
+    }
+  }, [setHierarchySelectedDocument]);
+
+  // 获取当前选中的文档信息
+  const currentDocument = documents.find(doc => String(doc.id) === String(currentDocumentId));
+
+  // 渲染加载状态
+  if (loading && documents.length === 0) {
+    return (
+      <div className="document-level-view">
+        <div className="dlv-loading">
+          <div className="loading-spinner"></div>
+          <span>加载中...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="document-level-view">
+      {/* 头部区域 */}
       <div className="dl-header">
         <h2>文档级视图</h2>
         <div className="view-modes">
-          <button 
+          <button
             className={`mode-btn ${viewMode === 'graph' ? 'active' : ''}`}
             onClick={() => setViewMode('graph')}
           >
             <FiGrid /> 文档图谱
           </button>
-          <button 
+          <button
             className={`mode-btn ${viewMode === 'list' ? 'active' : ''}`}
             onClick={() => setViewMode('list')}
           >
             <FiList /> 实体列表
           </button>
-          <button 
+          <button
             className={`mode-btn ${viewMode === 'relations' ? 'active' : ''}`}
             onClick={() => setViewMode('relations')}
           >
@@ -182,78 +266,88 @@ const DocumentLevelView = ({ knowledgeBaseId, documentId }) => {
           </button>
         </div>
       </div>
-      
-      {loading && stats === null ? (
-        <div className="loading">加载中...</div>
-      ) : (
-        <div className="dl-content">
-          {/* 文档选择器 */}
-          <div className="document-selector">
-            <label htmlFor="document-select">选择文档:</label>
-            <select
-              id="document-select"
-              value={currentDocumentId || ''}
-              onChange={(e) => handleDocumentSelect(e.target.value)}
-              className="document-select"
-            >
-              <option key="default-option" value="">请选择文档</option>
-              {documents.map((doc, index) => {
-                // 确保标题有值
-                const displayTitle = doc.title || `文档${doc.id}`;
-                return (
-                  <option key={`doc-option-${doc.id}-${index}`} value={doc.id}>
-                    {displayTitle} ({doc.entityCount}个实体, {doc.relationCount}个关系)
-                  </option>
-                );
-              })}
-            </select>
+
+      {/* 选择器区域 */}
+      <div className="dlv-selectors">
+        <div className="selector-group">
+          <label className="selector-label">选择文档:</label>
+          <DocumentSelector
+            knowledgeBaseId={knowledgeBaseId}
+            value={currentDocumentId}
+            onChange={handleDocumentSelect}
+            placeholder="请选择文档"
+          />
+        </div>
+      </div>
+
+      {/* 文档识别状态显示 */}
+      {currentDocumentId && extractionStatus && (
+        <div className="extraction-status-bar">
+          <div className="status-info">
+            <span className="status-label">实体识别状态:</span>
+            <span className={`status-value status-${extractionStatus.status}`}>
+              {extractionStatus.status === 'completed' ? '已完成' : 
+               extractionStatus.status === 'processing' ? '处理中' : '待处理'}
+            </span>
+            <span className="status-progress">
+              ({extractionStatus.processed_chunks}/{extractionStatus.total_chunks} 片段)
+            </span>
           </div>
-          
-          {/* 统计信息 */}
-          {stats && (
-            <div className="dl-stats">
-              <div className="stat-item">
-                <span className="stat-label">总文档数:</span>
-                <span className="stat-value">{stats.documentCount}</span>
-              </div>
-              <div className="stat-item">
-                <span className="stat-label">总实体数:</span>
-                <span className="stat-value">{stats.entityCount}</span>
-              </div>
-              <div className="stat-item">
-                <span className="stat-label">总关系数:</span>
-                <span className="stat-value">{stats.relationCount}</span>
-              </div>
-              <div className="stat-item">
-                <span className="stat-label">平均实体数/文档:</span>
-                <span className="stat-value">{stats.avgEntitiesPerDoc}</span>
-              </div>
-            </div>
-          )}
-          
-          {/* 视图内容 */}
-          <div className="dl-view-content">
+          <div className="status-stats">
+            <span>片段级实体: {extractionStatus.chunk_entity_count}</span>
+            <span>文档级实体: {extractionStatus.document_entity_count}</span>
+          </div>
+          <button
+            className="aggregate-btn"
+            onClick={handleAggregateEntities}
+            disabled={aggregating}
+            title="将片段级实体聚合到文档级"
+          >
+            {aggregating ? (
+              <>
+                <span className="loading-icon">⏳</span>
+                <span>聚合中...</span>
+              </>
+            ) : (
+              <>
+                <FiRefreshCw />
+                <span>聚合实体</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* 视图内容 */}
+      <div className="dl-view-content">
+        {!currentDocumentId ? (
+          <div className="empty-content">
+            <span className="empty-icon">📄</span>
+            <span>请选择文档查看内容</span>
+          </div>
+        ) : (
+          <>
             {viewMode === 'graph' && (
-              <DocumentGraph 
-                knowledgeBaseId={knowledgeBaseId} 
-                documentId={currentDocumentId} 
+              <DocumentGraph
+                knowledgeBaseId={knowledgeBaseId}
+                documentId={currentDocumentId}
               />
             )}
             {viewMode === 'list' && (
-              <DocumentEntityList 
-                knowledgeBaseId={knowledgeBaseId} 
-                documentId={currentDocumentId} 
+              <DocumentEntityList
+                knowledgeBaseId={knowledgeBaseId}
+                documentId={currentDocumentId}
               />
             )}
             {viewMode === 'relations' && (
-              <RelationManagement 
-                knowledgeBaseId={knowledgeBaseId} 
-                documentId={currentDocumentId} 
+              <DocumentRelationManagement
+                knowledgeBaseId={knowledgeBaseId}
+                documentId={currentDocumentId}
               />
             )}
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </div>
     </div>
   );
 };

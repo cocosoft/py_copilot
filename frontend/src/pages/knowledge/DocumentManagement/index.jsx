@@ -401,7 +401,8 @@ const DocumentManagement = () => {
           await websocketService.connect();
           websocketConnected.current = true;
         } catch (wsError) {
-          console.warn('[文档加载] WebSocket连接失败，将使用轮询模式:', wsError);
+          // 静默处理WebSocket连接错误，只输出简要信息
+          console.log('[文档加载] WebSocket连接失败，将使用轮询模式');
           websocketConnected.current = false;
         }
 
@@ -454,7 +455,12 @@ const DocumentManagement = () => {
             throw new Error(response.message || '启动任务失败');
           }
         } catch (asyncError) {
-          console.error('[文档加载] 异步加载失败，使用同步API:', asyncError);
+          // 超时错误静默处理
+          if (asyncError.status === 408 || asyncError.message?.includes('超时')) {
+            console.log('[文档加载] 异步加载超时，切换到同步API');
+          } else {
+            console.error('[文档加载] 异步加载失败，使用同步API:', asyncError.message || asyncError);
+          }
           setLoadMessage('使用同步模式加载文档...');
           // 使用同步API加载文档列表
           try {
@@ -949,13 +955,21 @@ const DocumentManagement = () => {
         setUnprocessedCount(0);
         return;
       }
-      console.error('获取未处理文档数量失败:', error);
+      // 超时错误静默处理
+      if (error.status === 408 || error.message?.includes('超时')) {
+        console.log('[DocumentManagement] 获取未处理文档数量超时');
+        return;
+      }
+      console.error('获取未处理文档数量失败:', error.message || error);
     }
   }, [currentKnowledgeBase]);
 
-  // 初始加载时获取未处理文档数量
+  // 初始加载时延迟获取未处理文档数量，避免阻塞页面渲染
   useEffect(() => {
-    fetchUnprocessedCount();
+    const timer = setTimeout(() => {
+      fetchUnprocessedCount();
+    }, 500);
+    return () => clearTimeout(timer);
   }, [fetchUnprocessedCount]);
 
   // 组件加载时清除搜索关键词
@@ -984,7 +998,12 @@ const DocumentManagement = () => {
         setCurrentKnowledgeBase(null);
         return false;
       }
-      console.error('[DocumentManagement] 验证知识库存在性失败:', error);
+      // 超时错误静默处理
+      if (error.status === 408 || error.message?.includes('超时')) {
+        console.log('[DocumentManagement] 验证知识库存在性超时');
+        return true; // 超时不认为是知识库不存在
+      }
+      console.error('[DocumentManagement] 验证知识库存在性失败:', error.message || error);
       return true; // 其他错误不认为是知识库不存在
     } finally {
       setCheckingKnowledgeBase(false);
@@ -1019,9 +1038,13 @@ const DocumentManagement = () => {
     }
   }, [currentKnowledgeBase, setCurrentKnowledgeBase, verifyKnowledgeBaseExists]);
 
-  // 组件加载时，验证知识库存在性并加载知识库列表
+  // 组件加载时，延迟加载知识库列表，避免阻塞页面渲染
   useEffect(() => {
-    loadKnowledgeBases();
+    // 使用 requestIdleCallback 或 setTimeout 延迟加载，确保页面先渲染
+    const timer = setTimeout(() => {
+      loadKnowledgeBases();
+    }, 100);
+    return () => clearTimeout(timer);
   }, [loadKnowledgeBases]);
 
   /**
@@ -1161,17 +1184,17 @@ const DocumentManagement = () => {
 
       // 超时错误不显示提示，避免频繁打扰用户
       if (error.message && error.message.includes('超时')) {
-        console.warn('[fetchProcessingStatus] 获取处理状态超时，将在下次轮询时重试');
+        // 静默处理超时错误，只输出简要信息
+        console.log('[fetchProcessingStatus] 获取处理状态超时');
         // 不抛出错误，让轮询逻辑继续
         return;
       }
 
-      console.error('[fetchProcessingStatus] 获取处理状态失败:', error);
-      // 只在开发环境显示详细错误，生产环境不显示（避免频繁错误提示）
-      if (import.meta.env.DEV) {
-        console.error(`获取处理状态失败: ${error.message}`);
+      // 超时错误已经处理，其他错误只输出简要信息
+      if (error.status !== 408 && !error.message?.includes('超时')) {
+        console.error('[fetchProcessingStatus] 获取处理状态失败:', error.message || error);
       }
-      // 生产环境不显示错误提示，由轮询逻辑处理
+      // 不显示错误提示，由轮询逻辑处理
     }
   }, [currentKnowledgeBase]);
 
@@ -1334,14 +1357,23 @@ const DocumentManagement = () => {
         if (consecutiveErrors > 0) {
           const backoffMultiplier = Math.min(consecutiveErrors * 2, 10); // 最大10倍
           currentPollingInterval = POLLING_INTERVALS.NORMAL * backoffMultiplier;
-          console.warn(`[轮询处理状态] 连续错误 ${consecutiveErrors} 次，轮询间隔增加到 ${currentPollingInterval}ms`);
+          // 只在特定错误次数时输出日志，避免刷屏
+          if (consecutiveErrors === 1 || consecutiveErrors === 3 || consecutiveErrors === 5 || consecutiveErrors % 5 === 0) {
+            console.log(`[轮询处理状态] 连续错误 ${consecutiveErrors} 次，轮询间隔增加到 ${currentPollingInterval}ms`);
+          }
         }
 
         // 如果是超时错误，静默处理（不显示错误提示）
         if (error.message && error.message.includes('超时')) {
-          console.warn('[轮询处理状态] API请求超时，将在延迟后继续轮询');
+          // 只在首次超时时输出日志，避免刷屏
+          if (consecutiveErrors === 1) {
+            console.log('[轮询处理状态] API请求超时，将在延迟后继续轮询');
+          }
         } else {
-          console.error('[轮询处理状态] 轮询失败:', error.message);
+          // 非超时错误只在首次发生时输出
+          if (consecutiveErrors === 1) {
+            console.error('[轮询处理状态] 轮询失败:', error.message);
+          }
         }
       } finally {
         isProcessing = false;
@@ -1384,9 +1416,10 @@ const DocumentManagement = () => {
         });
         
       } catch (error) {
-        console.error('[WebSocket] 连接失败:', error);
-        // WebSocket连接失败时，回退到轮询机制
-        console.log('[WebSocket] 回退到轮询机制');
+        // WebSocket连接失败时静默处理，首次失败才输出日志
+        if (consecutiveErrors === 0) {
+          console.log('[WebSocket] 连接失败，回退到轮询机制');
+        }
         startPolling();
       }
     };
@@ -1415,11 +1448,14 @@ const DocumentManagement = () => {
       }, currentPollingInterval);
     };
 
-    // 启动WebSocket连接
-    initWebSocket();
+    // 延迟启动WebSocket连接，避免阻塞页面渲染
+    const wsTimer = setTimeout(() => {
+      initWebSocket();
+    }, 1000);
 
     return () => {
       isMounted = false;
+      clearTimeout(wsTimer);
       if (intervalId) {
         clearInterval(intervalId);
       }
@@ -1462,16 +1498,18 @@ const DocumentManagement = () => {
             websocketService.subscribeToDocumentProgress(processingDocIds);
           }
         } catch (error) {
-          console.error('[WebSocket] 获取处理状态失败:', error);
+          // 静默处理WebSocket错误，只输出简要信息
+          console.log('[WebSocket] 获取处理状态失败');
         }
       } catch (error) {
         if (!isMounted) return;
-        
-        console.error('[WebSocket] 连接失败:', error);
+
+        // 静默处理WebSocket连接错误，只输出简要信息
+        console.log('[WebSocket] 连接失败，将在稍后重试');
         reconnectAttempts++;
         // 连接失败后，延迟重试，每次增加延迟时间
         const delay = RECONNECT_DELAY * reconnectAttempts;
-        
+
         setTimeout(() => {
           if (isMounted) {
             connectWebSocket();

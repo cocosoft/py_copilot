@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiLayers, FiFileText, FiDatabase, FiGlobe, FiArrowUp } from 'react-icons/fi';
+import { FiLayers, FiFileText, FiDatabase, FiGlobe, FiArrowUp, FiSettings } from 'react-icons/fi';
 import './HierarchyNavigator.css';
 
 const HIERARCHY_LEVELS = [
@@ -32,6 +32,14 @@ const HIERARCHY_LEVELS = [
     color: '#722ed1'
   }
 ];
+
+const MANAGER_LEVEL = {
+  key: 'extraction_manager',
+  label: '识别管理',
+  icon: <FiSettings />,
+  description: '管理实体识别任务',
+  color: '#ff4d4f'
+};
 
 const HierarchyNavigator = ({ currentLevel, onLevelChange, levelStats }) => {
   // 实现返回上级功能
@@ -97,6 +105,21 @@ const HierarchyNavigator = ({ currentLevel, onLevelChange, levelStats }) => {
             </span>
           </span>
         ))}
+      </div>
+
+      {/* 管理功能入口 */}
+      <div className="hierarchy-manager-section">
+        <div 
+          className={`hierarchy-level manager-level ${currentLevel === MANAGER_LEVEL.key ? 'active' : ''}`}
+          onClick={() => onLevelChange && onLevelChange(MANAGER_LEVEL.key)}
+          style={{ '--level-color': MANAGER_LEVEL.color }}
+        >
+          <div className="level-icon">{MANAGER_LEVEL.icon}</div>
+          <div className="level-info">
+            <div className="level-label">{MANAGER_LEVEL.label}</div>
+            <div className="level-description">{MANAGER_LEVEL.description}</div>
+          </div>
+        </div>
       </div>
     </div>
   );

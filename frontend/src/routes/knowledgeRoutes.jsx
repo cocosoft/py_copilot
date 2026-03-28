@@ -23,6 +23,7 @@ const FragmentEntityList = lazy(() => import('../components/Hierarchy/FragmentEn
 const FragmentGraph = lazy(() => import('../components/Hierarchy/FragmentGraph'));
 const GlobalEntityList = lazy(() => import('../components/Hierarchy/GlobalEntityList'));
 const CrossKBAnalysis = lazy(() => import('../components/Hierarchy/CrossKBAnalysis'));
+const HierarchyViewContainer = lazy(() => import('../components/Hierarchy/HierarchyViewContainer'));
 
 /**
  * 页面加载占位符
@@ -117,6 +118,36 @@ export const knowledgeRoutes = {
             { path: 'entities', element: withSuspense(GlobalEntityList) },
             { path: 'analysis', element: withSuspense(CrossKBAnalysis) },
           ],
+        },
+      ],
+    },
+    // 11. 带知识库ID的层级路由
+    {
+      path: ':knowledgeBaseId/hierarchy',
+      children: [
+        {
+          index: true,
+          element: <Navigate to="fragment" replace />,
+        },
+        {
+          path: 'fragment',
+          element: withSuspense(HierarchyViewContainer),
+        },
+        {
+          path: 'document',
+          element: withSuspense(HierarchyViewContainer),
+        },
+        {
+          path: 'knowledge_base',
+          element: withSuspense(HierarchyViewContainer),
+        },
+        {
+          path: 'global',
+          element: withSuspense(HierarchyViewContainer),
+        },
+        {
+          path: 'extraction_manager',
+          element: withSuspense(HierarchyViewContainer),
         },
       ],
     },

@@ -55,7 +55,14 @@ const WorkspaceSelector = ({ showStorage = true }) => {
                 setWorkspaces(response.workspaces);
             }
         } catch (error) {
-            console.error('加载工作空间失败:', error);
+            // 静默处理超时和500错误，避免在控制台显示错误堆栈
+            if (error.status === 408 || error.message?.includes('超时')) {
+                console.log('[WorkspaceSelector] 加载工作空间超时，使用本地缓存');
+            } else if (error.status >= 500) {
+                console.log('[WorkspaceSelector] 加载工作空间服务器错误，使用本地缓存');
+            } else {
+                console.error('加载工作空间失败:', error.message || error);
+            }
         }
     }, [setWorkspaces]);
 
@@ -67,7 +74,14 @@ const WorkspaceSelector = ({ showStorage = true }) => {
             const workspace = await getCurrentWorkspace();
             setCurrentWorkspace(workspace);
         } catch (error) {
-            console.error('加载当前工作空间失败:', error);
+            // 静默处理超时和500错误，避免在控制台显示错误堆栈
+            if (error.status === 408 || error.message?.includes('超时')) {
+                console.log('[WorkspaceSelector] 加载当前工作空间超时，使用本地缓存');
+            } else if (error.status >= 500) {
+                console.log('[WorkspaceSelector] 加载当前工作空间服务器错误，使用本地缓存');
+            } else {
+                console.error('加载当前工作空间失败:', error.message || error);
+            }
         }
     }, [setCurrentWorkspace]);
 

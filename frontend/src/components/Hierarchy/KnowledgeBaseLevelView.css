@@ -1,5 +1,8 @@
 /**
- * 知识库级视图组件样式
+ * 知识库级视图组件样式（重构版）
+ *
+ * @task Phase3-Week10
+ * @phase 层级视图逻辑修复
  */
 
 .knowledge-base-level-view {
@@ -8,6 +11,30 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   padding: 20px;
   margin-bottom: 20px;
+}
+
+/* 加载状态 */
+.kblv-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 400px;
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #1890ff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 12px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .kb-header {

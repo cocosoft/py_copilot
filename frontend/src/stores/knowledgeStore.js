@@ -158,7 +158,7 @@ const initialState = {
 
   // 层级状态
   currentHierarchyLevel: 'knowledge_base', // 'fragment' | 'document' | 'knowledge_base' | 'global'
-  
+
   // 层级数据缓存
   hierarchyData: {
     fragment: {},
@@ -166,9 +166,47 @@ const initialState = {
     knowledge_base: {},
     global: {}
   },
-  
+
   // 下钻路径
   drillDownPath: [],
+
+  // ============================================================================
+  // 层级视图逻辑修复 - 新增层级状态管理
+  // 任务编号: Phase3-Week10
+  // ============================================================================
+
+  // 层级选择状态
+  hierarchySelection: {
+    selectedDocumentId: null,
+    selectedChunkId: null,
+  },
+
+  // 层级数据
+  hierarchyDocuments: [],
+  hierarchyDocumentsTotal: 0,
+  hierarchyDocumentsLoading: false,
+  hierarchyDocumentsError: null,
+
+  hierarchyChunks: [],
+  hierarchyChunksTotal: 0,
+  hierarchyChunksLoading: false,
+  hierarchyChunksError: null,
+
+  hierarchyEntities: [],
+  hierarchyEntitiesTotal: 0,
+  hierarchyEntitiesLoading: false,
+  hierarchyEntitiesError: null,
+
+  // 层级统计数据
+  hierarchyStats: {
+    fragment: null,
+    document: null,
+    knowledgeBase: null,
+    global: null,
+  },
+
+  // 层级视图状态
+  hierarchyViewMode: 'list', // 'list' | 'graph' | 'stats'
 };
 
 /**
@@ -1095,6 +1133,149 @@ const useKnowledgeStore = create(
             const { currentHierarchyLevel, hierarchyData, currentKnowledgeBase } = get();
             const levelData = hierarchyData[currentHierarchyLevel];
             return levelData?.[key] || levelData?.[currentKnowledgeBase?.id];
+          },
+
+          // ============================================================================
+          // 层级视图逻辑修复 - 新增层级状态管理 Actions
+          // 任务编号: Phase3-Week10
+          // ============================================================================
+
+          /**
+           * 设置选中文档
+           */
+          setHierarchySelectedDocument: (documentId) => {
+            set((state) => {
+              state.hierarchySelection.selectedDocumentId = documentId;
+              // 切换文档时清空已选片段
+              state.hierarchySelection.selectedChunkId = null;
+              state.hierarchyChunks = [];
+              state.hierarchyChunksTotal = 0;
+            });
+          },
+
+          /**
+           * 设置选中片段
+           */
+          setHierarchySelectedChunk: (chunkId) => {
+            set((state) => {
+              state.hierarchySelection.selectedChunkId = chunkId;
+            });
+          },
+
+          /**
+           * 清除层级选择
+           */
+          clearHierarchySelection: () => {
+            set((state) => {
+              state.hierarchySelection.selectedDocumentId = null;
+              state.hierarchySelection.selectedChunkId = null;
+              state.hierarchyChunks = [];
+              state.hierarchyChunksTotal = 0;
+              state.hierarchyEntities = [];
+              state.hierarchyEntitiesTotal = 0;
+            });
+          },
+
+          /**
+           * 设置层级文档列表
+           */
+          setHierarchyDocuments: (documents, total) => {
+            set((state) => {
+              state.hierarchyDocuments = documents;
+              state.hierarchyDocumentsTotal = total;
+            });
+          },
+
+          /**
+           * 设置层级文档加载状态
+           */
+          setHierarchyDocumentsLoading: (loading) => {
+            set((state) => {
+              state.hierarchyDocumentsLoading = loading;
+            });
+          },
+
+          /**
+           * 设置层级文档错误
+           */
+          setHierarchyDocumentsError: (error) => {
+            set((state) => {
+              state.hierarchyDocumentsError = error;
+            });
+          },
+
+          /**
+           * 设置层级片段列表
+           */
+          setHierarchyChunks: (chunks, total) => {
+            set((state) => {
+              state.hierarchyChunks = chunks;
+              state.hierarchyChunksTotal = total;
+            });
+          },
+
+          /**
+           * 设置层级片段加载状态
+           */
+          setHierarchyChunksLoading: (loading) => {
+            set((state) => {
+              state.hierarchyChunksLoading = loading;
+            });
+          },
+
+          /**
+           * 设置层级片段错误
+           */
+          setHierarchyChunksError: (error) => {
+            set((state) => {
+              state.hierarchyChunksError = error;
+            });
+          },
+
+          /**
+           * 设置层级实体列表
+           */
+          setHierarchyEntities: (entities, total) => {
+            set((state) => {
+              state.hierarchyEntities = entities;
+              state.hierarchyEntitiesTotal = total;
+            });
+          },
+
+          /**
+           * 设置层级实体加载状态
+           */
+          setHierarchyEntitiesLoading: (loading) => {
+            set((state) => {
+              state.hierarchyEntitiesLoading = loading;
+            });
+          },
+
+          /**
+           * 设置层级实体错误
+           */
+          setHierarchyEntitiesError: (error) => {
+            set((state) => {
+              state.hierarchyEntitiesError = error;
+            });
+          },
+
+          /**
+           * 设置层级统计数据
+           */
+          setHierarchyStats: (level, stats) => {
+            set((state) => {
+              state.hierarchyStats[level] = stats;
+            });
+          },
+
+          /**
+           * 设置层级视图模式
+           */
+          setHierarchyViewMode: (mode) => {
+            set((state) => {
+              state.hierarchyViewMode = mode;
+            });
           },
         }))
       ),

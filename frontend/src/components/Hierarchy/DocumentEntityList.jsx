@@ -6,13 +6,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { FiFilter, FiSearch, FiChevronDown, FiChevronUp, FiFileText } from 'react-icons/fi';
-import { getDocumentEntities } from '../../utils/api/hierarchyApi';
+import { getDocumentEntitiesDetail } from '../../utils/api/hierarchyApi';
 import useKnowledgeStore from '../../stores/knowledgeStore';
 import './DocumentEntityList.css';
 
 const DocumentEntityList = ({ knowledgeBaseId, documentId }) => {
   const { setHierarchyLevel, setCurrentEntity } = useKnowledgeStore();
   const [entities, setEntities] = useState([]);
+  const [totalEntities, setTotalEntities] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -25,8 +26,12 @@ const DocumentEntityList = ({ knowledgeBaseId, documentId }) => {
   useEffect(() => {
     if (knowledgeBaseId && documentId) {
       loadEntities();
+    } else {
+      // 未选择文档时清空数据
+      setEntities([]);
+      setTotalEntities(0);
     }
-  }, [knowledgeBaseId, documentId]);
+  }, [knowledgeBaseId, documentId, currentPage, entityTypeFilter]);
 
   /**
    * 加载文档实体列表
@@ -35,28 +40,34 @@ const DocumentEntityList = ({ knowledgeBaseId, documentId }) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await getDocumentEntities(knowledgeBaseId, {
-        document_id: documentId
+      const response = await getDocumentEntitiesDetail(knowledgeBaseId, documentId, {
+        page: currentPage,
+        pageSize: pageSize,
+        entityType: entityTypeFilter !== 'all' ? entityTypeFilter : ''
       });
-      setEntities(response.entities || response.nodes || []);
+
+      if (response.code === 200 && response.data) {
+        // 转换数据格式以适配组件显示
+        const entityList = response.data.list || [];
+        const formattedEntities = entityList.map(entity => ({
+          id: entity.id,
+          name: entity.text || entity.name,
+          type: entity.type || entity.entity_type,
+          confidence: entity.confidence || 0,
+          occurrences: entity.occurrences || 1
+        }));
+        setEntities(formattedEntities);
+        // 设置总数（来自API返回的总数）
+        setTotalEntities(response.data.total || entityList.length);
+      } else {
+        setEntities([]);
+        setTotalEntities(0);
+      }
     } catch (err) {
       console.error('加载文档实体失败:', err);
       setError('加载实体失败，请稍后重试');
-      // 使用模拟数据
-      setEntities([
-        { id: 1, name: '张三', type: 'PERSON', confidence: 0.95, occurrences: 5 },
-        { id: 2, name: '科技公司', type: 'ORGANIZATION', confidence: 0.92, occurrences: 3 },
-        { id: 3, name: '北京', type: 'LOCATION', confidence: 0.98, occurrences: 4 },
-        { id: 4, name: '2026年', type: 'DATE', confidence: 0.90, occurrences: 2 },
-        { id: 5, name: '人工智能', type: 'CONCEPT', confidence: 0.85, occurrences: 6 },
-        { id: 6, name: '李四', type: 'PERSON', confidence: 0.93, occurrences: 3 },
-        { id: 7, name: '上海', type: 'LOCATION', confidence: 0.97, occurrences: 2 },
-        { id: 8, name: '机器学习', type: 'CONCEPT', confidence: 0.88, occurrences: 4 },
-        { id: 9, name: '2025年', type: 'DATE', confidence: 0.91, occurrences: 1 },
-        { id: 10, name: '互联网公司', type: 'ORGANIZATION', confidence: 0.89, occurrences: 2 },
-        { id: 11, name: '王五', type: 'PERSON', confidence: 0.94, occurrences: 3 },
-        { id: 12, name: '深圳', type: 'LOCATION', confidence: 0.96, occurrences: 2 },
-      ]);
+      setEntities([]);
+      setTotalEntities(0);
     } finally {
       setLoading(false);
     }
@@ -82,22 +93,23 @@ const DocumentEntityList = ({ knowledgeBaseId, documentId }) => {
     }
   };
 
+
+
   /**
-   * 过滤和排序实体
+   * 获取分页数据
+   * 注意：API已经返回分页数据，这里只进行搜索和排序
+   * 类型筛选已经在API请求时处理
    */
-  const filteredAndSortedEntities = () => {
+  const getPagedEntities = () => {
+    // 由于API已经分页，entities就是当前页的数据
+    // 只需要进行搜索过滤和排序
     let result = [...entities];
 
-    // 搜索过滤
+    // 搜索过滤（前端搜索当前页）
     if (searchQuery) {
-      result = result.filter(entity => 
+      result = result.filter(entity =>
         entity.name.toLowerCase().includes(searchQuery.toLowerCase())
       );
-    }
-
-    // 类型过滤
-    if (entityTypeFilter !== 'all') {
-      result = result.filter(entity => entity.type === entityTypeFilter);
     }
 
     // 排序
@@ -120,16 +132,6 @@ const DocumentEntityList = ({ knowledgeBaseId, documentId }) => {
     });
 
     return result;
-  };
-
-  /**
-   * 获取分页数据
-   */
-  const getPagedEntities = () => {
-    const filtered = filteredAndSortedEntities();
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    return filtered.slice(startIndex, endIndex);
   };
 
   /**
@@ -171,21 +173,20 @@ const DocumentEntityList = ({ knowledgeBaseId, documentId }) => {
     setHierarchyLevel('fragment');
   };
 
-  const filteredEntities = filteredAndSortedEntities();
   const pagedEntities = getPagedEntities();
-  const totalPages = Math.ceil(filteredEntities.length / pageSize);
+  // 使用API返回的总数
+  const displayTotal = totalEntities;
+  const totalPages = Math.ceil(displayTotal / pageSize);
 
   return (
     <div className="document-entity-list">
+      {/* 标题和统计 - 简化为一行 */}
       <div className="del-header">
-        <h3>文档实体列表</h3>
-        <div className="del-stats">
-          共 <span className="stat-value">{filteredEntities.length}</span> 个实体
-        </div>
+        <h3>文档实体列表 <span className="entity-count">({displayTotal})</span></h3>
       </div>
 
-      {/* 搜索和过滤 */}
-      <div className="del-filters">
+      {/* 搜索、过滤和分页 */}
+      <div className="del-toolbar">
         <form onSubmit={handleSearch} className="search-form">
           <div className="search-input-group">
             <FiSearch className="search-icon" />
@@ -204,7 +205,10 @@ const DocumentEntityList = ({ knowledgeBaseId, documentId }) => {
           <select
             id="entity-type-filter"
             value={entityTypeFilter}
-            onChange={(e) => setEntityTypeFilter(e.target.value)}
+            onChange={(e) => {
+              setEntityTypeFilter(e.target.value);
+              setCurrentPage(1); // 切换类型时重置到第一页
+            }}
             className="type-filter"
           >
             {getEntityTypes().map((type, index) => (
@@ -214,6 +218,43 @@ const DocumentEntityList = ({ knowledgeBaseId, documentId }) => {
             ))}
           </select>
         </div>
+
+        {/* 分页移到上面 */}
+        {totalPages > 1 && (
+          <div className="pagination">
+            <button
+              className="page-btn"
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+            >
+              首页
+            </button>
+            <button
+              className="page-btn"
+              onClick={() => setCurrentPage(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
+              上一页
+            </button>
+            <span className="page-info">
+              {currentPage}/{totalPages}
+            </span>
+            <button
+              className="page-btn"
+              onClick={() => setCurrentPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+            >
+              下一页
+            </button>
+            <button
+              className="page-btn"
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+            >
+              末页
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 实体列表 */}
@@ -309,43 +350,6 @@ const DocumentEntityList = ({ knowledgeBaseId, documentId }) => {
               </tbody>
             </table>
           </div>
-
-          {/* 分页 */}
-          {totalPages > 1 && (
-            <div className="pagination">
-              <button
-                className="page-btn"
-                onClick={() => setCurrentPage(1)}
-                disabled={currentPage === 1}
-              >
-                首页
-              </button>
-              <button
-                className="page-btn"
-                onClick={() => setCurrentPage(currentPage - 1)}
-                disabled={currentPage === 1}
-              >
-                上一页
-              </button>
-              <span className="page-info">
-                第 {currentPage} 页，共 {totalPages} 页
-              </span>
-              <button
-                className="page-btn"
-                onClick={() => setCurrentPage(currentPage + 1)}
-                disabled={currentPage === totalPages}
-              >
-                下一页
-              </button>
-              <button
-                className="page-btn"
-                onClick={() => setCurrentPage(totalPages)}
-                disabled={currentPage === totalPages}
-              >
-                末页
-              </button>
-            </div>
-          )}
         </div>
       )}
     </div>

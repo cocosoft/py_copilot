@@ -2,11 +2,14 @@
  * 知识库知识图谱组件
  *
  * 用于可视化知识库级别的实体关系图谱
+ * 使用 D3.js 力导向图和真实数据
  */
 
-import React, { useState, useEffect, useRef } from 'react';
-import { FiZoomIn, FiZoomOut, FiRotateCcw, FiDownload, FiSettings, FiX } from 'react-icons/fi';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { FiZoomIn, FiZoomOut, FiRotateCcw, FiDownload, FiSettings } from 'react-icons/fi';
+import * as d3 from 'd3';
 import useKnowledgeStore from '../../stores/knowledgeStore';
+import { getKnowledgeBaseGraph } from '../../utils/api/hierarchyApi';
 import './KBGraph.css';
 
 const KBGraph = ({ knowledgeBaseId }) => {
@@ -17,77 +20,285 @@ const KBGraph = ({ knowledgeBaseId }) => {
   const [zoomLevel, setZoomLevel] = useState(1);
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState({
-    nodeSize: 10,
-    linkWidth: 1,
+    nodeSize: 20,
+    linkWidth: 1.5,
     showLabels: true,
-    colorScheme: 'category10',
-    layout: 'force',
-    showLegend: true
+    chargeStrength: -300,
+    linkDistance: 100
   });
-  const svgRef = useRef(null);
 
-  useEffect(() => {
-    if (knowledgeBaseId) {
-      loadGraphData();
-    }
-  }, [knowledgeBaseId]);
+  const svgRef = useRef(null);
+  const containerRef = useRef(null);
+  const simulationRef = useRef(null);
+  const zoomRef = useRef(null);
+
+  /**
+   * 实体类型颜色映射
+   */
+  const getEntityColor = useCallback((type) => {
+    const colorMap = {
+      'CONCEPT': '#1890ff',
+      'PERSON': '#ff6b6b',
+      'ORGANIZATION': '#4ecdc4',
+      'LOCATION': '#45b7d1',
+      'DATE': '#96ceb4',
+      'MONEY': '#feca57',
+      'TECH': '#a29bfe',
+      'PRODUCT': '#fd79a8',
+      'EVENT': '#fdcb6e',
+      '概念': '#1890ff',
+      '人物': '#ff6b6b',
+      '组织': '#4ecdc4',
+      '地点': '#45b7d1',
+      '日期': '#96ceb4',
+      '金额': '#feca57',
+      '技术': '#a29bfe',
+      '产品': '#fd79a8',
+      '事件': '#fdcb6e'
+    };
+    return colorMap[type?.toUpperCase()] || '#666666';
+  }, []);
 
   /**
    * 加载知识库图谱数据
    */
-  const loadGraphData = async () => {
+  const loadGraphData = useCallback(async () => {
+    if (!knowledgeBaseId) return;
+
     setLoading(true);
     setError(null);
+
     try {
-      // 这里应该调用API获取图谱数据
-      // 暂时使用模拟数据
-      setGraphData({
-        nodes: [
-          { id: 1, name: '人工智能', type: 'CONCEPT', count: 20 },
-          { id: 2, name: '机器学习', type: 'CONCEPT', count: 18 },
-          { id: 3, name: '深度学习', type: 'CONCEPT', count: 15 },
-          { id: 4, name: '神经网络', type: 'CONCEPT', count: 12 },
-          { id: 5, name: '计算机视觉', type: 'CONCEPT', count: 10 },
-          { id: 6, name: '自然语言处理', type: 'CONCEPT', count: 9 },
-          { id: 7, name: '张三', type: 'PERSON', count: 5 },
-          { id: 8, name: '科技公司', type: 'ORGANIZATION', count: 4 },
-          { id: 9, name: '北京', type: 'LOCATION', count: 3 },
-          { id: 10, name: '2026年', type: 'DATE', count: 2 }
-        ],
-        links: [
-          { source: 1, target: 2, value: 5, label: '包含' },
-          { source: 2, target: 3, value: 4, label: '包含' },
-          { source: 3, target: 4, value: 3, label: '包含' },
-          { source: 1, target: 5, value: 3, label: '包含' },
-          { source: 1, target: 6, value: 3, label: '包含' },
-          { source: 7, target: 1, value: 2, label: '研究' },
-          { source: 8, target: 1, value: 2, label: '开发' },
-          { source: 7, target: 8, value: 1, label: '工作' },
-          { source: 8, target: 9, value: 1, label: '位于' },
-          { source: 1, target: 10, value: 1, label: '预测' }
-        ]
-      });
+      const response = await getKnowledgeBaseGraph(knowledgeBaseId);
+
+      if (response.code === 200 && response.data) {
+        const data = response.data;
+        const nodes = data.nodes || [];
+        const links = data.edges || data.links || [];
+
+        // 转换数据格式
+        const formattedNodes = nodes.map(node => ({
+          id: node.id || node.entity_id,
+          name: node.name || node.text || node.label || `实体${node.id}`,
+          type: node.type || node.entity_type || '未知',
+          ...node
+        }));
+
+        const formattedLinks = links.map(link => ({
+          source: link.source?.id || link.source_id || link.source,
+          target: link.target?.id || link.target_id || link.target,
+          label: link.label || link.relationship_type || link.type || '',
+          value: link.value || link.confidence || 1,
+          ...link
+        }));
+
+        setGraphData({
+          nodes: formattedNodes,
+          links: formattedLinks
+        });
+      } else {
+        setError(response.message || '加载图谱数据失败');
+      }
     } catch (err) {
       console.error('加载知识库图谱失败:', err);
       setError('加载图谱失败，请稍后重试');
     } finally {
       setLoading(false);
     }
+  }, [knowledgeBaseId]);
+
+  useEffect(() => {
+    loadGraphData();
+  }, [loadGraphData]);
+
+  /**
+   * 渲染 D3 力导向图
+   */
+  useEffect(() => {
+    if (!svgRef.current || graphData.nodes.length === 0) return;
+
+    const svg = d3.select(svgRef.current);
+    svg.selectAll('*').remove();
+
+    const width = svgRef.current.clientWidth || 800;
+    const height = svgRef.current.clientHeight || 600;
+
+    // 创建主容器组
+    const g = svg.append('g');
+
+    // 创建缩放行为
+    const zoom = d3.zoom()
+      .scaleExtent([0.5, 3])
+      .on('zoom', (event) => {
+        g.attr('transform', event.transform);
+        setZoomLevel(event.transform.k);
+      });
+
+    zoomRef.current = zoom;
+    svg.call(zoom);
+
+    // 创建力导向模拟
+    const simulation = d3.forceSimulation(graphData.nodes)
+      .force('link', d3.forceLink(graphData.links)
+        .id(d => d.id)
+        .distance(settings.linkDistance)
+      )
+      .force('charge', d3.forceManyBody().strength(settings.chargeStrength))
+      .force('center', d3.forceCenter(width / 2, height / 2))
+      .force('collision', d3.forceCollide().radius(d => Math.max(settings.nodeSize, (d.count || 1) * 0.3) + 5));
+
+    simulationRef.current = simulation;
+
+    // 绘制连线
+    const link = g.append('g')
+      .attr('class', 'links')
+      .selectAll('line')
+      .data(graphData.links)
+      .enter()
+      .append('line')
+      .attr('stroke', '#999999')
+      .attr('stroke-width', settings.linkWidth)
+      .attr('stroke-opacity', 0.6);
+
+    // 绘制连线标签
+    const linkLabel = g.append('g')
+      .attr('class', 'link-labels')
+      .selectAll('text')
+      .data(graphData.links)
+      .enter()
+      .append('text')
+      .attr('font-size', '10px')
+      .attr('fill', '#666666')
+      .attr('text-anchor', 'middle')
+      .text(d => d.label || '');
+
+    // 绘制节点
+    const node = g.append('g')
+      .attr('class', 'nodes')
+      .selectAll('circle')
+      .data(graphData.nodes)
+      .enter()
+      .append('circle')
+      .attr('r', d => Math.max(settings.nodeSize, (d.count || 1) * 0.3))
+      .attr('fill', d => getEntityColor(d.type))
+      .attr('stroke', '#ffffff')
+      .attr('stroke-width', 2)
+      .style('cursor', 'pointer')
+      .call(d3.drag()
+        .on('start', (event, d) => {
+          if (!event.active) simulation.alphaTarget(0.3).restart();
+          d.fx = d.x;
+          d.fy = d.y;
+        })
+        .on('drag', (event, d) => {
+          d.fx = event.x;
+          d.fy = event.y;
+        })
+        .on('end', (event, d) => {
+          if (!event.active) simulation.alphaTarget(0);
+          d.fx = null;
+          d.fy = null;
+        }));
+
+    // 绘制节点标签
+    const nodeLabel = settings.showLabels ? g.append('g')
+      .attr('class', 'node-labels')
+      .selectAll('text')
+      .data(graphData.nodes)
+      .enter()
+      .append('text')
+      .attr('font-size', '12px')
+      .attr('fill', '#333333')
+      .attr('text-anchor', 'middle')
+      .attr('dy', d => Math.max(settings.nodeSize, (d.count || 1) * 0.3) + 15)
+      .text(d => d.name || d.text || '') : null;
+
+    // 节点双击事件
+    node.on('dblclick', (event, d) => {
+      event.stopPropagation();
+      setCurrentEntity(d);
+      setHierarchyLevel('document');
+    });
+
+    // 节点悬停提示
+    node.append('title')
+      .text(d => `${d.name || d.text || '未知'} (${d.type || '未知类型'})`);
+
+    // 更新位置
+    simulation.on('tick', () => {
+      link
+        .attr('x1', d => d.source.x)
+        .attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x)
+        .attr('y2', d => d.target.y);
+
+      linkLabel
+        .attr('x', d => (d.source.x + d.target.x) / 2)
+        .attr('y', d => (d.source.y + d.target.y) / 2 - 5);
+
+      node
+        .attr('cx', d => d.x)
+        .attr('cy', d => d.y);
+
+      if (nodeLabel) {
+        nodeLabel
+          .attr('x', d => d.x)
+          .attr('y', d => d.y);
+      }
+    });
+
+    // 组件卸载时停止模拟
+    return () => {
+      simulation.stop();
+    };
+  }, [graphData, settings, getEntityColor, setCurrentEntity, setHierarchyLevel]);
+
+  /**
+   * 处理缩放 - 使用D3 zoom行为
+   */
+  const handleZoom = (direction) => {
+    if (!svgRef.current || !zoomRef.current) return;
+
+    const svg = d3.select(svgRef.current);
+    const currentTransform = d3.zoomTransform(svgRef.current);
+    let newScale = currentTransform.k;
+
+    if (direction === 'in' && newScale < 3) {
+      newScale += 0.2;
+    } else if (direction === 'out' && newScale > 0.5) {
+      newScale -= 0.2;
+    }
+
+    const width = svgRef.current.clientWidth || 800;
+    const height = svgRef.current.clientHeight || 600;
+
+    svg.transition()
+      .duration(300)
+      .call(
+        d3.zoom().transform,
+        d3.zoomIdentity.translate(width / 2, height / 2).scale(newScale).translate(-width / 2, -height / 2)
+      );
+
+    setZoomLevel(newScale);
   };
 
   /**
-   * 处理缩放
+   * 重置视图
    */
-  const handleZoomIn = () => {
-    setZoomLevel(prev => Math.min(prev * 1.2, 3));
-  };
+  const handleReset = () => {
+    if (!svgRef.current || !zoomRef.current) return;
 
-  const handleZoomOut = () => {
-    setZoomLevel(prev => Math.max(prev / 1.2, 0.5));
-  };
+    const svg = d3.select(svgRef.current);
 
-  const handleResetZoom = () => {
+    svg.transition()
+      .duration(300)
+      .call(d3.zoom().transform, d3.zoomIdentity);
+
     setZoomLevel(1);
+
+    if (simulationRef.current) {
+      simulationRef.current.alpha(1).restart();
+    }
   };
 
   /**
@@ -109,173 +320,54 @@ const KBGraph = ({ knowledgeBaseId }) => {
   /**
    * 处理设置更改
    */
-  const handleSettingsChange = (key, value) => {
+  const handleSettingChange = (key, value) => {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
 
   /**
-   * 处理节点双击事件，实现下钻功能
+   * 获取实际存在的实体类型
    */
-  const handleNodeDoubleClick = (node) => {
-    // 设置当前实体
-    setCurrentEntity(node);
-    // 切换到文档级视图
-    setHierarchyLevel('document');
-  };
-
-  /**
-   * 获取节点颜色
-   */
-  const getNodeColor = (type) => {
-    const colorMap = {
-      CONCEPT: '#1890ff',
-      PERSON: '#ff6b6b',
-      ORGANIZATION: '#4ecdc4',
-      LOCATION: '#45b7d1',
-      DATE: '#96ceb4',
-      MONEY: '#feca57',
-      TECH: '#a29bfe',
-      PRODUCT: '#fd79a8',
-      EVENT: '#fdcb6e'
-    };
-    return colorMap[type] || '#666666';
-  };
-
-  /**
-   * 生成图谱SVG
-   */
-  const renderGraph = () => {
-    if (!graphData.nodes || graphData.nodes.length === 0) {
-      return <div className="no-data">暂无数据</div>;
-    }
-
-    // 简单的力导向布局模拟
-    const width = 800;
-    const height = 600;
-    const centerX = width / 2;
-    const centerY = height / 2;
-
-    // 计算节点位置（简单圆形布局）
-    const nodePositions = {};
-    const radius = Math.min(width, height) * 0.4;
-    graphData.nodes.forEach((node, index) => {
-      const angle = (index / graphData.nodes.length) * Math.PI * 2;
-      nodePositions[node.id] = {
-        x: centerX + radius * Math.cos(angle),
-        y: centerY + radius * Math.sin(angle)
-      };
+  const getExistingEntityTypes = () => {
+    const types = new Set();
+    graphData.nodes.forEach(node => {
+      if (node.type) {
+        types.add(node.type.toUpperCase());
+      }
     });
-
-    return (
-      <svg 
-        ref={svgRef}
-        width={width} 
-        height={height} 
-        className="graph-svg"
-        style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'center center' }}
-      >
-        {/* 绘制连线 */}
-        {graphData.links.map((link, index) => {
-          const sourcePos = nodePositions[link.source];
-          const targetPos = nodePositions[link.target];
-          if (!sourcePos || !targetPos) return null;
-
-          return (
-            <g key={`kbg-link-${index}`}>
-              <line
-                x1={sourcePos.x}
-                y1={sourcePos.y}
-                x2={targetPos.x}
-                y2={targetPos.y}
-                stroke="#999999"
-                strokeWidth={settings.linkWidth}
-                strokeOpacity={0.6}
-              />
-              {settings.showLabels && link.label && (
-                <text
-                  x={(sourcePos.x + targetPos.x) / 2}
-                  y={(sourcePos.y + targetPos.y) / 2 - 5}
-                  textAnchor="middle"
-                  fontSize="12"
-                  fill="#666666"
-                >
-                  {link.label}
-                </text>
-              )}
-            </g>
-          );
-        })}
-
-        {/* 绘制节点 */}
-        {graphData.nodes.map((node, index) => {
-          const pos = nodePositions[node.id];
-          if (!pos) return null;
-
-          return (
-            <g
-              key={`kbg-node-${node.id}-${index}`}
-              className="graph-node"
-              data-id={node.id}
-              onDoubleClick={() => handleNodeDoubleClick(node)}
-              style={{ cursor: 'pointer' }}
-            >
-              <circle
-                cx={pos.x}
-                cy={pos.y}
-                r={Math.max(settings.nodeSize, node.count * 0.5)}
-                fill={getNodeColor(node.type)}
-                stroke="#ffffff"
-                strokeWidth={2}
-                opacity={0.8}
-              />
-              {settings.showLabels && (
-                <text
-                  x={pos.x}
-                  y={pos.y + Math.max(settings.nodeSize, node.count * 0.5) + 15}
-                  textAnchor="middle"
-                  fontSize="12"
-                  fill="#333333"
-                  fontWeight="500"
-                >
-                  {node.name}
-                </text>
-              )}
-            </g>
-          );
-        })}
-      </svg>
-    );
+    return Array.from(types);
   };
 
   /**
-   * 渲染图例
+   * 渲染图例 - 只显示实际存在的类型
    */
   const renderLegend = () => {
-    if (!settings.showLegend) return null;
+    const existingTypes = getExistingEntityTypes();
 
-    const entityTypes = [
-      { type: 'CONCEPT', label: '概念' },
-      { type: 'PERSON', label: '人物' },
-      { type: 'ORGANIZATION', label: '组织' },
-      { type: 'LOCATION', label: '地点' },
-      { type: 'DATE', label: '日期' },
-      { type: 'MONEY', label: '金额' },
-      { type: 'TECH', label: '技术' },
-      { type: 'PRODUCT', label: '产品' },
-      { type: 'EVENT', label: '事件' }
-    ];
+    if (existingTypes.length === 0) return null;
+
+    const typeLabels = {
+      'CONCEPT': '概念',
+      'PERSON': '人物',
+      'ORGANIZATION': '组织',
+      'LOCATION': '地点',
+      'DATE': '日期',
+      'MONEY': '金额',
+      'TECH': '技术',
+      'PRODUCT': '产品',
+      'EVENT': '事件'
+    };
 
     return (
       <div className="graph-legend">
         <h4>图例</h4>
         <div className="legend-items">
-          {entityTypes.map((item, index) => (
-            <div key={`kbg-legend-${item.type}-${index}`} className="legend-item">
-              <div 
-                className="legend-color" 
-                style={{ backgroundColor: getNodeColor(item.type) }}
+          {existingTypes.map((type, index) => (
+            <div key={`kb-legend-${type}-${index}`} className="legend-item">
+              <div
+                className="legend-color"
+                style={{ backgroundColor: getEntityColor(type) }}
               ></div>
-              <span className="legend-label">{item.label}</span>
+              <span className="legend-label">{typeLabels[type] || type}</span>
             </div>
           ))}
         </div>
@@ -290,29 +382,29 @@ const KBGraph = ({ knowledgeBaseId }) => {
         <div className="graph-controls">
           <button
             className="control-btn"
-            onClick={handleZoomIn}
-            title="放大"
-          >
-            <FiZoomIn />
-          </button>
-          <button
-            className="control-btn"
-            onClick={handleZoomOut}
+            onClick={() => handleZoom('out')}
             title="缩小"
           >
             <FiZoomOut />
           </button>
           <button
             className="control-btn"
-            onClick={handleResetZoom}
-            title="重置缩放"
+            onClick={handleReset}
+            title="重置"
           >
             <FiRotateCcw />
           </button>
           <button
             className="control-btn"
+            onClick={() => handleZoom('in')}
+            title="放大"
+          >
+            <FiZoomIn />
+          </button>
+          <button
+            className="control-btn"
             onClick={handleDownload}
-            title="下载图谱数据"
+            title="下载"
           >
             <FiDownload />
           </button>
@@ -326,110 +418,93 @@ const KBGraph = ({ knowledgeBaseId }) => {
         </div>
       </div>
 
-      {/* 图谱设置面板 */}
+      {/* 设置面板 */}
       {showSettings && (
-        <div className="graph-settings">
-          <div className="settings-header">
-            <h4>图谱设置</h4>
-            <button
-              className="close-btn"
-              onClick={() => setShowSettings(false)}
-            >
-              <FiX />
-            </button>
+        <div className="settings-panel">
+          <h4>图谱设置</h4>
+          <div className="setting-item">
+            <label>节点大小:</label>
+            <input
+              type="range"
+              min="10"
+              max="40"
+              value={settings.nodeSize}
+              onChange={(e) => handleSettingChange('nodeSize', parseInt(e.target.value))}
+            />
+            <span>{settings.nodeSize}</span>
           </div>
-          <div className="settings-content">
-            <div className="setting-item">
-              <label>节点大小:</label>
-              <input
-                type="range"
-                min="5"
-                max="20"
-                value={settings.nodeSize}
-                onChange={(e) => handleSettingsChange('nodeSize', parseInt(e.target.value))}
-              />
-              <span>{settings.nodeSize}</span>
-            </div>
-            <div className="setting-item">
-              <label>连线宽度:</label>
-              <input
-                type="range"
-                min="0.5"
-                max="3"
-                step="0.5"
-                value={settings.linkWidth}
-                onChange={(e) => handleSettingsChange('linkWidth', parseFloat(e.target.value))}
-              />
-              <span>{settings.linkWidth}</span>
-            </div>
-            <div className="setting-item checkbox">
+          <div className="setting-item">
+            <label>连接线宽度:</label>
+            <input
+              type="range"
+              min="1"
+              max="5"
+              step="0.5"
+              value={settings.linkWidth}
+              onChange={(e) => handleSettingChange('linkWidth', parseFloat(e.target.value))}
+            />
+            <span>{settings.linkWidth}</span>
+          </div>
+          <div className="setting-item">
+            <label>节点斥力:</label>
+            <input
+              type="range"
+              min="-500"
+              max="-100"
+              step="50"
+              value={settings.chargeStrength}
+              onChange={(e) => handleSettingChange('chargeStrength', parseInt(e.target.value))}
+            />
+            <span>{settings.chargeStrength}</span>
+          </div>
+          <div className="setting-item">
+            <label>连接距离:</label>
+            <input
+              type="range"
+              min="50"
+              max="200"
+              step="10"
+              value={settings.linkDistance}
+              onChange={(e) => handleSettingChange('linkDistance', parseInt(e.target.value))}
+            />
+            <span>{settings.linkDistance}</span>
+          </div>
+          <div className="setting-item">
+            <label>
               <input
                 type="checkbox"
-                id="show-labels"
                 checked={settings.showLabels}
-                onChange={(e) => handleSettingsChange('showLabels', e.target.checked)}
+                onChange={(e) => handleSettingChange('showLabels', e.target.checked)}
               />
-              <label htmlFor="show-labels">显示标签</label>
-            </div>
-            <div className="setting-item checkbox">
-              <input
-                type="checkbox"
-                id="show-legend"
-                checked={settings.showLegend}
-                onChange={(e) => handleSettingsChange('showLegend', e.target.checked)}
-              />
-              <label htmlFor="show-legend">显示图例</label>
-            </div>
-            <div className="setting-item">
-              <label>布局方式:</label>
-              <select
-                value={settings.layout}
-                onChange={(e) => handleSettingsChange('layout', e.target.value)}
-              >
-                <option value="force">力导向布局</option>
-                <option value="circular">环形布局</option>
-                <option value="hierarchical">层次布局</option>
-              </select>
-            </div>
-            <div className="setting-item">
-              <label>颜色方案:</label>
-              <select
-                value={settings.colorScheme}
-                onChange={(e) => handleSettingsChange('colorScheme', e.target.value)}
-              >
-                <option value="category10">Category 10</option>
-                <option value="category20">Category 20</option>
-                <option value="viridis">Viridis</option>
-                <option value="plasma">Plasma</option>
-              </select>
-            </div>
+              显示标签
+            </label>
           </div>
         </div>
       )}
 
       {/* 图谱内容 */}
-      <div className="kb-graph-content">
+      <div className="kb-graph-content" ref={containerRef}>
         {loading ? (
           <div className="loading">加载中...</div>
         ) : error ? (
           <div className="error">{error}</div>
+        ) : graphData.nodes.length === 0 ? (
+          <div className="empty">暂无图谱数据</div>
         ) : (
-          <div className="graph-container">
-            {renderGraph()}
-            {renderLegend()}
-          </div>
+          <>
+            <svg ref={svgRef} className="graph-svg"></svg>
+            <div className="graph-info">
+              节点: {graphData.nodes.length} | 连接: {graphData.links.length} | 缩放: {(zoomLevel * 100).toFixed(0)}%
+            </div>
+            <div className="graph-hint">
+              滚轮缩放 | 拖拽平移 | 拖拽节点调整位置 | 双击节点下钻
+            </div>
+          </>
         )}
       </div>
 
-      {/* 统计信息 */}
-      <div className="kb-graph-stats">
-        <span className="stat-item">
-          节点: <strong>{graphData.nodes.length}</strong>
-        </span>
-        <span className="stat-item">
-          连线: <strong>{graphData.links.length}</strong>
-        </span>
-      </div>
+      {/* 图例 */}
+      {!loading && !error && graphData.nodes.length > 0 && renderLegend()}
     </div>
   );
 };

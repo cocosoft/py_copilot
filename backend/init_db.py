@@ -36,7 +36,10 @@ from app.models.memory import (
 )
 
 # 知识库模型
-from app.modules.knowledge.models.knowledge_document import KnowledgeBase, KnowledgeDocument, KnowledgeTag, DocumentEntity, DocumentChunk, EntityRelationship
+from app.modules.knowledge.models.knowledge_document import (
+    KnowledgeBase, KnowledgeDocument, KnowledgeTag, DocumentEntity, DocumentChunk, EntityRelationship,
+    EntityExtractionTask, ChunkExtractionStatus
+)
 
 # 供应商和模型模型
 from app.models.supplier_db import SupplierDB, ModelDB, ModelParameter, ParameterVersion, ModelParameterVersion

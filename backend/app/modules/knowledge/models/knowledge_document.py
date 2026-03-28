@@ -29,8 +29,6 @@ class KnowledgeBase(Base):
     kb_relationships = relationship("KBRelationship", back_populates="knowledge_base", cascade="all, delete-orphan")
     # 关系：一个知识库包含多个权限记录
     permissions = relationship("KnowledgeBasePermission", back_populates="knowledge_base", cascade="all, delete-orphan")
-    # 关系：一个知识库包含一个模型配置
-    model_configs = relationship("KnowledgeBaseModelConfig", back_populates="knowledge_base", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<KnowledgeBase(id={self.id}, name='{self.name}')>"
@@ -371,3 +369,89 @@ class KnowledgeBasePermission(Base):
 
     def __repr__(self):
         return f"<KnowledgeBasePermission(id={self.id}, user_id={self.user_id}, role='{self.role}')>"
+
+
+class EntityExtractionTask(Base):
+    """
+    实体识别任务表
+    
+    用于追踪文档的实体识别任务状态
+    """
+    __tablename__ = "entity_extraction_tasks"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    knowledge_base_id = Column(Integer, ForeignKey("knowledge_bases.id"), nullable=False, index=True)
+    document_id = Column(Integer, ForeignKey("knowledge_documents.id"), nullable=False, index=True)
+    
+    # 任务状态: pending(待处理), processing(处理中), paused(已暂停), completed(已完成), failed(失败)
+    status = Column(String(20), nullable=False, default='pending', index=True)
+    
+    # 暂停相关字段
+    paused_at = Column(DateTime, nullable=True)  # 暂停时间
+    resumed_at = Column(DateTime, nullable=True)  # 恢复时间
+    pause_count = Column(Integer, default=0)  # 暂停次数
+    
+    # 任务类型: full(全文档识别), incremental(增量识别), retry(重试)
+    task_type = Column(String(20), nullable=False, default='full')
+    
+    # 进度统计
+    total_chunks = Column(Integer, default=0)  # 总片段数
+    processed_chunks = Column(Integer, default=0)  # 已处理片段数
+    successful_chunks = Column(Integer, default=0)  # 成功识别的片段数
+    failed_chunks = Column(Integer, default=0)  # 失败的片段数
+    
+    # 实体统计
+    chunk_entity_count = Column(Integer, default=0)  # 片段级实体总数
+    document_entity_count = Column(Integer, default=0)  # 文档级实体总数
+    
+    # 错误信息
+    error_message = Column(Text, nullable=True)
+    
+    # 时间戳
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    started_at = Column(DateTime, nullable=True)  # 开始处理时间
+    completed_at = Column(DateTime, nullable=True)  # 完成时间
+    
+    # 关系
+    knowledge_base = relationship("KnowledgeBase")
+    document = relationship("KnowledgeDocument")
+    chunk_statuses = relationship("ChunkExtractionStatus", back_populates="task", cascade="all, delete-orphan")
+    
+    def __repr__(self):
+        return f"<EntityExtractionTask(id={self.id}, document_id={self.document_id}, status='{self.status}')>"
+
+
+class ChunkExtractionStatus(Base):
+    """
+    片段识别状态表
+    
+    用于追踪每个片段的实体识别状态
+    """
+    __tablename__ = "chunk_extraction_status"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("entity_extraction_tasks.id"), nullable=False, index=True)
+    chunk_id = Column(Integer, ForeignKey("document_chunks.id"), nullable=False, index=True)
+    document_id = Column(Integer, ForeignKey("knowledge_documents.id"), nullable=False, index=True)
+    
+    # 识别状态: pending(待处理), processing(处理中), completed(已完成), failed(失败)
+    status = Column(String(20), nullable=False, default='pending', index=True)
+    
+    # 实体统计
+    entity_count = Column(Integer, default=0)  # 识别出的实体数量
+    
+    # 错误信息
+    error_message = Column(Text, nullable=True)
+    retry_count = Column(Integer, default=0)  # 重试次数
+    
+    # 时间戳
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    processed_at = Column(DateTime, nullable=True)  # 处理完成时间
+    
+    # 关系
+    task = relationship("EntityExtractionTask", back_populates="chunk_statuses")
+    chunk = relationship("DocumentChunk")
+    document = relationship("KnowledgeDocument")
+    
+    def __repr__(self):
+        return f"<ChunkExtractionStatus(id={self.id}, chunk_id={self.chunk_id}, status='{self.status}')>"

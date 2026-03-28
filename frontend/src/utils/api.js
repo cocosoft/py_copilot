@@ -56,7 +56,12 @@ const withDebugLog = (apiModule, moduleName) => {
           const result = await apiModule[key](...args);
           return result;
         } catch (error) {
-          console.error(`❌ ${moduleName}.${key} 调用失败:`, JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+          // 超时错误静默处理，不输出错误堆栈
+          if (error.status === 408 || error.message?.includes('超时')) {
+            console.log(`[${moduleName}.${key}] 请求超时`);
+          } else {
+            console.error(`${moduleName}.${key} 调用失败:`, error.message || error);
+          }
           throw error;
         }
       };
@@ -73,7 +78,12 @@ export const getDefaultModel = async () => {
     const models = await modelApi.getAll();
     return models.find(model => model.is_default) || models[0] || null;
   } catch (error) {
-    console.error('获取默认模型失败:', JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+    // 超时错误静默处理
+    if (error.status === 408 || error.message?.includes('超时')) {
+      console.log('[getDefaultModel] 请求超时');
+    } else {
+      console.error('获取默认模型失败:', error.message || error);
+    }
     return null;
   }
 };

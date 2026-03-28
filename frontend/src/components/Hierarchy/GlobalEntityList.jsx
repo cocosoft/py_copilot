@@ -17,13 +17,14 @@ const GlobalEntityList = () => {
   const [knowledgeBaseFilter, setKnowledgeBaseFilter] = useState('all');
   const [sortField, setSortField] = useState('text');
   const [sortDirection, setSortDirection] = useState('asc');
-  
+
   // 虚拟滚动相关状态
   const [startIndex, setStartIndex] = useState(0);
   const [endIndex, setEndIndex] = useState(20);
   const itemHeight = 50; // 每个列表项的高度
   const containerRef = useRef(null);
   const listRef = useRef(null);
+  const visibleCount = 20; // 可见区域显示的条目数
 
   /**
    * 加载实体数据
@@ -253,22 +254,12 @@ const GlobalEntityList = () => {
   };
 
   /**
-   * 分页处理
+   * 获取可见的实体（虚拟滚动）
    */
-  const paginatedEntities = () => {
+  const getVisibleEntities = useCallback(() => {
     const filtered = filteredAndSortedEntities();
-    const startIndex = (page - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
     return filtered.slice(startIndex, endIndex);
-  };
-
-  /**
-   * 计算总页数
-   */
-  const totalPages = () => {
-    const filtered = filteredAndSortedEntities();
-    return Math.ceil(filtered.length / pageSize);
-  };
+  }, [filteredAndSortedEntities, startIndex, endIndex]);
 
   /**
    * 处理实体点击，实现跨层级查询和跳转
@@ -307,14 +298,6 @@ const GlobalEntityList = () => {
     }
   }, [itemHeight]);
 
-  /**
-   * 计算可见的实体列表
-   */
-  const getVisibleEntities = () => {
-    const filtered = filteredAndSortedEntities();
-    return filtered.slice(startIndex, endIndex);
-  };
-
   if (loading) {
     return (
       <div className="global-entity-list">
@@ -332,10 +315,8 @@ const GlobalEntityList = () => {
   }
 
   const filteredEntities = filteredAndSortedEntities();
-  const paginated = paginatedEntities();
   const entityTypes = getEntityTypes();
   const knowledgeBases = getKnowledgeBases();
-  const total = totalPages();
 
   return (
     <div className="global-entity-list">

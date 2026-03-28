@@ -1,5 +1,8 @@
 /**
- * 文档级视图组件样式
+ * 文档级视图组件样式（重构版）
+ *
+ * @task Phase3-Week10
+ * @phase 层级视图逻辑修复
  */
 
 .document-level-view {
@@ -8,6 +11,30 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   padding: 20px;
   margin-bottom: 20px;
+}
+
+/* 加载状态 */
+.dlv-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 400px;
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #1890ff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 12px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .dl-header {
@@ -57,6 +84,59 @@
   color: #ffffff;
 }
 
+/* 选择器区域 */
+.dlv-selectors {
+  display: flex;
+  align-items: flex-end;
+  gap: 20px;
+  padding: 16px;
+  background: #fafafa;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.selector-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.selector-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333333;
+  white-space: nowrap;
+}
+
+/* 文档信息 */
+.document-info {
+  display: flex;
+  gap: 20px;
+  padding: 12px 16px;
+  background: #ffffff;
+  border-radius: 6px;
+  border: 1px solid #e8e8e8;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.info-label {
+  font-size: 13px;
+  color: #666666;
+}
+
+.info-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1890ff;
+}
+
+/* 旧版样式兼容 */
 .loading {
   display: flex;
   justify-content: center;
@@ -134,10 +214,28 @@
 }
 
 .dl-view-content {
-  min-height: 500px;
+  min-height: 600px;
+  height: calc(100vh - 400px);
   background: #fafafa;
   border-radius: 4px;
   padding: 20px;
+  overflow: auto;
+}
+
+/* 空内容状态 */
+.empty-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  color: #999999;
+  text-align: center;
+}
+
+.empty-content .empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
 }
 
 /* 响应式设计 */
@@ -145,41 +243,157 @@
   .document-level-view {
     padding: 15px;
   }
-  
+
   .dl-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 15px;
   }
-  
+
   .view-modes {
     width: 100%;
     flex-wrap: wrap;
   }
-  
+
   .mode-btn {
     flex: 1;
     min-width: 120px;
     justify-content: center;
   }
-  
+
+  .dlv-selectors {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .document-info {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
   .document-selector {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
   }
-  
+
   .document-select {
     width: 100%;
     max-width: none;
   }
-  
+
   .dl-stats {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .dl-view-content {
     padding: 15px;
     min-height: 400px;
+  }
+}
+
+/* 实体识别状态栏 */
+.extraction-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 1px solid #d9d9d9;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.status-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.status-label {
+  color: #666;
+  font-weight: 500;
+}
+
+.status-value {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.status-completed {
+  background-color: #52c41a;
+  color: white;
+}
+
+.status-processing {
+  background-color: #faad14;
+  color: white;
+}
+
+.status-pending {
+  background-color: #d9d9d9;
+  color: #666;
+}
+
+.status-progress {
+  color: #888;
+  font-size: 13px;
+}
+
+.status-stats {
+  display: flex;
+  gap: 20px;
+  font-size: 13px;
+  color: #666;
+}
+
+.status-stats span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.aggregate-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background-color: #1890ff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.aggregate-btn:hover:not(:disabled) {
+  background-color: #40a9ff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.3);
+}
+
+.aggregate-btn:disabled {
+  background-color: #bfbfbf;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.loading-icon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }

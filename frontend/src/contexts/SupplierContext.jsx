@@ -30,8 +30,15 @@ const SupplierProvider = ({ children }) => {
       setError(null);
       return finalSuppliers;
     } catch (err) {
-      console.error('❌ 加载供应商失败:', JSON.stringify({ message: err.message, stack: err.stack }, null, 2));
-      
+      // 静默处理超时和500错误，避免在控制台显示错误堆栈
+      if (err.status === 408 || err.message?.includes('超时')) {
+        console.log('[SupplierContext] 加载供应商超时，使用本地缓存或默认数据');
+      } else if (err.status >= 500) {
+        console.log('[SupplierContext] 加载供应商服务器错误，使用本地缓存或默认数据');
+      } else {
+        console.error('加载供应商失败:', err.message || err);
+      }
+
       // 尝试从localStorage加载供应商数据作为回退
       try {
         const cachedSuppliers = localStorage.getItem('suppliers');
@@ -42,7 +49,7 @@ const SupplierProvider = ({ children }) => {
           return suppliers;
         }
       } catch (cacheError) {
-        console.error('❌ 从localStorage加载供应商数据失败:', cacheError);
+        console.error('从localStorage加载供应商数据失败:', cacheError);
       }
       
       // 如果没有缓存数据，使用默认供应商数据

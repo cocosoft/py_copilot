@@ -3469,3 +3469,72 @@ async def analyze_knowledge_base_graph(
     except Exception as e:
         logger.error(f"分析知识图谱失败: {e}")
         raise HTTPException(status_code=500, detail=f"分析知识图谱失败: {str(e)}")
+
+
+class BatchConstructGraphRequest(BaseModel):
+    """批量构建图谱请求"""
+    document_ids: List[int]
+
+
+class BatchConstructGraphResponse(BaseModel):
+    """批量构建图谱响应"""
+    success: bool
+    message: str
+    processed_count: int
+    failed_count: int
+    results: List[Dict[str, Any]]
+
+
+@router.post("/documents/batch-construct-graph", response_model=BatchConstructGraphResponse)
+async def batch_construct_graph(
+    request: BatchConstructGraphRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    批量构建文档知识图谱
+
+    为多个文档批量构建知识图谱。
+
+    Args:
+        request: 批量构建请求，包含文档ID列表
+        db: 数据库会话
+
+    Returns:
+        批量构建结果
+    """
+    try:
+        from app.services.knowledge.batch_processor import build_knowledge_graphs_batch
+
+        if not request.document_ids:
+            raise HTTPException(status_code=400, detail="文档ID列表不能为空")
+
+        # 获取知识库ID（从第一个文档）
+        knowledge_base_id = None
+        first_doc = db.query(KnowledgeDocumentModel).filter(
+            KnowledgeDocumentModel.id == request.document_ids[0]
+        ).first()
+        if first_doc:
+            knowledge_base_id = first_doc.knowledge_base_id
+            logger.info(f"从文档获取知识库ID: {knowledge_base_id}")
+
+        # 调用批量构建服务
+        result = await build_knowledge_graphs_batch(
+            document_ids=request.document_ids,
+            db=db,
+            max_workers=5,
+            knowledge_base_id=knowledge_base_id
+        )
+
+        return BatchConstructGraphResponse(
+            success=result.success,
+            message=f"成功处理 {result.items_processed} 个文档，失败 {result.items_failed} 个",
+            processed_count=result.items_processed,
+            failed_count=result.items_failed,
+            results=result.results
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"批量构建知识图谱失败: {e}")
+        raise HTTPException(status_code=500, detail=f"批量构建知识图谱失败: {str(e)}")

@@ -120,9 +120,10 @@ class WebSocketService {
 
         this.ws.onerror = (error) => {
           clearTimeout(connectionTimeout);
-          console.error('WebSocket错误:', error);
+          // 静默处理WebSocket错误，不输出堆栈
+          console.log('[WebSocket] 连接错误');
           this.isConnecting = false;
-          reject(error);
+          reject(new Error('WebSocket连接失败'));
         };
       } catch (error) {
         this.isConnecting = false;
@@ -136,15 +137,16 @@ class WebSocketService {
    */
   attemptReconnect() {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('WebSocket重连次数超过限制');
+      console.log('[WebSocket] 重连次数超过限制，停止重连');
       return;
     }
 
     this.reconnectAttempts++;
 
     setTimeout(() => {
-      this.connect().catch(error => {
-        console.error('WebSocket重连失败:', error);
+      this.connect().catch(() => {
+        // 静默处理重连失败，不输出错误堆栈
+        console.log('[WebSocket] 重连失败');
       });
     }, this.reconnectDelay);
   }
@@ -291,8 +293,9 @@ class WebSocketService {
     // 如果未连接，将订阅请求加入待处理队列
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       this.pendingSubscriptions.push(...normalizedIds);
-      this.connect().catch(error => {
-        console.error('WebSocket连接失败:', error);
+      this.connect().catch(() => {
+        // 静默处理连接失败，不输出错误堆栈
+        console.log('[WebSocket] 订阅时连接失败');
       });
       return;
     }

@@ -12,14 +12,16 @@ export const createKnowledgeBase = async (name, description) => {
 export const getKnowledgeBases = async (skip = 0, limit = 10) => {
     const response = await request('/v1/knowledge/knowledge-bases', {
         method: 'GET',
-        params: { skip, limit }
+        params: { skip, limit },
+        timeout: 10000  // 页面加载关键API，使用较短的超时时间
     });
     return response;
 };
 
 export const getKnowledgeBase = async (knowledgeBaseId) => {
     const response = await request(`/v1/knowledge/knowledge-bases/${knowledgeBaseId}`, {
-        method: 'GET'
+        method: 'GET',
+        timeout: 10000  // 页面加载关键API，使用较短的超时时间
     });
     return response;
 };
@@ -333,9 +335,9 @@ export const listDocuments = async (skip = 0, limit = 10, knowledgeBaseId = null
     }
     const response = await request('/v1/knowledge/documents', {
         method: 'GET',
-        params
+        params,
+        timeout: 15000  // 文档列表API，使用较短的超时时间
     });
-    
     return response;
 };
 
@@ -347,7 +349,8 @@ export const loadDocumentsAsync = async (knowledgeBaseId, skip = 0, limit = 20, 
             skip,
             limit,
             ...options
-        }
+        },
+        timeout: 15000  // 异步加载任务启动API，使用较短的超时时间
     });
     return response;
 };
@@ -427,7 +430,8 @@ export const batchProcessDocuments = async (knowledgeBaseId) => {
 export const getUnprocessedDocuments = async (knowledgeBaseId) => {
     const response = await request('/v1/knowledge/documents/unprocessed', {
         method: 'GET',
-        params: { knowledge_base_id: knowledgeBaseId }
+        params: { knowledge_base_id: knowledgeBaseId },
+        timeout: 10000  // 页面加载辅助API，使用较短的超时时间
     });
     return response;
 };

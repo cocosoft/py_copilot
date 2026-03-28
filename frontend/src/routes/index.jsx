@@ -3,6 +3,41 @@ import { Suspense, lazy } from 'react';
 import Loading from '../components/Common/Loading';
 import { knowledgeRoutes } from './knowledgeRoutes';
 
+/**
+ * 递归渲染路由配置
+ * @param {Array} children - 子路由配置数组
+ * @returns {Array} 路由元素数组
+ */
+const renderRoutes = (children) => {
+  if (!children || !Array.isArray(children)) return null;
+  
+  return children.map((child, index) => {
+    // 如果有嵌套子路由，递归渲染
+    if (child.children && child.children.length > 0) {
+      return (
+        <Route
+          key={index}
+          index={child.index}
+          path={child.path}
+          element={child.element}
+        >
+          {renderRoutes(child.children)}
+        </Route>
+      );
+    }
+    
+    // 叶子路由
+    return (
+      <Route
+        key={index}
+        index={child.index}
+        path={child.path}
+        element={child.element}
+      />
+    );
+  });
+};
+
 const Home = lazy(() => import('../pages/Home'));
 const Chat = lazy(() => import('../pages/Chat'));
 const AgentManagement = lazy(() => import('../pages/AgentManagement'));
@@ -59,14 +94,7 @@ const AppRoutes = () => {
         <Route path="translate" element={<Translate />} />
         {/* 新版知识库路由 - 使用嵌套路由 */}
         <Route path={knowledgeRoutes.path} element={knowledgeRoutes.element}>
-          {knowledgeRoutes.children.map((child, index) => (
-            <Route
-              key={index}
-              index={child.index}
-              path={child.path}
-              element={child.element}
-            />
-          ))}
+          {renderRoutes(knowledgeRoutes.children)}
         </Route>
         
         {/* 旧版知识库页面 - 重定向到新版 */}

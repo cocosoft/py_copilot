@@ -54,9 +54,9 @@ function MainApp() {
       try {
         const result = await request('/v1/settings', {
           method: 'GET',
-          timeout: 10000 // 减少超时时间到10秒
+          timeout: 5000 // 减少超时时间到5秒，避免长时间等待
         });
-        
+
         if (result.success && result.data?.general?.language) {
           const backendLanguage = result.data.general.language;
           // 如果后端语言与当前语言不同，则切换
@@ -66,7 +66,13 @@ function MainApp() {
           }
         }
       } catch (error) {
-        console.error('从后端加载语言设置失败:', error);
+        // 静默处理超时错误，避免在控制台显示错误堆栈
+        if (error.status === 408 || error.message?.includes('超时')) {
+          console.log('[App] 语言设置加载超时，使用本地缓存设置');
+        } else {
+          console.log('[App] 从后端加载语言设置失败，使用本地缓存设置');
+        }
+
         // 如果后端加载失败，使用 localStorage 中的语言设置
         const savedLanguage = localStorage.getItem('app-language');
         if (savedLanguage && savedLanguage !== i18n.language) {
@@ -74,16 +80,20 @@ function MainApp() {
         }
       }
     };
-    
+
     // 先使用 localStorage 中的语言设置，然后异步加载后端设置
     const savedLanguage = localStorage.getItem('app-language');
     if (savedLanguage && savedLanguage !== i18n.language) {
       i18n.changeLanguage(savedLanguage);
     }
     setIsLanguageLoaded(true);
-    
-    // 异步加载后端语言设置
-    loadLanguageFromBackend();
+
+    // 异步加载后端语言设置（延迟执行，避免页面加载时阻塞）
+    const timer = setTimeout(() => {
+      loadLanguageFromBackend();
+    }, 1000);
+
+    return () => clearTimeout(timer);
   }, [i18n]);
   
   // 语言设置加载完成前显示加载状态

@@ -82,8 +82,8 @@ class KnowledgeBaseModelConfig(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # 关系定义
-    knowledge_base = relationship("KnowledgeBase", back_populates="model_configs")
+    # 关系定义 - 只使用字符串引用，不设置 back_populates 避免循环依赖
+    knowledge_base = relationship("KnowledgeBase")
     extraction_model = relationship("ModelDB", foreign_keys=[extraction_model_id])
     embedding_model = relationship("ModelDB", foreign_keys=[embedding_model_id])
     chat_model = relationship("ModelDB", foreign_keys=[chat_model_id])

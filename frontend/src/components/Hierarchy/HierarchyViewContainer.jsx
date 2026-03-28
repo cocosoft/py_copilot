@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import HierarchyNavigator from './HierarchyNavigator';
 import FragmentLevelView from './FragmentLevelView';
 import DocumentLevelView from './DocumentLevelView';
 import KnowledgeBaseLevelView from './KnowledgeBaseLevelView';
 import GlobalLevelView from './GlobalLevelView';
+import EntityExtractionManager from './EntityExtractionManager';
 import useKnowledgeStore from '../../stores/knowledgeStore';
 import {
   getFragmentLevelStats,
@@ -22,13 +23,14 @@ import './HierarchyViewContainer.css';
  * @param {string|number} props.knowledgeBaseId - 知识库ID（可选，优先于URL参数）
  */
 const HierarchyViewContainer = ({ knowledgeBaseId: propKnowledgeBaseId }) => {
-  const { knowledgeBaseId: urlKnowledgeBaseId } = useParams();
-  
+  const { knowledgeBaseId: urlKnowledgeBaseId, '*': splatPath } = useParams();
+  const location = useLocation();
+
   // 优先使用props中的knowledgeBaseId，如果没有则使用URL参数
   const knowledgeBaseId = propKnowledgeBaseId || urlKnowledgeBaseId;
-  
-  const { 
-    currentHierarchyLevel, 
+
+  const {
+    currentHierarchyLevel,
     setHierarchyLevel,
     hierarchyData,
     cacheHierarchyData,
@@ -38,6 +40,29 @@ const HierarchyViewContainer = ({ knowledgeBaseId: propKnowledgeBaseId }) => {
   const navigate = useNavigate();
   
   const [levelStats, setLevelStats] = useState({});
+  const lastStatsUpdateRef = useRef(0);
+  const pendingStatsUpdateRef = useRef(false);
+
+  // 从 URL 路径解析当前层级
+  useEffect(() => {
+    const pathParts = location.pathname.split('/');
+    const levelIndex = pathParts.indexOf('hierarchy');
+    if (levelIndex !== -1 && pathParts[levelIndex + 1]) {
+      const levelFromUrl = pathParts[levelIndex + 1];
+      // 映射 URL 路径到层级状态
+      const levelMap = {
+        'fragment': 'fragment',
+        'document': 'document',
+        'knowledge_base': 'knowledge_base',
+        'global': 'global',
+        'extraction_manager': 'extraction_manager'
+      };
+      const mappedLevel = levelMap[levelFromUrl];
+      if (mappedLevel && mappedLevel !== currentHierarchyLevel) {
+        setHierarchyLevel(mappedLevel);
+      }
+    }
+  }, [location.pathname, currentHierarchyLevel, setHierarchyLevel]);
 
   // 加载各层级统计数据
   useEffect(() => {
@@ -46,7 +71,27 @@ const HierarchyViewContainer = ({ knowledgeBaseId: propKnowledgeBaseId }) => {
     }
   }, [knowledgeBaseId]);
 
-  const loadAllLevelStats = async () => {
+  const loadAllLevelStats = useCallback(async (force = false) => {
+    // 防抖机制：30秒内只能刷新一次，除非强制刷新
+    const now = Date.now();
+    const minInterval = 30000; // 30秒
+    
+    if (!force && now - lastStatsUpdateRef.current < minInterval) {
+      // 如果距离上次更新不足30秒，标记为待更新，延迟执行
+      if (!pendingStatsUpdateRef.current) {
+        pendingStatsUpdateRef.current = true;
+        const delay = minInterval - (now - lastStatsUpdateRef.current);
+        setTimeout(() => {
+          pendingStatsUpdateRef.current = false;
+          loadAllLevelStats(true);
+        }, delay);
+      }
+      return;
+    }
+
+    lastStatsUpdateRef.current = now;
+    pendingStatsUpdateRef.current = false;
+
     try {
       // 尝试获取各层级统计数据
       const statsPromises = [
@@ -74,7 +119,7 @@ const HierarchyViewContainer = ({ knowledgeBaseId: propKnowledgeBaseId }) => {
         global: 0
       });
     }
-  };
+  }, [knowledgeBaseId]);
 
   const handleLevelChange = (newLevel) => {
     setHierarchyLevel(newLevel);
@@ -111,6 +156,7 @@ const HierarchyViewContainer = ({ knowledgeBaseId: propKnowledgeBaseId }) => {
 
   // 根据当前层级渲染对应视图
   const renderCurrentView = () => {
+    console.log('[HierarchyViewContainer] 渲染层级:', currentHierarchyLevel, 'knowledgeBaseId:', knowledgeBaseId);
     switch (currentHierarchyLevel) {
       case 'fragment':
         return <FragmentLevelView knowledgeBaseId={knowledgeBaseId} />;
@@ -120,7 +166,16 @@ const HierarchyViewContainer = ({ knowledgeBaseId: propKnowledgeBaseId }) => {
         return <KnowledgeBaseLevelView knowledgeBaseId={knowledgeBaseId} />;
       case 'global':
         return <GlobalLevelView />;
+      case 'extraction_manager':
+        console.log('[HierarchyViewContainer] 渲染 EntityExtractionManager');
+        return (
+          <EntityExtractionManager 
+            knowledgeBaseId={knowledgeBaseId} 
+            onStatsUpdate={loadAllLevelStats}
+          />
+        );
       default:
+        console.log('[HierarchyViewContainer] 默认渲染 KnowledgeBaseLevelView');
         return <KnowledgeBaseLevelView knowledgeBaseId={knowledgeBaseId} />;
     }
   };

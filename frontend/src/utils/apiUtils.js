@@ -97,6 +97,56 @@ class AlertManager {
       return;
     }
 
+    // 设置接口的超时错误静默处理（由调用方自行处理）
+    if (error.status === 408 && url && url.includes('/v1/settings')) {
+      return;
+    }
+
+    // 知识库处理状态接口的超时错误静默处理（由调用方自行处理）
+    if (error.status === 408 && url && url.includes('/processing-status')) {
+      return;
+    }
+
+    // 工作空间接口的超时错误静默处理（由调用方自行处理）
+    if (error.status === 408 && url && url.includes('/v1/workspaces')) {
+      return;
+    }
+
+    // 供应商列表接口的超时错误静默处理（由调用方自行处理）
+    if (error.status === 408 && url && url.includes('/v1/suppliers-list')) {
+      return;
+    }
+
+    // 知识库列表接口的超时错误静默处理（由调用方自行处理）
+    if (error.status === 408 && url && url.includes('/v1/knowledge/knowledge-bases')) {
+      return;
+    }
+
+    // 未处理文档接口的超时错误静默处理（由调用方自行处理）
+    if (error.status === 408 && url && url.includes('/v1/knowledge/documents/unprocessed')) {
+      return;
+    }
+
+    // 文档异步加载接口的超时错误静默处理（由调用方自行处理）
+    if (error.status === 408 && url && url.includes('/v1/knowledge/documents/async')) {
+      return;
+    }
+
+    // 工作空间接口的500错误静默处理（由调用方自行处理）
+    if (error.status >= 500 && url && url.includes('/v1/workspaces')) {
+      return;
+    }
+
+    // 供应商列表接口的500错误静默处理（由调用方自行处理）
+    if (error.status >= 500 && url && url.includes('/v1/suppliers-list')) {
+      return;
+    }
+
+    // 设置接口的500错误静默处理（由调用方自行处理）
+    if (error.status >= 500 && url && url.includes('/v1/settings')) {
+      return;
+    }
+
     this.recordAlert(alertKey);
 
     let title = 'API请求错误';
@@ -263,7 +313,22 @@ export const request = async (endpoint, options = {}) => {
       controller = new AbortController();
       signal = controller.signal;
       timeoutId = setTimeout(() => {
-        console.warn(`[API Timeout] ${options.method || 'GET'} ${url} - timeout after ${timeout}ms`);
+        // 对特定接口的超时，使用更安静的日志级别
+        const quietUrls = [
+          '/v1/settings',
+          '/processing-status',
+          '/v1/workspaces',
+          '/v1/suppliers-list',
+          '/v1/knowledge/knowledge-bases',
+          '/v1/knowledge/documents/unprocessed',
+          '/v1/knowledge/documents/async'
+        ];
+        const isQuietUrl = url && quietUrls.some(quietUrl => url.includes(quietUrl));
+        if (isQuietUrl) {
+          console.log(`[API Timeout] ${options.method || 'GET'} ${url} - timeout after ${timeout}ms`);
+        } else {
+          console.warn(`[API Timeout] ${options.method || 'GET'} ${url} - timeout after ${timeout}ms`);
+        }
         controller.abort();
       }, timeout);
     }
@@ -395,9 +460,22 @@ export const request = async (endpoint, options = {}) => {
       throw error;
     }
 
+    // 设置接口的超时错误静默处理（由调用方自行处理）
+    if ((error.status === 408 || error.name === 'AbortError') && url && url.includes('/v1/settings')) {
+      const timeoutError = new Error('API请求超时');
+      timeoutError.originalError = error;
+      timeoutError.status = 408;
+      throw timeoutError;
+    }
+
     // 调试日志 - 对于 AbortError（用户主动取消的请求）不打印错误日志
     if (error.name !== 'AbortError') {
-      console.error(`[API Error] ${options.method || 'GET'} ${url} - error:`, error);
+      // 对于500错误，静默处理，只输出简要信息，不输出堆栈
+      if (error.status >= 500) {
+        console.log(`[API Error] ${options.method || 'GET'} ${url} - 服务器错误 (${error.status})`);
+      } else {
+        console.error(`[API Error] ${options.method || 'GET'} ${url} - error:`, error);
+      }
 
       // 显示API错误告警
       alertManager.showApiErrorAlert(error, url, options.method);
@@ -413,10 +491,10 @@ export const request = async (endpoint, options = {}) => {
       const timeoutError = new Error('API请求超时，请检查网络连接或端点响应时间。');
       timeoutError.originalError = error;
       timeoutError.status = 408;
-      
+
       // 显示超时告警
       alertManager.showApiErrorAlert(timeoutError, url, options.method);
-      
+
       throw timeoutError;
     }
 
